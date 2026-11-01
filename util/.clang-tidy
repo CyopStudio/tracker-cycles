@@ -1,0 +1,39 @@
+Checks: "cppcoreguidelines-*,bugprone-*,clang-analyzer-*,\
+concurrency-*,google-*,hicpp-*,misc-*,modernize-*,performance-*,readability-*,\
+-modernize-use-trailing-return-type,\                                           
+-google-readability-namespace-comments,\                                        
+-*-uppercase-literal-suffix,\                                                   
+-readability-identifier-length, \                                
+-cppcoreguidelines-pro-bounds-array-to-pointer-decay,-hicpp-no-array-decay,\   
+-misc-no-recursion,\
+-cppcoreguidelines-pro-type-union-access,\
+-bugprone-easily-swappable-parameters,\
+-*-magic-numbers,\
+-cppcoreguidelines-pro-bounds-constant-array-index,\
+-bugprone-exception-escape,\
+-hicpp-signed-bitwise,\
+-cppcoreguidelines-avoid-non-const-global-variables,\
+"
+# modernize-use-trailing-return-type, *-uppercase-literal-suffix - are these really better readable?
+# google-readability-namespace-comments - we are not using nested namespaces so it's mostly just a bloat 
+# readability-identifier-length - things like x, y, id sometimes make sense
+# cppcoreguidelines-pro-bounds-array-to-pointer-decay - breaks assert, bug in clang: https://reviews.llvm.org/D88833
+# misc-no-recursion - oh come on, recursion is useful
+# cppcoreguidelines-pro-type-union-access - we seldom use unions wisely to save memory and to optimize parameters passing
+# *-magic-numbers - this module due it's nature is full of number literals that do not really have any name
+# cppcoreguidelines-pro-bounds-constant-array-index - for performance reasons we should use non-bounds-checked access
+# hicpp-signed-bitwise https://stackoverflow.com/a/58845898
+# bugprone-exception-escape https://github.com/llvm/llvm-project/issues/54668
+# cppcoreguidelines-avoid-non-const-global-variables https://bugs.llvm.org/show_bug.cgi?id=48040
+
+CheckOptions:
+  - key:             cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value:           'true'
+  - key:             hicpp-special-member-functions.AllowSoleDefaultDtor
+    value:           'true'
+  - key:             misc-non-private-member-variables-in-classes.IgnoreClassesWithAllMemberVariablesBeingPublic
+    value:           'true'
+
+# unfortunately with Posix ERE syntax it's not possible to exclude specific directories
+# so we have to list the correct ones
+HeaderFilterRegex: "(include/PolyDSP/.*)|(include/PolySynth/.*)|(include/Wave/.*)|(include/PolyUtil/.*)|(source/.*)"

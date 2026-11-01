@@ -1,0 +1,37 @@
+POLYEND PRECOMPILED SYNTHESIZER & DSP LIBRARY LICENSE
+
+Copyright (c) 2023-2026 Polyend Sp. z o.o. All rights reserved.
+
+This license governs the precompiled static binary libraries located in this
+directory:
+  - libPolySynth.a
+  - libPolyDSP.a
+
+1. Grant of License
+Polyend Sp. z o.o. ("Polyend") grants you a non-exclusive, worldwide,
+royalty-free license to use, link, and redistribute these unmodified binary
+libraries solely for the purpose of compiling, modifying, and distributing
+firmware for authentic Polyend hardware devices (specifically Polyend Tracker+
+and Polyend Tracker Mini).
+
+2. Restrictions
+You may NOT:
+  (a) decompile, disassemble, reverse-engineer, or attempt to derive the source
+      code of the DSP algorithms contained within libPolySynth.a or libPolyDSP.a,
+      except to the extent such restriction is expressly prohibited by applicable
+      law;
+  (b) use, link, or embed libPolySynth.a or libPolyDSP.a in any commercial or
+      non-commercial software, plugin, or hardware product that does not run on
+      authentic Polyend hardware.
+
+3. Open-Source Synth SDK Headers
+The C++ header files in `synth/include/PolySynth/` and `synth/include/PolySynth/sdk/`
+are licensed under the repository's root `LICENSE` (PolyForm Noncommercial
+License 1.0.0 with Polyend Additional Permissions), allowing development of
+open-source, non-commercial synthesizer engines (such as `CHIP` in
+`core/synth/engines/`) that link against this library.
+
+4. Disclaimer of Warranty
+THESE LIBRARIES ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.

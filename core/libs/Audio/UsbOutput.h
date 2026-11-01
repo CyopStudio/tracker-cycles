@@ -1,0 +1,50 @@
+#ifndef LIBS_AUDIO_USBOUTPUT_H_
+#define LIBS_AUDIO_USBOUTPUT_H_
+
+#include "AudioStream.h"
+#include <algorithm>
+#include <vector>
+#ifdef PLATFORM_IMX
+class UsbOutputStream : public AudioStream
+{
+  protected:
+    static constexpr int kInputChannelsCount = 28;
+    static constexpr int kUsbChannelsCount = 28;
+    static constexpr int kChannelDisconnected = -1;
+    audio_block_t* inputQueueArray[kInputChannelsCount];
+    int usbChannelToInput[kUsbChannelsCount];
+
+  public:
+    enum AudioSource
+    {
+        kFirstTrack,
+        kLastTrack = 7,
+        kReverb,
+        kDelay,
+#ifdef FEATURE_SYNTH
+        kFirstSynth,
+        kLastSynth = kFirstSynth + kSynthParts - 1,
+#endif
+        kMaster,
+
+    };
+
+    enum SourceChannel
+    {
+        kLeft,
+        kRight,
+        kChannelsCount
+    };
+
+    void connectInputToUsbChannel(int source, SourceChannel channel, int usbChannel);
+
+    UsbOutputStream()
+      : AudioStream(kInputChannelsCount, inputQueueArray)
+    {
+        std::fill(std::begin(usbChannelToInput), std::end(usbChannelToInput), kChannelDisconnected);
+    }
+    virtual void update(void);
+};
+#endif
+
+#endif /* LIBS_AUDIO_USBOUTPUT_H_ */

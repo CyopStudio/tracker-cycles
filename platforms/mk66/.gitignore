@@ -1,0 +1,14 @@
+/Debug/
+/Release/
+*.launch
+.settings/
+
+script.jlink
+
+FileManager/exportmod.txt
+/Mini Debug/
+/Mini Release/
+
+MK66 Debug/
+
+build/

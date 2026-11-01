@@ -1,0 +1,20 @@
+/Debug/
+/Release/
+*.launch
+.settings/
+
+script.jlink
+
+/Mini Debug/
+/Mini Release/
+/Debug Mini/
+/Debug Tracker/
+/Debug Mini/
+
+build*/
+
+MIMXRT1051xxxxB_part.xml
+
+MIMXRT1051xxxxB.xml
+
+crt_infolist.dtd

@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Polyend Backstage Community Forum
+    url: https://backstage.polyend.com/
+    about: Discuss Tracker CE workflows, share custom themes/fonts/.ptfx plugins, and ask general questions on Polyend Backstage.
+  - name: The Tracker Overflow (Unofficial Discord)
+    url: https://discord.com/invite/uEPTnwckJV
+    about: Join the unofficial Polyend Tracker Discord where users and developers can connect and find like-minded people.
+  - name: Developer Documentation & Hardware Limits
+    url: https://github.com/polyend/tracker-ce#documentation--developer-guides
+    about: Read the Memory Budget, Open Synth SDK, and .ptfx Plugin documentation in README.md and docs/.

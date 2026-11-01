@@ -1,0 +1,67 @@
+#ifndef INCLUDE_DISPLAYDRIVERIMPL_H_
+#define INCLUDE_DISPLAYDRIVERIMPL_H_
+
+#include "DisplayDriver.h"
+
+class SpiBus;
+
+class DisplayDriverImpl : public DisplayDriver
+{
+  public:
+    virtual void setPowerState(bool state) override;
+
+    virtual void setBrightness(int value) override;
+    virtual void setRotation(int value) override;
+
+    virtual void getImgProps(uint32_t& addr, uint32_t& width, uint32_t& height) override;
+
+    // ft81x
+    virtual uint32_t getDisplayListOffset() override;
+    virtual void IncCMDOffset(uint16_t value) override;
+    virtual void WriteData32(uint32_t data) override;
+
+    virtual void beginCoProList() override;
+    virtual void beginCoProListNoCheck() override;
+    virtual void endCoProList() override;
+    virtual void awaitCoProEmpty() override;
+    virtual uint8_t isCoProEmpty() override;
+    virtual void writeDataRAMG(const uint8_t* imgData,
+                               uint32_t dataSize,
+                               uint32_t destAddress) override;
+    virtual void writeFontRAMG(const uint8_t* imgData,
+                               uint32_t dataSize,
+                               uint32_t destAddress) override;
+    virtual void readDataRAMG(uint8_t* imgData, uint32_t dataSize, uint32_t sourceAddress) override;
+    virtual void readBackDataRAMG(uint8_t* imgData,
+                                  uint32_t dataSize,
+                                  uint32_t sourceAddress) override;
+    virtual uint8_t sendString(const char* string, uint32_t length) override;
+    virtual void writeDataToCMD(const uint8_t* imgData, uint32_t totalDataSize) override;
+
+    // stream
+    virtual void initStreamDma(uint16_t byteResolution,
+                               uint16_t streamWidth,
+                               uint16_t streamHeight,
+                               uint8_t* streamBuf,
+                               uint32_t destMemAddress) override;
+    virtual bool updateStreamDma(bool lastFrame) override;
+    virtual void stopStreamDma() override;
+
+    void init(SpiBus* spi);
+    static void setUpdateDmaStep(int step) { streamUpdateStep = step; };
+
+  protected:
+    bool streamInitialized = false;
+    static uint8_t streamUpdateStep;
+    uint32_t streamBufDestMemAddress;
+    uint32_t screenBuffSize;
+    uint8_t* screenBuff;
+
+    uint16_t cmdOffset = 0x0000;
+
+    SpiBus* spi;
+
+    void sendDataDma();
+};
+
+#endif /* INCLUDE_DISPLAYDRIVERIMPL_H_ */

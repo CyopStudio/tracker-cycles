@@ -1,0 +1,28 @@
+# Local toolchain
+agt/
+
+# Build outputs
+/build/
+core/build-*/
+platforms/mk66/build/
+platforms/imx/build-*/
+editor-fx-sdk/build/
+*.axf
+*.lss
+*.ptf
+*.ptfx
+*.o
+*.d
+*.su
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# IDE / OS files
+.project
+.cproject
+.settings/
+.vscode/
+.idea/
+.DS_Store
