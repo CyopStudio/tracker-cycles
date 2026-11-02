@@ -39,7 +39,9 @@ jobs:
         run: make version
 
       - name: Build Original Tracker, Tracker+, and Tracker Mini firmware
-        run: make all 2>&1 | tee build_output.log
+        run: |
+          set -o pipefail
+          make all 2>&1 | tee build_output.log
 
       - name: Build reference .ptfx Sample Editor plugins
         run: |
@@ -54,12 +56,12 @@ jobs:
             echo ""
             echo "### Generated \`.ptf\` Firmware Files"
             echo "\`\`\`text"
-            ls -lh build/*.ptf
+            ls -lh build/*.ptf || true
             echo "\`\`\`"
             echo ""
             echo "### Generated \`.ptfx\` Sample Editor Effects (\`/Effects\`)"
             echo "\`\`\`text"
-            ls -lh editor-fx-sdk/build/Effects/*.ptfx
+            ls -lh editor-fx-sdk/build/Effects/*.ptfx || true
             echo "\`\`\`"
             echo ""
             echo "### Linker Memory Usage (All 3 Devices)"
