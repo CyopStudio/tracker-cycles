@@ -2,7 +2,7 @@
 #define _MTCHORDSDEFS_H_
 
 const uint8_t MIN_CHORD = 0;
-const uint8_t MAX_CHORD = 47;
+const uint8_t MAX_CHORD = 67;
 const uint8_t CHORD_FOR_MAX = 15; // number of significant bits in chordDef
 
 const uint16_t chordDef[] = {
@@ -54,15 +54,34 @@ const uint16_t chordDef[] = {
     0b0000000001000011, // 45 sus#4, 1st inversion
     0b0000100000100001, // 46 sus#4, 2nd inversion
     0b0000001001010001, // 47 m7b5, 2nd inversion
-    0b0000000000000001, // 48
-    0b0000000000000001, // 49
-    0b0000000000000001, // 50
+    0b0000000100100101, // 48 m7b5, 3rd inversion
+    0b0000000100110001, // 49 mMaj7, 2nd inversion
+    0b0000000100010011, // 50 mMaj7, 3rd inversion
+    0b0000000101010001, // 51 aug7, 1st inversion
+    0b0000000100010101, // 52 aug7, 2nd inversion
+    0b0000010001000101, // 53 aug7, 3rd inversion
+    0b0000000110010001, // 54 augMaj7, 1st inversion
+    0b0000000100011001, // 55 augMaj7, 2nd inversion
+    0b0000001000100011, // 56 augMaj7, 3rd inversion
+    0b0000000010100101, // 57 7sus4, 1st inversion
+    0b0000010000101001, // 58 7sus4, 2nd inversion
+    0b0000010100100001, // 59 sus2b7, 1st inversion
+    0b0000000010101001, // 60 sus2b7, 2nd inversion
+    0b0000001000010101, // 61 sus2b7, 3rd inversion
+    0b0000011000100001, // 62 sus2maj7, 1st inversion
+    0b0000000010110001, // 63 sus2maj7, 2nd inversion
+    0b0000000100001011, // 64 sus2maj7, 3rd inversion
+    0b0000000011000101, // 65 sus4maj7, 1st inversion
+    0b0000010000110001, // 66 sus4maj7, 2nd inversion
+    0b0000000101000011, // 67 sus4maj7, 3rd inversion
 };
 const char chordDefName[MAX_CHORD + 1][4] = {
     "---", " 27", " 28", " 36", " 37", " 47", " 48", " 57", " 5A", " 5C", " 67", " 7C",
     " 7E", "279", "27A", "27B", "369", "36A", "378", "379", "37A", "37B", "479", "47A",
     "47B", "489", "48A", "48B", "57A", "57B", " 38", " 59", " 49", " 58", "459", "158",
     "358", "259", "368", "359", "269", " 39", " 69", " 6A", " 46", " 16", " 5B", "469",
+    "258", "458", "148", "468", "248", "26A", "478", "348", "159", "257", "35A", "58A",
+    "357", "249", "59A", "457", "138", "267", "45A", "168",
 };
 
 #endif
