@@ -11,6 +11,11 @@ This unified codebase powers all three hardware instruments in the Tracker famil
 ### What's New:
 See [`CHANGELOG.md`](CHANGELOG.md) for the full list of new features and improvements.
 
+### Downloading latest Releases:
+
+See [Releases](https://github.com/polyend/tracker-ce/releases) for the latest firmwares for all devices.
+
+---
 
 ## Notice: Official Support, Warranty & Hardware Disclaimer
 
