@@ -1,0 +1,100 @@
+// PTFX_NAME: Transient Shaper
+// PTFX_AUTHOR: Emanuele Lapponi
+// PTFX_FLAGS: EFFECT, STEREO
+// PTFX_SCRATCH: 0
+
+#include "tracker_plugin.h"
+
+const PluginParam PLUGIN_PARAMS[2] = {
+    PTFX_PARAM_FLOAT("Attack", -12.0f, 12.0f, 0.0f, 0.5f, "dB"),
+    PTFX_PARAM_FLOAT("Sustain", -12.0f, 12.0f, 0.0f, 0.5f, "dB")
+};
+
+static const PtfxHostApi* s_host;
+static float s_attack_gain;
+static float s_sustain_gain;
+static float s_fast;
+static float s_slow;
+static float s_gain;
+static float s_fast_coeff;
+static float s_slow_coeff;
+static float s_gain_rise_coeff;
+static float s_gain_fall_coeff;
+
+// One-pole smoothing coefficient for a time constant in seconds.
+static float smoothing_coeff(float seconds, float sample_rate) {
+    if (s_host && s_host->expf) {
+        return 1.0f - s_host->expf(-1.0f / (seconds * sample_rate));
+    }
+    return 1.0f / (1.0f + seconds * sample_rate);
+}
+
+void plugin_init(void* scratch_mem, uint32_t scratch_size, const PtfxHostApi* host) {
+    (void)scratch_mem;
+    (void)scratch_size;
+    s_host = host;
+    float sample_rate = (host && host->sample_rate) ? (float)host->sample_rate : 44100.0f;
+    s_fast_coeff = smoothing_coeff(0.001f, sample_rate);
+    s_slow_coeff = smoothing_coeff(0.050f, sample_rate);
+    s_gain_rise_coeff = smoothing_coeff(0.001f, sample_rate);
+    s_gain_fall_coeff = smoothing_coeff(0.008f, sample_rate);
+    s_attack_gain = 1.0f;
+    s_sustain_gain = 1.0f;
+    s_fast = 0.0f;
+    s_slow = 0.0f;
+    s_gain = 1.0f;
+}
+
+void plugin_set_param(uint8_t index, float value) {
+    if (index > 1) return;
+    if (value < -12.0f) value = -12.0f;
+    if (value > 12.0f) value = 12.0f;
+    float gain = (s_host && s_host->powf) ? s_host->powf(10.0f, value * 0.05f) : 1.0f;
+    if (index == 0) s_attack_gain = gain;
+    else s_sustain_gain = gain;
+}
+
+int32_t plugin_process_block(const int16_t** in, int16_t** out, uint32_t samples, uint8_t channels) {
+    if (!in || !out || !in[0] || !out[0] || channels == 0) return 0;
+    uint8_t nch = (channels > 2) ? 2 : channels;
+    for (uint8_t ch = 0; ch < nch; ch++) {
+        if (!in[ch] || !out[ch]) return 0;
+    }
+
+    // At neutral settings preserve every PCM value exactly, including -32768.
+    if (s_attack_gain == 1.0f && s_sustain_gain == 1.0f) {
+        for (uint8_t ch = 0; ch < nch; ch++) {
+            for (uint32_t i = 0; i < samples; i++) out[ch][i] = in[ch][i];
+        }
+        return (int32_t)samples;
+    }
+
+    for (uint32_t i = 0; i < samples; i++) {
+        // A shared peak detector keeps the stereo image stable.
+        float level = 0.0f;
+        for (uint8_t ch = 0; ch < nch; ch++) {
+            float x = (float)in[ch][i] * (1.0f / 32768.0f);
+            float magnitude = x < 0.0f ? -x : x;
+            if (magnitude > level) level = magnitude;
+        }
+        s_fast += s_fast_coeff * (level - s_fast);
+        s_slow += s_slow_coeff * (level - s_slow);
+
+        // The relative excess of the fast envelope identifies rising attacks.
+        // The floor avoids amplifying detector noise near digital silence.
+        float transient = (s_fast - s_slow) / (s_fast + 0.0001f);
+        if (transient < 0.0f) transient = 0.0f;
+        if (transient > 1.0f) transient = 1.0f;
+        float target = s_sustain_gain + transient * (s_attack_gain - s_sustain_gain);
+        float coeff = target > s_gain ? s_gain_rise_coeff : s_gain_fall_coeff;
+        s_gain += coeff * (target - s_gain);
+
+        for (uint8_t ch = 0; ch < nch; ch++) {
+            float pcm = (float)in[ch][i] * s_gain;
+            if (pcm > 32767.0f) pcm = 32767.0f;
+            if (pcm < -32768.0f) pcm = -32768.0f;
+            out[ch][i] = (int16_t)pcm;
+        }
+    }
+    return (int32_t)samples;
+}
