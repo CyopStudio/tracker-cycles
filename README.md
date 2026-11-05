@@ -4,16 +4,12 @@ Welcome to the **Polyend Tracker Community Edition** repository!
 
 Built directly from the original Polyend firmware source code, Tracker CE opens up the Polyend Tracker platform to musicians, sound designers, and developers around the world. Whether you are here to flash the latest Community Edition firmware, want to build your own idea on the Tracker, design custom themes and fonts, write Sample Editor plugins, or build new synthesizer engines, we are excited to have you here.
 
-This unified codebase powers all three hardware instruments in the Tracker family:
-* **Original Polyend Tracker** (`NXP Kinetis MK66FX1M0`, Cortex-M4F @ 180 MHz)
-* **Polyend Tracker+ & Tracker Mini** (`NXP i.MX RT1051/RT1064`, Cortex-M7 @ 600 MHz)
+### Download Firmware:
+
+See [Releases](https://github.com/polyend/tracker-ce/releases) for the latest downloads for all devices.
 
 ### What's New:
 See [`CHANGELOG.md`](CHANGELOG.md) for the full list of new features and improvements.
-
-### Downloading latest Releases:
-
-See [Releases](https://github.com/polyend/tracker-ce/releases) for the latest firmwares for all devices.
 
 ---
 
@@ -30,6 +26,11 @@ See [Releases](https://github.com/polyend/tracker-ce/releases) for the latest fi
 ---
 
 ## Repository Structure
+
+This unified codebase powers all three hardware instruments in the Tracker family:
+* **Original Polyend Tracker** (`NXP Kinetis MK66FX1M0`, Cortex-M4F @ 180 MHz)
+* **Polyend Tracker+ & Tracker Mini** (`NXP i.MX RT1051/RT1064`, Cortex-M7 @ 600 MHz)
+
 
 ```text
 .
