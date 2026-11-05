@@ -84,6 +84,8 @@ class VoiceStreamManager
     bool rebindInstrumentStreamFile(int instrIdx,
                                     const char* filePath,
                                     uint32_t dataOffset);
+    // For after the card was remounted: the files may have moved on it.
+    void rebindAllInstrumentStreamFiles();
     void refreshInstrumentSliceCache(int instrIdx);
     void refreshInstrumentSingleSliceCache(int instrIdx, uint8_t sliceIdx);
 
@@ -157,6 +159,7 @@ class VoiceStreamManager
     VoiceStreamState voices[kVoiceCount];
     AsyncJob currentJob;
 
+    bool rebuildInstrumentClmt(int instrIdx);
     bool startAsyncSectorReadForJob(uint8_t channel);
     void completeChannelTransfer();
     bool scheduleNextVoiceJob(bool synchronous);

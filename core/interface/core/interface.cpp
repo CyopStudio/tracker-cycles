@@ -28,6 +28,7 @@
 #include "mtTest.h"
 
 #include "Platform.h"
+#include "VoiceStreamManager.h"
 #include "config.h"
 #include "log.h"
 #include "mtHardware.h"
@@ -410,6 +411,14 @@ void Interface::handleFileTransferMode(uint8_t state)
     else
     {
         LOG("USB storage mode off");
+
+        // The host may have changed the card, so what the filesystem driver
+        // and sample streaming remember about it can be wrong. When the mode
+        // ends because the card was ejected, there is nothing to mount.
+        if (fileSystem->remount())
+        {
+            voiceStreamManager.rebindAllInstrumentStreamFiles();
+        }
         newFileManager.setWorkspaceSaveSuspended(false);
         activateInterface();
     }
