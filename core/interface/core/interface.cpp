@@ -391,10 +391,23 @@ void Interface::handleFileTransferMode(uint8_t state)
         }
         sequencer.stopManualNotes();
 
+        // Also the check that no other file operation is using the card.
+        if (!newFileManager.flushWorkspaceSave())
+        {
+            return;
+        }
+
         activateFileTransferModeScreen();
+
+        // Closing the module above may have queued more to save. After this
+        // the device must not write to the card until the mode ends.
+        updateConfig(true);
+        newFileManager.flushWorkspaceSave();
+        newFileManager.setWorkspaceSaveSuspended(true);
     }
     else
     {
+        newFileManager.setWorkspaceSaveSuspended(false);
         activateInterface();
     }
 

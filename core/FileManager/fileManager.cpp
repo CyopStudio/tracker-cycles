@@ -157,8 +157,46 @@ uint8_t cFileManager::getProgress()
 // forceSaveAll - jak narazie nigdzie nie uzywane force=true
 bool cFileManager::saveProjectToWorkspace(bool forceSaveAll)
 {
+    if (workspaceSaveSuspended)
+    {
+        // The change flags stay set, so the save happens after the suspension.
+        return false;
+    }
+
     changesFlags.save_asap = 0;
     return workspaceProjectSave.saveProjectToWorkspace(forceSaveAll);
+}
+
+bool cFileManager::flushWorkspaceSave()
+{
+    bool autosaving =
+      currentOperation == fmSaveWorkspaceProject && status == fmSavingProjectToWorkspace;
+
+    if (currentOperation != fmNoOperation && !autosaving)
+    {
+        return false;
+    }
+
+    // An autosave already under way may have passed the newest changes, so
+    // it is followed by one more save.
+    for (int pass = 0; pass < 2; pass++)
+    {
+        if (currentOperation == fmNoOperation && !saveProjectToWorkspace())
+        {
+            break;
+        }
+        while (currentOperation == fmSaveWorkspaceProject)
+        {
+            update();
+        }
+    }
+
+    return true;
+}
+
+void cFileManager::setWorkspaceSaveSuspended(bool suspended)
+{
+    workspaceSaveSuspended = suspended;
 }
 
 bool cFileManager::openProjectFromWorkspace()

@@ -224,6 +224,15 @@ class cFileManager
     bool openRecentProject(int indexOnRecentList);
 
     bool saveProjectToWorkspace(bool forceSaveAll = false);
+
+    // Runs pending workspace saves to completion instead of leaving them to
+    // autosave. Refuses while another operation is using the card.
+    bool flushWorkspaceSave();
+
+    // For while something else, like a USB host, owns the card. Changes made
+    // in the meantime are saved once the suspension ends.
+    void setWorkspaceSaveSuspended(bool suspended);
+
     bool saveProject(char* projectPathToSave = nullptr, char* projectNameToSave = nullptr);
 
     bool importSamplesToProject(uint8_t fileFrom,
@@ -447,6 +456,7 @@ class cFileManager
     PatternsMetadata patternsMetadata;
 
     bool stereoSampleMode = false;
+    bool workspaceSaveSuspended = false;
 
     // na cele zewnetrzne (popupy itp)
     uint8_t status;
