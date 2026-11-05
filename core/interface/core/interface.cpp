@@ -382,6 +382,15 @@ void Interface::handleFileTransferMode(uint8_t state)
 
     if (state)
     {
+        // The host is about to own the card: playback must not keep streaming
+        // samples from it, and live recording must not leave changes behind
+        // for autosave to write to it. The armed state covers the pre-roll.
+        if (sequencer.getSeqState() != Sequencer::SEQ_STATE_STOP || sequencer.isRec())
+        {
+            sequencer.stop();
+        }
+        sequencer.stopManualNotes();
+
         activateFileTransferModeScreen();
     }
     else
