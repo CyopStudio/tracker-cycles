@@ -29,6 +29,7 @@
 
 #include "Platform.h"
 #include "config.h"
+#include "log.h"
 #include "mtHardware.h"
 #include "mtSleep.h"
 
@@ -404,9 +405,11 @@ void Interface::handleFileTransferMode(uint8_t state)
         updateConfig(true);
         newFileManager.flushWorkspaceSave();
         newFileManager.setWorkspaceSaveSuspended(true);
+        LOG("USB storage mode on");
     }
     else
     {
+        LOG("USB storage mode off");
         newFileManager.setWorkspaceSaveSuspended(false);
         activateInterface();
     }
