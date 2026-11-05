@@ -402,10 +402,13 @@ void Interface::handleFileTransferMode(uint8_t state)
         activateFileTransferModeScreen();
 
         // Closing the module above may have queued more to save. After this
-        // the device must not write to the card until the mode ends.
+        // the device must not use the card until the mode ends: not for
+        // saving, and not for streaming the notes that are still sounding or
+        // that MIDI input starts.
         updateConfig(true);
         newFileManager.flushWorkspaceSave();
         newFileManager.setWorkspaceSaveSuspended(true);
+        voiceStreamManager.setSuspended(true);
         LOG("USB storage mode on");
     }
     else
@@ -419,6 +422,7 @@ void Interface::handleFileTransferMode(uint8_t state)
         {
             voiceStreamManager.rebindAllInstrumentStreamFiles();
         }
+        voiceStreamManager.setSuspended(false);
         newFileManager.setWorkspaceSaveSuspended(false);
         activateInterface();
     }

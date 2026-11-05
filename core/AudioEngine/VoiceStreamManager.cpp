@@ -1709,9 +1709,22 @@ bool VoiceStreamManager::scheduleNextVoiceJob(bool synchronous)
     return true;
 }
 
+void VoiceStreamManager::setSuspended(bool suspended)
+{
+    isSuspended = suspended;
+
+    if (isSuspended && fs != nullptr)
+    {
+        // A read already on its way would otherwise complete during the next
+        // owner's first request. Its voice asks again after the suspension.
+        fs->waitAsyncRead();
+        currentJob.inProgress = false;
+    }
+}
+
 void VoiceStreamManager::update()
 {
-    if (fs == nullptr)
+    if (fs == nullptr || isSuspended)
     {
         return;
     }
