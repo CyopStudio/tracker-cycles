@@ -180,7 +180,8 @@ bool cFileManager::importSamplesToProject(uint8_t fileFrom,
                                           uint8_t instrumentSlot,
                                           uint16_t dataFrom,
                                           uint16_t dataTo,
-                                          bool isLofi)
+                                          bool isLofi,
+                                          FileManagerOperation::SampleLoadMode loadMode)
 {
     stopAutosave();
 
@@ -191,7 +192,8 @@ bool cFileManager::importSamplesToProject(uint8_t fileFrom,
       dataFrom,
       dataTo,
       isLofi,
-      stereoSampleMode ? FileManagerOperation::kLeftAndRight : FileManagerOperation::kLeft);
+      stereoSampleMode ? FileManagerOperation::kLeftAndRight : FileManagerOperation::kLeft,
+      loadMode);
 }
 
 bool cFileManager::importSampleToProject(char* filePath, char* fileName, uint8_t instrumentSlot)

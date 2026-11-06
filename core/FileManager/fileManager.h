@@ -226,12 +226,14 @@ class cFileManager
     bool saveProjectToWorkspace(bool forceSaveAll = false);
     bool saveProject(char* projectPathToSave = nullptr, char* projectNameToSave = nullptr);
 
-    bool importSamplesToProject(uint8_t fileFrom,
-                                uint8_t fileTo,
-                                uint8_t instrumentSlot,
-                                uint16_t dataFrom,
-                                uint16_t dataTo,
-                                bool isLofi);
+    bool importSamplesToProject(
+      uint8_t fileFrom,
+      uint8_t fileTo,
+      uint8_t instrumentSlot,
+      uint16_t dataFrom,
+      uint16_t dataTo,
+      bool isLofi,
+      FileManagerOperation::SampleLoadMode loadMode = FileManagerOperation::SampleLoadMode::kRam);
     bool importSampleToProject(char* filePath, char* fileName, uint8_t instrumentSlot);
     bool copyInstrumentsInWorkspace(uint8_t copyInstrSrc,
                                     uint8_t copyInstrCount,
@@ -396,7 +398,10 @@ class cFileManager
     bool isInstrumentStereo(int idx);
     void setInstrumentSampleAddress(int idx, uint16_t channelCount, uint32_t samplesCount);
     bool promoteStreamedInstrumentToRam(int idx);
-    bool demoteRamInstrumentToStream(int idx, const char* backingPtiPath, uint32_t dataOffset);
+    bool demoteRamInstrumentToStream(int idx,
+                                     const char* backingPtiPath,
+                                     uint32_t dataOffset,
+                                     bool forceStream = false);
 
     bool isWorkspaceInstrumentPtiFileValid(int idx);
     bool resolveProjectInstrumentPtiPath(int idx, char* outPath, size_t maxLen);
