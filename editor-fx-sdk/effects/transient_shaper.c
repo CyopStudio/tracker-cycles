@@ -15,13 +15,13 @@ static float s_attack_gain;
 static float s_sustain_gain;
 static float s_fast;
 static float s_slow;
-static float s_gain;
+static float s_transient;
 static float s_fast_rise_coeff;
 static float s_fast_fall_coeff;
 static float s_slow_rise_coeff;
 static float s_slow_fall_coeff;
-static float s_gain_rise_coeff;
-static float s_gain_fall_coeff;
+static float s_transient_rise_coeff;
+static float s_transient_fall_coeff;
 
 // One-pole smoothing coefficient for a time constant in seconds.
 static float smoothing_coeff(float seconds, float sample_rate) {
@@ -40,13 +40,13 @@ void plugin_init(void* scratch_mem, uint32_t scratch_size, const PtfxHostApi* ho
     s_fast_fall_coeff = smoothing_coeff(0.050f, sample_rate);
     s_slow_rise_coeff = smoothing_coeff(0.010f, sample_rate);
     s_slow_fall_coeff = s_fast_fall_coeff;
-    s_gain_rise_coeff = smoothing_coeff(0.001f, sample_rate);
-    s_gain_fall_coeff = smoothing_coeff(0.008f, sample_rate);
+    s_transient_rise_coeff = smoothing_coeff(0.0005f, sample_rate);
+    s_transient_fall_coeff = smoothing_coeff(0.008f, sample_rate);
     s_attack_gain = 1.0f;
     s_sustain_gain = 1.0f;
     s_fast = 0.0f;
     s_slow = 0.0f;
-    s_gain = 1.0f;
+    s_transient = 0.0f;
 }
 
 void plugin_set_param(uint8_t index, float value) {
@@ -94,12 +94,15 @@ int32_t plugin_process_block(const int16_t** in, int16_t** out, uint32_t samples
         float transient = (s_fast - s_slow) / (s_fast + 0.0001f);
         if (transient < 0.0f) transient = 0.0f;
         if (transient > 1.0f) transient = 1.0f;
-        float target = s_sustain_gain + transient * (s_attack_gain - s_sustain_gain);
-        float coeff = target > s_gain ? s_gain_rise_coeff : s_gain_fall_coeff;
-        s_gain += coeff * (target - s_gain);
+        // Smooth the transient measure itself (fast rise, slower fall) so the
+        // gain reacts to a hit within about a millisecond whether Attack boosts
+        // or cuts, and the gain follows without direction-dependent lag.
+        float t_coeff = transient > s_transient ? s_transient_rise_coeff : s_transient_fall_coeff;
+        s_transient += t_coeff * (transient - s_transient);
+        float gain = s_sustain_gain + s_transient * (s_attack_gain - s_sustain_gain);
 
         for (uint8_t ch = 0; ch < nch; ch++) {
-            float pcm = (float)in[ch][i] * s_gain;
+            float pcm = (float)in[ch][i] * gain;
             if (pcm > 32767.0f) pcm = 32767.0f;
             if (pcm < -32768.0f) pcm = -32768.0f;
             out[ch][i] = (int16_t)pcm;
