@@ -122,10 +122,7 @@ int32_t plugin_process_block(const int16_t** in, int16_t** out, uint32_t samples
         float gain = sustain + s_transient * (s_attack_gain - sustain);
 
         for (uint8_t ch = 0; ch < nch; ch++) {
-            float pcm = (float)in[ch][i] * gain;
-            if (pcm > 32767.0f) pcm = 32767.0f;
-            if (pcm < -32768.0f) pcm = -32768.0f;
-            out[ch][i] = (int16_t)pcm;
+            out[ch][i] = (int16_t)SATURATE_16BIT((int32_t)(in[ch][i] * gain));
         }
     }
     return (int32_t)samples;
