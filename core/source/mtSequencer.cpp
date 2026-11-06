@@ -72,6 +72,7 @@ void Sequencer::init()
 
 void Sequencer::update()
 {
+    reloadPatternAfterStop();
     updatePatternManagment();
 }
 void Sequencer::initAfterReadConfig()
@@ -1545,6 +1546,11 @@ AUDIO_CORE_RAM void Sequencer::stopManualNotes(void)
 
 void Sequencer::stop(void)
 {
+    stop(StopContext::mainLoop);
+}
+
+void Sequencer::stop(StopContext context)
+{
     LOG("sequencer stop");
 
     songTimer.stop();
@@ -1574,8 +1580,15 @@ void Sequencer::stop(void)
         player.onPatternOrSelectionEnd();
         if (sequencialSwitch_GetNext() > 0)
         {
-            newFileManager.loadWorkspacePatternNow(mtProject.values.actualPattern);
-            sequencer.switchRamPatternsNow();
+            if (context == StopContext::audioCallback)
+            {
+                player.reloadPatternAfterStop = true;
+            }
+            else
+            {
+                newFileManager.loadWorkspacePatternNow(mtProject.values.actualPattern);
+                sequencer.switchRamPatternsNow();
+            }
         }
     }
     player.onGlobalStep = nullCallback;
@@ -1605,6 +1618,21 @@ void Sequencer::stop(void)
     {
         player.track[trackIdx].stepSent.note = STEP_NOTE_EMPTY;
     }
+}
+
+void Sequencer::reloadPatternAfterStop()
+{
+    if (!player.reloadPatternAfterStop)
+    {
+        return;
+    }
+    player.reloadPatternAfterStop = false;
+
+    newFileManager.loadWorkspacePatternNow(mtProject.values.actualPattern);
+    // Playback may have been started again since the stop.
+    DISABLE_GLOBAL_INTERRUPTS();
+    switchRamPatternsNow();
+    ENABLE_GLOBAL_INTERRUPTS();
 }
 
 void Sequencer::updatePatternManagment()
@@ -1721,7 +1749,7 @@ void Sequencer::switchRowStep(uint8_t row) // przełączamy stepy w zależności
                 return;
             }
 
-            stop();
+            stop(StopContext::audioCallback);
             return;
         }
     }
@@ -1750,7 +1778,7 @@ void Sequencer::switchRowStep(uint8_t row) // przełączamy stepy w zależności
             // check if length was changed meantime
             if (player.selectionModeLooped && lastPos < player.loopSelection.firstStep)
             {
-                stop();
+                stop(StopContext::audioCallback);
                 return;
             }
 
@@ -2289,7 +2317,7 @@ AUDIO_CORE_RAM void Sequencer::inc_uStepGlobal()
         {
             if (player.globalPos > player.selectionModeLastStep)
             {
-                stop();
+                stop(StopContext::audioCallback);
                 player.onPatternOrSelectionEnd();
             }
         }
@@ -3639,7 +3667,7 @@ void Sequencer::handleMidiInStop()
     }
     externalClockPulses = 0;
     externalClocksToPlay = 0;
-    stop();
+    stop(StopContext::audioCallback);
 }
 
 void Sequencer::handleMidiInClock()
