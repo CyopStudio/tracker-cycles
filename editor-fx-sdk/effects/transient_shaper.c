@@ -16,8 +16,10 @@ static float s_sustain_gain;
 static float s_fast;
 static float s_slow;
 static float s_gain;
-static float s_fast_coeff;
-static float s_slow_coeff;
+static float s_fast_rise_coeff;
+static float s_fast_fall_coeff;
+static float s_slow_rise_coeff;
+static float s_slow_fall_coeff;
 static float s_gain_rise_coeff;
 static float s_gain_fall_coeff;
 
@@ -34,8 +36,10 @@ void plugin_init(void* scratch_mem, uint32_t scratch_size, const PtfxHostApi* ho
     (void)scratch_size;
     s_host = host;
     float sample_rate = (host && host->sample_rate) ? (float)host->sample_rate : 44100.0f;
-    s_fast_coeff = smoothing_coeff(0.001f, sample_rate);
-    s_slow_coeff = smoothing_coeff(0.050f, sample_rate);
+    s_fast_rise_coeff = smoothing_coeff(0.001f, sample_rate);
+    s_fast_fall_coeff = smoothing_coeff(0.050f, sample_rate);
+    s_slow_rise_coeff = smoothing_coeff(0.010f, sample_rate);
+    s_slow_fall_coeff = s_fast_fall_coeff;
     s_gain_rise_coeff = smoothing_coeff(0.001f, sample_rate);
     s_gain_fall_coeff = smoothing_coeff(0.008f, sample_rate);
     s_attack_gain = 1.0f;
@@ -77,8 +81,13 @@ int32_t plugin_process_block(const int16_t** in, int16_t** out, uint32_t samples
             float magnitude = x < 0.0f ? -x : x;
             if (magnitude > level) level = magnitude;
         }
-        s_fast += s_fast_coeff * (level - s_fast);
-        s_slow += s_slow_coeff * (level - s_slow);
+        // Peak followers rise quickly but release more slowly, so individual
+        // waveform cycles (especially low bass notes) do not retrigger the
+        // transient detector on every peak.
+        float fast_coeff = level > s_fast ? s_fast_rise_coeff : s_fast_fall_coeff;
+        float slow_coeff = level > s_slow ? s_slow_rise_coeff : s_slow_fall_coeff;
+        s_fast += fast_coeff * (level - s_fast);
+        s_slow += slow_coeff * (level - s_slow);
 
         // The relative excess of the fast envelope identifies rising attacks.
         // The floor avoids amplifying detector noise near digital silence.
