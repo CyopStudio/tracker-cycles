@@ -10,6 +10,18 @@ const PluginParam PLUGIN_PARAMS[2] = {
     PTFX_PARAM_FLOAT("Sustain", -12.0f, 12.0f, 0.0f, 0.5f, "dB")
 };
 
+// Sustain only applies once the signal rises above the noise floor: it is
+// off below -66 dBFS and fully on from -48 dBFS, so silence and hiss are not
+// boosted and the next hit does not start from a lifted gain.
+#define SUSTAIN_GATE_LOW  0.0005f
+#define SUSTAIN_GATE_HIGH 0.004f
+
+// Steady material leaves the fast envelope a little above the slow one (about
+// 0.14 for pure tones, 0.2 for noise, up to 0.3 for dense mixes). Treat
+// anything below this as "no transient" so Sustain reaches its dB value on
+// steady notes, while quick re-hits are still shaped.
+#define TRANSIENT_DEADZONE 0.20f
+
 static const PtfxHostApi* s_host;
 static float s_attack_gain;
 static float s_sustain_gain;
@@ -91,7 +103,8 @@ int32_t plugin_process_block(const int16_t** in, int16_t** out, uint32_t samples
 
         // The relative excess of the fast envelope identifies rising attacks.
         // The floor avoids amplifying detector noise near digital silence.
-        float transient = (s_fast - s_slow) / (s_fast + 0.0001f);
+        float transient = ((s_fast - s_slow) / (s_fast + 0.0001f) - TRANSIENT_DEADZONE) *
+                          (1.0f / (1.0f - TRANSIENT_DEADZONE));
         if (transient < 0.0f) transient = 0.0f;
         if (transient > 1.0f) transient = 1.0f;
         // Smooth the transient measure itself (fast rise, slower fall) so the
@@ -99,7 +112,14 @@ int32_t plugin_process_block(const int16_t** in, int16_t** out, uint32_t samples
         // or cuts, and the gain follows without direction-dependent lag.
         float t_coeff = transient > s_transient ? s_transient_rise_coeff : s_transient_fall_coeff;
         s_transient += t_coeff * (transient - s_transient);
-        float gain = s_sustain_gain + s_transient * (s_attack_gain - s_sustain_gain);
+        float active = (s_slow - SUSTAIN_GATE_LOW) * (1.0f / (SUSTAIN_GATE_HIGH - SUSTAIN_GATE_LOW));
+        if (active < 0.0f) active = 0.0f;
+        if (active > 1.0f) active = 1.0f;
+        // Hold Sustain back while the fast envelope is rising above the slow
+        // one (the raw, unsmoothed measure), so it does not leak onto a hit
+        // during the first moments before the smoothed transient has caught up.
+        float sustain = 1.0f + active * (1.0f - transient) * (s_sustain_gain - 1.0f);
+        float gain = sustain + s_transient * (s_attack_gain - sustain);
 
         for (uint8_t ch = 0; ch < nch; ch++) {
             float pcm = (float)in[ch][i] * gain;
