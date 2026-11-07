@@ -1273,6 +1273,7 @@ uint8_t cSampleImporter::changeFileSelection(int16_t value)
         }
         selectedFile = handleSelecting(selectedFile, locationExplorerCount, value, 1);
         updateSelection();
+        showAddOrEnter(buttons->isButtonPressed(interfaceButtonShift));
     }
     else
     {
@@ -1385,7 +1386,8 @@ void cSampleImporter::BrowseOrAdd()
     }
     else
     {
-        if (SI->buttons->isButtonPressed(interfaceButtonShift))
+        if (SI->buttons->isButtonPressed(interfaceButtonShift) &&
+            SI->selectionLength[listFiles] == 0)
         {
             auto firstEmptyInstrumentSlot = SI->getFirstEmptyInstrumentSlot();
 
@@ -1395,8 +1397,11 @@ void cSampleImporter::BrowseOrAdd()
                 return;
             }
 
-            SI->selectedSlot = static_cast<int>(*firstEmptyInstrumentSlot);
+            SI->cancelSelect(listInstruments);
+            SI->selectedSlot = *firstEmptyInstrumentSlot;
             mtProject.values.lastUsedInstrument = SI->selectedSlot;
+            SI->refreshInstrumentsList();
+            SI->handleMemoryBar();
         }
 
         functInstrumentAdd();
