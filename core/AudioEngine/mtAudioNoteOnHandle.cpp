@@ -489,6 +489,11 @@ AUDIO_CORE_RAM void playerEngine::handleNoteOnDelaySend()
     {
         preDelayMixer->gain(nChannel, 0.0f);
         preDelayMixer->gain(nChannel, 0.0f);
+#ifdef PLATFORM_IMX
+        static constexpr int kInputsChannels = 2;
+        preDelayMixer->gain(nChannel + audioEngine::kVoices + kInputsChannels, 0.0f);
+        preDelayMixer->gain(nChannel + audioEngine::kVoices + kInputsChannels, 0.0f);
+#endif
     }
     setRefreshBit(DELAY_SEND_MASK);
 }
@@ -500,6 +505,11 @@ AUDIO_CORE_RAM void playerEngine::handleNoteOnReverbSend()
     {
         prePolyverbMixer->gain(nChannel, 0.0f);
         prePolyverbMixer->gain(nChannel, 0.0f);
+#ifdef PLATFORM_IMX
+        static constexpr int kInputsChannels = 2;
+        prePolyverbMixer->gain(nChannel + audioEngine::kVoices + kInputsChannels, 0.0f);
+        prePolyverbMixer->gain(nChannel + audioEngine::kVoices + kInputsChannels, 0.0f);
+#endif
     }
 
     setRefreshBit(REVERB_SEND_MASK);
