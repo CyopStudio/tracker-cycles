@@ -539,7 +539,7 @@ struct ExprParser {
 
     bool startsAtom(const Token& t) const {
         return t.t == Tok::Ident || t.t == Tok::Num || t.t == Tok::Str || t.t == Tok::LParen ||
-               t.t == Tok::LBrack;
+               t.t == Tok::LBrack || isOp(t, "??");
     }
 
     uint16_t number(bool neg) {
@@ -621,6 +621,13 @@ struct ExprParser {
                 }
             }
             case Tok::LParen: return paren();
+            case Tok::Op:
+                if (isOp(t, "??")) {  // editor hole, kept so drafts survive save/load
+                    next();
+                    return node(Kind::Hole);
+                }
+                fail(t.pos, "expected an expression");
+                return 0;
             case Tok::Bad:
                 fail(t.pos, s[t.pos] == '"' ? "unterminated string" : "unexpected character");
                 return 0;

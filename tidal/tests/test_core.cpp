@@ -147,6 +147,9 @@ static void testRoundTrips() {
     roundTrip("n \"-1 0.5 -0.25\"");
     roundTrip("s \"bd, hh*2\"", "s \"[bd, hh*2]\"");
     roundTrip("s \"bd/2 sd*[2 3]\"");
+    // editor holes survive save/load
+    roundTrip("fast ?? $ s ??");
+    roundTrip("s \"bd\" # ??");
 }
 
 static void testParseErrors() {

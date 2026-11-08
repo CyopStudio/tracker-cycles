@@ -377,6 +377,8 @@ void Editor::act(Action a) {
             std::string err;
             if (path.empty()) error("no file path (use --save)");
             else if (!save(path, err)) error(err);
+            else if (fileText().find("??") != std::string::npos)
+                error("saved " + path + ", but it has ?? holes: Tidal can't run those blocks");
             else info("saved " + path);
             break;
         }
