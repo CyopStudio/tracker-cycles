@@ -26,3 +26,6 @@ __pycache__/
 .vscode/
 .idea/
 .DS_Store
+
+# Tracker Cycles host build
+tidal/build/
