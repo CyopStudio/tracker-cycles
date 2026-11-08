@@ -91,7 +91,3 @@ tracker`, plus `menu:N`, `shot:FILE.png`, `wait:MS`, `print`.
 - Candidate menus are built by trial (copy program, check): fine on the
   host, needs a cheaper method on the device.
 - Node `type` is a compact code, not the spec's per-program type table.
-- Spec deviations to fold back into `docs/tidal_code_tree.md`: `setcps`
-  holds an expression; ratios like `(1/8)` are `Op` nodes, not a `Num`
-  format; `MRange` has children lo and hi; `MNote.b` keeps the original
-  spelling.

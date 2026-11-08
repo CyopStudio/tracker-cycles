@@ -1,6 +1,7 @@
 # Tracker Cycles code tree (spec, step 0)
 
-Status: draft v0.1. Shared by the editor (prototype and device) and the engine.
+Status: draft v0.2. Shared by the editor (prototype and device) and the engine.
+Implementation: `tidal/core/` (see `tidal/README.md`).
 
 The code tree is the source of truth for a project's code. The editor edits
 the tree, renders it as Tidal text, and the engine compiles it into its own
@@ -38,7 +39,7 @@ A program is a fixed set of block slots plus globals.
 | :--- | :--- | :--- |
 | `d1`..`d8` | Sample channels (Tracker sample tracks) | `d1 $ <expr>` |
 | `d9`..`d16` | MIDI channels 1..8 (`d9` = channel 1) | `d9 $ <expr>` |
-| `cps` | Global tempo | `setcps (<num>)` |
+| `cps` | Global tempo; holds an expression, e.g. `(135/60/4)` | `setcps (<expr>)` |
 
 - Each slot holds one `Block` node whose single child is an expression of
   type `ControlPattern`, or is empty.
@@ -94,8 +95,10 @@ C    ::= Num | Fractional | Unionable
 
 ### 3.3 Type storage
 
-Each program has a type table (max 255 interned types). A node stores a
-type-table index; index 0 = untyped/error.
+For now a node stores a compact type code: `Pat <Base>`, `Pat a`, function,
+list, or 0 = unknown/error (`tidal/core/check.h`). Full types are recomputed
+by the checker when needed. A per-program table of interned types (max 255)
+is deferred until the device editor needs it.
 
 ---
 
@@ -103,7 +106,7 @@ type-table index; index 0 = untyped/error.
 
 | Kind | Children | Payload | Renders as |
 | :--- | :--- | :--- | :--- |
-| `Num` | none | rational value + format (see 6.3) | `2`, `0.25`, `(1/8)`, `(-1)` |
+| `Num` | none | rational value + format (see 6.3) | `2`, `0.25`, `(-1)`; a ratio like `(1/8)` is an `Op /` of two `Num`s, rendered unspaced |
 | `Mini` | one mini `Seq` root | — | `"bd*2 [sd cp]"` |
 | `Fn` | none | library id | `fast`, `rev`, `s`, `sine`, `silence` |
 | `App` | function expr, then args | flag `dollar` | `fast 2 $ s "bd"` / `fast 2 (s "bd")` |
@@ -112,7 +115,7 @@ type-table index; index 0 = untyped/error.
 | `SectionR` | rhs | operator id | `(# speed 2)`, `(+ n 12)` |
 | `Compose` | f, g | — | `rev . fast 2` |
 | `List` | elements | — | `[s "bd", s "hh*2"]` |
-| `Hole` | none | expected type | editor only, never rendered to Tidal |
+| `Hole` | none | — | editor placeholder, written `??`. Files may contain holes (so drafts survive saving), but a block with a hole can't be evaluated and Tidal can't run it |
 
 Notes:
 - `App` is n-ary over a curried function; fewer args than the signature
@@ -189,7 +192,7 @@ the euclid's events individually.
 | `MWeight` | weight | `x@3`; flag `underscore` renders as `x _ _` |
 | `MDegrade` | probability (optional, default 0.5) | `x?`, `x?0.8` |
 | `MEuclid` | k, n, rotation (optional) | `x(3,8)`, `x(<3 5>,8,2)` |
-| `MRange` | upper bound atom | `0 .. 7`, `c .. e`; numeric and `Note` types. Expands into one step per value in the enclosing sequence (`c .. e` = 5 steps). Descending ranges: verify |
+| `MRange` | children: lo atom, hi atom | `0 .. 7`, `c .. e`; numeric and `Note` types. Expands into one step per value in the enclosing sequence (`c .. e` = 5 steps). Descending ranges: verify |
 
 ### 5.3 Atoms
 
@@ -198,7 +201,7 @@ the euclid's events individually.
 | `MRest` | — | `~` |
 | `MWord` | string id + optional index | `bd`, `bd:3` |
 | `MNum` | rational + format | `1`, `0.25`, `-3` |
-| `MNote` | note value (semitone, octave flag) | `c`, `cs5`, `ef3`; `c` = `c5` = 0, `s` sharp, `f` flat |
+| `MNote` | `a` = semitone from c5; `b` = original spelling (string id + 1, 0 = canonical) | `c`, `cs5`, `ef3`; `c` = `c5` = 0, `s` sharp, `f` flat |
 | `MChord` | root (note) + chord id + modifier list | `c'maj`, `e'min9'i2'o` |
 | `MBool` | value + style | `t`, `f`, `1`, `0` |
 
@@ -256,8 +259,9 @@ block and the limit.
 
 ### 6.3 Number formatting
 
-A number keeps how it was written so the text round-trips: integer,
-decimal with N fractional digits (`0.25`), ratio (`(1/8)`), with sign. A
+A number keeps how it was written so the text round-trips: integer or
+decimal with N fractional digits (`0.25`), with sign. Ratios are `Op /`
+nodes (section 4). A
 decimal with more than 9 fractional digits, or one whose rational doesn't
 fit 32 bits, is a load-time error.
 

@@ -123,6 +123,9 @@ to upstream CE.
   (platforms/mk66/3rdparty/teensy_core/mk66fx1m0.ld)
 - synth/lib/ precompiled libPolySynth.a, libPolyDSP.a (not used on MK66)
 - docs/developer_guide.md  architecture, hardware limits, gotchas
+- tidal/     our code (host build, `make -C tidal test smoke arm`):
+  core/ shared tree/parser/renderer/checker (no heap, portable),
+  proto/ editor prototype, tests/. See tidal/README.md.
 
 ## Rules / gotchas
 - Do NOT change flash ORIGIN addresses in linker scripts.
