@@ -83,10 +83,12 @@ C    ::= Num | Fractional | Unionable
     fractional part).
   - A string literal is `Pat B` for whatever `B` is expected; its atoms are
     checked against `B` (section 5.4).
-- Type variables still unresolved at block level are defaulted: numeric
-  literals become `Double` unless a `Time` or `Int` position forces
-  otherwise. This is a guess at GHC's defaulting for Tidal code; confirm it
-  in GHCi (Open question 3).
+- No defaulting. In GHCi a bare literal stays polymorphic (`1 :: Num a =>
+  a`) and a literal argument takes its type from the function's signature
+  (`fast 2 ...` makes `2` a `Pat Time`). Since every block is a
+  `ControlPattern`, signatures fix every literal in practice. A type
+  variable still unresolved at block level is an "ambiguous type" error in
+  the editor.
 - The editor holds incomplete trees: a `Hole` node has an expected type and
   makes the block non-evaluable until filled.
 
@@ -129,15 +131,27 @@ infixl 7, function application binds tightest.
 Tidal operators in scope (v1): `#`, the `|op|`, `|op`, `op|` forms for
 `+ - * / % < >` (and `++` for strings), `<~`, `~>`.
 
-**Their fixities are not in the published docs. Verify each with `:info`
-in GHCi against Tidal 1.10.3 before writing the parser**, and record them
-here. Until then the renderer parenthesises any mix of Tidal operators.
+Fixities from `:info` in GHCi, Tidal 1.10.3 (checked 2026-11-08):
 
-| Operator | Fixity (to verify) |
-| :--- | :--- |
-| `#` | ? |
-| `\|+\|`, `\|+`, `+\|` and the other arithmetic/union families | ? |
-| `<~`, `~>` | ? |
+| Operator | Fixity | Checked |
+| :--- | :--- | :--- |
+| `#` | infixl 9 | yes |
+| `\|+\|`, `\|+`, `+\|` | infixl 9 | yes |
+| `\|<`, `\|>` | infixl 9 | yes |
+| `<~`, `~>` | infixl 9 | yes |
+| `\|-\|`.., `\|*\|`.., `\|/\|`.., `\|%\|`.., `\|<\|`, `\|>\|`, `\|++\|`.., and the `\|\|op` forms | presumably infixl 9 | **no**, check before adding each to the library |
+
+Consequences for the parser and renderer:
+- All Tidal operators share one level and associate left:
+  `1 <~ s "bd" # n 1` is `(1 <~ s "bd") # n 1`, and
+  `a # b |+ c` is `(a # b) |+ c`.
+- They bind **tighter** than Haskell arithmetic (`+`, `-` infixl 6; `*`, `/`
+  infixl 7): `n "1" # n "2" + n "3"` is `(n "1" # n "2") + n "3"`.
+- `.` is infixr 9, the same precedence with the opposite associativity.
+  GHC rejects an unparenthesised mix (`rev . fast 2 # speed 2`), so the
+  parser reports the same error, and the renderer always parenthesises when
+  a `Compose` and a Tidal operator meet.
+- Function application binds tightest; `$` (infixr 0) loosest.
 
 ---
 
@@ -154,7 +168,7 @@ pool and layout with expression nodes.
 | `MSub` | `MSeq`s (layers) | — | `[a b, c d]`: subdivide one step, layers stacked |
 | `MAlt` | `MSeq`s (layers) | — | `<a b c>`: one child per cycle; layers stacked |
 | `MPoly` | `MSeq`s (layers) | optional steps arg (child) | `{a b c, d e}` / `{a b c}%4` |
-| `MChoice` | `MSeq`s | — | `[a \| b \| c]`: random choice (how often it re-picks: verify) |
+| `MChoice` | `MSeq`s | — | `[a \| b \| c]`: random choice, re-picked each time the step occurs (deterministic, seeded by time) |
 
 The top level of a string is an `MSeq`, or an `MSub` if it uses `,` at top
 level (Tidal requires `[ ]` there; the renderer adds them).
@@ -163,7 +177,9 @@ level (Tidal requires `[ ]` there; the renderer adds them).
 
 A step is an atom or container, optionally wrapped in modifier nodes. The
 innermost wrapper applies first, matching left-to-right text order
-(`bd*2?` = `Degrade(Fast(bd, 2))`).
+(`bd*2?` = `Degrade(Fast(bd, 2))`). Confirmed in Tidal 1.10.3:
+`bd*2!2` is `Replicate(Fast(bd, 2), 2)` (4 events), and `bd(3,8)?` degrades
+the euclid's events individually.
 
 | Kind | Args (mini sub-trees, may be patterned) | Renders as |
 | :--- | :--- | :--- |
@@ -173,7 +189,7 @@ innermost wrapper applies first, matching left-to-right text order
 | `MWeight` | weight | `x@3`; flag `underscore` renders as `x _ _` |
 | `MDegrade` | probability (optional, default 0.5) | `x?`, `x?0.8` |
 | `MEuclid` | k, n, rotation (optional) | `x(3,8)`, `x(<3 5>,8,2)` |
-| `MRange` | upper bound atom | `0 .. 7` (numeric types only) |
+| `MRange` | upper bound atom | `0 .. 7`, `c .. e`; numeric and `Note` types. Expands into one step per value in the enclosing sequence (`c .. e` = 5 steps). Descending ranges: verify |
 
 ### 5.3 Atoms
 
@@ -182,7 +198,7 @@ innermost wrapper applies first, matching left-to-right text order
 | `MRest` | — | `~` |
 | `MWord` | string id + optional index | `bd`, `bd:3` |
 | `MNum` | rational + format | `1`, `0.25`, `-3` |
-| `MNote` | note value (semitone, octave flag) | `c`, `cs5`, `ef3` |
+| `MNote` | note value (semitone, octave flag) | `c`, `cs5`, `ef3`; `c` = `c5` = 0, `s` sharp, `f` flat |
 | `MChord` | root (note) + chord id + modifier list | `c'maj`, `e'min9'i2'o` |
 | `MBool` | value + style | `t`, `f`, `1`, `0` |
 
@@ -317,14 +333,27 @@ cursor and offers only matching choices.
    MIDI target for this, so the prototype backend appends
    `# s "midi" # midichan N` (N = 0..7) when sending d9..d16 to SuperDirt;
    it is never stored in the tree or the `.tidal` file.
-2. **Operator fixities** (4.1): verify in GHCi.
-3. **Numeric defaulting** (3.2): confirm how GHCi types ambiguous literals
-   in Tidal code, and match it.
+2. **Operator fixities** (4.1): resolved for `#`, `|+|`, `|+`, `+|`,
+   `|<`, `|>`, `<~`, `~>`; the remaining families still need `:info`.
+3. **Numeric defaulting** (3.2): resolved, no defaulting needed.
 4. **Random seeds.** `?`, `|`, `rand` and friends are deterministic in Tidal
    (seeded from cycle position). The tree only records where randomness is;
    matching Tidal's exact values is an engine/golden-test question.
 5. **Transitions** (`xfade`, `jumpIn`, ...), `once`, `p "name"`, muting with
    `_d1`: out of v1.
-6. **Mini-notation corner cases** to confirm against Tidal: modifier order
-   and chaining (`bd*2!2`, `bd(3,8)?`), `!` without a number after a group,
-   `_` after a group, `..` with note names, nested polymeter `%`.
+6. **Mini-notation corner cases**: modifier chaining and `..` with note
+   names resolved (5.2). Still to confirm: descending `..` (`e .. c`), `!`
+   without a number after a group, `_` after a group, nested polymeter `%`.
+
+---
+
+## 10. Observed Tidal 1.10.3 results (first golden cases)
+
+From `queryArc` in GHCi, 2026-11-08. Times in cycles.
+
+| Pattern (type) | Arc | Events |
+| :--- | :--- | :--- |
+| `"[bd \| sd \| hh]"` (String) | 0-4 | 0-1 sd, 1-2 sd, 2-3 bd, 3-4 hh |
+| `"bd*2!2"` (String) | 0-1 | bd at 0, ¼, ½, ¾, each ¼ long |
+| `"bd(3,8)?"` (String) | 0-1 | 0-⅛ bd, ⅜-½ bd |
+| `"c .. e"` (Note) | 0-1 | 0, 1, 2, 3, 4 (c5..e5), each ⅕ long |
