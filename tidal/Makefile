@@ -26,15 +26,20 @@ PROTO_LIBS :=
 ifeq ($(SDL),1)
 SDL_PREFIX ?= /usr
 PROTO_OBJ  += $(BUILD)/proto/sdl_window.o
-CXXFLAGS_SDL := -DTC_HAVE_SDL -I$(SDL_PREFIX)/include -I$(SDL_PREFIX)/include/SDL2
+CXXFLAGS_SDL := -DTC_HAVE_SDL -I$(SDL_PREFIX)/include -I$(SDL_PREFIX)/include/SDL2 \
+                -I$(SDL_PREFIX)/include/x86_64-linux-gnu
 PROTO_LIBS += -L$(SDL_PREFIX)/lib/x86_64-linux-gnu -L$(SDL_PREFIX)/lib -lSDL2
 endif
 
-.PHONY: all test proto arm clean
+.PHONY: all test smoke proto arm clean
 all: $(BUILD)/run_tests $(BUILD)/tidal_proto
 
 test: $(BUILD)/run_tests
 	./$(BUILD)/run_tests
+
+# Scripted editor sessions: tests/proto/NAME.keys must print NAME.expected.
+smoke: $(BUILD)/tidal_proto
+	tests/proto/run_smoke.sh $(BUILD)/tidal_proto
 
 proto: $(BUILD)/tidal_proto
 

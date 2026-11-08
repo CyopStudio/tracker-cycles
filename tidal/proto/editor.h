@@ -1,0 +1,108 @@
+// Structured editor model for the prototype. Operates on the shared code
+// tree (tidal/core); everything typed, every edit re-checked.
+#pragma once
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "backend.h"
+#include "tree.h"
+
+namespace proto {
+
+enum class Action {
+    Left, Right, Up, Down,             // navigate siblings / parent / child
+    WheelUp, WheelDown,                // change value (or menu selection)
+    WheelUpFast, WheelDownFast,        // bigger steps / sample index
+    Replace, Wrap, Insert, Delete, Unwrap,
+    Undo, Evaluate, Hush, NextSlot, PrevSlot,
+    Confirm, Cancel, Save, ToggleTrackerMode,
+};
+const char* actionName(Action a);
+bool actionFromName(const std::string& s, Action& out);
+
+enum class SlotState { Empty, Edited, Playing, Error };
+
+struct MenuItem {
+    std::string label;
+    std::shared_ptr<tc::Program> result;  // program after applying this item
+    uint16_t cursor;                      // cursor in `result`
+};
+
+class Editor {
+public:
+    Editor();
+    bool load(const std::string& path, std::string& err);
+    bool loadText(const std::string& text, std::string& err);
+    bool save(const std::string& path, std::string& err);
+    std::string fileText() const;
+
+    void act(Action a);
+    void selectMenu(int i);   // jump to a menu entry (scripted use)
+
+    // state for the view
+    const tc::Program& prog() const { return *prog_; }
+    int slot() const { return slot_; }
+    uint16_t cursor() const { return cursor_; }
+    bool menuOpen() const { return menuOpen_; }
+    const std::string& menuTitle() const { return menuTitle_; }
+    const std::vector<MenuItem>& menu() const { return menu_; }
+    int menuSel() const { return menuSel_; }
+    const std::string& message() const { return message_; }
+    bool messageIsError() const { return messageError_; }
+    SlotState slotState(int s) const { return state_[s]; }
+    bool trackerMode() const { return trackerMode_; }
+    std::string cursorInfo() const;
+    std::string evalText(int slot, std::string* err = nullptr) const;  // what gets sent
+
+    void setBackend(Backend* b) { backend_ = b; }
+    Backend* backend() const { return backend_; }
+    void setSamples(const std::vector<std::string>& s) { samples_ = s; }
+    std::string path;
+
+private:
+    void info(const std::string& m) { message_ = m; messageError_ = false; }
+    void error(const std::string& m) { message_ = m; messageError_ = true; }
+    void snapshot();
+    void commit(std::unique_ptr<tc::Program> p, uint16_t cursor);  // checks, sets state
+    bool recheck(tc::Program& p, std::string& err) const;
+    uint16_t exprRoot() const;
+    void enterSlot(int s);
+
+    void navigate(Action a);
+    void wheel(int dir, bool fast);
+    void openReplace();
+    void openWrap(bool controlsOnly);
+    void doDelete();
+    void doUnwrap();
+    void evaluate();
+    void openMenu(const std::string& title, std::vector<MenuItem> items);
+    void wheelFn(int dir);
+
+    // candidate helpers: build a copy with the cursor node replaced by parsed
+    // code (expression or mini-notation). Returns null if it doesn't check.
+    std::shared_ptr<tc::Program> tryReplace(const std::string& code, bool mini, uint16_t& newNode) const;
+    std::shared_ptr<tc::Program> tryWrapApp(const std::string& head, uint16_t& newNode) const;
+    std::shared_ptr<tc::Program> tryWrapOp(const char* op, const std::string& rhs, bool xOnLeft,
+                                           uint16_t& newNode) const;
+    std::string renderNode(const tc::Program& p, uint16_t n) const;
+    bool isTransparent(const tc::Program& p, uint16_t n) const;
+
+    std::unique_ptr<tc::Program> prog_;
+    std::vector<std::unique_ptr<tc::Program>> undo_;
+    int slot_ = 0;
+    uint16_t cursor_ = 0;
+    bool menuOpen_ = false;
+    std::string menuTitle_;
+    std::vector<MenuItem> menu_;
+    int menuSel_ = 0;
+    std::string message_;
+    bool messageError_ = false;
+    SlotState state_[tc::kSlots];
+    bool trackerMode_ = true;
+    Backend* backend_ = nullptr;
+    std::vector<std::string> samples_;
+    std::string lastCps_;  // last setcps sent to the backend
+};
+
+}  // namespace proto

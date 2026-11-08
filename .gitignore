@@ -29,3 +29,4 @@ __pycache__/
 
 # Tracker Cycles host build
 tidal/build/
+tidal/build-*/
