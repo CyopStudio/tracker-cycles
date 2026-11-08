@@ -38,7 +38,7 @@
 	* Replaced heavy per-sample standard math calls (`std::pow`, `std::sin`, `std::fmod`, `std::exp`) in the audio interrupt with fast, high-precision approximations and hoisted block-level calculations. This eliminates audio interrupt overruns and freezes when playing 8-voice `CHIP` chords.
 
 * **UI/UX, Sequencer & Filesystem Optimizations (All 3 Devices)**:
-	* Optimized display SPI bus transfers, pattern editor rendering, and pad LED updates for snappier UI responsiveness.
+	* Optimized display SPI bus transfers and pattern editor rendering for snappier UI responsiveness.
 	* Moved `Sequencer::play_microStep` into fast `AUDIO_CORE_RAM`, skipped redundant `endFx` resets in the audio sequencer, and removed redundant filesystem checks and full-buffer zeroing during file loads.
 
 * **USB Mass Storage Mode Safety & SD Remounting (Tracker+ & Tracker Mini)**:
@@ -55,10 +55,11 @@
 	* **Fixed Playhead Escaping Very Short Loops & Grains (All 3 Devices)**: Prevented backward loops, ping-pong loops, and granular playheads from running out of bounds into memory (causing noise bursts) when the pitch step exceeds a very short loop or grain length.
 	* **Fixed Sequencer Tune Modulation Bug (All 3 Devices)**: Fixed an issue where sequencer modulation on `Tune` checked the `wavetablePosition` flag instead of `tune`.
 
-* **Sequencer, MIDI Fixes (All 3 Devices)**:
+* **Sequencer, MIDI & Pattern Editor Fixes (All 3 Devices)**:
 	* **Fixed Freeze After Leaving Performance Mode (Tracker+ & Tracker Mini)**: Moved the pending pattern reload on sequencer stop out of the audio interrupt callback and into the main loop, fixing a freeze when previewing steps or receiving MIDI Stop after exiting Performance Mode.
 	* **Fixed Synth FX MIDI CC Control in Performance Mode**: Restored MIDI CC control over synth effect parameters in Performance Mode.
 	* **Fixed Song Mode Block Copy/Paste**: Fixed copying and pasting song arrangement blocks smaller than 32 steps.
+	* **Fixed Beat-Slice Pad Guide Lights in Live Recording Mode (Tracker & Tracker+)**: Enabled beat-slice pad guide lights in the Pattern Editor when Live Recording (`Rec + Play`) is active, matching step-record mode and the Instrument Parameters screen.
 
 * **Hardened File Validation, WAV Parsing, SD I/O & Sample Recorder Stop**:
 	* Fixed Sample Recorder stop deadlocks on stereo buffer imbalance and full sample memory.
