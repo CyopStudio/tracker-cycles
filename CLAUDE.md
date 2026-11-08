@@ -29,6 +29,7 @@ to upstream CE.
 0. Shared code-tree spec, used by both the editor and the engine: node
    types, tree -> Tidal text rendering, text -> tree parsing, per-node size
    limits. Do this before 1 so step 3 isn't a rewrite.
+   Spec: docs/tidal_code_tree.md (draft v0.1, targets Tidal 1.10.3).
 1. Editor prototype: standalone C++ app -> real Tidal (GHCi) -> SuperDirt.
    - Draw against a small display interface at the Tracker's 800x480; map
      pads/encoder/buttons to keys. Only the drawing layer gets rewritten
