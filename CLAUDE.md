@@ -142,9 +142,11 @@ to upstream CE.
 - Don't shift `Interface::modules[]` indices (hard-coded by UI navigation).
 
 ## Git
-- main mirrors upstream (ff-only). feature/tidal is the working branch and
-  currently branches directly off main; there is no develop branch yet.
-  Commit small and often.
+- main mirrors upstream (ff-only), develop branches off main (exists on
+  origin only; no local branch), feature/tidal is the working branch,
+  branched from develop. Commit small and often.
+- origin: https://github.com/CyopStudio/tracker-cycles.git (the user's fork,
+  not Polyend's). Pushing uses Git Credential Manager from Git for Windows.
 
 ## Original Tracker budgets (measured / derived)
 
