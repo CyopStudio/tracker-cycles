@@ -24,8 +24,8 @@ Quickest way to open the window (rebuilds first if anything changed):
 tidal/run_proto.sh                     # opens tidal/work.tidal (yours, not in git)
 tidal/run_proto.sh my.tidal --backend ghci --boot proto/boot.ghci
 make -C tidal run                      # same as the first line
-tidal/run_proto.sh --install-shortcut  # "Tracker Cycles" in the app menu;
-                                       # on WSL2: Windows Start menu, via WSLg
+tidal/run_proto.sh --install-shortcut  # "Tracker Cycles" shortcut; on WSL2 on
+                                       # the Windows Desktop + Start menu
 ```
 
 `work.tidal` starts as a copy of `proto/example.tidal`; Ctrl+S saves it.

@@ -6,9 +6,9 @@
 #                                         proto/example.tidal the first time)
 #   tidal/run_proto.sh my.tidal [opts]    open another file; extra options go
 #                                         to tidal_proto (e.g. --backend ghci)
-#   tidal/run_proto.sh --install-shortcut add "Tracker Cycles" to the app menu
-#                                         (on WSL2 it shows up in the Windows
-#                                         Start menu via WSLg)
+#   tidal/run_proto.sh --install-shortcut add "Tracker Cycles" to the Linux
+#                                         app menu and, on WSL2, as Windows
+#                                         Desktop + Start menu shortcuts
 #
 # Started without a terminal (from the shortcut), output goes to
 # tidal/build-sdl/launch.log.
@@ -30,7 +30,24 @@ Terminal=false
 Categories=AudioVideo;Audio;
 EOF
     echo "installed $dir/tracker-cycles.desktop"
-    echo "On WSL2 it appears in the Windows Start menu as \"Tracker Cycles (Ubuntu)\" (may take a minute)."
+    # WSL2: WSLg doesn't always list .desktop apps in the Start menu, so
+    # also make Windows shortcuts that start this script via wslg.exe
+    # (no console window).
+    if command -v powershell.exe >/dev/null 2>&1 && [ -n "$WSL_DISTRO_NAME" ]; then
+        powershell.exe -NoProfile -Command "
+            \$wslg = Join-Path \$env:ProgramFiles 'WSL\\wslg.exe'
+            if (-not (Test-Path \$wslg)) { \$wslg = 'C:\\Windows\\System32\\wsl.exe' }
+            \$sh = New-Object -ComObject WScript.Shell
+            foreach (\$d in @([Environment]::GetFolderPath('Desktop'), [Environment]::GetFolderPath('Programs'))) {
+                \$l = \$sh.CreateShortcut((Join-Path \$d 'Tracker Cycles.lnk'))
+                \$l.TargetPath = \$wslg
+                \$l.Arguments = '-d $WSL_DISTRO_NAME --cd $here -- ./run_proto.sh'
+                \$l.Description = 'Tracker Cycles editor prototype'
+                \$l.IconLocation = \$wslg + ',0'
+                \$l.Save()
+                Write-Output ('installed ' + (Join-Path \$d 'Tracker Cycles.lnk'))
+            }" | tr -d '\r'
+    fi
     exit 0
 fi
 
