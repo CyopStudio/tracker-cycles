@@ -160,3 +160,12 @@ arith_div         1  speed ("1 2" / 4)
 @jumpIn_2_now_2.5    9  jumpIn 2 (5/2) [s "new", s "old"]
 @jumpIn_2_now_3      9  jumpIn 2 3 [s "new", s "old"]
 @jumpMod_2_subcycle  4  jumpMod 2 (1/2) [s "new*2", s "old*3"]
+
+# ---- cycle numbering inside cat / alternation (engine semantics) -------------
+cat_cycles        6  cat [s "<a b>", s "c"]
+slowcat_cycles    6  slowcat [s "<a b c>", s "d"]
+alt_inner_alt     6  s "<a <b c>>"
+alt_slow_inner    4  s "<a b/2>"
+iter_alt          4  iter 4 $ s "<a b> c d e"
+fastcat_alt       2  fastcat [s "<a b>", s "c"]
+seq_slow_whole    2  s "bd sd/2 hh"

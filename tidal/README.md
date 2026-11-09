@@ -4,7 +4,7 @@ Plan steps 0–1 (see `../CLAUDE.md` and `../docs/tidal_code_tree.md`).
 
 | Directory | What | Runs on |
 | :--- | :--- | :--- |
-| `core/` | Code tree, function library, parser, renderer, type checker. No heap, fixed pools. Will be shared with the firmware. | host + MK66 |
+| `core/` | Code tree, function library, parser, renderer, type checker, and the query engine (`engine.*`, `qtime.h`: tree -> events, 32-bit rational time). No heap, fixed pools. Will be shared with the firmware. | host + MK66 |
 | `proto/` | Editor prototype (step 1): editor model, 800×480 view drawn with the firmware's own fonts, GHCi backend, optional SDL window. | host |
 | `tests/` | Core tests (`test_core.cpp`) and scripted editor sessions (`proto/*.keys`). | host |
 | `golden/` | Golden cases captured from real Tidal (see below). | host |
@@ -31,9 +31,18 @@ GHCi `:t` of every library entry. Both are committed; rerun after editing
 `cases.txt`.
 
 `make test` checks every case parses, type-checks and renders stably here,
-that `expected.txt` matches `cases.txt`, and that all times fit 32-bit
-rationals. Comparing our events against `expected.txt` comes with the
-query engine (`tests/golden.h` already loads the events).
+that `expected.txt` matches `cases.txt`, that all times fit 32-bit
+rationals, and runs the query engine on every case: its events must match
+the captured ones (exact times, exact strings, numbers within 1e-9).
+Cases listed in `golden/engine_pass.txt` must keep matching (a ratchet);
+`run_tests` names cases that newly match so you can add them.
+`GOLDEN_VERBOSE= ./build/run_tests` shows why each other case differs
+(`GOLDEN_VERBOSE=stut` limits it to names containing "stut").
+
+Engine status: 113/127 cases match. The 14 that don't are the random
+functions (`?`, `|`, `degradeBy`, `sometimes`..., `rand`, `irand`),
+not implemented yet: matching Tidal's values needs Tidal's random-number
+formula, which is only in its GPL source (CLAUDE.md "Licensing").
 
 Things the captures show the engine must do:
 - Control aliases: `hpf` arrives as `hcutoff`.

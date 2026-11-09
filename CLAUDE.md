@@ -132,8 +132,14 @@ folders listed in the project (e.g. a manifest) on project load.
 2. Host-side engine (tidal/ dir), can run in parallel with 1:
    - Desktop test runner + golden tests: event lists captured from real
      Tidal by a capture script (needs host GHC + Tidal; no SuperDirt).
-     Done: tidal/golden/ (119 cases, capture.py, types.txt); next is the
-     query engine that `make test` will compare against expected.txt.
+     Done: tidal/golden/ (capture.py, types.txt) and a first query engine
+     (tidal/core/engine.*): 113/127 golden cases match exactly; the rest
+     are the random functions (open decision: Tidal's PRNG is only defined
+     in GPL source). Engine is host-first; before the MK66 build: events
+     are ~712 B each (fixed 20-control map + doubles) and the arena is
+     8192 events = 5.8 MB; code is ~69 KB text on ARM; values use double
+     (software on the M4F). Shrink: control maps in a shared pool, float
+     values, smaller arena, then the timing build.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at

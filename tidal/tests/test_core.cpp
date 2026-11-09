@@ -5,7 +5,14 @@
 #include <string>
 #include <vector>
 
+#include <math.h>
+#include <stdlib.h>
+
+#include <algorithm>
+#include <set>
+
 #include "check.h"
+#include "engine.h"
 #include "golden.h"
 #include "library.h"
 #include "parse.h"
@@ -349,6 +356,71 @@ static void testNodeSize() {
     EXPECT(n == kMaxNodes - 1, "pool holds %d nodes (got %d)", kMaxNodes - 1, n);
 }
 
+// ---- engine vs golden events ----------------------------------------------------
+static Event gEvents[4096];
+
+static bool sameRat(const golden::Rat& g, Q q) { return g.num == q.n && g.den == q.d; }
+
+static bool sameValue(const Program& p, const golden::Value& g, const Ctl& c) {
+    if (g.key != controlDef(c.key).name || g.tag != c.tag) return false;
+    if (g.tag == 's') {
+        char buf[64];
+        formatVal(p, c.v, buf, sizeof buf);
+        return g.text == buf;
+    }
+    double want = atof(g.text.c_str()), got = c.v.f;
+    return fabs(want - got) <= 1e-9 * (fabs(want) > 1 ? fabs(want) : 1);
+}
+
+static bool sameEvent(const Program& p, const golden::Event& g, const Event& e) {
+    if (g.hasWhole != e.hasWhole) return false;
+    if (g.hasWhole && (!sameRat(g.ws, e.whole.s) || !sameRat(g.we, e.whole.e))) return false;
+    if (!sameRat(g.ps, e.part.s) || !sameRat(g.pe, e.part.e)) return false;
+    if (!e.isMap || (int)g.values.size() != e.nctl) return false;
+    for (const auto& gv : g.values) {
+        bool found = false;
+        for (int i = 0; i < e.nctl && !found; i++) found = sameValue(p, gv, e.ctl[i]);
+        if (!found) return false;
+    }
+    return true;
+}
+
+static std::string eventText(const Program& p, const Event& e) {
+    char buf[512];
+    int n = 0;
+    if (e.hasWhole) n += snprintf(buf + n, sizeof buf - n, "%d/%d %d/%d ", e.whole.s.n, e.whole.s.d, e.whole.e.n, e.whole.e.d);
+    else n += snprintf(buf + n, sizeof buf - n, "~ ~ ");
+    n += snprintf(buf + n, sizeof buf - n, "%d/%d %d/%d", e.part.s.n, e.part.s.d, e.part.e.n, e.part.e.d);
+    for (int i = 0; i < e.nctl && n < (int)sizeof buf - 40; i++) {
+        char v[64];
+        formatVal(p, e.ctl[i].v, v, sizeof v);
+        n += snprintf(buf + n, sizeof buf - n, " %s=%c:%s", controlDef(e.ctl[i].key).name, e.ctl[i].tag, v);
+    }
+    return buf;
+}
+
+// Engine events for case `c` vs the captured ones. Empty string = match.
+static std::string engineDiff(const golden::Case& c, const golden::Case& x, const Program& p, uint16_t expr) {
+    Error e;
+    int n = queryPattern(p, expr, Arc{Q{0, 1}, Q{c.cycles, 1}}, gEvents, 4096, e);
+    if (n < 0) return std::string("engine error: ") + e.msg;
+    std::vector<bool> used(n, false);
+    for (const auto& g : x.events) {
+        bool ok = false;
+        for (int i = 0; i < n && !ok; i++)
+            if (!used[i] && sameEvent(p, g, gEvents[i])) used[i] = ok = true;
+        if (!ok) {
+            std::string s = "missing an event at part " + std::to_string(g.ps.num) + "/" + std::to_string(g.ps.den);
+            for (int i = 0; i < n; i++)
+                if (!used[i]) return s + "; first unmatched of ours: " + eventText(p, gEvents[i]);
+            return s;
+        }
+    }
+    for (int i = 0; i < n; i++)
+        if (!used[i]) return "extra event: " + eventText(p, gEvents[i]);
+    return "";
+}
+
 // Golden cases (golden/cases.txt, captured from real Tidal into
 // golden/expected.txt by golden/capture.py): every case must parse and
 // type-check here, render stably, and match its captured block. Event
@@ -365,6 +437,17 @@ static void testGolden() {
            expected.size());
     size_t events = 0;
     long long maxDen = 0;
+    // engine: cases in golden/engine_pass.txt must match (ratchet)
+    std::set<std::string> mustPass;
+    {
+        std::ifstream f("golden/engine_pass.txt");
+        std::string line;
+        while (std::getline(f, line))
+            if (!line.empty() && line[0] != '#') mustPass.insert(line);
+    }
+    const char* verbose = getenv("GOLDEN_VERBOSE");
+    int engineOk = 0, engineTotal = 0;
+    std::vector<std::string> newlyPassing;
     for (size_t i = 0; i < cases.size(); i++) {
         const golden::Case& c = cases[i];
         if (i < expected.size()) {
@@ -401,7 +484,26 @@ static void testGolden() {
         b[0] = 0;
         r2.file(gProg2);
         EXPECT(strcmp(a, b) == 0, "golden %s: render not stable:\n%s%s", c.name.c_str(), a, b);
+        if (i < expected.size() && gProg.block[0]) {
+            engineTotal++;
+            std::string d = engineDiff(c, expected[i], gProg, gProg.at(gProg.block[0]).first);
+            bool must = mustPass.count(c.name) > 0;
+            if (d.empty()) {
+                engineOk++;
+                if (!must) newlyPassing.push_back(c.name);
+            }
+            EXPECT(!must || d.empty(), "engine %s regressed: %s", c.name.c_str(), d.c_str());
+            if (!d.empty() && verbose && (!*verbose || c.name.find(verbose) != std::string::npos))
+                printf("  engine %-18s %s\n", c.name.c_str(), d.c_str());
+        }
     }
+    printf("engine: %d/%d golden cases match", engineOk, engineTotal);
+    if (!newlyPassing.empty()) {
+        printf(" (%zu not yet in golden/engine_pass.txt:", newlyPassing.size());
+        for (auto& s : newlyPassing) printf(" %s", s.c_str());
+        printf(")");
+    }
+    printf("\n");
     EXPECT(events > 0, "golden: no events captured");
     printf("golden: %zu cases, %zu events, max denominator %lld\n", cases.size(), events, maxDen);
 }
