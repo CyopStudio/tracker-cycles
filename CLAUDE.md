@@ -72,6 +72,22 @@ to upstream CE.
   Start menu shortcuts via wslg.exe (WSLg doesn't list .desktop apps here).
   `--panel` screenshots and `hw:` key tokens for headless sessions.
 
+## Editor UI TODO (parked)
+Parked until we know the engine + editor fit on the MK66 (flash, RAM,
+query CPU; plan step 2 timing check). Don't build these before then.
+- Pad modes (pads already do numbers, instruments, slot select):
+  - Sample-index mode: on a sample step, pads set the `:n` (`bd:3`).
+  - Step-grid mode: on a whole sequence or a `struct` / `mask` pattern,
+    the first 16 pads are steps; a press toggles hit / rest (`t` / `f`).
+  - Note-name mode: on `note` patterns, same keyboard layout but entering
+    `c4`, `fs5` ... instead of numbers.
+  - Menu mode: while a menu is open, pad N picks item N directly.
+  - Fraction mode: on time arguments (`fast`, `<~`, `%`), pads hold
+    common values (1/8, 1/4, 1/3, 1/2, 3/4, 1, 1.5, 2, 3, 4, 8, 16).
+- Device cost to check first: menus are built by trial (copy program +
+  type-check per candidate), fine on the host, too slow / big for the
+  MK66 as is.
+
 ## Plan
 0. Shared code-tree spec, used by both the editor and the engine: node
    types, tree -> Tidal text rendering, text -> tree parsing, per-node size
