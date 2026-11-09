@@ -24,13 +24,16 @@ between the two runs so run 2 measures with the audio interrupt busy.
 While a run is going the main loop is blocked for a few seconds: the
 screen and SD streaming pause; audio keeps running.
 
-Each run (v3) times every pattern twice: arena + program in SDRAM as
-usual (0x70000000, uncached: the MK66 has no system-bus cache), then
-through the SDRAM code-bus alias at 0x08000000, which the 8 KB code
-cache covers (write-through; NXP AN4745 for the K65). The alias is
-probed first with bus faults ignored and the pass is skipped if it
-doesn't read back. It also reports the deepest stack use (the free
-heap/stack gap is painted before the run).
+Each run (v4) also records a PC-sampling profile: the SysTick vector
+(1 kHz, above the audio interrupt) is swapped at run time for a handler
+that bins the interrupted instruction address (32-byte bins), and the
+evaluator's deepest stack point (TC_TRACK_STACK) against the heap end.
+Keep the ELF of the build and name the profile with:
+
+```bash
+cp platforms/mk66/build/PolyendTracker.axf build/PolyendTrac_TidalBench.axf
+python3 core/tidal/bench_profile.py tidal_bench.txt [build/PolyendTrac_TidalBench.axf]
+```
 
 Cost of the bench build (2026-11-09): flash +65.5 KB (903,364 -> 970,484 B,
 92.6 %), internal RAM +29 KB (mostly the checker's type pool), SDRAM

@@ -193,6 +193,8 @@ folders listed in the project (e.g. a manifest) on project load.
      freed .bss becomes free heap, not stack. The bench's painted gap is
      therefore always ~10.6 KB; "saturated" = the stack went at least that
      deep, into malloc's free space. Measure engine stack via SP tracking.
+     Bench v4: PC-sampling profile (SysTick vector swapped at run time;
+     core/tidal/bench_profile.py) + evaluator SP tracking.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at

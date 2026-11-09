@@ -368,8 +368,22 @@ TC_ENGINE_ARENA_ATTR static unsigned char gArenaRaw[sizeof(Event) * kEventArena]
 static Event* gArena = reinterpret_cast<Event*>(gArenaRaw);
 static int gArenaCap = kEventArena;
 static int gHighWater = 0;
+// Lowest stack address seen in the recursive evaluator (TC_TRACK_STACK).
+static uintptr_t gMinSp = UINTPTR_MAX;
+#ifdef TC_TRACK_STACK
+#define TC_NOTE_SP()                                   \
+    do {                                               \
+        volatile char here_ = 0;                       \
+        uintptr_t sp_ = (uintptr_t)&here_;             \
+        if (sp_ < gMinSp) gMinSp = sp_;                \
+    } while (0)
+#else
+#define TC_NOTE_SP()
+#endif
+uintptr_t engineMinStack() { return gMinSp; }
 int engineHighWater() { return gHighWater; }
 void engineResetStats() { gHighWater = 0; }
+void engineResetMinStack() { gMinSp = UINTPTR_MAX; }
 Event* engineDefaultArena() { return reinterpret_cast<Event*>(gArenaRaw); }
 void engineUseArena(Event* storage, int cap) {
     gArena = storage ? storage : reinterpret_cast<Event*>(gArenaRaw);
@@ -517,6 +531,7 @@ private:
 };
 
 void Eval::query(const Pat& p, Arc a) {
+    TC_NOTE_SP();
     if (bad()) return;
     if (++depth > kMaxEvalDepth) {
         fail("pattern nested too deeply");
@@ -814,6 +829,7 @@ void Eval::qEuclid(const Pat& x, int64_t k, int64_t n, int64_t r, bool inv, Arc 
 }
 
 void Eval::qNode(uint16_t n, Arc a) {
+    TC_NOTE_SP();
     const Node& nd = P.at(n);
     switch (nd.kind) {
         case Kind::Num: qPure(numQ(qmake((int32_t)nd.a, (int32_t)nd.b)), a); return;
@@ -1355,6 +1371,7 @@ void Eval::qEchoLayers(const Pat& x, int64_t count, Q t, float fb, uint8_t gain,
 }
 
 void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_t at, Arc a) {
+    TC_NOTE_SP();
     const FnInfo& fi = fnInfo(id);
     Pat all[9];
     int n = 0;

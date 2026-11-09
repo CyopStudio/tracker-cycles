@@ -7,3 +7,8 @@
 #ifndef TC_ENGINE_ARENA_ATTR
 #define TC_ENGINE_ARENA_ATTR __NOINIT(EXTERNAL_RAM)
 #endif
+
+// The timing bench measures the evaluator's stack depth.
+#ifdef TIDAL_BENCH
+#define TC_TRACK_STACK
+#endif

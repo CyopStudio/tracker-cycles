@@ -96,5 +96,9 @@ void engineResetStats();
 // switches back. For measuring memory placement (bench).
 void engineUseArena(Event* storage, int cap);
 Event* engineDefaultArena();
+// Lowest stack address reached by the evaluator since engineResetMinStack()
+// (only tracked with -DTC_TRACK_STACK; else UINTPTR_MAX).
+uintptr_t engineMinStack();
+void engineResetMinStack();
 
 }  // namespace tc
