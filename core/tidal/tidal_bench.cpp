@@ -31,6 +31,8 @@ __NOINIT(EXTERNAL_RAM) char report[6144];
 Platform* gPlatform = nullptr;
 int gStage = 0;  // 0: wait run 1, 1: run 1 shown, 2: wait run 2, 3: run 2 shown, 4: done
 uint32_t gShownAt = 0;
+bool gResultShown = false;  // a "done" popup is up; hidden after kPopupMs
+constexpr uint32_t kPopupMs = 4000;
 char gLine1[64], gLine2[64];
 
 uint32_t clockUs() { return gPlatform->getTimer()->micros(); }
@@ -87,6 +89,12 @@ int runAll(int run, int at) {
 void tidalBenchUpdate(Platform* platform) {
     gPlatform = platform;
     uint32_t now = platform->getTimer()->millis();
+    // info popups don't time out by themselves: hide "done" so the screen
+    // is usable again (e.g. to load a project before run 2)
+    if (gResultShown && now - gShownAt >= kPopupMs) {
+        mtPopups.hideInfoPopup();
+        gResultShown = false;
+    }
     switch (gStage) {
         case 0:
         case 2: {
@@ -107,7 +115,8 @@ void tidalBenchUpdate(Platform* platform) {
                                                      : "Bench 2 done: /tidal_bench.txt");
             if (run == 1) snprintf(gLine2, sizeof gLine2, "bench 2 runs at 60 s.");
             mtPopups.showInfoPopup(gLine1, gLine2);
-            gShownAt = now;
+            gShownAt = platform->getTimer()->millis();  // after the run, not before
+            gResultShown = true;
             gStage++;
             return;
         }
