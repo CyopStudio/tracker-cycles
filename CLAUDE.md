@@ -167,6 +167,15 @@ folders listed in the project (e.g. a manifest) on project load.
      ~1 KB, ~2.5 KB per nesting level. A bench build with only ~35 KB
      heap/stack gap hung in run 1. Keep checking .su files (-fstack-usage)
      and the bench's "deepest stack" line; budget the stack before 4b.
+     Bench v2 (2026-11-09, docs/tidal_bench.txt): rationals fix gave only
+     1.5-2.4x (stut 8: 215 -> 89 ms/cycle run 1, 372 ms run 2; q4 23 /
+     98 ms). Arena in internal RAM: another 1.5-2x (q4 stut 15 / 65 ms).
+     Run 2 / run 1 ~4.2x even with the internal arena (CPU share alone
+     ~2.1x: flash/code-cache thrash by the ISR?). Per event ~67k cycles on
+     the M4 vs ~3k on the host. Host perf: rationals still >50% of the
+     time (qgcd32 26%). Heap at runtime ~30 KB: the bench build had only
+     10.5 KB heap/stack gap and its stack measurement saturated (used it
+     all). Real free internal RAM in a normal build ~74 KB minus stack.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at

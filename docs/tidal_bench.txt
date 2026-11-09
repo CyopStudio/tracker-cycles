@@ -1,38 +1,70 @@
 Tracker Cycles engine bench, run 1 (10 s after boot)
 event 212 B, arena 1024 events, 16 one-cycle + 64 quarter-cycle queries per pattern
 times in microseconds; peak = arena high water (events)
+free heap/stack gap at start 10476 B, stack top 20030000
 
 events peak  peak/4 us/cyc  max     us/q4  max     pattern
-5      11    5      2379    5081    897    2041    s "bd*2 [~ sd] bd sd" # gain 1
-5      23    9      8291    13987   2587   5209    every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # n "<0 2>" # speed
-16     33    9      29721   30846   7664   8359    s "hh*16" # n "0 .. 15" # pan sine # gain (range 0.8 1 saw)
-128    148   40     215282  216511  56299  57643   stut 8 0.5 0.0625 $ s "hh*16" # n "0 .. 15"
-256    384   97     88278   89123   23294  25218   jux rev $ chop 8 $ s "bd*8 sd*8" # speed "1 2"
-64     115   33     83032   83617   25716  27728   echo 8 0.125 0.7 $ s "bd(5,8) sd(3,8,2)" # n (irand 8)
-32     49    13     36446   37116   10891  11484   off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale "major" "
-13     43    17     60866   62643   18906  22606   sometimes (# speed 2) $ often (# crush 4) $ s "[bd*4, hh*8, 
-7      15    7      6704    7736    3034   4579    n (arp "up" "<c'maj e'min7 g'dom7 a'min>*2") # s "arpy" # le
-10     34    12     31015   31586   8784   10393   chunk 4 (hurry 2) $ iter 4 $ s "bd sd hh cp hh sd bd cp" # n
+5      11    5      1435    3094    394    1706    s "bd*2 [~ sd] bd sd" # gain 1
+5      23    9      4041    7607    1177   2563    every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # n "<0 2>" # speed
+16     33    9      13892   14159   3597   4644    s "hh*16" # n "0 .. 15" # pan sine # gain (range 0.8 1 saw)
+128    148   40     88514   89223   23322  24676   stut 8 0.5 0.0625 $ s "hh*16" # n "0 .. 15"
+256    384   96     58516   59640   15052  16161   jux rev $ chop 8 $ s "bd*8 sd*8" # speed "1 2"
+64     115   33     50463   51323   14732  16329   echo 8 0.125 0.7 $ s "bd(5,8) sd(3,8,2)" # n (irand 8)
+32     49    13     19584   19931   5692   5859    off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale "major" "
+13     43    17     28341   28744   8780   10657   sometimes (# speed 2) $ often (# crush 4) $ s "[bd*4, hh*8, 
+7      15    7      3979    4828    1595   2255    n (arp "up" "<c'maj e'min7 g'dom7 a'min>*2") # s "arpy" # le
+10     34    12     13474   14015   3885   4857    chunk 4 (hurry 2) $ iter 4 $ s "bd sd hh cp hh sd bd cp" # n
 
-worst one-cycle query: avg 215282 us, max 216511 us
-audio interrupt load: max 51 % during the run; since the last reset avg 50 %, max 53 %
+worst one-cycle query: avg 88514 us, max 89223 us
+audio interrupt load: max 46 % during the run; since the last reset avg 46 %, max 48 %
+deepest stack: 11264 B below the top of RAM
+
+quarter-cycle queries with arena (112) + output in internal RAM:
+peak/4 us/q4  max     pattern
+5      274    1562    s "bd*2 [~ sd] bd sd" # gain 1
+9      806    2145    every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # n "<0 2>" # speed
+9      2369   2636    s "hh*16" # n "0 .. 15" # pan sine # gain (range 0.8 1 saw)
+40     15278  16347   stut 8 0.5 0.0625 $ s "hh*16" # n "0 .. 15"
+error: more events than the output buffer holds: jux rev $ chop 8 $ s "bd*8 sd*8" # speed "1 2"
+33     7120   7965    echo 8 0.125 0.7 $ s "bd(5,8) sd(3,8,2)" # n (irand 8)
+13     3431   4665    off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale "major" "
+17     5934   7615    sometimes (# speed 2) $ often (# crush 4) $ s "[bd*4, hh*8, 
+7      918    1882    n (arp "up" "<c'maj e'min7 g'dom7 a'min>*2") # s "arpy" # le
+12     2662   2801    chunk 4 (hurry 2) $ iter 4 $ s "bd sd hh cp hh sd bd cp" # n
+deepest stack: 11264 B below the top of RAM
 
 Tracker Cycles engine bench, run 2 (60 s after boot)
 event 212 B, arena 1024 events, 16 one-cycle + 64 quarter-cycle queries per pattern
 times in microseconds; peak = arena high water (events)
+free heap/stack gap at start 10476 B, stack top 20030000
 
 events peak  peak/4 us/cyc  max     us/q4  max     pattern
-5      11    5      8159    11536   3179   8483    s "bd*2 [~ sd] bd sd" # gain 1
-5      23    9      29738   49035   9340   17230   every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # n "<0 2>" # speed
-16     33    9      106793  107325  27785  31778   s "hh*16" # n "0 .. 15" # pan sine # gain (range 0.8 1 saw)
-128    148   40     771553  774400  201873 205992  stut 8 0.5 0.0625 $ s "hh*16" # n "0 .. 15"
-256    384   97     313523  316007  82826  87093   jux rev $ chop 8 $ s "bd*8 sd*8" # speed "1 2"
-64     115   33     295941  298663  92026  95647   echo 8 0.125 0.7 $ s "bd(5,8) sd(3,8,2)" # n (irand 8)
-32     49    13     130924  133497  39299  43449   off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale "major" "
-13     43    17     219027  223114  68225  81063   sometimes (# speed 2) $ often (# crush 4) $ s "[bd*4, hh*8, 
-7      15    7      23964   26171   10880  14492   n (arp "up" "<c'maj e'min7 g'dom7 a'min>*2") # s "arpy" # le
-10     34    12     111510  113077  31556  34815   chunk 4 (hurry 2) $ iter 4 $ s "bd sd hh cp hh sd bd cp" # n
+5      11    5      5448    8685    1814   5629    s "bd*2 [~ sd] bd sd" # gain 1
+5      23    9      17230   29187   4988   8779    every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # n "<0 2>" # speed
+16     33    9      58213   60741   15232  19966   s "hh*16" # n "0 .. 15" # pan sine # gain (range 0.8 1 saw)
+128    148   40     371905  374301  98101  101524  stut 8 0.5 0.0625 $ s "hh*16" # n "0 .. 15"
+256    384   96     241519  243577  62287  63772   jux rev $ chop 8 $ s "bd*8 sd*8" # speed "1 2"
+64     115   33     210154  214376  61653  66534   echo 8 0.125 0.7 $ s "bd(5,8) sd(3,8,2)" # n (irand 8)
+32     49    13     82317   83916   23980  26258   off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale "major" "
+13     43    17     119858  121920  37085  43478   sometimes (# speed 2) $ often (# crush 4) $ s "[bd*4, hh*8, 
+7      15    7      16522   20153   6794   11291   n (arp "up" "<c'maj e'min7 g'dom7 a'min>*2") # s "arpy" # le
+10     34    12     56926   60586   16366  20133   chunk 4 (hurry 2) $ iter 4 $ s "bd sd hh cp hh sd bd cp" # n
 
-worst one-cycle query: avg 771553 us, max 774400 us
-audio interrupt load: max 101 % during the run; since the last reset avg 77 %, max 108 %
+worst one-cycle query: avg 371905 us, max 374301 us
+audio interrupt load: max 101 % during the run; since the last reset avg 74 %, max 109 %
+deepest stack: 11264 B below the top of RAM
+
+quarter-cycle queries with arena (112) + output in internal RAM:
+peak/4 us/q4  max     pattern
+5      1099   5647    s "bd*2 [~ sd] bd sd" # gain 1
+9      3442   8753    every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # n "<0 2>" # speed
+9      10027  14300   s "hh*16" # n "0 .. 15" # pan sine # gain (range 0.8 1 saw)
+40     64916  66681   stut 8 0.5 0.0625 $ s "hh*16" # n "0 .. 15"
+error: more events than the output buffer holds: jux rev $ chop 8 $ s "bd*8 sd*8" # speed "1 2"
+33     30233  34587   echo 8 0.125 0.7 $ s "bd(5,8) sd(3,8,2)" # n (irand 8)
+13     14507  17399   off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale "major" "
+17     25251  31692   sometimes (# speed 2) $ often (# crush 4) $ s "[bd*4, hh*8, 
+7      3944   8498    n (arp "up" "<c'maj e'min7 g'dom7 a'min>*2") # s "arpy" # le
+12     11203  14464   chunk 4 (hurry 2) $ iter 4 $ s "bd sd hh cp hh sd bd cp" # n
+deepest stack: 11264 B below the top of RAM
 
