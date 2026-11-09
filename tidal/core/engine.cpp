@@ -19,6 +19,13 @@
 //    (its position among the ? and | of that pattern).
 #include "engine.h"
 
+// On the MK66 flash is the tight budget: -Os halves the engine (~67 KB ->
+// ~33 KB text) for ~1.5x the query time on the host. Define TC_ENGINE_O2
+// to build it with the caller's flags instead (timing comparisons).
+#if defined(__arm__) && !defined(TC_ENGINE_O2)
+#pragma GCC optimize("Os")
+#endif
+
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -85,26 +92,39 @@ static const char* valStr(const Program& p, uint16_t id) {
 int formatVal(const Program& p, const Val& v, char* buf, int cap) {
     switch (v.t) {
         case VT::Str: return snprintf(buf, cap, "%s", valStr(p, v.str));
-        case VT::Num: return snprintf(buf, cap, "%.17g", v.f);
+        case VT::Num: return snprintf(buf, cap, "%.9g", (double)num(v));
         case VT::Bool: return snprintf(buf, cap, "%s", v.q.n ? "t" : "f");
         default: return snprintf(buf, cap, "?");
     }
 }
 
+int formatCtl(const Program& p, const Ctl& c, char* buf, int cap) {
+    if (c.tag == 's') return snprintf(buf, cap, "%s", valStr(p, c.str));
+    return snprintf(buf, cap, "%.9g", (double)c.f);
+}
+
 // ---- values ----------------------------------------------------------------------
+static float qfloat(Q q) { return (float)q.n / (float)q.d; }
 static Val numQ(Q q) {
     Val v;
     v.t = VT::Num;
     v.exact = true;
     v.q = q;
-    v.f = qdouble(q);
     return v;
 }
-static Val numF(double f) {
+static Val numF(float f) {
     Val v;
     v.t = VT::Num;
-    v.f = f;
+    v.fl = f;
     return v;
+}
+static Ctl ctlOf(uint8_t key, char tag, const Val& v) {
+    Ctl c;
+    c.key = key;
+    c.tag = tag;
+    c.str = v.t == VT::Str ? v.str : 0;
+    c.f = v.t == VT::Str ? 0.0f : v.t == VT::Bool ? (float)v.q.n : num(v);
+    return c;
 }
 static Val strV(uint16_t id, int idx = -1) {
     Val v;
@@ -121,6 +141,9 @@ static Val boolV(bool b) {
 }
 
 enum class NumOp : uint8_t { Add, Sub, Mul, Div };
+static float fop(NumOp op, float a, float b) {
+    return op == NumOp::Add ? a + b : op == NumOp::Sub ? a - b : op == NumOp::Mul ? a * b : a / b;
+}
 
 // Exact while both sides are exact and the result fits 32 bits.
 static bool numOp(NumOp op, const Val& a, const Val& b, Val& out) {
@@ -136,8 +159,7 @@ static bool numOp(NumOp op, const Val& a, const Val& b, Val& out) {
             return true;
         }
     }
-    double r = op == NumOp::Add ? a.f + b.f : op == NumOp::Sub ? a.f - b.f : op == NumOp::Mul ? a.f * b.f : a.f / b.f;
-    out = numF(r);
+    out = numF(fop(op, num(a), num(b)));
     return true;
 }
 
@@ -157,7 +179,7 @@ struct FnInfo {
     NumOp nop = NumOp::Add;
     Side side = Side::Left;
     int8_t key = -1;  // Control: output key
-    double prob = 0;  // Sometimes: fixed probability
+    float prob = 0;  // Sometimes: fixed probability
 };
 
 static const FnInfo& fnInfo(int id) {
@@ -190,8 +212,8 @@ static const FnInfo& fnInfo(int id) {
             FnInfo& fi = table[id];
             for (auto& n : names)
                 if (!strcmp(n.n, e.name)) fi.fn = n.f;
-            static const struct { const char* n; double p; } odds[] = {
-                {"sometimes", 0.5}, {"often", 0.75}, {"rarely", 0.25}, {"almostNever", 0.1}, {"almostAlways", 0.9}};
+            static const struct { const char* n; float p; } odds[] = {
+                {"sometimes", 0.5f}, {"often", 0.75f}, {"rarely", 0.25f}, {"almostNever", 0.1f}, {"almostAlways", 0.9f}};
             for (auto& o : odds)
                 if (!strcmp(o.n, e.name)) fi.prob = o.p;
             if (e.cat == Cat::Control) {
@@ -294,7 +316,7 @@ static void bjorklund(int k, int n, bool* out) {
 
 // Deterministic random number in [0, 1) for a time and seed (splitmix64
 // finaliser over the exact rational time).
-static double rnd(Q t, uint32_t seed) {
+static float rnd(Q t, uint32_t seed) {
     uint64_t x = (uint64_t)(uint32_t)t.n * 0x9E3779B97F4A7C15ull ^ (uint64_t)(uint32_t)t.d * 0xC2B2AE3D27D4EB4Full ^
                  ((uint64_t)seed + 1) * 0x165667B19E3779F9ull;
     x ^= x >> 30;
@@ -302,7 +324,7 @@ static double rnd(Q t, uint32_t seed) {
     x ^= x >> 27;
     x *= 0x94D049BB133111EBull;
     x ^= x >> 31;
-    return (double)(x >> 11) * (1.0 / 9007199254740992.0);
+    return (float)(x >> 40) * (1.0f / 16777216.0f);
 }
 
 // ---- patterns as closures ------------------------------------------------------------
@@ -334,7 +356,10 @@ static Pat pWrap(Pat::K k, const Pat* x) {
 }
 
 // ---- evaluator ---------------------------------------------------------------------
-static Event gArena[kEventArena];
+TC_ENGINE_ARENA_ATTR static Event gArena[kEventArena];
+static int gHighWater = 0;
+int engineHighWater() { return gHighWater; }
+void engineResetStats() { gHighWater = 0; }
 
 class Eval {
 public:
@@ -361,6 +386,7 @@ private:
             return nullptr;
         }
         Event* e = &gArena[top++];
+        if (top > gHighWater) gHighWater = top;
         return e;
     }
     // drop [from, to), keep everything after it
@@ -421,14 +447,14 @@ private:
             return Q{0, 1};
         }
         if (v.exact) return v.q;
-        return qmake((int64_t)llround(v.f * 65536.0), 65536);
+        return qmake((int64_t)lroundf(v.fl * 65536.0f), 65536);
     }
     int64_t intOf(const Val& v) {
         if (v.t != VT::Num) {
             fail("expected a whole number");
             return 0;
         }
-        return v.exact ? qfloor(v.q) : (int64_t)floor(v.f);
+        return v.exact ? qfloor(v.q) : (int64_t)floorf(v.fl);
     }
 
     // basic transforms
@@ -463,7 +489,7 @@ private:
     bool combineVals(Fn f, NumOp op, const Event& l, const Event& r, Event& out);
     void sampleAt(const Pat& p, Q t, Val& out, bool& found);
     void qPly(const Pat& x, Q n, bool chop, Arc a);
-    void qDegrade(const Pat& x, double p, bool invert, uint32_t seed, Arc a);
+    void qDegrade(const Pat& x, float p, bool invert, uint32_t seed, Arc a);
     uint32_t miniSeed(uint16_t n);
     void qArp(const Pat& x, const Val& mode, Arc a);
     void qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a);
@@ -640,13 +666,11 @@ void Eval::qCtl(const Pat& x, uint8_t key, char tag, const Val& v, bool mul, Arc
             for (int k = 0; k < o->nctl; k++)
                 if (o->ctl[k].key == key) at = k;
             if (at >= 0 && mul) {
-                Val r;
-                if (numOp(NumOp::Mul, o->ctl[at].v, v, r)) o->ctl[at].v = r;
+                if (o->ctl[at].tag != 's') o->ctl[at].f *= num(v);
             } else if (at >= 0) {
-                o->ctl[at].v = v;
-                o->ctl[at].tag = tag;
+                o->ctl[at] = ctlOf(key, tag, v);
             } else if (o->nctl < kMaxCtl) {
-                o->ctl[o->nctl++] = Ctl{key, tag, v};
+                o->ctl[o->nctl++] = ctlOf(key, tag, v);
             } else {
                 fail("too many controls on one event");
             }
@@ -656,14 +680,15 @@ void Eval::qCtl(const Pat& x, uint8_t key, char tag, const Val& v, bool mul, Arc
 }
 
 void Eval::qSignal(Fn f, Arc a) {
-    double t = qdouble(a.s), pos = t - floor(t), v = 0;
-    const double kPi = 3.14159265358979323846;
+    // position in the cycle, exact first so long sets don't lose precision
+    float pos = qfloat(a.s - qsam(a.s)), v = 0;
+    const float kTwoPi = 6.28318530718f;
     switch (f) {
-        case Fn::Sine: v = (sin(2 * kPi * t) + 1) / 2; break;
-        case Fn::Cosine: v = (sin(2 * kPi * (t - 0.25)) + 1) / 2; break;
+        case Fn::Sine: v = (sinf(kTwoPi * pos) + 1) / 2; break;
+        case Fn::Cosine: v = (sinf(kTwoPi * (pos - 0.25f)) + 1) / 2; break;
         case Fn::Saw: v = pos; break;
-        case Fn::Tri: v = pos < 0.5 ? 2 * pos : 2 - 2 * pos; break;
-        case Fn::Square: v = pos < 0.5 ? 0 : 1; break;
+        case Fn::Tri: v = pos < 0.5f ? 2 * pos : 2 - 2 * pos; break;
+        case Fn::Square: v = pos < 0.5f ? 0 : 1; break;
         default: break;
     }
     Event* e = push();
@@ -810,7 +835,7 @@ void Eval::qNode(uint16_t n, Arc a) {
         }
         case Kind::MDegrade: {  // x? drops events with probability 0.5 (or x?p)
             uint16_t arg = P.at(nd.first).next;
-            double p = arg ? qdouble(Q{(int32_t)P.at(arg).a, (int32_t)P.at(arg).b}) : 0.5;
+            float p = arg ? qfloat(Q{(int32_t)P.at(arg).a, (int32_t)P.at(arg).b}) : 0.5f;
             return qDegrade(pNode(nd.first), p, false, miniSeed(n), a);
         }
         case Kind::MFast:
@@ -956,9 +981,8 @@ bool Eval::combineVals(Fn f, NumOp op, const Event& l, const Event& r, Event& ou
         } else if (f == Fn::OpUnionR) {
             out.ctl[at] = r.ctl[j];
         } else if (f == Fn::OpNum) {
-            Val v;
-            if (!numOp(op, out.ctl[at].v, r.ctl[j].v, v)) return fail("arithmetic needs numbers"), false;
-            out.ctl[at].v = v;
+            if (out.ctl[at].tag == 's' || r.ctl[j].tag == 's') return fail("arithmetic needs numbers"), false;
+            out.ctl[at].f = fop(op, out.ctl[at].f, r.ctl[j].f);
         }
     }
     return true;
@@ -1093,19 +1117,19 @@ void Eval::qPly(const Pat& x, Q n, bool chop, Arc a) {
             o->part = part;
             if (chop) {
                 if (!o->isMap) return fail("chop needs a control pattern");
-                double b0 = 0, e0 = 1;
+                float b0 = 0, e0 = 1;
                 for (int c = 0; c < o->nctl; c++) {
-                    if (o->ctl[c].key == keyB) b0 = o->ctl[c].v.f;
-                    if (o->ctl[c].key == keyE) e0 = o->ctl[c].v.f;
+                    if (o->ctl[c].key == keyB) b0 = o->ctl[c].f;
+                    if (o->ctl[c].key == keyE) e0 = o->ctl[c].f;
                 }
-                double nn = qdouble(n), bb = b0 + (e0 - b0) * k / nn, ee = b0 + (e0 - b0) * (k + 1) / nn;
+                float nn = qfloat(n), bb = b0 + (e0 - b0) * (float)k / nn, ee = b0 + (e0 - b0) * (float)(k + 1) / nn;
                 bool hb = false, he = false;
                 for (int c = 0; c < o->nctl; c++) {
-                    if (o->ctl[c].key == keyB) o->ctl[c].v = numF(bb), hb = true;
-                    if (o->ctl[c].key == keyE) o->ctl[c].v = numF(ee), he = true;
+                    if (o->ctl[c].key == keyB) o->ctl[c].f = bb, hb = true;
+                    if (o->ctl[c].key == keyE) o->ctl[c].f = ee, he = true;
                 }
-                if (!hb && o->nctl < kMaxCtl) o->ctl[o->nctl++] = Ctl{(uint8_t)keyB, 'f', numF(bb)};
-                if (!he && o->nctl < kMaxCtl) o->ctl[o->nctl++] = Ctl{(uint8_t)keyE, 'f', numF(ee)};
+                if (!hb && o->nctl < kMaxCtl) o->ctl[o->nctl++] = ctlOf((uint8_t)keyB, 'f', numF(bb));
+                if (!he && o->nctl < kMaxCtl) o->ctl[o->nctl++] = ctlOf((uint8_t)keyE, 'f', numF(ee));
             }
         }
     }
@@ -1176,7 +1200,7 @@ void Eval::qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a) {
             if (!subArc(gArena[i].part, gArena[j].part, part1)) continue;
             int64_t n = intOf(gArena[j].v), k = intOf(gArena[i].v);
             if (n <= 0) continue;
-            double begin = (double)(((k % n) + n) % n) / (double)n, end = begin + 1.0 / (double)n;
+            float begin = (float)(((k % n) + n) % n) / (float)n, end = begin + 1.0f / (float)n;
             int x0 = top;
             query(x, gArena[i].whole);
             int x1 = top;
@@ -1185,7 +1209,7 @@ void Eval::qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a) {
                 if (!subArc(part1, gArena[t].part, part2)) continue;
                 if (!gArena[t].isMap) return fail("splice needs a control pattern");
                 Q wd = gArena[i].whole.e - gArena[i].whole.s;
-                double speed = (1.0 / (double)n) / qdouble(wd);
+                float speed = (1.0f / (float)n) / qfloat(wd);
                 // unit "c" is a pure pattern: split at cycle boundaries
                 forCycles(gArena[i].whole, [&](Arc cyc, int64_t) {
                     Arc part;
@@ -1199,11 +1223,11 @@ void Eval::qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a) {
                     auto set = [&](int key, char tag, const Val& v, bool mulSpeed) {
                         for (int c = 0; c < o->nctl; c++)
                             if (o->ctl[c].key == key) {
-                                if (mulSpeed) o->ctl[c].v = numF(o->ctl[c].v.f * v.f);
-                                else o->ctl[c].v = v;
+                                if (mulSpeed) o->ctl[c].f *= num(v);
+                                else o->ctl[c] = ctlOf((uint8_t)key, tag, v);
                                 return;
                             }
-                        if (o->nctl < kMaxCtl) o->ctl[o->nctl++] = Ctl{(uint8_t)key, tag, v};
+                        if (o->nctl < kMaxCtl) o->ctl[o->nctl++] = ctlOf((uint8_t)key, tag, v);
                     };
                     // begin/end come from the left of `# x`, so x's own win
                     bool hasB = false, hasE = false;
@@ -1226,13 +1250,13 @@ void Eval::qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a) {
 
 // Keep events whose random value (at their whole start) is >= p, or < p
 // when inverted (the complement, for sometimesBy).
-void Eval::qDegrade(const Pat& x, double p, bool invert, uint32_t seed, Arc a) {
+void Eval::qDegrade(const Pat& x, float p, bool invert, uint32_t seed, Arc a) {
     int m = top;
     query(x, a);
     int w = m;
     for (int i = m; i < top; i++) {
         const Event& e = gArena[i];
-        double r = rnd(e.hasWhole ? e.whole.s : e.part.s, seed);
+        float r = rnd(e.hasWhole ? e.whole.s : e.part.s, seed);
         if ((r >= p) != invert) gArena[w++] = gArena[i];
     }
     top = w;
@@ -1301,9 +1325,9 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
                 Val v = e.v;
                 e.isMap = true;
                 e.nctl = 0;
-                e.ctl[e.nctl++] = Ctl{key, tag, v};
+                e.ctl[e.nctl++] = ctlOf(key, tag, v);
                 if (v.t == VT::Str && v.idx >= 0 && controlDef(key).tag == 's')
-                    e.ctl[e.nctl++] = Ctl{(uint8_t)keyN, 'f', numQ(qint(v.idx))};
+                    e.ctl[e.nctl++] = ctlOf((uint8_t)keyN, 'f', numQ(qint(v.idx)));
             }
             return;
         }
@@ -1491,7 +1515,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
         case Fn::Mask: {
             if (!need(2)) return;
             bool st = fi.fn == Fn::Struct;
-            auto truthy = [](const Val& v) { return v.t == VT::Bool ? v.q.n != 0 : (v.t == VT::Num && v.f != 0); };
+            auto truthy = [](const Val& v) { return v.t == VT::Bool ? v.q.n != 0 : (v.t == VT::Num && num(v) != 0); };
             auto comb = [&](const Event& l, const Event& r, Event& o) {
                 const Event& keepFrom = st ? r : l;
                 if (!truthy(st ? l.v : r.v)) return false;
@@ -1524,7 +1548,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
         case Fn::DegradeBy: {
             if (!need(2)) return;
             const Pat& x = all[1];
-            withParam(all[0], a, [&](const Val& v, Arc sub) { qDegrade(x, v.f, false, 0, sub); });
+            withParam(all[0], a, [&](const Val& v, Arc sub) { qDegrade(x, num(v), false, 0, sub); });
             return;
         }
         case Fn::SometimesBy:
@@ -1538,12 +1562,12 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
             fx.k = Pat::Apply;
             fx.node = f;
             fx.x = &x;
-            auto run = [&](double p, Arc sub) {
+            auto run = [&](float p, Arc sub) {
                 qDegrade(x, p, false, 0, sub);
                 qDegrade(fx, p, true, 0, sub);
             };
             if (fi.fn == Fn::Sometimes) return run(fi.prob, a);
-            withParam(all[0], a, [&](const Val& v, Arc sub) { run(v.f, sub); });
+            withParam(all[0], a, [&](const Val& v, Arc sub) { run(num(v), sub); });
             return;
         }
         case Fn::SomeCyclesBy: {
@@ -1552,7 +1576,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
             const Pat& x = all[2];
             withParam(all[0], a, [&](const Val& v, Arc sub) {
                 forCycles(sub, [&](Arc s2, int64_t c) {
-                    if (rnd(qint(c), 0) < v.f) queryApply(f, x, s2);
+                    if (rnd(qint(c), 0) < num(v)) queryApply(f, x, s2);
                     else query(x, s2);
                 });
             });
@@ -1577,7 +1601,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
                 e->part = sub;
                 e->isMap = false;
                 e->nctl = 0;
-                e->v = numQ(qint((int64_t)floor(rnd(sub.s, 0) * (double)intOf(v))));
+                e->v = numQ(qint((int64_t)floorf(rnd(sub.s, 0) * (float)intOf(v))));
             });
             return;
         }
@@ -1627,7 +1651,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
                         if (count > 32) return fail("at most 32 echoes", at);
                         if (stut) {
                             // stut count feedback time: echo x, gain fb + (1-fb)(count-x)/count
-                            double fb = v1.f;
+                            float fb = num(v1);
                             Q t = timeOf(v2);
                             query(x, s3);
                             for (int64_t e = 1; e < count && !bad(); e++) {
@@ -1635,13 +1659,13 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
                                 mul.k = Pat::MulCtl;
                                 mul.x = &x;
                                 mul.key = gain;
-                                mul.v = numF(fb + (1 - fb) * ((double)(count - e) / (double)count));
+                                mul.v = numF(fb + (1 - fb) * ((float)(count - e) / (float)count));
                                 qShift(mul, t * qint(e), s3);
                             }
                         } else {
                             // echo count time feedback: each echo shifted by time, gain * fb
                             Q t = timeOf(v1);
-                            double fb = v2.f;
+                            float fb = num(v2);
                             Pat shifted[32], mul[32], layer[32];
                             layer[0] = x;
                             for (int64_t e = 1; e < count; e++) {

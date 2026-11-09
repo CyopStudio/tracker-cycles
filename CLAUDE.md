@@ -137,11 +137,14 @@ folders listed in the project (e.g. a manifest) on project load.
      random ones pass property checks (golden/random.txt). Decided: our
      own deterministic randomness (hash of exact time + seed; each ? / |
      seeded by its position), same probabilities as Tidal's docs, values
-     differ from Tidal's. Engine is host-first; before the MK66 build: events
-     are ~712 B each (fixed 20-control map + doubles) and the arena is
-     8192 events = 5.8 MB; code is ~69 KB text on ARM; values use double
-     (software on the M4F). Shrink: control maps in a shared pool, float
-     values, smaller arena, then the timing build.
+     differ from Tidal's. Shrunk for the MK66 (2026-11-09): events 212 B
+     (values float or exact rational, control map entries 8 B), arena
+     1024 events = 212 KB (put it in SDRAM via TC_ENGINE_ARENA_ATTR),
+     engine ~34 KB text at -Os (pragma on ARM; TC_ENGINE_O2 for -O2,
+     ~67 KB), no double. `make -C tidal bench`: heaviest pattern peaks at
+     384 events per one-cycle query (97 per quarter cycle), host ~175 us /
+     cycle at -O2 (-Os ~1.5x slower on the host). Next: the on-device
+     timing build with the same bench patterns.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at

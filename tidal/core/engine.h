@@ -17,14 +17,22 @@ namespace tc {
 constexpr uint16_t kEngineStr = 0xFF00;  // strings owned by the engine ("c")
 enum class VT : uint8_t { None, Str, Num, Bool };
 
+// 12 bytes. Numbers stay exact rationals while they can (time arguments
+// need that); otherwise float, which is also what OSC sends.
 struct Val {
     VT t = VT::None;
-    bool exact = false;  // Num: q holds the exact value
+    bool exact = false;  // Num: q holds the exact value, else fl
     int16_t idx = -1;    // Str: sample index ("bd:3"), -1 = none
-    uint16_t str = 0;    // Str: Program string id, or kEngineStr + i
-    Q q{0, 1};           // Num (exact) / Bool (0 or 1 in q.n)
-    double f = 0;        // Num: always set
+    union {
+        Q q;             // Num (exact) / Bool (0 or 1 in q.n)
+        float fl;        // Num (inexact)
+        uint16_t str;    // Str: Program string id, or kEngineStr + i
+    };
+    Val() : q{0, 1} {}
 };
+inline float num(const Val& v) {
+    return v.t != VT::Num ? 0.0f : v.exact ? (float)v.q.n / (float)v.q.d : v.fl;
+}
 
 // Output controls (SuperDirt names). Key = index into this table.
 struct ControlDef {
@@ -36,13 +44,13 @@ const ControlDef& controlDef(int key);
 int controlKey(const char* name);  // -1 if unknown
 
 // Events of control patterns carry a small map; others a single value.
-// TODO(device): kMaxCtl x Ctl per event is large (~400 bytes per event);
-// move maps to a shared pool before the MK66 build.
+// A control value is a float or a string id (8 bytes per entry).
 constexpr int kMaxCtl = 20;
 struct Ctl {
     uint8_t key;
-    char tag;  // s f n i (usually controlDef(key).tag; "n" from "bd:3" is f)
-    Val v;
+    char tag;      // s f n i (usually controlDef(key).tag; "n" from "bd:3" is f)
+    uint16_t str;  // tag 's'
+    float f;       // other tags
 };
 
 struct Event {
@@ -56,7 +64,20 @@ struct Event {
 };
 
 // ---- engine ------------------------------------------------------------------
-constexpr int kEventArena = 8192;  // events alive during one query
+// Events alive during one query (all intermediate results included):
+// 1024 x 212 B = 212 KB. `make bench` peaks at 384 for a one-cycle query of
+// its heaviest pattern (97 for quarter-cycle windows); a query that needs
+// more fails with "too many events", and the scheduler should retry with
+// a smaller window. Too big for internal RAM on the MK66: place it in
+// SDRAM with TC_ENGINE_ARENA_ATTR, e.g. __NOINIT(EXTERNAL_RAM); it is
+// always written before it is read.
+#ifndef TC_ENGINE_ARENA
+#define TC_ENGINE_ARENA 1024
+#endif
+#ifndef TC_ENGINE_ARENA_ATTR
+#define TC_ENGINE_ARENA_ATTR
+#endif
+constexpr int kEventArena = TC_ENGINE_ARENA;
 constexpr int kMaxEvalDepth = 64;
 
 // Query expression `expr` of a checked program over `arc`. Returns the
@@ -66,5 +87,10 @@ int queryPattern(const Program& p, uint16_t expr, Arc arc, Event* out, int cap, 
 
 // Render a value for tests / debugging ("bd", "3.5", "t").
 int formatVal(const Program& p, const Val& v, char* buf, int cap);
+int formatCtl(const Program& p, const Ctl& c, char* buf, int cap);
+
+// Highest arena use since the last reset (to size kEventArena).
+int engineHighWater();
+void engineResetStats();
 
 }  // namespace tc

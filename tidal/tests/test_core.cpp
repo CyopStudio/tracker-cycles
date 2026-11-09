@@ -367,11 +367,12 @@ static bool sameValue(const Program& p, const golden::Value& g, const Ctl& c) {
     if (g.key != controlDef(c.key).name || g.tag != c.tag) return false;
     if (g.tag == 's') {
         char buf[64];
-        formatVal(p, c.v, buf, sizeof buf);
+        formatCtl(p, c, buf, sizeof buf);
         return g.text == buf;
     }
-    double want = atof(g.text.c_str()), got = c.v.f;
-    return fabs(want - got) <= 1e-9 * (fabs(want) > 1 ? fabs(want) : 1);
+    // float32 on our side (what OSC sends), double in Tidal
+    double want = atof(g.text.c_str()), got = c.f;
+    return fabs(want - got) <= 1e-6 * (fabs(want) > 1 ? fabs(want) : 1);
 }
 
 static bool sameEvent(const Program& p, const golden::Event& g, const Event& e) {
@@ -395,7 +396,7 @@ static std::string eventText(const Program& p, const Event& e) {
     n += snprintf(buf + n, sizeof buf - n, "%d/%d %d/%d", e.part.s.n, e.part.s.d, e.part.e.n, e.part.e.d);
     for (int i = 0; i < e.nctl && n < (int)sizeof buf - 40; i++) {
         char v[64];
-        formatVal(p, e.ctl[i].v, v, sizeof v);
+        formatCtl(p, e.ctl[i], v, sizeof v);
         n += snprintf(buf + n, sizeof buf - n, " %s=%c:%s", controlDef(e.ctl[i].key).name, e.ctl[i].tag, v);
     }
     return buf;
@@ -437,12 +438,12 @@ static bool sameEngineEvent(const Event& a, const Event& b) {
         bool found = false;
         for (int j = 0; j < b.nctl && !found; j++) {
             const Ctl &x = a.ctl[i], &y = b.ctl[j];
-            if (x.key != y.key || x.tag != y.tag || x.v.t != y.v.t) continue;
-            found = fabs(x.v.f - y.v.f) < 1e-9;
-            if (x.v.t == VT::Str) {
+            if (x.key != y.key || x.tag != y.tag) continue;
+            found = fabsf(x.f - y.f) < 1e-6f;
+            if (x.tag == 's') {
                 char s1[64], s2[64];
-                formatVal(gProg, x.v, s1, sizeof s1);
-                formatVal(gProg3, y.v, s2, sizeof s2);
+                formatCtl(gProg, x, s1, sizeof s1);
+                formatCtl(gProg3, y, s2, sizeof s2);
                 found = strcmp(s1, s2) == 0;
             }
         }
@@ -496,7 +497,7 @@ static std::string randomChecks(const golden::Case& c, const std::vector<std::st
                 for (int j = 0; j < gEvents[i].nctl; j++)
                     if (gEvents[i].ctl[j].key == k) found = &gEvents[i].ctl[j];
                 if (found) with++;
-                if (what == "value" && (!found || found->v.f < lo || found->v.f >= hi))
+                if (what == "value" && (!found || found->f < lo || found->f >= hi))
                     return "value " + key + " out of range in " + eventText(gProg, gEvents[i]);
             }
             double frac = n ? (double)with / n : 0;
@@ -553,6 +554,7 @@ static void testGolden() {
         }
     }
     const char* verbose = getenv("GOLDEN_VERBOSE");
+    engineResetStats();
     int engineOk = 0, engineTotal = 0;
     std::vector<std::string> newlyPassing;
     for (size_t i = 0; i < cases.size(); i++) {
@@ -607,7 +609,8 @@ static void testGolden() {
                 printf("  engine %-18s %s\n", c.name.c_str(), d.c_str());
         }
     }
-    printf("engine: %d/%d golden cases match", engineOk, engineTotal);
+    printf("engine: %d/%d golden cases match, arena high water %d/%d events (%zu B each)", engineOk, engineTotal,
+           engineHighWater(), kEventArena, sizeof(Event));
     if (!newlyPassing.empty()) {
         printf(" (%zu not yet in golden/engine_pass.txt:", newlyPassing.size());
         for (auto& s : newlyPassing) printf(" %s", s.c_str());

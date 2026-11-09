@@ -18,6 +18,7 @@ make test       # core checks
 make smoke      # scripted editor sessions
 make arm        # cross-compile core for the Cortex-M4 and print sizes
 make golden     # recapture golden events from real Tidal (needs GHCi)
+make bench      # engine: events, arena peak and time per query, heavy patterns
 ```
 
 ### Golden tests
@@ -47,6 +48,13 @@ but not Tidal's values: its generator is only defined in GPL source
 (CLAUDE.md "Licensing"). So random cases check behaviour instead: events
 are a subset of a reference pattern, counts, the share of events `f` was
 applied to, value ranges.
+
+Engine on the MK66 (`make arm`, `make bench`): events are 212 B, the
+arena holds 1024 (212 KB, meant for SDRAM: `TC_ENGINE_ARENA_ATTR`), the
+engine is ~34 KB of code at -Os (default on ARM; `-DTC_ENGINE_O2` for
+-O2, ~67 KB). Values are float or exact rationals, never double. A query
+that needs more than the arena fails with "too many events in one query";
+the scheduler should then query a shorter window.
 
 Things the captures show the engine must do:
 - Control aliases: `hpf` arrives as `hcutoff`.

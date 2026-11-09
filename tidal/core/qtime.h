@@ -57,7 +57,6 @@ inline Q qmax(Q a, Q b) { return a > b ? a : b; }
 // floor, as an integer cycle number ("sam")
 inline int64_t qfloor(Q a) { return a.n >= 0 ? a.n / a.d : -(((int64_t)-a.n + a.d - 1) / a.d); }
 inline Q qsam(Q a) { return qint(qfloor(a)); }
-inline double qdouble(Q a) { return (double)a.n / (double)a.d; }
 
 // A time span [s, e). s == e is a point ("zero-width") query.
 struct Arc {
