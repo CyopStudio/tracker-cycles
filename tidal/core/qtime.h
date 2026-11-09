@@ -78,47 +78,46 @@ inline Q qmake(int64_t n, int64_t d) {
 }
 inline Q qint(int64_t v) { return qfits(v) ? Q{(int32_t)v, 1} : qover(); }
 
+// Lazy normalisation: arithmetic skips the GCD while the denominator stays
+// <= kQLazyMax, so values are exact but may be unreduced (2/4). Compare
+// with == / qcmp (cross-multiplied), never field by field; qnorm() before
+// hashing or printing (queryPattern normalises the events it returns).
+constexpr int64_t kQLazyMax = 1 << 16;
+inline Q qnorm(Q a) { return a.d == 1 ? a : qmake(a.n, a.d); }
+inline Q qlazy(int64_t n, int64_t d) {  // d > 0
+    if (d <= kQLazyMax && qfits(n)) return Q{(int32_t)n, (int32_t)d};
+    return qmake(n, d);
+}
+
 inline Q operator+(Q a, Q b) {
-    // integer + normalised fraction stays normalised: no GCD
-    if (a.d == 1 && b.d == 1) return qint((int64_t)a.n + b.n);
-    if (a.d == 1) return qfits((int64_t)a.n * b.d + b.n) ? Q{(int32_t)((int64_t)a.n * b.d + b.n), b.d} : qover();
-    if (b.d == 1) return qfits((int64_t)b.n * a.d + a.n) ? Q{(int32_t)((int64_t)b.n * a.d + a.n), a.d} : qover();
-    if (a.d == b.d) return qmake((int64_t)a.n + b.n, a.d);
+    if (a.d == b.d) return qlazy((int64_t)a.n + b.n, a.d);
+    if (a.d == 1) return qlazy((int64_t)a.n * b.d + b.n, b.d);
+    if (b.d == 1) return qlazy((int64_t)b.n * a.d + a.n, a.d);
+    // one denominator divides the other (the usual case: 1/4 + 1/8): scale
+    if (b.d > a.d && b.d % a.d == 0) return qlazy((int64_t)a.n * (b.d / a.d) + b.n, b.d);
+    if (a.d > b.d && a.d % b.d == 0) return qlazy((int64_t)b.n * (a.d / b.d) + a.n, a.d);
     int64_t sum;
     if (__builtin_add_overflow((int64_t)a.n * b.d, (int64_t)b.n * a.d, &sum)) return qover();
-    return qmake(sum, (int64_t)a.d * b.d);
+    return qlazy(sum, (int64_t)a.d * b.d);
 }
-inline Q operator-(Q a) { return a.n == INT32_MIN ? qover() : Q{-a.n, a.d}; }
-inline Q operator-(Q a, Q b) { return b.n == INT32_MIN ? qmake((int64_t)a.n * b.d - (int64_t)b.n * a.d, (int64_t)a.d * b.d) : a + Q{-b.n, b.d}; }
-// Cross-reduce first: (a.n/g1 * b.n/g2) / (a.d/g2 * b.d/g1) is already
-// normalised, so no GCD of the (bigger) products.
-inline Q qmulCross(int32_t an, int32_t ad, int32_t bn, int32_t bd) {
-    uint32_t g1 = qgcd32(an < 0 ? 0u - (uint32_t)an : (uint32_t)an, (uint32_t)bd);
-    uint32_t g2 = qgcd32(bn < 0 ? 0u - (uint32_t)bn : (uint32_t)bn, (uint32_t)ad);
-    if (g1 > 1) {
-        an /= (int32_t)g1;
-        bd /= (int32_t)g1;
+inline Q operator-(Q a) { return a.n == INT32_MIN ? qmake(-(int64_t)a.n, a.d) : Q{-a.n, a.d}; }
+inline Q operator-(Q a, Q b) {
+    if (b.n == INT32_MIN) {
+        int64_t diff;
+        if (__builtin_sub_overflow((int64_t)a.n * b.d, (int64_t)b.n * a.d, &diff)) return qover();
+        return qmake(diff, (int64_t)a.d * b.d);
     }
-    if (g2 > 1) {
-        bn /= (int32_t)g2;
-        ad /= (int32_t)g2;
-    }
-    int64_t n = (int64_t)an * bn, d = (int64_t)ad * bd;
-    if (!qfits(n) || d > INT32_MAX) return qover();
-    return Q{(int32_t)n, (int32_t)d};
+    return a + Q{-b.n, b.d};
 }
 inline Q operator*(Q a, Q b) {
     if (a.d == 1 && b.d == 1) return qint((int64_t)a.n * b.n);
-    return qmulCross(a.n, a.d, b.n, b.d);
+    return qlazy((int64_t)a.n * b.n, (int64_t)a.d * b.d);
 }
 inline Q operator/(Q a, Q b) {
     if (b.n == 0) return qover();
-    if (b.n < 0) {
-        if (b.n == INT32_MIN || a.n == INT32_MIN) return qmake((int64_t)a.n * b.d, (int64_t)a.d * b.n);
-        b = Q{-b.n, b.d};
-        a = Q{-a.n, a.d};
-    }
-    return qmulCross(a.n, a.d, b.d, b.n);
+    int64_t n = (int64_t)a.n * b.d, d = (int64_t)a.d * b.n;
+    if (d < 0) n = -n, d = -d;
+    return qlazy(n, d);
 }
 inline int qcmp(Q a, Q b) {
     int64_t l = (int64_t)a.n * b.d, r = (int64_t)b.n * a.d;
@@ -128,7 +127,7 @@ inline bool operator<(Q a, Q b) { return qcmp(a, b) < 0; }
 inline bool operator>(Q a, Q b) { return qcmp(a, b) > 0; }
 inline bool operator<=(Q a, Q b) { return qcmp(a, b) <= 0; }
 inline bool operator>=(Q a, Q b) { return qcmp(a, b) >= 0; }
-inline bool operator==(Q a, Q b) { return a.n == b.n && a.d == b.d; }
+inline bool operator==(Q a, Q b) { return a.d == b.d ? a.n == b.n : (int64_t)a.n * b.d == (int64_t)b.n * a.d; }
 inline bool operator!=(Q a, Q b) { return !(a == b); }
 inline Q qmin(Q a, Q b) { return a < b ? a : b; }
 inline Q qmax(Q a, Q b) { return a > b ? a : b; }

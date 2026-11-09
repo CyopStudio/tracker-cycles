@@ -169,6 +169,9 @@ static void testRationals() {
             qOverflowFlag() = false;
             Q got = op == 0 ? a + b : op == 1 ? a - b : op == 2 ? a * b : op == 3 ? a / b : Q{0, 1};
             bool over = qOverflow();
+            if (op < 4 && got.d > kQLazyMax && (qnorm(got).n != got.n || qnorm(got).d != got.d))
+                bad++, printf("FAIL q op %d: %d/%d unreduced over the lazy limit\n", op, got.n, got.d);
+            got = qnorm(got);
             if (op == 4) {
                 __int128 fl = a.n >= 0 ? a.n / a.d : -((-(__int128)a.n + a.d - 1) / a.d);
                 if (qfloor(a) != (int64_t)fl) bad++, printf("FAIL qfloor %d/%d\n", a.n, a.d);

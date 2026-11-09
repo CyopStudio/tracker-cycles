@@ -156,11 +156,8 @@ folders listed in the project (e.g. a manifest) on project load.
      Rationals fixed (2026-11-09): 32-bit hardware-divide fast paths, no
      GCD for integer + fraction, cross-reduced * and /, 64-bit only on
      overflow fallback (random test vs a 128-bit reference); host 1.4-1.6x.
-     Re-bench also times quarter-cycle queries with the arena in internal
-     RAM. Found: only the code-bus cache is on (LMEM_PCCCR); the system-bus
-     cache (PSCCR, covers SDRAM) is off, so all SDRAM data is uncached
-     (engine arena/program, samples, delay line). Enabling it is a separate
-     experiment (DMA into SDRAM needs cache maintenance).
+     All SDRAM data is uncached (engine arena/program, samples, delay
+     line; see below).
      Stack: the engine recurses on the C stack (one Eval::callLib per
      nested function). callLib's frame was 4 KB (Pat arrays in switch
      cases) + 4.7 KB lambda; moved those cases to noinline helpers ->
@@ -176,6 +173,14 @@ folders listed in the project (e.g. a manifest) on project load.
      time (qgcd32 26%). Heap at runtime ~30 KB: the bench build had only
      10.5 KB heap/stack gap and its stack measurement saturated (used it
      all). Real free internal RAM in a normal build ~74 KB minus stack.
+     No SDRAM data cache on the MK66: LMEM has only the code-bus cache
+     (8 KB, also caches flash code); the system bus (0x70000000) is never
+     cached (NXP forum; the SDK header has only PC* registers). Possible
+     route: SDRAM code-bus alias at 0x08000000 (AN4745, K65; write-through,
+     PCCRMR R1). Bench v3 probes it safely and times a pass through it.
+     Lazy rationals (no GCD while denominators <= 2^16, == cross-
+     multiplies, queryPattern returns normalised times): host stut 8
+     165 -> 73 us/cycle since the start.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at

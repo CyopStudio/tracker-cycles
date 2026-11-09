@@ -322,6 +322,7 @@ static void bjorklund(int k, int n, bool* out) {
 // Deterministic random number in [0, 1) for a time and seed (splitmix64
 // finaliser over the exact rational time).
 static float rnd(Q t, uint32_t seed) {
+    t = qnorm(t);  // same time, same value, however it was computed
     uint64_t x = (uint64_t)(uint32_t)t.n * 0x9E3779B97F4A7C15ull ^ (uint64_t)(uint32_t)t.d * 0xC2B2AE3D27D4EB4Full ^
                  ((uint64_t)seed + 1) * 0x165667B19E3779F9ull;
     x ^= x >> 30;
@@ -369,6 +370,7 @@ static int gArenaCap = kEventArena;
 static int gHighWater = 0;
 int engineHighWater() { return gHighWater; }
 void engineResetStats() { gHighWater = 0; }
+Event* engineDefaultArena() { return reinterpret_cast<Event*>(gArenaRaw); }
 void engineUseArena(Event* storage, int cap) {
     gArena = storage ? storage : reinterpret_cast<Event*>(gArenaRaw);
     gArenaCap = storage ? cap : kEventArena;
@@ -803,11 +805,11 @@ void Eval::qEuclid(const Pat& x, int64_t k, int64_t n, int64_t r, bool inv, Arc 
     bool bits[64];
     bjorklund((int)(neg ? -k : k), (int)n, bits);
     if (neg) inv = !inv;
-    Q rot = qmake(imod(r, n), n);  // rotate left by r steps
+    Q rot = qlazy(imod(r, n), n);  // rotate left by r steps
     int m = top;
     Arc q{a.s + rot, a.e + rot};
     for (int i = 0; i < n && !bad(); i++)
-        if (bits[i] != inv) qCompress(x, qmake(i, n), qmake(i + 1, n), q);
+        if (bits[i] != inv) qCompress(x, qlazy(i, n), qlazy(i + 1, n), q);
     for (int i = m; i < top; i++) shiftEvent(gArena[i], -rot);
 }
 
@@ -872,7 +874,7 @@ void Eval::qNode(uint16_t n, Arc a) {
         }
         case Kind::MReplicate: {  // only reached outside a sequence
             Pat x = pNode(nd.first);
-            for (uint32_t i = 0; i < nd.a; i++) qCompress(x, qmake(i, nd.a), qmake(i + 1, nd.a), a);
+            for (uint32_t i = 0; i < nd.a; i++) qCompress(x, qlazy(i, nd.a), qlazy(i + 1, nd.a), a);
             return;
         }
         case Kind::MWeight: return qNode(nd.first, a);
@@ -902,7 +904,7 @@ void Eval::qNode(uint16_t n, Arc a) {
                 Pat v;
                 v.k = Pat::Pure;
                 v.v = numQ(qint(h >= l ? l + i : l - i));
-                qCompress(v, qmake(i, cnt), qmake(i + 1, cnt), a);
+                qCompress(v, qlazy(i, cnt), qlazy(i + 1, cnt), a);
             }
             return;
         }
@@ -1316,7 +1318,7 @@ void Eval::qIter(const Pat& x, int64_t k, Arc a) {
     for (int64_t i = 0; i < k; i++) {
         rots[i].k = Pat::Shift;
         rots[i].x = &x;
-        rots[i].q = -qmake(i, k);
+        rots[i].q = -qlazy(i, k);
     }
     qCat(rots, (int)k, a);
 }
@@ -1327,7 +1329,7 @@ void Eval::qList(Fn fn, uint16_t list, Arc a) {
     if (fn == Fn::Stack) {
         for (int i = 0; i < k; i++) query(items[i], a);
     } else if (fn == Fn::Fastcat) {
-        for (int i = 0; i < k; i++) qCompress(items[i], qmake(i, k), qmake(i + 1, k), a);
+        for (int i = 0; i < k; i++) qCompress(items[i], qlazy(i, k), qlazy(i + 1, k), a);
     } else {
         qCat(items, k, a);
     }
@@ -1727,7 +1729,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
                     int64_t i = imod(c, k);
                     Q off = qint(c - (c - i) / k);
                     Arc loc{s2.s - off, s2.e - off};
-                    Q lo = qmake(i, k), hi = qmake(i + 1, k);
+                    Q lo = qlazy(i, k), hi = qlazy(i + 1, k);
                     auto inside = [&](const Event& e) {
                         Q t = e.hasWhole ? e.whole.s : e.part.s;
                         Q pos = t - qsam(t);
@@ -1761,12 +1763,12 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
                     b.k = Pat::SetCtl;
                     b.x = &x;
                     b.key = (uint8_t)controlKey("begin");
-                    b.v = numQ(qmake(i, k));
+                    b.v = numQ(qlazy(i, k));
                     e.k = Pat::SetCtl;
                     e.x = &b;
                     e.key = (uint8_t)controlKey("end");
-                    e.v = numQ(qmake(i + 1, k));
-                    qCompress(e, qmake(i, k), qmake(i + 1, k), sub);
+                    e.v = numQ(qlazy(i + 1, k));
+                    qCompress(e, qlazy(i, k), qlazy(i + 1, k), sub);
                 }
             });
             return;
@@ -1834,7 +1836,13 @@ int queryPattern(const Program& p, uint16_t expr, Arc arc, Event* out, int cap, 
     if (!err.failed && qOverflow()) err.set(-1, "time overflow (32-bit rationals)");
     if (err.failed) return -1;
     int n = ev.top < cap ? ev.top : cap;
-    for (int i = 0; i < n; i++) out[i] = gArena[i];
+    for (int i = 0; i < n; i++) {
+        out[i] = gArena[i];
+        Event& e = out[i];  // times are lazily normalised inside the engine
+        e.part = Arc{qnorm(e.part.s), qnorm(e.part.e)};
+        if (e.hasWhole) e.whole = Arc{qnorm(e.whole.s), qnorm(e.whole.e)};
+        if (e.v.exact) e.v.q = qnorm(e.v.q);
+    }
     if (ev.top > cap) {
         err.set(-1, "more events than the output buffer holds");
         return -1;

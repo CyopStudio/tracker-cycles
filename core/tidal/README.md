@@ -18,13 +18,19 @@ cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_TidalBench.ptf
 
 `tidal_bench.cpp` runs the shared bench patterns (`tidal/core/bench.cpp`,
 the same as `make -C tidal bench`) 10 s after boot and again at 60 s,
-shows a popup before and after each run (each run also repeats the
-quarter-cycle queries with a 128-event arena in internal RAM, to measure
-the cost of uncached SDRAM), and writes `/tidal_bench.txt` on
+shows a popup before and after each run, and writes `/tidal_bench.txt` on
 the SD card (run 1 creates it, run 2 appends). Start a project playing
 between the two runs so run 2 measures with the audio interrupt busy.
 While a run is going the main loop is blocked for a few seconds: the
 screen and SD streaming pause; audio keeps running.
+
+Each run (v3) times every pattern twice: arena + program in SDRAM as
+usual (0x70000000, uncached: the MK66 has no system-bus cache), then
+through the SDRAM code-bus alias at 0x08000000, which the 8 KB code
+cache covers (write-through; NXP AN4745 for the K65). The alias is
+probed first with bus faults ignored and the pass is skipped if it
+doesn't read back. It also reports the deepest stack use (the free
+heap/stack gap is painted before the run).
 
 Cost of the bench build (2026-11-09): flash +65.5 KB (903,364 -> 970,484 B,
 92.6 %), internal RAM +29 KB (mostly the checker's type pool), SDRAM

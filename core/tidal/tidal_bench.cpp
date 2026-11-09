@@ -27,11 +27,54 @@ const char* const kPath = "/tidal_bench.txt";
 __NOINIT(EXTERNAL_RAM) unsigned char progRaw[sizeof(tc::Program)] __attribute__((aligned(8)));
 __NOINIT(EXTERNAL_RAM) unsigned char outRaw[sizeof(tc::Event) * kOutCap] __attribute__((aligned(8)));
 __NOINIT(EXTERNAL_RAM) char report[8192];
-// Small arena + output in internal RAM: quarter-cycle queries only (peak 97
-// events), to measure what SDRAM costs the engine. The program stays in SDRAM.
-constexpr int kFastArena = 112, kFastOut = 48;
-unsigned char fastArenaRaw[sizeof(tc::Event) * kFastArena] __attribute__((aligned(8)));
-unsigned char fastOutRaw[sizeof(tc::Event) * kFastOut] __attribute__((aligned(8)));
+// SDRAM code-bus alias (bench v3): the MK66 has no system-bus cache, so
+// SDRAM at 0x70000000 is uncached; NXP notes (AN4745, K65) describe an
+// alias at 0x08000000 cached by the 8 KB code cache, write-through only.
+// Probed with bus faults ignored, then used for a second pass.
+#define REG32(a) (*(volatile uint32_t*)(a))
+constexpr uintptr_t kLmemPcccr = 0xE0082000, kLmemPccrmr = 0xE0082020;
+constexpr uintptr_t kScbCcr = 0xE000ED14, kScbCfsr = 0xE000ED28;
+constexpr uint32_t kPcccrGo = 0x80000000u, kPcccrInvw0 = 0x01000000u, kPcccrInvw1 = 0x04000000u;
+constexpr uint32_t kPccrmrR1Mask = 0x30000000u, kPccrmrR1WriteThrough = 0x20000000u;
+constexpr uintptr_t kSdram = 0x70000000u, kAlias = 0x08000000u;
+template <class T>
+T* viaAlias(T* p) {
+    return reinterpret_cast<T*>((uintptr_t)p - kSdram + kAlias);
+}
+// Read with precise bus faults ignored (CCR.BFHFNMIGN at FAULTMASK
+// priority); false if the read faulted.
+bool probeRead(uintptr_t addr, uint32_t& v) {
+    REG32(kScbCfsr) = 0x0000FF00u;  // clear BusFault status (write 1 to clear)
+    uint32_t ccr = REG32(kScbCcr);
+    REG32(kScbCcr) = ccr | (1u << 8);
+    __asm volatile("dsb\n isb\n cpsid f" ::: "memory");
+    v = *(volatile uint32_t*)addr;
+    __asm volatile("dsb\n cpsie f\n isb" ::: "memory");
+    REG32(kScbCcr) = ccr;
+    bool fault = (REG32(kScbCfsr) & 0x0000FF00u) != 0;
+    REG32(kScbCfsr) = 0x0000FF00u;
+    return !fault;
+}
+void codeCacheInvalidate() {
+    REG32(kLmemPcccr) = REG32(kLmemPcccr) | kPcccrGo | kPcccrInvw0 | kPcccrInvw1;
+    while (REG32(kLmemPcccr) & kPcccrGo) {
+    }
+}
+// Write a word through SDRAM, read it back through the alias.
+bool aliasWorks(void* sdramWord) {
+    volatile uint32_t* w = (volatile uint32_t*)sdramWord;
+    uint32_t saved = *w, v = 0;
+    bool ok = true;
+    for (uint32_t pat : {0x1234ABCDu, 0xEDCB5432u}) {
+        *w = pat;
+        __asm volatile("dsb" ::: "memory");
+        codeCacheInvalidate();
+        if (!probeRead((uintptr_t)viaAlias((void*)sdramWord), v) || v != pat) ok = false;
+    }
+    *w = saved;
+    codeCacheInvalidate();
+    return ok;
+}
 
 // Stack high water (MK66 Profiler::maxStackBytes() returns 0): paint the
 // gap between heap and stack before a run, find the deepest overwrite after.
@@ -74,74 +117,88 @@ void save(int run, bool first, int n, bool& ok) {
     }
 }
 
+// One table of all bench cases; returns the new report length.
+int table(int n, tc::Program& prog, tc::Event* out, uint32_t& worstAvg, uint32_t& worstQ4) {
+    n += snprintf(report + n, sizeof report - n, "%-6s %-5s %-6s %-7s %-7s %-6s %-6s  pattern\n", "events", "peak",
+                  "peak/4", "us/cyc", "max", "us/q4", "max");
+    worstAvg = worstQ4 = 0;
+    for (int i = 0; i < tc::benchCaseCount() && n < (int)sizeof report - 200; i++) {
+        tc::BenchResult r;
+        if (!tc::runBenchCase(i, prog, out, kOutCap, clockUs, kReps, r)) {
+            n += snprintf(report + n, sizeof report - n, "error: %s: %.60s\n", r.err, r.code);
+            continue;
+        }
+        if (r.avgUs > worstAvg) worstAvg = r.avgUs;
+        if (r.avgUs4 > worstQ4) worstQ4 = r.avgUs4;
+        n += snprintf(report + n, sizeof report - n, "%-6d %-5d %-6d %-7lu %-7lu %-6lu %-6lu  %.60s\n", r.events,
+                      r.peak, r.peak4, (unsigned long)r.avgUs, (unsigned long)r.maxUs, (unsigned long)r.avgUs4,
+                      (unsigned long)r.maxUs4, r.code);
+    }
+    return n;
+}
+
 int runAll(int run, int at) {
     tc::Program* prog = new (progRaw) tc::Program();
     tc::Event* out = reinterpret_cast<tc::Event*>(outRaw);
     for (int i = 0; i < kOutCap; i++) new (&out[i]) tc::Event();
 
-    Profiler::AudioProcessorUsage before{}, after{};
-    Profiler::getInstance()->getAudioProcessingUsagePercent(before, true);
+    Profiler::AudioProcessorUsage u{};
+    Profiler::getInstance()->getAudioProcessingUsagePercent(u, true);
     paintStack();
     const uint32_t gap = (uint32_t)(gPaintHi - gPaintLo);
 
     int n = 0;
     n += snprintf(report + n, sizeof report - n,
-                  "Tracker Cycles engine bench, run %d (%d s after boot)\n"
+                  "Tracker Cycles engine bench v3, run %d (%d s after boot)\n"
                   "event %u B, arena %d events, %d one-cycle + %d quarter-cycle queries per pattern\n"
                   "times in microseconds; peak = arena high water (events)\n"
-                  "free heap/stack gap at start %lu B, stack top %08lx\n\n"
-                  "%-6s %-5s %-6s %-7s %-7s %-6s %-6s  pattern\n",
+                  "free heap/stack gap at start %lu B\n\n"
+                  "-- arena + program in SDRAM (0x70000000, uncached)\n",
                   run, at / 1000, (unsigned)sizeof(tc::Event), tc::kEventArena, kReps, kReps * 4,
-                  (unsigned long)gap, (unsigned long)(uintptr_t)&_estack, "events", "peak", "peak/4", "us/cyc",
-                  "max", "us/q4", "max");
-    uint32_t worstAvg = 0, worstMax = 0;
-    for (int i = 0; i < tc::benchCaseCount() && n < (int)sizeof report - 200; i++) {
-        tc::BenchResult r;
-        if (!tc::runBenchCase(i, *prog, out, kOutCap, clockUs, kReps, r)) {
-            n += snprintf(report + n, sizeof report - n, "error: %s: %.60s\n", r.err, r.code);
-            continue;
-        }
-        if (r.avgUs > worstAvg) worstAvg = r.avgUs;
-        if (r.maxUs > worstMax) worstMax = r.maxUs;
-        n += snprintf(report + n, sizeof report - n, "%-6d %-5d %-6d %-7lu %-7lu %-6lu %-6lu  %.60s\n", r.events,
-                      r.peak, r.peak4, (unsigned long)r.avgUs, (unsigned long)r.maxUs, (unsigned long)r.avgUs4,
-                      (unsigned long)r.maxUs4, r.code);
-    }
-    Profiler::getInstance()->getAudioProcessingUsagePercent(after, true);
+                  (unsigned long)gap);
+    uint32_t worstAvg, worstQ4;
+    n = table(n, *prog, out, worstAvg, worstQ4);
+    Profiler::getInstance()->getAudioProcessingUsagePercent(u, true);
     n += snprintf(report + n, sizeof report - n,
-                  "\nworst one-cycle query: avg %lu us, max %lu us\n"
-                  "audio interrupt load: max %d %% during the run; since the last reset avg %d %%, max %d %%\n"
-                  "deepest stack: %lu B below the top of RAM\n",
-                  (unsigned long)worstAvg, (unsigned long)worstMax, after.tempMaximum, after.average,
-                  after.maximum, (unsigned long)stackDepth());
-    bool ok = false;
-    save(run, true, n, ok);  // on the card before the riskier internal-RAM pass
+                  "worst: %lu us/cycle, %lu us/quarter; audio max %d %% during the pass (avg since reset %d %%)\n"
+                  "deepest stack: %lu B below the top of RAM%s\n",
+                  (unsigned long)worstAvg, (unsigned long)worstQ4, u.tempMaximum, u.average,
+                  (unsigned long)stackDepth(),
+                  stackDepth() >= gap ? " (SATURATED: used the whole gap)" : "");
+    bool ok = false, ok2 = true;
+    save(run, true, n, ok);  // on the card before the riskier alias pass
+    uint32_t q4Sdram = worstQ4;
 
     n = 0;
+    const uint32_t rmr = REG32(kLmemPccrmr), ccr = REG32(kLmemPcccr);
+    bool aliasArena = aliasWorks(tc::engineDefaultArena() + tc::kEventArena - 1);
+    bool aliasProg = aliasWorks(progRaw + sizeof(tc::Program) - 8);
     n += snprintf(report + n, sizeof report - n,
-                  "\nquarter-cycle queries with arena (%d) + output in internal RAM:\n%-6s %-6s %-6s  pattern\n",
-                  kFastArena, "peak/4", "us/q4", "max");
-    tc::Event* fastArena = reinterpret_cast<tc::Event*>(fastArenaRaw);
-    tc::Event* fastOut = reinterpret_cast<tc::Event*>(fastOutRaw);
-    for (int i = 0; i < kFastOut; i++) new (&fastOut[i]) tc::Event();
-    tc::engineUseArena(fastArena, kFastArena);
-    for (int i = 0; i < tc::benchCaseCount() && n < (int)sizeof report - 200; i++) {
-        tc::BenchResult r;
-        if (!tc::runBenchCase(i, *prog, fastOut, kFastOut, clockUs, kReps, r, false)) {
-            n += snprintf(report + n, sizeof report - n, "error: %s: %.60s\n", r.err, r.code);
-            continue;
-        }
-        n += snprintf(report + n, sizeof report - n, "%-6d %-6lu %-6lu  %.60s\n", r.peak4, (unsigned long)r.avgUs4,
-                      (unsigned long)r.maxUs4, r.code);
+                  "\n-- SDRAM through the code-bus alias (0x08000000, code cache)\n"
+                  "PCCCR %08lx, PCCRMR %08lx; alias readable at arena end: %s, program end: %s\n",
+                  (unsigned long)ccr, (unsigned long)rmr, aliasArena ? "yes" : "no", aliasProg ? "yes" : "no");
+    if (aliasArena && aliasProg && (ccr & 1u)) {
+        REG32(kLmemPccrmr) = (rmr & ~kPccrmrR1Mask) | kPccrmrR1WriteThrough;
+        codeCacheInvalidate();
+        tc::engineUseArena(viaAlias(tc::engineDefaultArena()), tc::kEventArena);
+        tc::Program* progA = viaAlias(prog);
+        n = table(n, *progA, out, worstAvg, worstQ4);
+        tc::engineUseArena(nullptr, 0);
+        codeCacheInvalidate();
+        REG32(kLmemPccrmr) = rmr;
+        Profiler::getInstance()->getAudioProcessingUsagePercent(u, true);
+        n += snprintf(report + n, sizeof report - n,
+                      "worst: %lu us/cycle, %lu us/quarter (%lu%% of uncached); audio max %d %% during the pass\n",
+                      (unsigned long)worstAvg, (unsigned long)worstQ4,
+                      (unsigned long)(q4Sdram ? worstQ4 * 100 / q4Sdram : 0), u.tempMaximum);
+    } else {
+        n += snprintf(report + n, sizeof report - n, "skipped (no alias, or code cache off)\n");
     }
-    tc::engineUseArena(nullptr, 0);
-    n += snprintf(report + n, sizeof report - n, "deepest stack: %lu B below the top of RAM\n\n",
-                  (unsigned long)stackDepth());
-    bool ok2 = false;
+    n += snprintf(report + n, sizeof report - n, "deepest stack: %lu B\n\n", (unsigned long)stackDepth());
     save(run, false, n, ok2);
     prog->~Program();
-    snprintf(gLine2, sizeof gLine2, "worst %lu us/cycle (max %lu)%s", (unsigned long)worstAvg,
-             (unsigned long)worstMax, ok && ok2 ? "" : " - SD write failed");
+    snprintf(gLine2, sizeof gLine2, "worst %lu us/quarter%s", (unsigned long)q4Sdram,
+             ok && ok2 ? "" : " - SD write failed");
     return n;
 }
 

@@ -95,5 +95,6 @@ void engineResetStats();
 // Query into `storage` (cap events) instead of the built-in arena; nullptr
 // switches back. For measuring memory placement (bench).
 void engineUseArena(Event* storage, int cap);
+Event* engineDefaultArena();
 
 }  // namespace tc
