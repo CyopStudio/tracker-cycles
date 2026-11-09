@@ -184,11 +184,33 @@ folders listed in the project (e.g. a manifest) on project load.
 - Work: our scheduler owns a small voice pool per channel and steals the
   oldest; decouple voice index from track index (mute/level, RMS meters,
   stem export, mixer channel count `MixerAndFxs<kVoices>`).
-- Pending (user, on device): worst-case audio load on current firmware, all
-  8 tracks playing long looped samples with filter, bit-crusher,
-  interpolation, delay and reverb sends; read max load in Config
-  diagnostics. Under ~45% max: 16 full voices likely OK; otherwise use the
-  fallback. Optional follow-up: scratch-worktree spike with kVoices = 16.
+- Measured 2026-11-09 (Config dev-mode diagnostics, `/.develop`; % of the
+  2,902 us audio block, whole callback timed). Test project: 8 tracks,
+  every step filled, 170 BPM, reverb + delay sends full, bit-crusher,
+  overdrive, master sidechain + saturation.
+
+  | State | avg | max |
+  | :--- | ---: | ---: |
+  | Empty project, stopped (firmware floor) | 60 | 60 |
+  | Test project, stopped | 67 | 68 |
+  | 1 track playing | 68 | 73 |
+  | 8 tracks playing | 85 | 112 |
+  | 8 tracks, reverb/delay sends 0 | 84 | 102 |
+  | 8 tracks, also no overdrive | 79 | 97 |
+
+  - Floor 60% with nothing playing: the stock DSP chain (delay, reverb,
+    master, mixer, output) runs every block. Sends at 0 don't stop it.
+  - Per voice: ~1.5% (player + filter + crusher), +0.6% overdrive, sends
+    ~0.1%: ~2.2% fully loaded. 8 more full voices ~ +18%.
+  - Note starts spike: max is 18-27 points over avg with 8 noteOns in one
+    block (~100 us each). Scheduler (4b) should cap note starts per block
+    (spill to the next block, <= 2.9 ms) or precompute noteOn setup.
+  - Max > 100%: heavy stock projects already overrun.
+  - So 16 full voices don't fit a heavy project; the fallback (cheap extra
+    players) costs less but the real lever is the 60% floor. Next: profile
+    the stages of engine.update() to see what can be skipped when idle.
+  - The main loop (Tidal queries, UI) only gets what the ISR leaves:
+    ~40% idle, ~15% with the heavy project.
 
 ## Engine constraints
 - No malloc/new in audio or sequencer real-time paths. Fixed node pools,
