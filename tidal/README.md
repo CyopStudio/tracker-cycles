@@ -94,11 +94,30 @@ make proto SDL=1 BUILD=build-sdl
 
 # with real Tidal: needs GHC + Tidal 1.10.3 (docs/host_setup.md) and SuperDirt
 ./build-sdl/tidal_proto --window --backend ghci --boot proto/boot.ghci my.tidal
+
+# with our engine + scheduler (step 3): OSC straight to SuperDirt, no GHC
+./build-sdl/tidal_proto --window --backend engine --osc 127.0.0.1:57120 my.tidal
 ```
 
 Edit `oAddress` in `proto/boot.ghci` to point at SuperDirt (see
 `docs/host_setup.md` section 4). `--backend print` (default) just prints
-statements; `--backend none` sends nothing.
+statements; `--backend none` sends nothing. `--send STMT` (repeatable)
+sends a statement at startup, e.g. for scripted runs.
+
+`--backend engine` (proto/engine_backend.cpp) runs the scheduler like the
+device: a main-loop thread calls `update()`, an audio thread calls
+`tick()` every 128 samples (44117.647 Hz) and sends each due event as a
+`/dirt/play` bundle at its exact time + `--latency` (default 0.1 s, as
+boot.ghci). `dN $` starts at the next cycle (spec 2.1; Tidal starts
+mid-cycle).
+
+`golden/osc_compare.py` checks it against real Tidal: it runs GHCi (with
+`streamResetCycles`) and `tidal_proto --backend engine` on the same
+statements, captures both OSC streams on local UDP ports (no SuperDirt
+needed) and compares every message per slot and cycle (keys, types,
+values) plus timing jitter (bundle time - nudge - cycle / cps). Default
+statements cover 6 slots; `--stmts FILE` for others, `--keep DIR` saves
+both captures. Random functions differ by design (own randomness).
 
 ## Controls (window)
 
@@ -195,6 +214,10 @@ functions controls quick1..quick4 launch`. `--panel` makes screenshots include t
 
 ## Known gaps (next steps)
 
+- Engine backend vs real Tidal (2026-11-09, osc_compare.py): identical
+  /dirt/play messages for stut, echo, chunk, iter, arp, whenmod, jux,
+  off, every, chop, striate, splice, legato/sustain/nudge/cut/orbit, at
+  cps 0.575 and 0.7; timing jitter 0.02 ms (Tidal's own 0.2-0.3 ms).
 - GHCi backend checked against real Tidal 1.10.3 (GHC 9.8.2, see
   `docs/host_setup.md`): boot script loads, `setcps`/`dN`/`hush` and the
   d9..d16 MIDI routing are accepted, errors show in the log (`log` key

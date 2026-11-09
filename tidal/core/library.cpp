@@ -96,6 +96,8 @@ static const LibEntry kLib[] = {
     CTL("nudge", "Double"),
     CTL("cut", "Int"),
     CTL("orbit", "Int"),
+    CTL("end", "Double"),
+    CTL("unit", "String"),
     // ---- operators (fixities from GHCi :info, Tidal 1.10.3) ------------------
     OP("#", "Pat a -> Pat a -> Pat a", 9, Left, true),
     OP("|+|", "Num a => Pat a -> Pat a -> Pat a", 9, Left, true),

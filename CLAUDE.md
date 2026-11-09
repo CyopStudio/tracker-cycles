@@ -246,6 +246,14 @@ folders listed in the project (e.g. a manifest) on project load.
 3. Swap the prototype backend to our engine -> OSC -> SuperDirt. Validate by
    recording Tidal's OSC and ours for the same code and comparing
    timestamps, controls sent, cps/cycle position.
+   Done (2026-11-09): `--backend engine` (tidal/proto/engine_backend.cpp,
+   scheduler on a main-loop thread + a real-time "audio" thread) and
+   tidal/golden/osc_compare.py (real Tidal vs ours on local UDP ports).
+   Messages identical on 13 test patterns, jitter 0.02 ms vs Tidal's
+   0.2-0.3. Found and fixed: chop ignores begin/end unless both are set
+   (golden chop_begin/range/reverse); `end` and `unit` controls added.
+   Tidal 1.10.3's default cps is 0.575 (scheduler default). Not yet heard
+   through SuperDirt (not installed here).
 4. Port to the Tracker:
    - 4a. Strip firmware: pattern editor, song mode, step sequencer, legacy
      import/export; stub their callers. Independent, can start any time;

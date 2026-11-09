@@ -132,7 +132,7 @@ void reset(int bufCap = 1024) {
     gLive.clear();
     gS.init(&gLive, gBuf, bufCap, &gMapper);
     gVoice = RecVoice();
-    refReset(Q{9, 16});
+    refReset(Q{23, 40});
 }
 
 bool load(const char* text) {
@@ -262,7 +262,7 @@ void testConversion() {
     }
     SEXPECT(bad == 0, "sampleAt off by more than one sample in %d of 20000", bad);
     SEXPECT(badInv == 0, "cycleAt off in %d of 20000", badInv);
-    SEXPECT(gS.window() == (Q{1, 16}), "window at cps 0.5625 = %d/%d, want 1/16", gS.window().n, gS.window().d);
+    SEXPECT(gS.window() == (Q{1, 16}), "window at cps 0.575 = %d/%d, want 1/16", gS.window().n, gS.window().d);
 }
 
 // Several slots, irregular main loop: everything plays exactly as queried.
@@ -408,7 +408,7 @@ void testCps() {
     std::vector<Onset> want;
     refOnsets(0, Q{1, 1}, endC, want);
     refOnsets(1, Q{1, 1}, endC, want);
-    sameOnsets(played(0, refSample(endC) - 1), want, "cps 0.5625 -> 1");
+    sameOnsets(played(0, refSample(endC) - 1), want, "cps 0.575 -> 1");
     SEXPECT(gS.window() == (Q{1, 8}), "window at cps 1 = %d/%d, want 1/8", gS.window().n, gS.window().d);
 
     // two quick changes: the second waits for the first

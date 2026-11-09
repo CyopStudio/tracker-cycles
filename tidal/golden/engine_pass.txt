@@ -127,3 +127,6 @@ almostAlways
 someCyclesBy
 rand
 irand
+chop_begin
+chop_range
+chop_reverse

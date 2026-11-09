@@ -112,6 +112,9 @@ chunk             4  chunk 4 (fast 2) $ s "bd sd hh cp"
 
 # ---- samples -----------------------------------------------------------------
 chop              1  chop 2 $ s "bd sd"
+chop_begin        1  chop 2 $ s "break" # begin 0.25
+chop_range        1  chop 4 $ s "break" # begin 0.3 # end 0.7
+chop_reverse      1  chop 2 $ s "break*2" # begin "0.7 0" # end "0.2 1"
 striate           1  striate 2 $ s "bd sd"
 loopAt            2  loopAt 2 $ chop 4 $ s "break"
 splice            1  splice 4 "0 2" $ s "bev"

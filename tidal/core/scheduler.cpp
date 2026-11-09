@@ -77,7 +77,7 @@ void Scheduler::setSampleRate(int64_t num, int64_t den) {
     float fs = (float)num / (float)den;
     lookahead_ = (uint32_t)(fs * 0.25f);
     lateBlocks_ = (uint32_t)(fs * 0.02f / kBlockSamples + 0.5f);
-    cur_ = makeAnchor(Q{0, 1}, 0, 0.0f, Q{9, 16});  // Tidal's default 0.5625
+    cur_ = makeAnchor(Q{0, 1}, 0, 0.0f, Q{23, 40});  // Tidal 1.10's default 0.575
     hasPrev_ = false;
 }
 
@@ -247,6 +247,7 @@ bool Scheduler::queryWindow(int i, Q s, Q e) {
     for (;;) {
         Error err;
         stats_.queries++;
+        mapper_->begin(i);
         int n = queryPattern(*live_, sl.expr, Arc{s, e}, buf_, bufCap_, err);
         bool tooMany = n < 0;
         int cnt = 0;
@@ -298,6 +299,7 @@ bool Scheduler::queryWindow(int i, Q s, Q e) {
             }
             return false;  // wait for the interrupt to drain the ring
         }
+        mapper_->commit(i, tmp_, cnt);
         uint32_t t = r.tail;
         for (int j = 0; j < cnt; j++) r.e[(t + j) & (kRingSize - 1)] = tmp_[j];
         fence();  // entries before the new tail

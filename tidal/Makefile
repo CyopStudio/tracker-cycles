@@ -24,7 +24,7 @@ FONT_SRC  := $(FW_LIBS)/fonts/RobotoMono-Regular_14_L4.cpp \
 FONT_OBJ  := $(patsubst $(FW_LIBS)/%.cpp,$(BUILD)/fw/%.o,$(FONT_SRC))
 PROTO_SRC := $(filter-out proto/sdl_window.cpp,$(wildcard proto/*.cpp))
 PROTO_OBJ := $(PROTO_SRC:%.cpp=$(BUILD)/%.o)
-PROTO_LIBS :=
+PROTO_LIBS := -pthread
 
 ifeq ($(SDL),1)
 SDL_PREFIX ?= /usr

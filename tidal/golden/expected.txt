@@ -741,6 +741,22 @@
 1/2 3/4 1/2 3/4 begin=f:0.0 end=f:0.5 s=s:sd
 3/4 1/1 3/4 1/1 begin=f:0.5 end=f:1.0 s=s:sd
 
+== chop_begin 1 chop 2 $ s "break" # begin 0.25
+0/1 1/2 0/1 1/2 begin=f:0.0 end=f:0.5 s=s:break
+1/2 1/1 1/2 1/1 begin=f:0.5 end=f:1.0 s=s:break
+
+== chop_range 1 chop 4 $ s "break" # begin 0.3 # end 0.7
+0/1 1/4 0/1 1/4 begin=f:0.3 end=f:0.39999999999999997 s=s:break
+1/4 1/2 1/4 1/2 begin=f:0.39999999999999997 end=f:0.5 s=s:break
+1/2 3/4 1/2 3/4 begin=f:0.5 end=f:0.6 s=s:break
+3/4 1/1 3/4 1/1 begin=f:0.6 end=f:0.7 s=s:break
+
+== chop_reverse 1 chop 2 $ s "break*2" # begin "0.7 0" # end "0.2 1"
+0/1 1/4 0/1 1/4 begin=f:0.7 end=f:0.44999999999999996 s=s:break
+1/4 1/2 1/4 1/2 begin=f:0.44999999999999996 end=f:0.2 s=s:break
+1/2 3/4 1/2 3/4 begin=f:0.0 end=f:0.5 s=s:break
+3/4 1/1 3/4 1/1 begin=f:0.5 end=f:1.0 s=s:break
+
 == striate 1 striate 2 $ s "bd sd"
 0/1 1/4 0/1 1/4 begin=f:0.0 end=f:0.5 s=s:bd
 1/4 1/2 1/4 1/2 begin=f:0.0 end=f:0.5 s=s:sd

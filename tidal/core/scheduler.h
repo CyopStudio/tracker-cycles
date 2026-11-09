@@ -47,6 +47,11 @@ class Mapper {
 public:
     virtual bool map(const Program& p, int slot, const Event& e, float samplesPerCycle, float lenSamples,
                      Entry& out) = 0;
+    // Optional (host backends that keep more per entry than 32 bytes):
+    // begin() before each query attempt's map() calls; commit() with the
+    // sorted entries just before they are queued (may rewrite them).
+    virtual void begin(int slot) { (void)slot; }
+    virtual void commit(int slot, Entry* e, int n) { (void)slot, (void)e, (void)n; }
 };
 
 // What the interrupt drives (playerEngine / MIDI on the device, a recorder

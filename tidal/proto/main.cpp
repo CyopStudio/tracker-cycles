@@ -1,7 +1,13 @@
 // Tracker Cycles editor prototype (plan step 1).
 //
 //   tidal_proto [options] [file.tidal]
-//     --backend print|ghci|none   where evaluated code goes (default print)
+//     --backend print|ghci|engine|none   where evaluated code goes (default
+//                                 print; engine = our engine + scheduler ->
+//                                 SuperDirt OSC, plan step 3)
+//     --osc HOST:PORT             engine: SuperDirt address (127.0.0.1:57120)
+//     --latency S                 engine: OSC timestamp latency (0.1, as boot.ghci)
+//     --send STMT                 send a Tidal statement to the backend at
+//                                 startup (repeatable; before --keys)
 //     --ghci CMD                  ghci executable (default ghci)
 //     --boot FILE                 GHCi boot script (default proto/boot.ghci)
 //     --keys "a b c"              run editor actions headless, e.g.
@@ -28,9 +34,11 @@
 
 #include <memory>
 #include <sstream>
+#include <vector>
 #include <string>
 
 #include "backend.h"
+#include "engine_backend.h"
 #include "editor.h"
 #include "fb.h"
 #include "hardware.h"
@@ -108,6 +116,9 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
 
 int main(int argc, char** argv) {
     std::string backendName = "print", ghci = "ghci", boot = "proto/boot.ghci", keys, shot, file, instruments;
+    std::string osc = "127.0.0.1:57120";
+    double latency = 0.1;
+    std::vector<std::string> sends;
     bool window = false, trackerMode = true, panel = true;
     int scale = 1;
     for (int i = 1; i < argc; i++) {
@@ -122,6 +133,9 @@ int main(int argc, char** argv) {
         if (a == "--backend") backendName = next();
         else if (a == "--ghci") ghci = next();
         else if (a == "--boot") boot = next();
+        else if (a == "--osc") osc = next();
+        else if (a == "--send") sends.push_back(next());
+        else if (a == "--latency") latency = atof(next().c_str());
         else if (a == "--keys") keys = next();
         else if (a == "--shot") shot = next();
         else if (a == "--window") window = true;
@@ -144,6 +158,12 @@ int main(int argc, char** argv) {
     std::unique_ptr<Backend> backend;
     if (backendName == "print") backend.reset(new PrintBackend(!window));
     else if (backendName == "ghci") backend.reset(new GhciBackend(ghci, boot));
+    else if (backendName == "engine") {
+        size_t colon = osc.rfind(':');
+        std::string host = colon == std::string::npos ? osc : osc.substr(0, colon);
+        int port = colon == std::string::npos ? 57120 : atoi(osc.c_str() + colon + 1);
+        backend.reset(new EngineBackend(host, port, latency));
+    }
     else if (backendName != "none") {
         fprintf(stderr, "unknown backend %s\n", backendName.c_str());
         return 2;
@@ -151,6 +171,8 @@ int main(int argc, char** argv) {
 
     Editor ed;
     ed.setBackend(backend.get());
+    if (backend)
+        for (const auto& st : sends) backend->send(st);
     if (!instruments.empty()) {
         FILE* f = fopen(instruments.c_str(), "r");
         if (!f) {

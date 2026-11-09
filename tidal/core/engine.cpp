@@ -1243,13 +1243,17 @@ void Eval::qPly(const Pat& x, Q n, bool chop, Arc a) {
             o->part = part;
             if (chop) {
                 if (!o->isMap) return fail("chop needs a control pattern");
+                // Tidal 1.10.3 slices [begin, end] only when both are set;
+                // with one of them alone it slices the whole sample
                 float b0 = 0, e0 = 1;
+                bool setB = false, setE = false;
                 Ctl* w = ctlWrite(*o, 2);
                 if (!w) return;
                 for (int c = 0; c < o->nctl; c++) {
-                    if (w[c].key == keyB) b0 = w[c].f;
-                    if (w[c].key == keyE) e0 = w[c].f;
+                    if (w[c].key == keyB) b0 = w[c].f, setB = true;
+                    if (w[c].key == keyE) e0 = w[c].f, setE = true;
                 }
+                if (!(setB && setE)) b0 = 0, e0 = 1;
                 float nn = qfloat(n), bb = b0 + (e0 - b0) * (float)k / nn, ee = b0 + (e0 - b0) * (float)(k + 1) / nn;
                 bool hb = false, he = false;
                 for (int c = 0; c < o->nctl; c++) {
