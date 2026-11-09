@@ -69,8 +69,9 @@ int runAll(int run, int at) {
     Profiler::getInstance()->getAudioProcessingUsagePercent(after, true);
     n += snprintf(report + n, sizeof report - n,
                   "\nworst one-cycle query: avg %lu us, max %lu us\n"
-                  "audio interrupt load during the run: avg %d %%, max %d %%\n\n",
-                  (unsigned long)worstAvg, (unsigned long)worstMax, after.average, after.maximum);
+                  "audio interrupt load: max %d %% during the run; since the last reset avg %d %%, max %d %%\n\n",
+                  (unsigned long)worstAvg, (unsigned long)worstMax, after.tempMaximum, after.average,
+                  after.maximum);
 
     FileSystem* fs = gPlatform->getFileSystem();
     auto [ok, fh] = fs->openFile(kPath, run == 1 ? FileSystem::kWriteCreateNew : FileSystem::kWriteAppend);
