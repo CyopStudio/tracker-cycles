@@ -79,7 +79,7 @@ hardware can't.
 | Screen 2 | Wrap (`fast 2 $ …`, `# gain 1`, `x*2` …) | | F2 / `w` |
 | Screen 3 | Unwrap (keep the inner pattern) | | F3 / `u` |
 | Screen 4 | Undo | | F4 / `z` |
-| Screen 5–8 inside `"..."` | wrap the step in `[ ]`, `< >`, `{ }%4`, `(3,8)` | | F5–F8 |
+| Screen 5–8 inside `"..."` | wrap the step in `[ ]`, `< >`, `{ }%4`, `(3,8)`; on the quotes, the whole sequence (`"[bd sd]"`) | | F5–F8 |
 | Screen 5–8 on a pattern | `# <last control>`, `\|+ n 12`, `\|* speed 2`, `0.25 <~` | | F5–F8 |
 | Screen 8 | | OK | Enter / F8 |
 | Play | evaluate current block | OK | Space |
@@ -105,7 +105,8 @@ Screen 5–8 are context buttons, labelled on the screen's soft-key bar.
 After a wrap that adds a number (`%4`, `(3,8)`, `12`, `2`, `0.25`) the
 cursor is on it, so the jog changes it straight away. On a plain value
 pattern (e.g. the `"0 .. 7"` in `n "0 .. 7"`) `|+` and `|*` add a bare
-number (`|+ 12`). `#` adds the control last chosen from a menu (starts as
+number (`|+ 12`); on the quotes themselves the bracket set applies, so use
+`|+`/`|*` one level up (`n "0 .. 7" |+ n 12`) or the FX1 menu. `#` adds the control last chosen from a menu (starts as
 `gain 1`). No `|-`: use `|+` with a negative number; no `~>`: use `<~`
 with a negative shift. Each wrap is type-checked; one that doesn't fit
 shows an error.

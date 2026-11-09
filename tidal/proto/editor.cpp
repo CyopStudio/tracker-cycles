@@ -636,7 +636,7 @@ static uint16_t lastChild(const Program& p, uint16_t n) {
 std::string Editor::quickLabel(int i) const {
     if (i < 0 || i > 3 || menuOpen_ || !cursor_) return "";
     Kind k = prog_->at(cursor_).kind;
-    if (isMiniKind(k)) {
+    if (isMiniKind(k) || k == Kind::Mini) {  // a step, or the whole "..." sequence
         static const char* m[4] = {"[ ]", "< >", "{ }%4", "(3,8)"};
         return m[i];
     }
@@ -652,6 +652,16 @@ void Editor::quick(int i) {
     Kind k = prog_->at(cursor_).kind;
     uint16_t nn = 0, target = 0;
     std::shared_ptr<Program> r;
+    const uint16_t oldCursor = cursor_;
+    if (k == Kind::Mini) {
+        // on the quotes: wrap the whole sequence inside them
+        cursor_ = prog_->at(cursor_).first;
+        k = cursor_ ? prog_->at(cursor_).kind : Kind::None;
+        if (!isMiniKind(k)) {
+            cursor_ = oldCursor;
+            return error(label + " doesn't fit here");
+        }
+    }
     if (isMiniKind(k)) {
         std::string t = renderNode(*prog_, cursor_);
         bool multi = k == Kind::MSeq && prog_->at(cursor_).first && prog_->at(prog_->at(cursor_).first).next;
@@ -665,6 +675,7 @@ void Editor::quick(int i) {
             while (r->at(n).kind == Kind::MSeq && r->at(n).first && !r->at(r->at(n).first).next) n = r->at(n).first;
             if (r->at(n).kind == Kind::MPoly) target = firstNumber(*r, lastChild(*r, n));
             else if (r->at(n).kind == Kind::MEuclid) target = firstNumber(*r, childAt(*r, n, 1));
+            nn = n;  // the new bracket / euclid step, not a transparent sequence
         }
     } else {
         // operator wraps; the cursor lands on the new number so the jog edits it
@@ -679,7 +690,10 @@ void Editor::quick(int i) {
         if (!r && o.bare) r = tryWrapOp(o.op, o.bare, o.left, nn);  // plain value patterns
         if (r) target = firstNumber(*r, o.left ? childAt(*r, nn, 1) : childAt(*r, nn, 0));
     }
-    if (!r) return error(label + " doesn't fit here");
+    if (!r) {
+        cursor_ = oldCursor;
+        return error(label + " doesn't fit here");
+    }
     commit(std::unique_ptr<Program>(new Program(*r)), target ? target : nn);
     if (!messageError_) info(label + (target ? ": jog changes the number" : ""));
 }
