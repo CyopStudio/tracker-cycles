@@ -1,0 +1,10 @@
+hw:down hw:right hw:right hw:right hw:s2 menu:5 hw:s8
+hw:down hw:down hw:jog+ hw:jog+
+hw:s4 hw:s4
+hw:pad3 hw:down hw:right hw:down hw:down hw:jog-
+hw:play
+hw:pad1 hw:down hw:right hw:right hw:right hw:down hw:down hw:down hw:delete
+hw:s4
+hw:pad20 hw:s1 menu:0 hw:play hw:play
+hw:shift+play
+print

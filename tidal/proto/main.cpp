@@ -8,8 +8,14 @@
 //                                 "down right wheel+ wrap menu:3 ok eval"
 //                                 extra tokens: menu:N  shot:FILE.png  wait:MS
 //                                 print (file text to stdout)
+//                                 hw:CONTROL / hw:shift+CONTROL presses a
+//                                 Tracker control, e.g. hw:s1 hw:jog+
+//                                 hw:shift+play hw:pad3 (ids: hardware.cpp)
 //     --shot FILE.png             screenshot after the keys ran
-//     --window                    open a window (needs a build with SDL=1)
+//     --window                    open a window with the mock Tracker panel
+//                                 (needs a build with SDL=1)
+//     --no-panel                  window/screenshots: screen only
+//     --panel                     screenshots include the mock panel
 //     --scale N                   window scale (default 1)
 //     --no-tracker-mode           allow host-only functions
 #include <stdio.h>
@@ -24,22 +30,34 @@
 #include "backend.h"
 #include "editor.h"
 #include "fb.h"
+#include "hardware.h"
+#include "panel.h"
 #include "view.h"
 
 namespace proto {
-int runWindow(Editor& ed, Framebuffer& fb, int scale);  // sdl_window.cpp
+int runWindow(Editor& ed, Framebuffer& fb, int scale, bool withPanel);  // sdl_window.cpp
 }
 
 using namespace proto;
 
 #ifndef TC_HAVE_SDL
 namespace proto {
-int runWindow(Editor&, Framebuffer&, int) {
+int runWindow(Editor&, Framebuffer&, int, bool) {
     fprintf(stderr, "built without SDL: rebuild with `make proto SDL=1` (see tidal/README.md)\n");
     return 2;
 }
 }  // namespace proto
 #endif
+
+static bool gPanelShots = false;
+
+static bool writeShot(const Editor& ed, Framebuffer& fb, const char* path) {
+    drawEditor(ed, fb);
+    if (!gPanelShots) return fb.savePng(path);
+    std::unique_ptr<Framebuffer> panel(new Framebuffer(kPanelW, kPanelH));
+    drawPanel(ed, fb, *panel, PanelState());
+    return panel->savePng(path);
+}
 
 static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
     std::istringstream in(keys);
@@ -48,8 +66,17 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
         if (tok.rfind("menu:", 0) == 0) {
             ed.selectMenu(atoi(tok.c_str() + 5));
         } else if (tok.rfind("shot:", 0) == 0) {
-            drawEditor(ed, fb);
-            if (!fb.savePng(tok.c_str() + 5)) fprintf(stderr, "can't write %s\n", tok.c_str() + 5);
+            if (!writeShot(ed, fb, tok.c_str() + 5)) fprintf(stderr, "can't write %s\n", tok.c_str() + 5);
+        } else if (tok.rfind("hw:", 0) == 0) {
+            std::string id = tok.substr(3);
+            bool shift = id.rfind("shift+", 0) == 0;
+            if (shift) id = id.substr(6);
+            Ctl c;
+            if (!ctlFromId(id, c)) {
+                fprintf(stderr, "unknown control '%s'\n", id.c_str());
+                return false;
+            }
+            if (!press(ed, c, shift)) fprintf(stderr, "%-10s | (%s does nothing here)\n", tok.c_str(), ctlName(c));
         } else if (tok.rfind("wait:", 0) == 0) {
             int ms = atoi(tok.c_str() + 5);
             for (int t = 0; t < ms; t += 50) {
@@ -75,7 +102,7 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
 
 int main(int argc, char** argv) {
     std::string backendName = "print", ghci = "ghci", boot = "proto/boot.ghci", keys, shot, file;
-    bool window = false, trackerMode = true;
+    bool window = false, trackerMode = true, panel = true;
     int scale = 1;
     for (int i = 1; i < argc; i++) {
         std::string a = argv[i];
@@ -94,6 +121,8 @@ int main(int argc, char** argv) {
         else if (a == "--window") window = true;
         else if (a == "--scale") scale = atoi(next().c_str());
         else if (a == "--no-tracker-mode") trackerMode = false;
+        else if (a == "--no-panel") panel = false;
+        else if (a == "--panel") gPanelShots = true;
         else if (a == "-h" || a == "--help") {
             printf("see the comment at the top of tidal/proto/main.cpp or tidal/README.md\n");
             return 0;
@@ -131,13 +160,12 @@ int main(int argc, char** argv) {
     std::unique_ptr<Framebuffer> fb(new Framebuffer);
     if (!keys.empty() && !runKeys(ed, *fb, keys)) return 1;
     if (!shot.empty()) {
-        drawEditor(ed, *fb);
-        if (!fb->savePng(shot.c_str())) {
+        if (!writeShot(ed, *fb, shot.c_str())) {
             fprintf(stderr, "can't write %s\n", shot.c_str());
             return 1;
         }
     }
-    if (window) return runWindow(ed, *fb, scale);
+    if (window) return runWindow(ed, *fb, scale, panel);
     if (keys.empty() && shot.empty()) {
         fprintf(stderr, "nothing to do: pass --window, --keys or --shot (see --help)\n");
         return 2;

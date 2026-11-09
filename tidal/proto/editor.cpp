@@ -276,6 +276,12 @@ void Editor::openMenu(const std::string& title, std::vector<MenuItem> items) {
     info(title + ": wheel to choose, ok to apply, cancel to close");
 }
 
+void Editor::gotoSlot(int s) {
+    if (s < 0 || s >= kSlots) return;
+    enterSlot(s);
+    info(cursorInfo());
+}
+
 void Editor::selectMenu(int i) {
     if (menuOpen_ && i >= 0 && i < (int)menu_.size()) menuSel_ = i;
 }

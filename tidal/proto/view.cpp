@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "check.h"
+#include "hardware.h"
 #include "render.h"
 
 using namespace tc;
@@ -149,7 +150,7 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     }
 
     // slot list
-    const int top = 34, rowH = 23;
+    const int top = 34, rowH = 20;
     for (int s = 0; s < kSlots; s++) {
         int y = top + s * rowH;
         if (s == ed.slot()) fb.rect(0, y - 2, 64, rowH, col::current);
@@ -166,7 +167,7 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     const int adv = f.widths['m'] ? f.widths['m'] : f.width;  // monospace advance
     const int cx = 76, cw = kW - cx - 10, lineH = f.height + 3;
     const int cols = cw / adv;
-    const int areaTop = 34, areaBottom = 404;
+    const int areaTop = 34, areaBottom = 376;
     std::vector<int> slots;
     for (int s = 0; s < kSlots; s++)
         if (p.block[s] || s == ed.slot()) slots.push_back(s);
@@ -216,16 +217,29 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     }
 
     // bottom panel
-    fb.rect(0, 408, kW, kH - 408, col::panel);
-    fb.text(10, 412, ed.cursorInfo().c_str(), col::dim, FontId::Sans12);
-    fb.text(10, 428, ed.message().c_str(), ed.messageIsError() ? col::err : col::text, FontId::Sans12);
+    fb.rect(0, 380, kW, kH - 380, col::panel);
+    fb.text(10, 383, ed.cursorInfo().c_str(), col::dim, FontId::Sans12);
+    fb.text(10, 399, ed.message().c_str(), ed.messageIsError() ? col::err : col::text, FontId::Sans12);
     if (ed.backend() && !ed.backend()->log.empty()) {
         const auto& log = ed.backend()->log;
         size_t n = log.size() < 2 ? log.size() : 2;
         for (size_t i = 0; i < n; i++) {
             const std::string& l = log[log.size() - n + i];
-            fb.text(10, 446 + (int)i * 15, l.c_str(), col::dim, FontId::Sans12, 120);
+            fb.text(10, 417 + (int)i * 15, l.c_str(), col::dim, FontId::Sans12, 120);
         }
+    }
+
+    // soft-key bar: labels for the 8 screen buttons below the display
+    const int sy = kH - 26;
+    fb.rect(0, sy - 2, kW, 1, col::dim);
+    for (int i = 0; i < 8; i++) {
+        Command k = controlCommand(ed, (Ctl)i, false);
+        int x = i * 100;
+        if (i) fb.rect(x, sy, 1, 26, col::dim);
+        if (k.label.empty()) continue;
+        fb.rect(x + 4, sy + 2, 92, 20, col::current);
+        int w = fb.textWidth(k.label.c_str(), FontId::Sans12);
+        fb.text(x + (100 - w) / 2, sy + 5, k.label.c_str(), col::text, FontId::Sans12);
     }
 
     // menu overlay

@@ -39,6 +39,7 @@ public:
 
     void act(Action a);
     void selectMenu(int i);   // jump to a menu entry (scripted use)
+    void gotoSlot(int s);     // select d(s+1) (a pad on the Tracker)
 
     // state for the view
     const tc::Program& prog() const { return *prog_; }

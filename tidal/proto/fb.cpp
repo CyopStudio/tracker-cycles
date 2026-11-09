@@ -52,27 +52,44 @@ bool Font::load(FontId id) {
     return stride > 0 && height > 0;
 }
 
-Framebuffer::Framebuffer() {
+Framebuffer::Framebuffer(int w_, int h_) : w(w_), h(h_), px((size_t)w_ * h_) {
     for (int i = 0; i < (int)FontId::Count; i++) fonts_[i].load((FontId)i);
     clear(0);
 }
 
 void Framebuffer::clear(uint32_t c) {
-    for (int i = 0; i < kW * kH; i++) px[i] = c;
+    for (auto& p : px) p = c;
 }
 
-void Framebuffer::rect(int x, int y, int w, int h, uint32_t c) {
+void Framebuffer::rect(int x, int y, int rw, int rh, uint32_t c) {
     int x0 = x < 0 ? 0 : x, y0 = y < 0 ? 0 : y;
-    int x1 = x + w > kW ? kW : x + w, y1 = y + h > kH ? kH : y + h;
+    int x1 = x + rw > w ? w : x + rw, y1 = y + rh > h ? h : y + rh;
     for (int j = y0; j < y1; j++)
-        for (int i = x0; i < x1; i++) px[j * kW + i] = c;
+        for (int i = x0; i < x1; i++) px[j * w + i] = c;
 }
 
-void Framebuffer::frame(int x, int y, int w, int h, uint32_t c) {
-    rect(x, y, w, 1, c);
-    rect(x, y + h - 1, w, 1, c);
-    rect(x, y, 1, h, c);
-    rect(x + w - 1, y, 1, h, c);
+void Framebuffer::disc(int cx, int cy, int r, uint32_t c) {
+    for (int j = -r; j <= r; j++)
+        for (int i = -r; i <= r; i++)
+            if (i * i + j * j <= r * r) rect(cx + i, cy + j, 1, 1, c);
+}
+
+void Framebuffer::blit(const Framebuffer& s, int x, int y) {
+    for (int j = 0; j < s.h; j++) {
+        int yy = y + j;
+        if (yy < 0 || yy >= h) continue;
+        for (int i = 0; i < s.w; i++) {
+            int xx = x + i;
+            if (xx >= 0 && xx < w) px[yy * w + xx] = s.px[j * s.w + i];
+        }
+    }
+}
+
+void Framebuffer::frame(int x, int y, int fw, int fh, uint32_t c) {
+    rect(x, y, fw, 1, c);
+    rect(x, y + fh - 1, fw, 1, c);
+    rect(x, y, 1, fh, c);
+    rect(x + fw - 1, y, 1, fh, c);
 }
 
 static uint32_t blend(uint32_t bg, uint32_t fg, int a /*0..15*/) {
@@ -90,13 +107,13 @@ int Framebuffer::text(int x, int y, const char* s, uint32_t c, FontId fid, int n
         const uint8_t* g = f.glyphs + (ch - f.first) * f.stride * f.height;
         for (int j = 0; j < f.height; j++) {
             int yy = y + j;
-            if (yy < 0 || yy >= kH) continue;
+            if (yy < 0 || yy >= h) continue;
             for (int i = 0; i < f.stride * 2; i++) {
                 int xx = x + i;
-                if (xx < 0 || xx >= kW) continue;
+                if (xx < 0 || xx >= w) continue;
                 uint8_t b = g[j * f.stride + i / 2];
                 int a = (i & 1) ? (b & 15) : (b >> 4);
-                if (a) px[yy * kW + xx] = blend(px[yy * kW + xx], c, a);
+                if (a) px[yy * w + xx] = blend(px[yy * w + xx], c, a);
             }
         }
         x += f.widths[ch];
@@ -131,11 +148,11 @@ static uint32_t crc(const uint8_t* b, size_t n, uint32_t c = 0xFFFFFFFFu) {
 bool Framebuffer::savePng(const char* path) const {
     crcInit();
     std::vector<uint8_t> raw;
-    raw.reserve((size_t)(kW * 3 + 1) * kH);
-    for (int y = 0; y < kH; y++) {
+    raw.reserve((size_t)(w * 3 + 1) * h);
+    for (int y = 0; y < h; y++) {
         raw.push_back(0);
-        for (int x = 0; x < kW; x++) {
-            uint32_t c = px[y * kW + x];
+        for (int x = 0; x < w; x++) {
+            uint32_t c = px[y * w + x];
             raw.push_back((c >> 16) & 255);
             raw.push_back((c >> 8) & 255);
             raw.push_back(c & 255);
@@ -175,7 +192,8 @@ bool Framebuffer::savePng(const char* path) const {
         uint8_t cb[4] = {(uint8_t)(c >> 24), (uint8_t)(c >> 16), (uint8_t)(c >> 8), (uint8_t)c};
         fwrite(cb, 1, 4, f);
     };
-    uint8_t ihdr[13] = {0, 0, kW >> 8, kW & 255, 0, 0, kH >> 8, kH & 255, 8, 2, 0, 0, 0};
+    uint8_t ihdr[13] = {0, 0, (uint8_t)(w >> 8), (uint8_t)(w & 255), 0, 0, (uint8_t)(h >> 8), (uint8_t)(h & 255),
+                        8, 2, 0, 0, 0};
     chunk("IHDR", ihdr, 13);
     chunk("IDAT", z.data(), z.size());
     chunk("IEND", nullptr, 0);

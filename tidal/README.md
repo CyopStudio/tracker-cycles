@@ -44,31 +44,57 @@ statements; `--backend none` sends nothing.
 
 ## Controls (window)
 
-Keyboard stands in for the Tracker until the device UI exists.
+The window shows a **mock Original Tracker panel** around the 800×480
+screen: 8 screen buttons, the 25 function buttons, jog wheel and 48 pads.
+Each control shows its name, what it does right now, and the keyboard key
+that reaches it (purple `S:` = with Shift). Click a control to press it;
+click Shift to latch it for the next press. The bottom line shows the last
+input, e.g. `key r -> Screen 1 [interfaceButton0] -> Replace`.
+`--no-panel` gives the bare screen.
 
-| Key | Action | Tracker idea |
-| :--- | :--- | :--- |
-| ← → | previous / next sibling | arrows |
-| ↑ ↓ | parent / first child | arrows |
-| mouse wheel, `+` `-` | change value: numbers, notes, samples, function name; moves in menus | jog wheel |
-| Shift + wheel | bigger step (×10, octave, sample index `:n`) | Shift + jog |
-| `r` | replace menu (only type-correct choices) | |
-| `w` | wrap menu (`fast 2 $ …`, `# gain 1`, `x*2`, `[x x]` …) | |
-| `i` | insert: copy step / list element, or add a `# control` | |
-| `x` / Del | delete (step, operand, or leave a `??` hole) | |
-| `u` | unwrap (keep the inner pattern) | |
-| `z` | undo | |
-| Enter | apply menu choice | jog push |
-| Esc | close menu | |
-| Space | evaluate current block | Play |
-| `h` | hush | Stop |
-| Tab / Shift+Tab | next / previous slot (d1..d16) | |
-| `t` | tracker mode on/off | |
-| Ctrl+S / Ctrl+Q | save / quit | |
+Every key goes through a Tracker control (`proto/hardware.cpp`, the mapping
+the device editor will use), so the keyboard can't do anything the
+hardware can't.
+
+| Tracker control | Editing | In a menu | Key |
+| :--- | :--- | :--- | :--- |
+| ← → | previous / next sibling | previous / next item | ← → |
+| ↑ ↓ | parent / first child | previous / next item | ↑ ↓ |
+| Jog wheel | change value (number, note, sample, function) | move | wheel, `+` `-`, PgUp/PgDn |
+| Shift + jog | bigger step (×10, octave, sample `:n`) | ±8 items | Shift + wheel |
+| Screen 1 | Replace (type-correct choices) | Cancel | `r` / Esc |
+| Screen 2 | Wrap (`fast 2 $ …`, `# gain 1`, `x*2` …) | | `w` |
+| Screen 3 | Unwrap (keep the inner pattern) | | `u` |
+| Screen 4 | Undo | | `z` |
+| Screen 8 | | OK | Enter |
+| Play | evaluate current block | OK | Space |
+| Shift + Play | hush | | `h` |
+| Insert | copy step / element, or add a `# control` | | `i` |
+| Delete | delete (step, operand, or leave a `??` hole) | | `x` / Del |
+| Pads 1–8 (top row) | select d1..d8 (sample tracks) | | `1`..`8` |
+| Pads 13–20 (2nd row) | select d9..d16 (MIDI) | | Shift+`1`..`8` |
+| | next / previous slot pad | | Tab / Shift+Tab |
+| File | save | | Ctrl+S |
+| Config | tracker mode on/off | | `t` |
+| (none) | quit | | Ctrl+Q |
+
+Unused for now: Screen 5–7, Params, Perform, Master, Smp Load/Play/Edit/Rec,
+Song, Note, Instr, Vol, Fx, Pattern, Copy, Rec, pads outside the two slot
+rows. Pads light like on the device: green playing, amber edited, red
+error; the current slot has a white frame.
+
+The panel arrangement (screen buttons under the display, jog wheel and two
+rows of five beside it, three rows of five beside the pads) follows the
+firmware's button groups in `core/interface/core/interfaceDefs.h`; check it
+against the real unit and fix `ctlRect()` in `proto/panel.cpp` if needed.
 
 Headless `--keys` tokens: `left right up down wheel+ wheel- wheel++ wheel--
 replace wrap insert delete unwrap undo eval hush next prev ok cancel save
-tracker`, plus `menu:N`, `shot:FILE.png`, `wait:MS`, `print`.
+tracker`, plus `menu:N`, `shot:FILE.png`, `wait:MS`, `print`, and
+`hw:CONTROL` / `hw:shift+CONTROL` to press a Tracker control (`s1`..`s8`,
+`play`, `insert`, `delete`, `jog+`, `jog-`, `pad1`..`pad48`, `file`,
+`config`, ...; see `proto/hardware.cpp`). `--panel` makes screenshots
+include the mock panel. `tests/proto/session3.keys` uses only `hw:` tokens.
 
 ## Behaviour notes
 

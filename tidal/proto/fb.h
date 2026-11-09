@@ -3,6 +3,8 @@
 #pragma once
 #include <stdint.h>
 
+#include <vector>
+
 namespace proto {
 
 constexpr int kW = 800;
@@ -20,12 +22,15 @@ struct Font {
 
 class Framebuffer {
 public:
-    Framebuffer();
-    uint32_t px[kW * kH];  // 0xRRGGBB
+    explicit Framebuffer(int w = kW, int h = kH);  // default: the Tracker screen
+    int w, h;
+    std::vector<uint32_t> px;  // 0xRRGGBB, w*h
 
     void clear(uint32_t c);
     void rect(int x, int y, int w, int h, uint32_t c);
     void frame(int x, int y, int w, int h, uint32_t c);
+    void disc(int cx, int cy, int r, uint32_t c);
+    void blit(const Framebuffer& src, int x, int y);
     // Draws text; returns the x after the last glyph.
     int text(int x, int y, const char* s, uint32_t c, FontId f = FontId::Mono14, int n = -1);
     int textWidth(const char* s, FontId f = FontId::Mono14, int n = -1);
