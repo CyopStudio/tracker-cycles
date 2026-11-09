@@ -14,6 +14,9 @@ For now everything here compiles only with `-DTIDAL_BENCH`; a normal
 make clean
 make original CUSTOM_DEFINES="-DTIDAL_BENCH"
 cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_TidalBench.ptf
+# must print nothing: a static constructor on SDRAM data hangs the boot
+for o in core/build-MK66-ORIGINAL/obj/tidal/*.o; do
+  arm-none-eabi-objdump -h $o | grep -q init_array && echo "static init: $o"; done
 ```
 
 `tidal_bench.cpp` runs the shared bench patterns (`tidal/core/bench.cpp`,

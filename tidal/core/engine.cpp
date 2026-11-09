@@ -386,7 +386,11 @@ struct ParamVal {
     Arc part;
     bool isMap;
 };
-TC_ENGINE_ARENA_ATTR static ParamVal gParams[kParamStack];
+// raw storage: with TC_ENGINE_ARENA_ATTR in SDRAM (NOLOAD) there must be
+// no static constructor (it would run before SDRAM is set up); entries
+// are assigned before they are read
+TC_ENGINE_ARENA_ATTR static unsigned char gParamsRaw[sizeof(ParamVal) * kParamStack] __attribute__((aligned(8)));
+static ParamVal* const gParams = reinterpret_cast<ParamVal*>(gParamsRaw);
 static int gParamTop = 0;
 static int gArenaCap = kEventArena;
 static int gHighWater = 0;
@@ -508,7 +512,7 @@ private:
         query(param, a);
         int k = top - m, base = gParamTop;
         if (base + k > kParamStack) return fail("patterned arguments nested too deeply");
-        for (int j = 0; j < k; j++) gParams[base + j] = ParamVal{gArena[m + j].v, gArena[m + j].part, gArena[m + j].isMap};
+        for (int j = 0; j < k; j++) new (&gParams[base + j]) ParamVal{gArena[m + j].v, gArena[m + j].part, gArena[m + j].isMap};
         top = m;
         gParamTop = base + k;
         for (int j = 0; j < k && !bad(); j++) {

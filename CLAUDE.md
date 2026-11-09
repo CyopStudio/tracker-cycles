@@ -360,6 +360,11 @@ folders listed in the project (e.g. a manifest) on project load.
 - `__NOINIT(EXTERNAL_RAM)` (.noinit_RAM4) is NOLOAD and not zeroed before
   static constructors: memset / placement-new anything placed there in
   TrackerImpl::init().
+  Static constructors run BEFORE SDRAM is initialised: an SDRAM object
+  whose type has a constructor (even a default member initialiser) hangs
+  the boot (bench v5 did, 2026-11-09: screen stuck at the updater's
+  100%). Use raw `unsigned char` storage + placement-new; check objects
+  for `.init_array` (core/tidal/README.md).
 - Don't format floats (%f) from interrupt context (newlib heap allocation).
 - Don't shift `Interface::modules[]` indices (hard-coded by UI navigation).
 
