@@ -66,6 +66,7 @@ static const LibEntry kLib[] = {
     FN("striate", "Pat Int -> Pat Control -> Pat Control", Sample, HostOnly, "4"),
     // loopAt/splice set speed so the sample fits the cycle / event (unit "c");
     // the device can only approximate that rate with tune + fine-tune.
+    // Signatures verified with :t in GHCi (Tidal 1.10.3), 2026-11-09.
     FN("loopAt", "Pat Time -> Pat Control -> Pat Control", Sample, Approx, "2"),
     FN("splice", "Pat Int -> Pat Int -> Pat Control -> Pat Control", Sample, Approx, "4 \"0 2\""),
     // ---- harmony ------------------------------------------------------------
