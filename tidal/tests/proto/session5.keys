@@ -3,6 +3,6 @@ hw:up hw:up hw:s6
 hw:pad1 hw:shift+insert hw:right hw:right hw:right hw:s6 hw:jog-
 hw:shift+insert hw:s8 hw:jog+
 hw:pad2 hw:down hw:fx2 menu:6 hw:play hw:shift+insert hw:s5
-hw:pad3 hw:down hw:down hw:down hw:right hw:s7 hw:s5
+hw:pad3 hw:down hw:down hw:down hw:right hw:s6 hw:up hw:up hw:s6
 hw:play
 print
