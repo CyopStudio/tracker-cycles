@@ -39,11 +39,12 @@ const char* ctlFwName(Ctl c);  // firmware enum, e.g. "interfaceButtonSampleLoad
 bool ctlFromId(const std::string& s, Ctl& out);
 
 struct Command {
-    enum Type { None, Act, Slot, Number } type = None;
+    enum Type { None, Act, Slot, Number, Instrument } type = None;
     Action action = Action::Cancel;
     int slot = -1;
     int number = 0;  // Type::Number: value a pad enters
     bool rest = false;  // Type::Number: the rest pad (~)
+    int instrument = -1;  // Type::Instrument: slot 0..47
     std::string label;  // short, for the panel / screen soft-key bar
 };
 

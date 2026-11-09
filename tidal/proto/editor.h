@@ -53,6 +53,12 @@ public:
     // Replace the value at the cursor (rest: ~), then select the next step's
     // value, or append a copy at the end of the sequence (Delete removes it).
     void enterNumber(int v, bool rest = false);
+    // Instrument mode: in an s / sound pattern the 48 pads are instrument
+    // slots (samples_), entered the same way.
+    bool padInstruments() const;
+    int cursorInstrument() const;  // slot of the sample at the cursor, or -1
+    void enterInstrument(int slot);
+    const std::vector<std::string>& instruments() const { return samples_; }
 
     // state for the view
     const tc::Program& prog() const { return *prog_; }
@@ -102,6 +108,7 @@ private:
     void quick(int i);
     void doPaste();
     void doDelete();
+    void enterStep(const std::string& miniCode, const std::string& exprCode, const std::string& label);
     void deleteNode();  // remove / hole the cursor node (Delete outside "...")
     void doUnwrap();
     void evaluate();

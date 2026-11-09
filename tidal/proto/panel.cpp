@@ -230,6 +230,11 @@ static void drawPad(Framebuffer& fb, const Editor& ed, Ctl c, const PanelState& 
         if (k.number == 0) fill = 0x35506B;
         if (k.rest) fill = 0x3A3F48;
     }
+    if (k.type == Command::Instrument) {
+        fill = (padIndex(c) / kPadCols) % 2 ? 0x3A3524 : 0x332F20;  // instrument colour, by row
+        if (k.label.empty()) fill = pc::padOff;
+        cur = ed.cursorInstrument() == k.instrument;
+    }
     if (st.lit == c) fill = pc::btnLit;
     fb.rect(r.x, r.y, r.w, r.h, fill);
     fb.frame(r.x, r.y, r.w, r.h, cur ? 0xFFFFFF : (st.lit == c ? pc::accent : pc::btnEdge));
@@ -239,6 +244,9 @@ static void drawPad(Framebuffer& fb, const Editor& ed, Ctl c, const PanelState& 
         centered(fb, r, r.y + 30, keyHint(ed, c), pc::key);
     } else if (k.type == Command::Number) {
         centered(fb, r, r.y + 17, k.label, pc::label, FontId::Mono14);
+    } else if (k.type == Command::Instrument) {
+        centered(fb, r, r.y + 6, k.label.empty() ? "-" : k.label, k.label.empty() ? pc::unused : pc::label);
+        centered(fb, r, r.y + 30, std::to_string(k.instrument + 1), pc::name);
     }
 }
 
@@ -278,7 +286,7 @@ void drawPanel(const Editor& ed, const Framebuffer& screen, Framebuffer& out, co
     const char* legend[] = {
         "Button: name / function / key / purple = with Shift",
         "Click to press; click Shift to latch it.",
-        "Pads: numbers on a value, else slots; Shift+pad = slot",
+        "Pads: numbers / instruments by context; Shift+pad = slot",
         "Tab, Shift+Tab: next / prev slot pad",
         "Ctrl+Q quits (no Tracker equivalent)",
     };

@@ -19,6 +19,8 @@
 //     --panel                     screenshots include the mock panel
 //     --scale N                   window scale (default 1)
 //     --no-tracker-mode           allow host-only functions
+//     --instruments FILE          instrument slots for the pads, one sample
+//                                 name per line (max 48; blank = empty slot)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -105,7 +107,7 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
 }
 
 int main(int argc, char** argv) {
-    std::string backendName = "print", ghci = "ghci", boot = "proto/boot.ghci", keys, shot, file;
+    std::string backendName = "print", ghci = "ghci", boot = "proto/boot.ghci", keys, shot, file, instruments;
     bool window = false, trackerMode = true, panel = true;
     int scale = 1;
     for (int i = 1; i < argc; i++) {
@@ -126,6 +128,7 @@ int main(int argc, char** argv) {
         else if (a == "--scale") scale = atoi(next().c_str());
         else if (a == "--no-tracker-mode") trackerMode = false;
         else if (a == "--no-panel") panel = false;
+        else if (a == "--instruments") instruments = next();
         else if (a == "--panel") gPanelShots = true;
         else if (a == "-h" || a == "--help") {
             printf("see the comment at the top of tidal/proto/main.cpp or tidal/README.md\n");
@@ -148,6 +151,23 @@ int main(int argc, char** argv) {
 
     Editor ed;
     ed.setBackend(backend.get());
+    if (!instruments.empty()) {
+        FILE* f = fopen(instruments.c_str(), "r");
+        if (!f) {
+            fprintf(stderr, "can't open %s\n", instruments.c_str());
+            return 1;
+        }
+        std::vector<std::string> names;
+        char line[256];
+        while (names.size() < 48 && fgets(line, sizeof line, f)) {
+            std::string s = line;
+            while (!s.empty() && (s.back() == '\n' || s.back() == '\r' || s.back() == ' ')) s.pop_back();
+            while (!s.empty() && s[0] == ' ') s.erase(0, 1);
+            names.push_back(s);
+        }
+        fclose(f);
+        ed.setSamples(names);
+    }
     if (!trackerMode) ed.act(Action::ToggleTrackerMode);
     if (!file.empty()) {
         std::string err;

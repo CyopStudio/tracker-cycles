@@ -60,7 +60,9 @@ to upstream CE.
     = rest `~` (0 starts row 2; for n/note a chromatic keyboard), replacing
     the value / group at the cursor, then selecting the next step's value
     or appending a copy at the end (tracker-style entry); Delete removes
-    that appended copy and ends entry. Elsewhere, and always with Shift, pads
+    that appended copy and ends entry. In an s / sound pattern the pads are
+    the 48 instrument slots (same entry, no rest pad; prototype default =
+    Dirt-Samples names, `--instruments FILE`). Elsewhere, and always with Shift, pads
     1-8 = d1..d8, 13-20 = d9..d16 (lit by slot state). Keyboard digits are
     Shift+pad.
   - File = save, Config = tracker mode. Free: Params, Perform, Master,

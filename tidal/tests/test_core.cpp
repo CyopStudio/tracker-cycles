@@ -281,6 +281,8 @@ static void testTypes() {
     typeCheck("splice 8 \"0 2 4 <6 7>\" $ s \"break\"");
     typeCheck("splice 4 \"0 1.5\" $ s \"break\"", "fractional");
     typeCheck("s \"808 909\"");  // digits in a String pattern become words
+    typeCheck("s \"808bd 808:3 808bd:2\"");  // digits + letters / :index are words
+    typeCheck("n \"808bd\"", "not a note name");  // Tidal splits it into 808 b d
     // signatures checked against GHCi :t (golden/types.txt)
     typeCheck("whenmod \"<8 4>\" 1.5 rev $ s \"bd sd\"");  // Pat Time, not Pat Int
     typeCheck("n (scale \"major\" \"0 .. 7\")");

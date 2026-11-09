@@ -181,7 +181,16 @@ struct MiniParser {
         if (c == '[') return group('[', ']');
         if (c == '<') return group('<', '>');
         if (c == '{') return group('{', '}');
-        if (isdigit((unsigned char)c) || (c == '-' && isdigit((unsigned char)peek(1)))) return number();
+        if (isdigit((unsigned char)c)) {
+            // digits running into letters, or with a sample index, are a word
+            // as in Tidal's s patterns: "808bd", "808:3"
+            int j = i;
+            while (j < len && isdigit((unsigned char)s[j])) j++;
+            if (j < len && isalpha((unsigned char)s[j])) return word();
+            if (j + 1 < len && s[j] == ':' && isdigit((unsigned char)s[j + 1])) return word();
+            return number();
+        }
+        if (c == '-' && isdigit((unsigned char)peek(1))) return number();
         if (wordStart(c)) return word();
         fail(c ? "unexpected character" : "unexpected end");
         return 0;

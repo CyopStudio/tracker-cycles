@@ -80,7 +80,8 @@ bool ctlFromId(const std::string& s, Ctl& out) {
 // they enter values (-12 top left .. 34, then a rest pad bottom right; 0
 // starts the second row, so for n/note it's a keyboard from c4). Elsewhere, and
 // always with Shift, the first 8 pads of the top row select d1..d8 (sample
-// tracks) and the first 8 of the second row d9..d16 (MIDI).
+// tracks) and the first 8 of the second row d9..d16 (MIDI). In an s /
+// sound pattern they are the 48 instrument slots (no rest pad there).
 Ctl slotPad(int s) {
     if (s < 0 || s >= tc::kSlots) return Ctl::Count;
     int row = s / tc::kSampleSlots, col = s % tc::kSampleSlots;
@@ -91,6 +92,15 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
     const bool menu = ed.menuOpen();
     if (isPad(c)) {
         int i = padIndex(c), row = i / kPadCols, col = i % kPadCols;
+        if (!shift && ed.padInstruments()) {
+            // instrument mode (s / sound patterns): pad N = instrument slot N
+            Command k;
+            k.type = Command::Instrument;
+            k.instrument = i;
+            const auto& ins = ed.instruments();
+            k.label = i < (int)ins.size() ? ins[i] : "";
+            return k;
+        }
         if (!shift && ed.padNumeric()) {
             Command k;
             k.type = Command::Number;
@@ -184,6 +194,7 @@ bool press(Editor& ed, Ctl c, bool shift) {
         case Command::Act: ed.act(k.action); return true;
         case Command::Slot: ed.gotoSlot(k.slot); return true;
         case Command::Number: ed.enterNumber(k.number, k.rest); return true;
+        case Command::Instrument: ed.enterInstrument(k.instrument); return true;
         default: return false;
     }
 }

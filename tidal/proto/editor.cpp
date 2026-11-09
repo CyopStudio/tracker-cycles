@@ -63,7 +63,14 @@ static const char* controlDefault(const char* name) {
 
 Editor::Editor() : prog_(new Program) {
     for (auto& s : state_) s = SlotState::Empty;
-    samples_ = {"bd", "sd", "hh", "cp", "arpy", "drum", "bass", "superpiano", "808", "jvbass", "feel", "sn"};
+    // 48 instrument slots, one per pad (the Tracker has 48 sample
+    // instruments). Default: Dirt-Samples folders, so SuperDirt plays them;
+    // --instruments FILE replaces it.
+    samples_ = {"bd",    "sd",    "hh",    "cp",    "ho",     "cr",     "lt",    "mt",    "ht",    "drum",
+                "sn",    "tink",  "808bd", "808sd", "808hc",  "808oh",  "808cy", "808lt", "808mt", "808ht",
+                "808lc", "808mc", "808",   "hh27",  "arpy",   "bass",   "bass1", "bass2", "bass3", "jvbass",
+                "pluck", "casio", "blip",  "bend",  "bev",    "bottle", "break", "jazz",  "feel",  "future",
+                "gab",   "hand",  "east",  "kurt",  "rave",   "space",  "tabla", "wind"};
     info("ready");
 }
 
@@ -185,6 +192,7 @@ void Editor::commit(std::unique_ptr<Program> p, uint16_t cursor) {
     snapshot();
     prog_ = std::move(p);
     cursor_ = cursor;
+    messageError_ = false;  // callers test it after commit; an earlier error must not stick
     if (state_[slot_] != SlotState::Empty || prog_->block[slot_]) state_[slot_] = SlotState::Edited;
 }
 
@@ -326,16 +334,55 @@ static uint16_t valueOf(const Program& p, uint16_t step) {
 
 void Editor::enterNumber(int v, bool rest) {
     if (!padNumeric()) return error("pads enter numbers inside a numeric pattern");
-    std::string label = rest ? "~" : std::to_string(v);
+    std::string n = std::to_string(v);
+    if (rest) enterStep("~", "", "~");
+    else enterStep(n, v < 0 ? "(" + n + ")" : n, n);
+}
+
+// Instrument mode: pads are the 48 instrument slots (samples_).
+bool Editor::padInstruments() const {
+    if (menuOpen_ || !cursor_) return false;
+    const Node& n = prog_->at(cursor_);
+    if (n.type != kTyPatBase + (int)Base::String) return false;
+    if (!(n.kind == Kind::Mini || isMiniKind(n.kind))) return false;
+    // only the pattern of s / sound (not arp "up", scale "major", ...)
+    uint16_t m = cursor_;
+    while (m && prog_->at(m).kind != Kind::Mini) m = prog_->parentOf(m);
+    uint16_t app = m ? prog_->parentOf(m) : 0;
+    if (!app || prog_->at(app).kind != Kind::App) return false;
+    const Node& f = prog_->at(prog_->at(app).first);
+    if (f.kind != Kind::Fn) return false;
+    const char* name = lib((int)f.a).name;
+    return strcmp(name, "s") == 0 || strcmp(name, "sound") == 0;
+}
+
+int Editor::cursorInstrument() const {
+    if (!cursor_ || prog_->at(cursor_).kind != Kind::MWord) return -1;
+    std::string w = prog_->str((int)prog_->at(cursor_).a);
+    for (size_t i = 0; i < samples_.size(); i++)
+        if (samples_[i] == w) return (int)i;
+    return -1;
+}
+
+void Editor::enterInstrument(int i) {
+    if (!padInstruments()) return error("pads pick instruments inside an s pattern");
+    if (i < 0 || i >= (int)samples_.size() || samples_[i].empty())
+        return error("instrument slot " + std::to_string(i + 1) + " is empty");
+    enterStep(samples_[i], "", samples_[i]);
+}
+
+// Pad entry: replace the value at the cursor (mini code inside "...",
+// exprCode for a number argument; empty = not allowed there), then select
+// the next step's value or append a copy to type over (Delete removes it).
+void Editor::enterStep(const std::string& miniCode, const std::string& exprCode, const std::string& label) {
     const uint16_t oldCursor = cursor_;
     if (prog_->at(cursor_).kind == Kind::Mini) cursor_ = prog_->at(cursor_).first;  // whole "..."
     bool mini = isMiniKind(prog_->at(cursor_).kind);
-    std::string code = rest ? "~" : std::to_string(v);
-    if (!mini && rest) {
+    std::string code = mini ? miniCode : exprCode;
+    if (code.empty()) {
         cursor_ = oldCursor;
-        return error("a rest only goes inside \"...\"");
+        return error(label + " only goes inside \"...\"");
     }
-    if (!mini && v < 0) code = "(" + code + ")";
     uint16_t nn;
     auto r = tryReplace(code, mini, nn);
     if (!r) {
@@ -585,8 +632,12 @@ void Editor::wheel(int dir, bool fast) {
                 int i = 0;
                 for (; i < (int)samples_.size(); i++)
                     if (samples_[i] == cur) break;
-                int k = i < (int)samples_.size() ? i + dir : 0;
-                k = (k % (int)samples_.size() + (int)samples_.size()) % (int)samples_.size();
+                int ns = (int)samples_.size(), k = i < ns ? i : 0;
+                for (int t = 0; t < ns; t++) {  // next non-empty slot
+                    k = ((k + dir) % ns + ns) % ns;
+                    if (!samples_[k].empty()) break;
+                }
+                if (samples_[k].empty()) return error("no instruments");
                 int id = p->intern(samples_[k].c_str(), (int)samples_[k].size());
                 if (id < 0) return error("too many words");
                 m.a = (uint32_t)id;
@@ -676,6 +727,7 @@ void Editor::openSamples() {
     std::vector<MenuItem> items;
     bool mini = isMiniKind(prog_->at(cursor_).kind);
     for (auto& s : samples_) {
+        if (s.empty()) continue;
         if (mini) {
             addReplaceItems(items, s, s, true);
             for (int i = 1; i <= 3; i++) addReplaceItems(items, s + ":" + std::to_string(i), s + ":" + std::to_string(i), true);
@@ -830,7 +882,8 @@ void Editor::openReplace() {
     if (isMiniKind(n.kind)) {
         std::string t = renderNode(*prog_, cursor_);
         add("rest ~", "~", true);
-        for (auto& s : samples_) add(s, s, true);
+        for (auto& s : samples_)
+            if (!s.empty()) add(s, s, true);
         for (const char* v : {"0", "1", "2", "3", "0.5", "c", "e", "g", "t", "f"}) add(v, v, true);
         add("group [x x]", "[" + t + " " + t + "]", true);
         add("alternate <x x>", "<" + t + " " + t + ">", true);

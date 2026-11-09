@@ -375,6 +375,10 @@ cursor and offers only matching choices.
    nested polymeter `%` works; the `%` steps can be a pattern (`%[4]`).
    Our parser accepts all of these. `[bd sd]!` renders as `[bd sd] !`,
    which gives the same events.
+   A token that starts with digits and runs into letters (`808bd`) or has
+   a sample index (`808:3`) is a word, as in Tidal's `s` patterns (golden
+   `sample_digits`). Tidal's parser is type-directed and reads `n "808bd"`
+   as the notes 808, b, d; we report "not a note name" instead.
 
 ---
 
