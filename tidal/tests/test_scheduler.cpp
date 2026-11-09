@@ -40,6 +40,7 @@ constexpr int64_t kFsNum = 750000, kFsDen = 17;  // MK66 44117.647 Hz
 
 Program gEdit, gLive;
 Event gBuf[1024], gRefBuf[4096];
+Entry gStorage[Scheduler::kStorageEntries];
 Scheduler gS;
 
 uint8_t hashNote(const char* s, float n) {
@@ -130,7 +131,8 @@ void refCps(Q at, Q cps) {
 
 void reset(int bufCap = 1024) {
     gLive.clear();
-    gS.init(&gLive, gBuf, bufCap, &gMapper);
+    memset(gStorage, 0xA5, sizeof gStorage);  // the scheduler must not rely on zeroed storage
+    gS.init(&gLive, gBuf, bufCap, &gMapper, gStorage);
     gVoice = RecVoice();
     refReset(Q{23, 40});
 }
@@ -499,6 +501,36 @@ void testDense() {
     SEXPECT(gS.stats().dropped == 0, "dense: %u dropped", gS.stats().dropped);
 }
 
+// Mono slots: of several starts due in one block only the last plays (sample
+// slots); MIDI slots play every note.
+void testMono() {
+    reset();
+    gS.setMonoSlots(true);
+    if (!load("d1 $ s \"bd*1024\"\nd9 $ s \"bd*1024\"\n")) return;
+    evalSlot(0);
+    evalSlot(8);
+    Q endC{3, 1};
+    run((uint32_t)(refSample(endC) / kBlockSamples) + 10, 5);
+    std::vector<Onset> ref;
+    refOnsets(0, Q{1, 1}, endC, ref);
+    std::sort(ref.begin(), ref.end());
+    std::vector<Onset> want;  // last onset per block
+    for (size_t i = 0; i < ref.size(); i++)
+        if (i + 1 == ref.size() || ref[i + 1].sample / kBlockSamples != ref[i].sample / kBlockSamples)
+            want.push_back(ref[i]);
+    std::vector<Onset> got, midi;
+    for (const Onset& o : played(0, refSample(endC) - 1)) (o.slot == 0 ? got : midi).push_back(o);
+    sameOnsets(got, want, "mono bd*1024");
+    SEXPECT(want.size() < ref.size() * 3 / 4, "test pattern too sparse (%zu of %zu)", want.size(), ref.size());
+    std::vector<Onset> wantMidi;
+    refOnsets(8, Q{1, 1}, endC, wantMidi);
+    sameOnsets(midi, wantMidi, "MIDI slot not mono");
+    SEXPECT(gS.stats().superseded >= ref.size() - want.size(), "superseded %u, want >= %zu", gS.stats().superseded,
+            ref.size() - want.size());
+    SEXPECT(gS.stats().dropped == 0 && gS.stats().capped == 0, "mono: dropped %u capped %u", gS.stats().dropped,
+            gS.stats().capped);
+}
+
 void testHushAndErrors() {
     reset();
     if (!load("d1 $ s \"bd*8\"\nd9 $ n \"0 3\" # s \"midi\" # legato 2\n")) return;
@@ -552,6 +584,7 @@ void testScheduler(int& pass, int& fail) {
     testCps();
     testStall();
     testDense();
+    testMono();
     testHushAndErrors();
     printf("scheduler: %s\n", fail == f0 ? "ok" : "FAILED");
 }

@@ -64,9 +64,12 @@ public:
     virtual void allOff() = 0;
 };
 
-// Single-producer / single-consumer ring of entries, in time order.
+// Single-producer / single-consumer ring of entries, in time order. The
+// entries live in caller storage (SDRAM on the device); head / tail sit in
+// the Scheduler object (internal RAM on the device: the interrupt reads
+// them every block).
 struct Ring {
-    Entry e[kRingSize];
+    Entry* e;            // kRingSize entries
     volatile uint32_t head;  // written by the consumer
     volatile uint32_t tail;  // written by the producer
     uint32_t count() const { return tail - head; }
@@ -79,6 +82,12 @@ struct SchedulerStats {
     uint32_t skips;       // horizon skipped forward after a stall
     uint32_t queries;     // queries run
     uint32_t splits;      // windows halved (too many events / ring space)
+    uint32_t superseded;  // mono slots: due starts skipped for a later due one
+    // per slot, when update() gets a clock: time in query windows (query,
+    // mapping, sort; retries included), windows queued, longest window
+    uint32_t slotUs[kSlots];
+    uint32_t slotWindows[kSlots];
+    uint32_t slotUsMax[kSlots];
 };
 
 // Interrupt hooks (device: disable / enable IRQs; host: none).
@@ -90,17 +99,27 @@ struct SchedulerHooks {
 class Scheduler {
 public:
     using Hooks = SchedulerHooks;
-    // No constructor work: the object may live in SDRAM (placement-new it
-    // after SDRAM init, then call init()).
+    // Entries of caller storage init() needs: the rings + a sort buffer.
+    static constexpr int kStorageEntries = (kSlots + 1) * kRingSize;
+    // No constructor work: placement-new it at run time (SDRAM is not
+    // ready for static constructors on the device), then call init().
     // `live` is the scheduler's own program (evaluate copies blocks into
-    // it); `buf` / `cap` the query output buffer.
-    void init(Program* live, Event* buf, int cap, Mapper* mapper, Hooks hooks = Hooks{nullptr, nullptr});
+    // it); `buf` / `cap` the query output buffer; `storage` holds
+    // kStorageEntries entries (main loop + interrupt, may be slow memory).
+    // The object itself (~4 KB) holds what the interrupt reads every block.
+    void init(Program* live, Event* buf, int cap, Mapper* mapper, Entry* storage,
+              Hooks hooks = Hooks{nullptr, nullptr});
 
     // Sample rate as an exact fraction (MK66: 750000/17 = 44117.647 Hz).
     void setSampleRate(int64_t num, int64_t den);
     void setLookahead(uint32_t samples) { lookahead_ = samples; }
     void setLateLimit(uint32_t blocks) { lateBlocks_ = blocks; }
     void setNoteStartCap(int n) { cap_ = n; }
+    // Sample slots play one note at a time: when several of a slot's starts
+    // are due in the same block, only the last is audible, so the earlier
+    // ones are skipped (counted in `superseded`, not by the cap). Off by
+    // default; the device turns it on (a voice pool per slot would not).
+    void setMonoSlots(bool on) { mono_ = on; }
 
     // ---- main loop ----------------------------------------------------------
     // Evaluate block `slot` of `edit` (a checked program): copies its tree
@@ -122,6 +141,7 @@ public:
     const Error* error(int slot) const { return slot_[slot].failed ? &slot_[slot].err : nullptr; }
     Q horizon(int slot) const { return slot_[slot].h; }
     const SchedulerStats& stats() const { return stats_; }
+    void resetStats();  // main loop; the interrupt's counters may lose a tick
 
     // Time conversion (main loop). Cycle -> absolute sample (floor).
     int64_t sampleAt(Q cycle) const;
@@ -182,6 +202,7 @@ private:
     uint32_t lookahead_;
     uint32_t lateBlocks_;
     int cap_;
+    bool mono_;
 
     Anchor cur_;           // valid from cur_.c0 on
     Anchor prev_;          // valid before cur_.c0 while hasPrev_
@@ -190,7 +211,7 @@ private:
     Q nextCps_;
 
     Slot slot_[kSlots];
-    Entry tmp_[kRingSize];
+    Entry* tmp_;           // kRingSize entries of the caller's storage
     SchedulerStats stats_;
 
     // interrupt side
@@ -200,6 +221,7 @@ private:
     uint32_t hushSeen_;
     uint8_t rr_;                  // round-robin start among sample slots
     Off off_[kSlots][kMaxPendingOffs];
+    uint8_t nOff_[kSlots];        // active entries per off_ row
 };
 
 }  // namespace tc

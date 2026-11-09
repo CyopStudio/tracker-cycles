@@ -88,7 +88,8 @@ timing itself adds ~20 cycles per active node to the graph stage.
 ```bash
 make clean
 make original CUSTOM_DEFINES="-DTIDAL_TICK"   # add -DTC_ENGINE_O2 for the -O2 engine
-cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_TidalTick.ptf
+cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_TidalTick2.ptf   # ...TidalTick2O2.ptf
+# `make clean` deletes build/: move a finished .ptf out before the next variant
 for o in core/build-MK66-ORIGINAL/obj/tidal/*.o; do
   arm-none-eabi-objdump -h $o | grep -q init_array && echo "static init: $o"; done
 ```
@@ -97,8 +98,9 @@ for o in core/build-MK66-ORIGINAL/obj/tidal/*.o; do
 on the main loop (`update()`, 4 ms budget per pass, 250 ms lookahead), and
 `tidalTick()` in the audio callback right after `sequencer.tick()`, which
 pops due entries and calls `instrumentPlayer[slot].noteOn` (the
-sequencer's 7-argument path). Load a project with samples first: 15 s
-after boot it plays four built-in sets, 20 s each (light; everyday on 8
+sequencer's 7-argument path). Load a project with samples: once its
+instruments are loaded (15 s after boot at the earliest, 60 s at the
+latest) it plays four built-in sets, 20 s each (light; everyday on 8
 slots; the heavy bench patterns at cps 0.7; all 8 slots hitting together
 for the note-start cap). A `/tidal_tick.tidal` on the card replaces them
 with one 60 s set. Don't press Play on the stock sequencer meanwhile.
@@ -110,13 +112,20 @@ else wrapped onto the active instruments; `n` / `note` add to C5; `gain`
 x100 = step volume; looped instruments get a noteOff after the event's
 length, one-shots play out. d9..d16 (MIDI) are not mapped yet.
 
-After each set it appends to `/tidal_tick.txt`: tidalTick cycles per block
-(all / blocks that started notes), cycles per noteOn, most starts in one
+v2 (2026-11-09): scheduler object in internal RAM (ring entries in
+SDRAM), mono sample slots (`setMonoSlots`: of several starts due in one
+block only the last plays), set 1 timing fixed.
+
+After each set it appends to `/tidal_tick.txt` (`/tidal_tick_o2.txt` for
+the -O2 variant): tidalTick cycles per block (all / idle blocks / blocks
+that started notes), cycles per noteOn, superseded starts, per-slot query
+window time (avg / max, wall time), mapping cycles per event, most starts in one
 block, lateness, dropped / capped, update() time and its share of the
 main loop, the longest main-loop gap, the scheduler's counters, audio
 load, and the evaluator's deepest stack vs the heap end.
 
-Cost (2026-11-09, -Os): flash +92.8 KB (903,364 -> 996,180 B, 95.0 %),
+v2 cost: flash 996,748 B (-Os) / 1,020,940 B (-O2, 97.4 %), internal RAM
+217,156 B (+3.8 KB scheduler object). v1 cost (2026-11-09, -Os): flash +92.8 KB (903,364 -> 996,180 B, 95.0 %),
 internal RAM +55 KB (156,548 -> 213,316 B: checker type pool 28 KB, engine
 working set 26 KB),
 stack reserve 24 KB (Profiler::init), SDRAM: scheduler 73 KB, live +

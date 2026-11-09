@@ -1,6 +1,12 @@
 // Device tick test build (see tidal_tick.h and README.md).
 //
-// 15 s after boot it plays a list of test sets (built in, or the one in
+// v2: the scheduler object (what the interrupt reads every block) in
+// internal RAM, ring entries in SDRAM; mono sample slots (of several starts
+// due in one block only the last plays); per-slot query timing; mapping
+// cost; idle-tick cost; waits for a loaded project.
+//
+// Once a project with instruments is loaded (15 s after boot at the
+// earliest, 60 s at the latest) it plays a list of test sets (built in, or the one in
 // /tidal_tick.tidal if the card has it), 20 s each, on the loaded
 // project's sample instruments: `s` picks the instrument whose file name
 // matches (case-insensitive, without extension), else the instrument at
@@ -44,9 +50,15 @@ using tc::Entry;
 
 #define CYCLES() (*(volatile uint32_t*)0xE0001004u)  // DWT->CYCCNT
 
-constexpr uint32_t kStartMs = 15000, kSetMs = 20000, kFileSetMs = 60000;
+constexpr uint32_t kStartMs = 15000, kStartLatestMs = 60000, kSetMs = 20000, kFileSetMs = 60000;
 constexpr uint32_t kUpdateBudgetUs = 4000;
+#ifdef TC_ENGINE_O2
+#define TC_TICK_VARIANT "engine -O2"
+const char* const kPath = "/tidal_tick_o2.txt";
+#else
+#define TC_TICK_VARIANT "engine -Os"
 const char* const kPath = "/tidal_tick.txt";
+#endif
 const char* const kUserSet = "/tidal_tick.tidal";
 
 // Built-in sets. Names resolve onto any project (see the top).
@@ -99,7 +111,11 @@ const char* const kDefaultNames[48] = {
 // SDRAM is not initialised when static constructors run: raw storage,
 // placement-new at start (CLAUDE.md).
 constexpr int kQueryCap = 256;
-__NOINIT(EXTERNAL_RAM) unsigned char schedRaw[sizeof(tc::Scheduler)] __attribute__((aligned(8)));
+// The scheduler object in internal RAM (the interrupt reads its ring heads
+// / tails and noteOff tables every block), its entries in SDRAM.
+unsigned char schedRaw[sizeof(tc::Scheduler)] __attribute__((aligned(8)));
+__NOINIT(EXTERNAL_RAM) unsigned char storageRaw[sizeof(tc::Entry) * tc::Scheduler::kStorageEntries]
+    __attribute__((aligned(8)));
 __NOINIT(EXTERNAL_RAM) unsigned char liveRaw[sizeof(tc::Program)] __attribute__((aligned(8)));
 __NOINIT(EXTERNAL_RAM) unsigned char editRaw[sizeof(tc::Program)] __attribute__((aligned(8)));
 __NOINIT(EXTERNAL_RAM) unsigned char bufRaw[sizeof(tc::Event) * kQueryCap] __attribute__((aligned(8)));
@@ -127,6 +143,7 @@ struct IsrStats {
     uint32_t noteBlocks;   // blocks that started >= 1 note
     uint64_t noteBlockCyc;
     uint32_t noteBlockCycMax;
+    uint32_t idleCycMax;   // blocks without note starts
     uint32_t notes;
     uint64_t noteOnCyc;    // inside instrumentPlayer.noteOn only
     uint32_t noteOnCycMax;
@@ -190,7 +207,8 @@ int findInstrument(const char* name) {
 
 struct DeviceMapper : tc::Mapper {
     int keyS = -1, keySound = -1, keyN = -1, keyNote = -1, keyGain = -1;
-    uint32_t unmapped = 0;
+    uint32_t unmapped = 0, maps = 0;
+    uint64_t mapCyc = 0;
     void initKeys() {
         keyS = tc::controlKey("s");
         keySound = tc::controlKey("sound");
@@ -198,7 +216,14 @@ struct DeviceMapper : tc::Mapper {
         keyNote = tc::controlKey("note");
         keyGain = tc::controlKey("gain");
     }
-    bool map(const tc::Program& p, int slot, const tc::Event& e, float, float lenSamples, Entry& out) override {
+    bool map(const tc::Program& p, int slot, const tc::Event& e, float spc, float lenSamples, Entry& out) override {
+        const uint32_t t0 = CYCLES();
+        const bool ok = mapTimed(p, slot, e, spc, lenSamples, out);
+        mapCyc += CYCLES() - t0;
+        maps++;
+        return ok;
+    }
+    bool mapTimed(const tc::Program& p, int slot, const tc::Event& e, float, float lenSamples, Entry& out) {
         if (slot >= audioEngine::kVoices || !e.isMap) {
             unmapped++;
             return false;
@@ -237,7 +262,7 @@ int gSet = -1;           // current set (-1: not started)
 int gSetCount = kSetCount;
 bool gUserSet = false;
 uint32_t gSetStart = 0, gLastUpdate = 0;
-uint32_t updCalls = 0, updUs = 0, updMaxUs = 0, loopGapMaxUs = 0, queries = 0;
+uint32_t updCalls = 0, updUs = 0, updMaxUs = 0, loopGapMaxUs = 0;
 bool fileStarted = false;
 char gLine1[64];
 
@@ -299,8 +324,10 @@ void start() {
         tc::engineUseMemory(fastMem, kFastEvents, kFastCtls, kFastParams);
     mapper.initKeys();
     tc::engineResetMinStack();
-    sched->init(live, buf, kQueryCap, &mapper, tc::Scheduler::Hooks{irqOff, irqOn});
+    sched->init(live, buf, kQueryCap, &mapper, reinterpret_cast<tc::Entry*>(storageRaw),
+                tc::Scheduler::Hooks{irqOff, irqOn});
     sched->setSampleRate(750000, 17);  // 180 MHz * 16 / 255 / 256
+    sched->setMonoSlots(true);         // one voice per sample track
 
     FileSystem* fs = gPlatform->getFileSystem();
     if (fs->exists(kUserSet)) {
@@ -319,21 +346,21 @@ void start() {
     running = true;
 }
 
-int header(int n) {
+int activeInstruments() {
     int active = 0;
     for (int i = 0; i < kSampleInstrumentsCount; i++) active += mtProject.instrument[i].isActive ? 1 : 0;
+    return active;
+}
+
+int header(int n) {
     return n + snprintf(report + n, sizeof report - n,
-                        "Tracker Cycles device tick test v1 (%s), %s, %d s per set\n"
-                        "%d active instruments; scheduler object %u B, live program %u B (SDRAM); "
-                        "engine working set in internal RAM: %s\n"
+                        "Tracker Cycles device tick test v2 (" TC_TICK_VARIANT "), %s, %d s per set\n"
+                        "%d active instruments; scheduler object %u B (internal RAM), entries %u B, live program "
+                        "%u B (SDRAM); engine working set in internal RAM: %s; mono sample slots\n"
                         "cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles\n\n",
-#ifdef TC_ENGINE_O2
-                        "engine -O2",
-#else
-                        "engine -Os",
-#endif
-                        gUserSet ? kUserSet : "built-in sets", (int)((gUserSet ? kFileSetMs : kSetMs) / 1000), active,
-                        (unsigned)sizeof(tc::Scheduler), (unsigned)sizeof(tc::Program),
+                        gUserSet ? kUserSet : "built-in sets", (int)((gUserSet ? kFileSetMs : kSetMs) / 1000),
+                        activeInstruments(), (unsigned)sizeof(tc::Scheduler), (unsigned)sizeof storageRaw,
+                        (unsigned)sizeof(tc::Program),
                         tc::engineMemoryBytes(kFastEvents, kFastCtls, kFastParams) <= (int)sizeof fastMem ? "yes"
                                                                                                          : "no");
 }
@@ -347,24 +374,36 @@ int setReport(int n, uint32_t ms) {
     Profiler::getInstance()->getAudioProcessingUsagePercent(u, true);
     const tc::SchedulerStats& st = sched->stats();
     auto avg = [](uint64_t sum, uint32_t cnt) { return (unsigned long)(cnt ? sum / cnt : 0); };
+    const uint32_t idle = s.blocks - s.noteBlocks;
     n += snprintf(report + n, sizeof report - n,
-                  "tick: %lu blocks, avg %lu cycles, max %lu; %lu blocks with note starts: avg %lu, max %lu\n"
+                  "tick: %lu blocks, avg %lu cycles, max %lu; idle blocks (no start) %lu: avg %lu, max %lu; "
+                  "%lu blocks with starts: avg %lu, max %lu\n"
                   "noteOn: %lu, avg %lu cycles, max %lu; noteOffs %lu; most starts in one block %lu\n"
-                  "late (blocks): 0: %lu, 1: %lu, 2: %lu, 3+: %lu; dropped %lu, capped %lu, unmapped %lu\n"
+                  "late (blocks): 0: %lu, 1: %lu, 2: %lu, 3+: %lu; dropped %lu, capped %lu, superseded %lu, "
+                  "unmapped %lu\n"
                   "main loop: update() %lu calls, %lu ms in %lu ms (%lu.%lu %%), longest call %lu us; "
                   "longest gap between main-loop passes %lu us\n"
-                  "scheduler: queries %lu, window splits %lu, horizon skips %lu, window %ld/%ld cycle\n"
+                  "scheduler: queries %lu, window splits %lu, horizon skips %lu, window %ld/%ld cycle; "
+                  "mapping %lu events, avg %lu cycles\n"
                   "audio load: avg %d %%, max %d %%\n",
-                  (unsigned long)s.blocks, avg(s.cyc, s.blocks), (unsigned long)s.cycMax, (unsigned long)s.noteBlocks,
+                  (unsigned long)s.blocks, avg(s.cyc, s.blocks), (unsigned long)s.cycMax, (unsigned long)idle,
+                  avg(s.cyc - s.noteBlockCyc, idle), (unsigned long)s.idleCycMax, (unsigned long)s.noteBlocks,
                   avg(s.noteBlockCyc, s.noteBlocks), (unsigned long)s.noteBlockCycMax, (unsigned long)s.notes,
                   avg(s.noteOnCyc, s.notes), (unsigned long)s.noteOnCycMax, (unsigned long)s.offs,
                   (unsigned long)s.maxStarts, (unsigned long)s.late[0], (unsigned long)s.late[1],
                   (unsigned long)s.late[2], (unsigned long)s.late[3], (unsigned long)st.dropped,
-                  (unsigned long)st.capped, (unsigned long)mapper.unmapped, (unsigned long)updCalls,
-                  (unsigned long)(updUs / 1000), (unsigned long)ms, (unsigned long)(ms ? updUs / 10 / ms : 0),
-                  (unsigned long)(ms ? updUs / ms % 10 : 0), (unsigned long)updMaxUs, (unsigned long)loopGapMaxUs,
-                  (unsigned long)(st.queries - queries), (unsigned long)st.splits, (unsigned long)st.skips,
-                  (long)sched->window().n, (long)sched->window().d, u.average, u.tempMaximum);
+                  (unsigned long)st.capped, (unsigned long)st.superseded, (unsigned long)mapper.unmapped,
+                  (unsigned long)updCalls, (unsigned long)(updUs / 1000), (unsigned long)ms,
+                  (unsigned long)(ms ? updUs / 10 / ms : 0), (unsigned long)(ms ? updUs / ms % 10 : 0),
+                  (unsigned long)updMaxUs, (unsigned long)loopGapMaxUs, (unsigned long)st.queries,
+                  (unsigned long)st.splits, (unsigned long)st.skips, (long)sched->window().n, (long)sched->window().d,
+                  (unsigned long)mapper.maps, avg(mapper.mapCyc, mapper.maps), u.average, u.tempMaximum);
+    n += snprintf(report + n, sizeof report - n, "per slot (wall time, interrupts included): windows, avg us, max us\n");
+    for (int i = 0; i < tc::kSlots; i++)
+        if (st.slotWindows[i])
+            n += snprintf(report + n, sizeof report - n, "  d%d: %lu, %lu, %lu\n", i + 1,
+                          (unsigned long)st.slotWindows[i], avg(st.slotUs[i], st.slotWindows[i]),
+                          (unsigned long)st.slotUsMax[i]);
     const uintptr_t top = (uintptr_t)&_estack, brk = (uintptr_t)__brkval, minSp = tc::engineMinStack();
     n += snprintf(report + n, sizeof report - n,
                   "stack: evaluator deepest %lu B below the top of RAM; heap end %lu B below: %ld B to spare\n",
@@ -377,8 +416,9 @@ int setReport(int n, uint32_t ms) {
 void resetCounters() {
     isrReset = true;
     updCalls = updUs = updMaxUs = loopGapMaxUs = 0;
-    mapper.unmapped = 0;
-    queries = sched->stats().queries;
+    mapper.unmapped = mapper.maps = 0;
+    mapper.mapCyc = 0;
+    sched->resetStats();
     Profiler::getInstance()->resetMeasuringAudio();
 }
 
@@ -392,7 +432,7 @@ void beginSet(int set, int n) {
     resetCounters();
     gSetStart = gPlatform->getTimer()->millis();
     snprintf(gLine1, sizeof gLine1, "Tidal tick test: set %d of %d", set + 1, gSetCount);
-    mtPopups.showInfoPopup(gLine1, "playing (report: /tidal_tick.txt)");
+    mtPopups.showInfoPopup(gLine1, kPath);
 }
 
 }  // namespace
@@ -415,6 +455,8 @@ void tidalTick() {
         isr.noteBlockCyc += c;
         if (c > isr.noteBlockCycMax) isr.noteBlockCycMax = c;
         if (blockStarts > isr.maxStarts) isr.maxStarts = blockStarts;
+    } else if (c > isr.idleCycMax) {
+        isr.idleCycMax = c;
     }
 }
 
@@ -422,10 +464,12 @@ void tidalTickUpdate(Platform* platform) {
     gPlatform = platform;
     const uint32_t ms = platform->getTimer()->millis();
     if (gSet < 0) {
-        if (ms < kStartMs) return;
+        // wait for the project's instruments (loading takes a while)
+        if (ms < kStartMs || (ms < kStartLatestMs && !activeInstruments())) return;
         start();
         beginSet(0, header(0));
         gLastUpdate = clockUs();
+        return;  // the set's clock starts now; `ms` is stale
     }
     if (gSet >= gSetCount) return;  // done
 
@@ -448,7 +492,7 @@ void tidalTickUpdate(Platform* platform) {
         sched->hush();
         save(n);
         gSet = gSetCount;
-        mtPopups.showInfoPopup("Tidal tick test done", "report: /tidal_tick.txt");
+        mtPopups.showInfoPopup("Tidal tick test done", kPath);
     }
     gLastUpdate = clockUs();
 }

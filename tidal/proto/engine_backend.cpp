@@ -89,6 +89,7 @@ struct EngineBackend::Impl : Mapper, Voice {
     // engine side (main loop thread)
     Program edit, live;
     Event buf[1024];
+    Entry storage[Scheduler::kStorageEntries];
     Scheduler sched;
     Msg staging[kSlots][kRingSize];
     int nStaged[kSlots] = {0};
@@ -246,7 +247,7 @@ EngineBackend::EngineBackend(const std::string& host, int port, double latency) 
     Impl& m = *impl_;
     m.latency = latency;
     m.live.clear();
-    m.sched.init(&m.live, m.buf, 1024, &m, Scheduler::Hooks{isrLock, isrUnlock});
+    m.sched.init(&m.live, m.buf, 1024, &m, m.storage, Scheduler::Hooks{isrLock, isrUnlock});
     m.sched.setSampleRate(kFsNum, kFsDen);
 
     addrinfo hints{}, *res = nullptr;

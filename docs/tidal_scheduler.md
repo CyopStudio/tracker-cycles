@@ -184,9 +184,18 @@ to the tail that can move it backwards, so it runs with interrupts off.
 ## 8. Budgets
 
 Code: scheduler.o 6.1 KB flash at -Os (13.9 KB at -O2; only tick() is
-interrupt code). Scheduler object 73 KB (rings 64 KB, a 4 KB sort buffer,
-slot state), in SDRAM: placement-new it after SDRAM init (CLAUDE.md
-static-constructor gotcha), then init().
+interrupt code). Since device tick v2: the Scheduler object (~3.8 KB:
+ring heads / tails, noteOff tables, slot state) sits in internal RAM, as
+the interrupt reads it every block (v1 had it all in uncached SDRAM: an
+idle tick cost ~31 us); the ring entries + a 4 KB sort buffer (68 KB,
+`Scheduler::kStorageEntries`) are caller storage in SDRAM. Placement-new
+the object at run time, then init().
+
+Mono slots (`setMonoSlots`, on for the device): a sample slot has one
+voice, so when several of its starts are due in the same block only the
+last is audible; the earlier ones are skipped (`superseded`) and don't
+count toward the note-start cap (device tick v1: the heavy set had 21 %
+of notes 3-7 blocks late from the cap). MIDI slots play every note.
 
 
 | Item | Where | Size |

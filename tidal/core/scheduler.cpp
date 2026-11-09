@@ -44,13 +44,15 @@ Q tameCps(Q c) {
 
 }  // namespace
 
-void Scheduler::init(Program* live, Event* buf, int cap, Mapper* mapper, Hooks hooks) {
+void Scheduler::init(Program* live, Event* buf, int cap, Mapper* mapper, Entry* storage, Hooks hooks) {
     live_ = live;
     buf_ = buf;
     bufCap_ = cap;
     mapper_ = mapper;
     hooks_ = hooks;
     cap_ = 4;
+    mono_ = false;
+    tmp_ = storage + kSlots * kRingSize;
     hasPrev_ = false;
     pendingCps_ = false;
     nextCps_ = Q{0, 1};
@@ -62,16 +64,20 @@ void Scheduler::init(Program* live, Event* buf, int cap, Mapper* mapper, Hooks h
         s.at = s.h = Q{0, 1};
         s.failed = false;
         s.err = Error();
+        ring_[i].e = storage + i * kRingSize;
         ring_[i].head = 0;
         ring_[i].tail = 0;
     }
     memset(off_, 0, sizeof off_);
+    memset(nOff_, 0, sizeof nOff_);
     block_ = 0;
     hushReq_ = 0;
     hushSeen_ = 0;
     rr_ = 0;
     setSampleRate(750000, 17);
 }
+
+void Scheduler::resetStats() { memset(&stats_, 0, sizeof stats_); }
 
 void Scheduler::setSampleRate(int64_t num, int64_t den) {
     fsNum_ = num;
@@ -349,7 +355,15 @@ int Scheduler::update(uint32_t (*clockUs)(), uint32_t budgetUs) {
         Q e = gridAfter(s.h, w);
         if (s.pending && s.at < e) e = s.at;
         if (hasPrev_ && s.h < cur_.c0 && cur_.c0 < e) e = cur_.c0;
-        if (!queryWindow(i, s.h, e)) waiting |= 1u << i;
+        const uint32_t q0 = clockUs ? clockUs() : 0;
+        const bool queued = queryWindow(i, s.h, e);
+        if (!queued) waiting |= 1u << i;
+        if (clockUs) {
+            const uint32_t us = clockUs() - q0;
+            stats_.slotUs[i] += us;
+            if (us > stats_.slotUsMax[i]) stats_.slotUsMax[i] = us;
+        }
+        if (queued) stats_.slotWindows[i]++;
         queries++;
     }
     return queries;
@@ -362,22 +376,28 @@ void Scheduler::tick(Voice& v) {
     if (hushReq_ != hushSeen_) {
         hushSeen_ = hushReq_;
         memset(off_, 0, sizeof off_);
+        memset(nOff_, 0, sizeof nOff_);
         v.allOff();
     }
-    for (int i = 0; i < kSlots; i++)
+    for (int i = 0; i < kSlots; i++) {
+        if (!nOff_[i]) continue;
         for (Off& o : off_[i])
             if (o.active && (int32_t)(o.block - b) <= 0) {
                 o.active = false;
+                nOff_[i]--;
                 v.noteOff(i, o.note, o.offset);
             }
+    }
     int starts = 0;
     for (int k = 0; k < kSlots; k++) {
         const bool sample = k < kSampleSlots;
         const int i = sample ? (rr_ + k) % kSampleSlots : k;
         Ring& r = ring_[i];
         uint32_t h = r.head;
-        while (h != r.tail) {
-            fence();  // read the entry after seeing the tail
+        const uint32_t t = r.tail;
+        if (h == t) continue;
+        fence();  // read the entries after seeing the tail
+        while (h != t) {
             const Entry& e = r.e[h & (kRingSize - 1)];
             int32_t late = (int32_t)(b - e.block);
             if (late < 0) break;
@@ -386,13 +406,21 @@ void Scheduler::tick(Voice& v) {
                 h++;
                 continue;
             }
+            // one note at a time: a later start due now cuts this one anyway
+            if (sample && mono_ && h + 1 != t && (int32_t)(b - r.e[(h + 1) & (kRingSize - 1)].block) >= 0) {
+                stats_.superseded++;
+                h++;
+                continue;
+            }
             if (sample && cap_ > 0 && starts >= cap_) {
                 stats_.capped++;
                 break;
             }
             Off* offs = off_[i];
-            if (sample)  // one voice per sample slot: a new note cuts the old one
+            if (sample && nOff_[i]) {  // one voice per sample slot: a new note cuts the old one
                 for (int j = 0; j < kMaxPendingOffs; j++) offs[j].active = false;
+                nOff_[i] = 0;
+            }
             v.noteOn(i, e, (uint32_t)late);
             if (sample) starts++;
             if (e.dur) {
@@ -405,6 +433,8 @@ void Scheduler::tick(Voice& v) {
                     for (int j = 1; j < kMaxPendingOffs; j++)
                         if ((int32_t)(offs[j].block - slotFor->block) < 0) slotFor = &offs[j];
                     v.noteOff(i, slotFor->note, 0);
+                } else {
+                    nOff_[i]++;
                 }
                 slotFor->block = (uint32_t)(at / kBlockSamples);
                 slotFor->offset = (uint8_t)(at % kBlockSamples);

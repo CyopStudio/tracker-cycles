@@ -285,6 +285,24 @@ folders listed in the project (e.g. a manifest) on project load.
      monophonic slot in the same block, each counted by the cap though
      only the last is heard. Stack 18.5 KB deepest, 6 KB spare of 24 KB.
      Test bugs: set 1 ends at once (stale ms).
+     v2 (2026-11-09; docs/tidal_tick.txt -Os, docs/tidal_tick_o2.txt
+     -O2): scheduler object (3.8 KB) in internal RAM, entries caller
+     storage in SDRAM; mono sample slots (setMonoSlots: only the last
+     start due in a block plays, not counted by the cap; host test
+     testMono); per-slot query timing; waits for the project. Results:
+     no drops / skips in any set; idle tick 900-1330 cycles (5-7 us, was
+     ~5.5k); heavy set: no note > 1 block late (v1: 21 % 3-7 late), 4142
+     superseded; worst tick block ~22k cycles = 122 us (4.2 %), except
+     set 2 ~34k (4 starts). Audio load 59 % (set 1) / 77-79 %. Main loop:
+     update() takes 36-42 % of wall time even for set 1 (3 trivial
+     slots): ~36 us per call x ~10k calls/s, mostly NOT queries (set 1
+     queries total 59 ms of 7.2 s) -> next: early exit when no slot needs
+     work yet. Heavy set queries ~10 s of 14 s (-Os) in update; stut 8
+     window 11.2 ms avg -Os / 8.5 ms -O2 (wall, interrupts included).
+     -O2 vs -Os: 1.1-1.5x on queries, flash 97.4 % vs 95.1 %, stack 20.2
+     KB deepest (4.4 KB spare of 24 KB) vs 18.5 KB. Mapping 3-25k cycles
+     per event (wall; s-name lookup scans 48 instruments in mtProject:
+     cache it in 4c).
    - 4c. Control mapping to playerEngine noteOn/mod*() calls, MIDI out for
      MIDI channels, and the per-channel voice allocator (Polyphony below).
    - 4d. Device editor: step 1 editor logic + FT812 drawing layer +
