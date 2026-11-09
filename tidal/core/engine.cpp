@@ -364,8 +364,30 @@ static Pat pWrap(Pat::K k, const Pat* x) {
 // ---- evaluator ---------------------------------------------------------------------
 // Raw storage, so nothing runs at static-init time (the firmware may place
 // it in NOLOAD SDRAM); events are constructed in push().
-TC_ENGINE_ARENA_ATTR static unsigned char gArenaRaw[sizeof(Event) * kEventArena] __attribute__((aligned(8)));
-static Event* gArena = reinterpret_cast<Event*>(gArenaRaw);
+// Internal event: control maps live out of line in gCtl (copy on write,
+// bump-allocated, reset per query), so moving and copying events is cheap
+// (~52 B instead of the 212 B public Event).
+struct Ev {
+    Arc whole;  // valid if hasWhole
+    Arc part;
+    bool hasWhole = true;
+    bool isMap = false;
+    uint8_t nctl = 0;    // isMap: entries at gCtl[ctlAt]
+    uint16_t ctlAt = 0;
+    Val v;               // !isMap
+};
+TC_ENGINE_ARENA_ATTR static unsigned char gArenaRaw[sizeof(Ev) * kEventArena] __attribute__((aligned(8)));
+static Ev* gArena = reinterpret_cast<Ev*>(gArenaRaw);
+TC_ENGINE_ARENA_ATTR static Ctl gCtl[kCtlPool];
+static int gCtlTop = 0, gCtlHighWater = 0;
+// withParam's values, moved out of the arena so results land in place
+struct ParamVal {
+    Val v;
+    Arc part;
+    bool isMap;
+};
+TC_ENGINE_ARENA_ATTR static ParamVal gParams[kParamStack];
+static int gParamTop = 0;
 static int gArenaCap = kEventArena;
 static int gHighWater = 0;
 // Lowest stack address seen in the recursive evaluator (TC_TRACK_STACK).
@@ -382,13 +404,18 @@ static uintptr_t gMinSp = UINTPTR_MAX;
 #endif
 uintptr_t engineMinStack() { return gMinSp; }
 int engineHighWater() { return gHighWater; }
-void engineResetStats() { gHighWater = 0; }
-void engineResetMinStack() { gMinSp = UINTPTR_MAX; }
-Event* engineDefaultArena() { return reinterpret_cast<Event*>(gArenaRaw); }
-void engineUseArena(Event* storage, int cap) {
-    gArena = storage ? storage : reinterpret_cast<Event*>(gArenaRaw);
-    gArenaCap = storage ? cap : kEventArena;
+void engineResetStats() {
+    gHighWater = 0;
+    gCtlHighWater = 0;
 }
+void engineResetMinStack() { gMinSp = UINTPTR_MAX; }
+void* engineDefaultArena() { return gArenaRaw; }
+void engineUseArena(void* storage, int bytes) {
+    gArena = storage ? reinterpret_cast<Ev*>(storage) : reinterpret_cast<Ev*>(gArenaRaw);
+    gArenaCap = storage ? bytes / (int)sizeof(Ev) : kEventArena;
+}
+int engineEventBytes() { return (int)sizeof(Ev); }
+int engineCtlHighWater() { return gCtlHighWater; }
 
 class Eval {
 public:
@@ -409,19 +436,38 @@ private:
             err.node = node;
         }
     }
-    Event* push() {
+    Ev* push() {
         if (top >= gArenaCap) {
             fail("too many events in one query");
             return nullptr;
         }
-        Event* e = new (&gArena[top++]) Event();
+        Ev* e = new (&gArena[top++]) Ev();
         if (top > gHighWater) gHighWater = top;
         return e;
+    }
+    // control maps (gCtl): read, allocate, copy-on-write with room to add
+    static const Ctl* ctls(const Ev& e) { return &gCtl[e.ctlAt]; }
+    int ctlAlloc(int n) {
+        if (gCtlTop + n > kCtlPool) {
+            fail("too many controls in one query");
+            return -1;
+        }
+        int at = gCtlTop;
+        gCtlTop += n;
+        if (gCtlTop > gCtlHighWater) gCtlHighWater = gCtlTop;
+        return at;
+    }
+    Ctl* ctlWrite(Ev& e, int extra) {
+        int at = ctlAlloc(e.nctl + extra);
+        if (at < 0) return nullptr;
+        for (int k = 0; k < e.nctl; k++) gCtl[at + k] = gCtl[e.ctlAt + k];
+        e.ctlAt = (uint16_t)at;
+        return &gCtl[at];
     }
     // drop [from, to), keep everything after it
     void drop(int from, int to) {
         int n = top - to;
-        if (n > 0 && from != to) memmove(&gArena[from], &gArena[to], sizeof(Event) * n);
+        if (n > 0 && from != to) memmove(&gArena[from], &gArena[to], sizeof(Ev) * n);
         top = from + (n > 0 ? n : 0);
     }
 
@@ -436,7 +482,7 @@ private:
             if (sub.s < sub.e) f(sub, c);
         }
     }
-    static void mapEvent(Event& e, Q mul, Q add) {  // t -> t * mul + add
+    static void mapEvent(Ev& e, Q mul, Q add) {  // t -> t * mul + add
         e.part.s = e.part.s * mul + add;
         e.part.e = e.part.e * mul + add;
         if (e.hasWhole) {
@@ -444,7 +490,7 @@ private:
             e.whole.e = e.whole.e * mul + add;
         }
     }
-    static void shiftEvent(Event& e, Q t) {
+    static void shiftEvent(Ev& e, Q t) {
         e.part.s = e.part.s + t;
         e.part.e = e.part.e + t;
         if (e.hasWhole) {
@@ -454,21 +500,26 @@ private:
     }
 
     // param pattern: call f(value, sub-arc) inside each of its events
+    // The parameter's events move to gParams first, so f's results land at
+    // m directly (no memmove of every result over the parameter events).
     template <class F>
     void withParam(const Pat& param, Arc a, F f) {
         int m = top;
         query(param, a);
-        int e = top;
-        for (int i = m; i < e && !bad(); i++) {
-            Val v = gArena[i].v;
-            Arc part = gArena[i].part;
-            if (gArena[i].isMap) {
+        int k = top - m, base = gParamTop;
+        if (base + k > kParamStack) return fail("patterned arguments nested too deeply");
+        for (int j = 0; j < k; j++) gParams[base + j] = ParamVal{gArena[m + j].v, gArena[m + j].part, gArena[m + j].isMap};
+        top = m;
+        gParamTop = base + k;
+        for (int j = 0; j < k && !bad(); j++) {
+            const ParamVal& pv = gParams[base + j];
+            if (pv.isMap) {
                 fail("a control pattern can't be a parameter");
                 break;
             }
-            f(v, part);
+            f(pv.v, pv.part);
         }
-        drop(m, e);
+        gParamTop = base;
     }
     Q timeOf(const Val& v) {
         if (v.t != VT::Num) {
@@ -508,6 +559,7 @@ private:
     // functions
     void queryApply(uint16_t fn, const Pat& x, Arc a);
     void callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_t at, Arc a);
+    __attribute__((noinline)) void qApp(uint16_t head, const Pat* extra, uint16_t at, Arc a);
     // Cases with big Pat arrays live outside callLib so its (recursive)
     // frame stays small: the M4 stack is tight.
     __attribute__((noinline)) void qIter(const Pat& x, int64_t k, Arc a);
@@ -520,7 +572,7 @@ private:
     void appBoth(const Pat& l, const Pat& r, Arc a, C combine);
     template <class C>
     void appRight(const Pat& l, const Pat& r, Arc a, C combine);
-    bool combineVals(Fn f, NumOp op, const Event& l, const Event& r, Event& out);
+    bool combineVals(Fn f, NumOp op, const Ev& l, const Ev& r, Ev& out);
     void sampleAt(const Pat& p, Q t, Val& out, bool& found);
     void qPly(const Pat& x, Q n, bool chop, Arc a);
     void qDegrade(const Pat& x, float p, bool invert, uint32_t seed, Arc a);
@@ -569,7 +621,7 @@ void Eval::query(const Pat& p, Arc a) {
 
 void Eval::qPure(const Val& v, Arc a) {
     forCycles(a, [&](Arc sub, int64_t c) {
-        Event* e = push();
+        Ev* e = push();
         if (!e) return;
         e->hasWhole = true;
         e->whole = Arc{qint(c), qint(c + 1)};
@@ -608,7 +660,7 @@ void Eval::qRev(const Pat& x, Arc a) {
         int m = top;
         query(x, Arc{mirror - sub.e, mirror - sub.s});
         for (int i = m; i < top; i++) {
-            Event& e = gArena[i];
+            Ev& e = gArena[i];
             Arc p = e.part;
             e.part = Arc{mirror - p.e, mirror - p.s};
             if (e.hasWhole) {
@@ -631,7 +683,7 @@ void Eval::qCompress(const Pat& x, Q b, Q e, Arc a) {
         int m = top;
         query(x, Arc{C + (q.s - span.s) * inv, C + (q.e - span.s) * inv});
         for (int i = m; i < top; i++) {
-            Event& ev = gArena[i];
+            Ev& ev = gArena[i];
             ev.part.s = C + b + (ev.part.s - C) * len;
             ev.part.e = C + b + (ev.part.e - C) * len;
             if (ev.hasWhole) {
@@ -652,7 +704,7 @@ void Eval::qZoom(const Pat& x, Q s, Q e, Arc a) {
         int m = top;
         query(x, Arc{C + s + (sub.s - C) * d, C + s + (sub.e - C) * d});
         for (int i = m; i < top; i++) {
-            Event& ev = gArena[i];
+            Ev& ev = gArena[i];
             auto back = [&](Arc& r) {
                 Q cs = qsam(r.s);
                 r.s = cs + (r.s - cs - s) / d;
@@ -689,7 +741,7 @@ void Eval::qCtl(const Pat& x, uint8_t key, char tag, const Val& v, bool mul, Arc
         forCycles(w, [&](Arc cyc, int64_t) {
             Arc part;
             if (!subArc(gArena[i].part, cyc, part)) return;
-            Event* o = push();
+            Ev* o = push();
             if (!o) return;
             *o = gArena[i];
             o->part = part;
@@ -698,16 +750,19 @@ void Eval::qCtl(const Pat& x, uint8_t key, char tag, const Val& v, bool mul, Arc
                 return;
             }
             int at = -1;
+            const Ctl* rc = ctls(*o);
             for (int k = 0; k < o->nctl; k++)
-                if (o->ctl[k].key == key) at = k;
+                if (rc[k].key == key) at = k;
+            if (at >= 0 && mul && rc[at].tag == 's') return;  // nothing to multiply
+            if (at < 0 && o->nctl >= kMaxCtl) return fail("too many controls on one event");
+            Ctl* w = ctlWrite(*o, at < 0 ? 1 : 0);
+            if (!w) return;
             if (at >= 0 && mul) {
-                if (o->ctl[at].tag != 's') o->ctl[at].f *= num(v);
+                w[at].f *= num(v);
             } else if (at >= 0) {
-                o->ctl[at] = ctlOf(key, tag, v);
-            } else if (o->nctl < kMaxCtl) {
-                o->ctl[o->nctl++] = ctlOf(key, tag, v);
+                w[at] = ctlOf(key, tag, v);
             } else {
-                fail("too many controls on one event");
+                w[o->nctl++] = ctlOf(key, tag, v);
             }
         });
     }
@@ -726,7 +781,7 @@ void Eval::qSignal(Fn f, Arc a) {
         case Fn::Square: v = pos < 0.5f ? 0 : 1; break;
         default: break;
     }
-    Event* e = push();
+    Ev* e = push();
     if (!e) return;
     e->hasWhole = false;
     e->part = a;
@@ -931,14 +986,7 @@ void Eval::qNode(uint16_t n, Arc a) {
         case Kind::MChord:
         case Kind::MBool: return qAtom(n, a);
         case Kind::Fn: return callLib((int)nd.a, nullptr, 0, nullptr, n, a);
-        case Kind::App: {
-            uint16_t head = nd.first;
-            if (!head || P.at(head).kind != Kind::Fn) return fail("can't apply this", n);
-            Pat args[8];
-            int na = 0;
-            for (uint16_t c = P.at(head).next; c && na < 8; c = P.at(c).next) args[na++] = pNode(c);
-            return callLib((int)P.at(head).a, args, na, nullptr, n, a);
-        }
+        case Kind::App: return qApp(nd.first, nullptr, n, a);
         case Kind::Op: return binop((int)nd.a, pNode(nd.first), pNode(P.at(nd.first).next), a);
         case Kind::Hole: return fail("the pattern has a ?? hole", n);
         default: return fail("not a pattern", n);
@@ -946,18 +994,24 @@ void Eval::qNode(uint16_t n, Arc a) {
 }
 
 // ---- functions ---------------------------------------------------------------------
+// A library function applied to argument nodes (+ the piped-in pattern).
+// The argument array is sized to the call (alloca): this frame is on the
+// recursion path, and most functions take 1-3 arguments.
+void Eval::qApp(uint16_t head, const Pat* extra, uint16_t at, Arc a) {
+    if (!head || P.at(head).kind != Kind::Fn) return fail("can't apply this", at);
+    int na = 0;
+    for (uint16_t c = P.at(head).next; c && na < 8; c = P.at(c).next) na++;
+    Pat* args = static_cast<Pat*>(__builtin_alloca(sizeof(Pat) * (na ? na : 1)));
+    na = 0;
+    for (uint16_t c = P.at(head).next; c && na < 8; c = P.at(c).next) new (&args[na++]) Pat(pNode(c));
+    callLib((int)P.at(head).a, args, na, extra, at, a);
+}
+
 void Eval::queryApply(uint16_t fn, const Pat& x, Arc a) {
     const Node& f = P.at(fn);
     switch (f.kind) {
         case Kind::Fn: return callLib((int)f.a, nullptr, 0, &x, fn, a);
-        case Kind::App: {
-            uint16_t head = f.first;
-            if (!head || P.at(head).kind != Kind::Fn) return fail("can't apply this", fn);
-            Pat args[8];
-            int na = 0;
-            for (uint16_t c = P.at(head).next; c && na < 8; c = P.at(c).next) args[na++] = pNode(c);
-            return callLib((int)P.at(head).a, args, na, &x, fn, a);
-        }
+        case Kind::App: return qApp(f.first, &x, fn, a);
         case Kind::SectionL: return binop((int)f.a, pNode(f.first), x, a);
         case Kind::SectionR: return binop((int)f.a, x, pNode(f.first), a);
         case Kind::Compose: {
@@ -990,7 +1044,7 @@ void Eval::sampleAt(const Pat& p, Q t, Val& out, bool& found) {
 }
 
 // Merge the right event's values into the left's, per operator.
-bool Eval::combineVals(Fn f, NumOp op, const Event& l, const Event& r, Event& out) {
+bool Eval::combineVals(Fn f, NumOp op, const Ev& l, const Ev& r, Ev& out) {
     if (l.isMap != r.isMap) {
         fail("can't combine a control pattern with a plain pattern");
         return false;
@@ -1004,23 +1058,31 @@ bool Eval::combineVals(Fn f, NumOp op, const Event& l, const Event& r, Event& ou
         }
         return true;
     }
-    out.isMap = true;
-    out.nctl = l.nctl;
-    for (int i = 0; i < l.nctl; i++) out.ctl[i] = l.ctl[i];
-    for (int j = 0; j < r.nctl; j++) {
+    // out may be l or r: read their maps by index before rewriting out
+    const int ln = l.nctl, rn = r.nctl, la = l.ctlAt, ra = r.ctlAt;
+    int at0 = ctlAlloc(ln + rn);
+    if (at0 < 0) return false;
+    Ctl* w = &gCtl[at0];
+    int n = ln;
+    for (int i = 0; i < ln; i++) w[i] = gCtl[la + i];
+    for (int j = 0; j < rn; j++) {
+        const Ctl& rj = gCtl[ra + j];
         int at = -1;
-        for (int i = 0; i < out.nctl; i++)
-            if (out.ctl[i].key == r.ctl[j].key) at = i;
+        for (int i = 0; i < n; i++)
+            if (w[i].key == rj.key) at = i;
         if (at < 0) {
-            if (out.nctl >= kMaxCtl) return fail("too many controls on one event"), false;
-            out.ctl[out.nctl++] = r.ctl[j];
+            if (n >= kMaxCtl) return fail("too many controls on one event"), false;
+            w[n++] = rj;
         } else if (f == Fn::OpUnionR) {
-            out.ctl[at] = r.ctl[j];
+            w[at] = rj;
         } else if (f == Fn::OpNum) {
-            if (out.ctl[at].tag == 's' || r.ctl[j].tag == 's') return fail("arithmetic needs numbers"), false;
-            out.ctl[at].f = fop(op, out.ctl[at].f, r.ctl[j].f);
+            if (w[at].tag == 's' || rj.tag == 's') return fail("arithmetic needs numbers"), false;
+            w[at].f = fop(op, w[at].f, rj.f);
         }
     }
+    out.isMap = true;
+    out.ctlAt = (uint16_t)at0;
+    out.nctl = (uint8_t)n;
     return true;
 }
 
@@ -1038,7 +1100,7 @@ void Eval::appLeft(const Pat& l, const Pat& r, Arc a, C combine) {
         for (int j = r0; j < r1 && !bad(); j++) {
             Arc part;
             if (!subArc(gArena[i].part, gArena[j].part, part)) continue;
-            Event* o = push();
+            Ev* o = push();
             if (!o) break;
             o->whole = gArena[i].whole;
             o->hasWhole = gArena[i].hasWhole;
@@ -1065,7 +1127,7 @@ void Eval::appRight(const Pat& l, const Pat& r, Arc a, C combine) {
         for (int i = l0; i < l1 && !bad(); i++) {
             Arc part;
             if (!subArc(gArena[i].part, gArena[j].part, part)) continue;
-            Event* o = push();
+            Ev* o = push();
             if (!o) break;
             o->whole = gArena[j].whole;
             o->hasWhole = gArena[j].hasWhole;
@@ -1092,7 +1154,7 @@ void Eval::appBoth(const Pat& l, const Pat& r, Arc a, C combine) {
             bool hasWhole = gArena[i].hasWhole && gArena[j].hasWhole;
             if (hasWhole && !subArc(gArena[i].whole, gArena[j].whole, whole)) continue;
             if (!subArc(gArena[i].part, gArena[j].part, part)) continue;
-            Event* o = push();
+            Ev* o = push();
             if (!o) break;
             o->whole = whole;
             o->hasWhole = hasWhole;
@@ -1120,7 +1182,7 @@ void Eval::binop(int id, const Pat& l, const Pat& r, Arc a) {
         case Fn::OpNum: {
             Fn f = fi.fn;
             NumOp op = fi.nop;
-            auto comb = [&](const Event& le, const Event& re, Event& o) { return combineVals(f, op, le, re, o); };
+            auto comb = [&](const Ev& le, const Ev& re, Ev& o) { return combineVals(f, op, le, re, o); };
             if (fi.side == Side::Left) appLeft(l, r, a, comb);
             else if (fi.side == Side::Right) appRight(l, r, a, comb);
             else appBoth(l, r, a, comb);
@@ -1146,7 +1208,7 @@ void Eval::qPly(const Pat& x, Q n, bool chop, Arc a) {
             Arc piece{w.s + len * (qint(k) / n), w.s + len * (qint(k + 1) / n)}, part;
             if (!subArc(gArena[i].part, piece, part)) continue;
             if (part.s == part.e && part.s == piece.e) continue;
-            Event* o = push();
+            Ev* o = push();
             if (!o) return;
             *o = gArena[i];
             o->whole = piece;
@@ -1154,18 +1216,20 @@ void Eval::qPly(const Pat& x, Q n, bool chop, Arc a) {
             if (chop) {
                 if (!o->isMap) return fail("chop needs a control pattern");
                 float b0 = 0, e0 = 1;
+                Ctl* w = ctlWrite(*o, 2);
+                if (!w) return;
                 for (int c = 0; c < o->nctl; c++) {
-                    if (o->ctl[c].key == keyB) b0 = o->ctl[c].f;
-                    if (o->ctl[c].key == keyE) e0 = o->ctl[c].f;
+                    if (w[c].key == keyB) b0 = w[c].f;
+                    if (w[c].key == keyE) e0 = w[c].f;
                 }
                 float nn = qfloat(n), bb = b0 + (e0 - b0) * (float)k / nn, ee = b0 + (e0 - b0) * (float)(k + 1) / nn;
                 bool hb = false, he = false;
                 for (int c = 0; c < o->nctl; c++) {
-                    if (o->ctl[c].key == keyB) o->ctl[c].f = bb, hb = true;
-                    if (o->ctl[c].key == keyE) o->ctl[c].f = ee, he = true;
+                    if (w[c].key == keyB) w[c].f = bb, hb = true;
+                    if (w[c].key == keyE) w[c].f = ee, he = true;
                 }
-                if (!hb && o->nctl < kMaxCtl) o->ctl[o->nctl++] = ctlOf((uint8_t)keyB, 'f', numF(bb));
-                if (!he && o->nctl < kMaxCtl) o->ctl[o->nctl++] = ctlOf((uint8_t)keyE, 'f', numF(ee));
+                if (!hb && o->nctl < kMaxCtl) w[o->nctl++] = ctlOf((uint8_t)keyB, 'f', numF(bb));
+                if (!he && o->nctl < kMaxCtl) w[o->nctl++] = ctlOf((uint8_t)keyE, 'f', numF(ee));
             }
         }
     }
@@ -1187,7 +1251,7 @@ void Eval::qArp(const Pat& x, const Val& mode, Arc a) {
     // stable sort by whole
     for (int i = 1; i < n; i++)
         for (int j = i; j > 0; j--) {
-            const Event &p = gArena[order[j - 1]], &q = gArena[order[j]];
+            const Ev &p = gArena[order[j - 1]], &q = gArena[order[j]];
             int c = qcmp(p.whole.s, q.whole.s);
             if (c == 0) c = qcmp(p.whole.e, q.whole.e);
             if (c <= 0) break;
@@ -1202,13 +1266,13 @@ void Eval::qArp(const Pat& x, const Val& mode, Arc a) {
             h++;
         int d = h - g;
         for (int j = 0; j < d; j++) {
-            const Event& src = gArena[order[down ? h - 1 - j : g + j]];
+            const Ev& src = gArena[order[down ? h - 1 - j : g + j]];
             if (!src.hasWhole) continue;
             Q dur = (src.whole.e - src.whole.s) / qint(d);
             Arc w{gArena[order[g]].whole.s + dur * qint(j), Q{0, 1}}, part;
             w.e = w.s + dur;
             if (!subArc(w, src.part, part)) continue;
-            Event* o = push();
+            Ev* o = push();
             if (!o) return;
             *o = src;
             o->whole = w;
@@ -1250,26 +1314,28 @@ void Eval::qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a) {
                 forCycles(gArena[i].whole, [&](Arc cyc, int64_t) {
                     Arc part;
                     if (!subArc(part2, cyc, part)) return;
-                    Event* o = push();
+                    Ev* o = push();
                     if (!o) return;
                     *o = gArena[t];
                     o->whole = gArena[i].whole;
                     o->hasWhole = true;
                     o->part = part;
+                    Ctl* w = ctlWrite(*o, 4);
+                    if (!w) return;
                     auto set = [&](int key, char tag, const Val& v, bool mulSpeed) {
                         for (int c = 0; c < o->nctl; c++)
-                            if (o->ctl[c].key == key) {
-                                if (mulSpeed) o->ctl[c].f *= num(v);
-                                else o->ctl[c] = ctlOf((uint8_t)key, tag, v);
+                            if (w[c].key == key) {
+                                if (mulSpeed) w[c].f *= num(v);
+                                else w[c] = ctlOf((uint8_t)key, tag, v);
                                 return;
                             }
-                        if (o->nctl < kMaxCtl) o->ctl[o->nctl++] = ctlOf((uint8_t)key, tag, v);
+                        if (o->nctl < kMaxCtl) w[o->nctl++] = ctlOf((uint8_t)key, tag, v);
                     };
                     // begin/end come from the left of `# x`, so x's own win
                     bool hasB = false, hasE = false;
                     for (int c = 0; c < o->nctl; c++) {
-                        if (o->ctl[c].key == keyB) hasB = true;
-                        if (o->ctl[c].key == keyE) hasE = true;
+                        if (w[c].key == keyB) hasB = true;
+                        if (w[c].key == keyE) hasE = true;
                     }
                     if (!hasB) set(keyB, 'f', numF(begin), false);
                     if (!hasE) set(keyE, 'f', numF(end), false);
@@ -1291,7 +1357,7 @@ void Eval::qDegrade(const Pat& x, float p, bool invert, uint32_t seed, Arc a) {
     query(x, a);
     int w = m;
     for (int i = m; i < top; i++) {
-        const Event& e = gArena[i];
+        const Ev& e = gArena[i];
         float r = rnd(e.hasWhole ? e.whole.s : e.part.s, seed);
         if ((r >= p) != invert) gArena[w++] = gArena[i];
     }
@@ -1373,10 +1439,16 @@ void Eval::qEchoLayers(const Pat& x, int64_t count, Q t, float fb, uint8_t gain,
 void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_t at, Arc a) {
     TC_NOTE_SP();
     const FnInfo& fi = fnInfo(id);
-    Pat all[9];
+    // the arguments are read in place (no 9 x Pat copy in this recursive frame)
+    struct ArgView {
+        const Pat* p[9];
+        const Pat& operator[](int i) const { return *p[i]; }
+    } all;
+    static const Pat kNone;  // unused slots read as silence, as before
+    for (const Pat*& q : all.p) q = &kNone;
     int n = 0;
-    for (int i = 0; i < nargs && n < 8; i++) all[n++] = args[i];
-    if (extra) all[n++] = *extra;
+    for (int i = 0; i < nargs && n < 8; i++) all.p[n++] = &args[i];
+    if (extra) all.p[n++] = extra;
     auto need = [&](int k) {
         if (n < k) fail("function is missing arguments", at);
         return n >= k;
@@ -1398,14 +1470,17 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
             char tag = controlDef(key).tag;
             int keyN = controlKey("n");
             for (int i = m; i < top; i++) {
-                Event& e = gArena[i];
+                Ev& e = gArena[i];
                 if (e.isMap) return fail("control of a control pattern", at);
                 Val v = e.v;
+                bool withN = v.t == VT::Str && v.idx >= 0 && controlDef(key).tag == 's';
+                int c0 = ctlAlloc(withN ? 2 : 1);
+                if (c0 < 0) return;
                 e.isMap = true;
+                e.ctlAt = (uint16_t)c0;
                 e.nctl = 0;
-                e.ctl[e.nctl++] = ctlOf(key, tag, v);
-                if (v.t == VT::Str && v.idx >= 0 && controlDef(key).tag == 's')
-                    e.ctl[e.nctl++] = ctlOf((uint8_t)keyN, 'f', numQ(qint(v.idx)));
+                gCtl[c0 + e.nctl++] = ctlOf(key, tag, v);
+                if (withN) gCtl[c0 + e.nctl++] = ctlOf((uint8_t)keyN, 'f', numQ(qint(v.idx)));
             }
             return;
         }
@@ -1502,11 +1577,11 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
                 grid.k = Pat::Fast;
                 grid.x = &unit;
                 grid.q = timeOf(v);
-                appLeft(grid, x, sub, [&](const Event&, const Event& r, Event& o) {
+                appLeft(grid, x, sub, [&](const Ev&, const Ev& r, Ev& o) {
                     o.isMap = r.isMap;
                     o.v = r.v;
                     o.nctl = r.nctl;
-                    for (int i = 0; i < r.nctl; i++) o.ctl[i] = r.ctl[i];
+                    o.ctlAt = r.ctlAt;  // shared: writers copy first
                     return true;
                 });
             });
@@ -1580,13 +1655,13 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
             if (!need(2)) return;
             bool st = fi.fn == Fn::Struct;
             auto truthy = [](const Val& v) { return v.t == VT::Bool ? v.q.n != 0 : (v.t == VT::Num && num(v) != 0); };
-            auto comb = [&](const Event& l, const Event& r, Event& o) {
-                const Event& keepFrom = st ? r : l;
+            auto comb = [&](const Ev& l, const Ev& r, Ev& o) {
+                const Ev& keepFrom = st ? r : l;
                 if (!truthy(st ? l.v : r.v)) return false;
                 o.isMap = keepFrom.isMap;
                 o.v = keepFrom.v;
                 o.nctl = keepFrom.nctl;
-                for (int i = 0; i < keepFrom.nctl; i++) o.ctl[i] = keepFrom.ctl[i];
+                o.ctlAt = keepFrom.ctlAt;  // shared: writers copy first
                 return true;
             };
             if (st) appLeft(all[0], all[1], a, comb);
@@ -1647,7 +1722,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
             return;
         }
         case Fn::Rand: {  // continuous, like a signal
-            Event* e = push();
+            Ev* e = push();
             if (!e) return;
             e->hasWhole = false;
             e->part = a;
@@ -1659,7 +1734,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
         case Fn::Irand: {
             if (!need(1)) return;
             withParam(all[0], a, [&](const Val& v, Arc sub) {
-                Event* e = push();
+                Ev* e = push();
                 if (!e) return;
                 e->hasWhole = false;
                 e->part = sub;
@@ -1747,7 +1822,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
                     Q off = qint(c - (c - i) / k);
                     Arc loc{s2.s - off, s2.e - off};
                     Q lo = qlazy(i, k), hi = qlazy(i + 1, k);
-                    auto inside = [&](const Event& e) {
+                    auto inside = [&](const Ev& e) {
                         Q t = e.hasWhole ? e.whole.s : e.part.s;
                         Q pos = t - qsam(t);
                         return pos >= lo && pos < hi;
@@ -1814,7 +1889,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
         case Fn::Scale: {
             if (!need(2)) return;
             const Program& p = P;
-            appLeft(all[1], all[0], a, [&](const Event& l, const Event& r, Event& o) {
+            appLeft(all[1], all[0], a, [&](const Ev& l, const Ev& r, Ev& o) {
                 if (r.v.t != VT::Str) return fail("scale name must be a name", at), false;
                 const char* name = valStr(p, r.v.str);
                 const NamedSet* s = findSet(kScales, (int)(sizeof kScales / sizeof kScales[0]), name);
@@ -1848,17 +1923,25 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
 
 int queryPattern(const Program& p, uint16_t expr, Arc arc, Event* out, int cap, Error& err) {
     qOverflowFlag() = false;
+    gCtlTop = 0;
+    gParamTop = 0;
     Eval ev(p, err);
     ev.query(pNode(expr), arc);
     if (!err.failed && qOverflow()) err.set(-1, "time overflow (32-bit rationals)");
     if (err.failed) return -1;
     int n = ev.top < cap ? ev.top : cap;
     for (int i = 0; i < n; i++) {
-        out[i] = gArena[i];
-        Event& e = out[i];  // times are lazily normalised inside the engine
-        e.part = Arc{qnorm(e.part.s), qnorm(e.part.e)};
-        if (e.hasWhole) e.whole = Arc{qnorm(e.whole.s), qnorm(e.whole.e)};
-        if (e.v.exact) e.v.q = qnorm(e.v.q);
+        // expand the slim internal event; times are lazily normalised inside
+        const Ev& in = gArena[i];
+        Event& e = out[i];
+        e.hasWhole = in.hasWhole;
+        e.part = Arc{qnorm(in.part.s), qnorm(in.part.e)};
+        if (in.hasWhole) e.whole = Arc{qnorm(in.whole.s), qnorm(in.whole.e)};
+        e.isMap = in.isMap;
+        e.v = in.v;
+        if (e.v.t == VT::Num && e.v.exact) e.v.q = qnorm(e.v.q);
+        e.nctl = in.isMap ? in.nctl : 0;
+        for (int k = 0; k < e.nctl; k++) e.ctl[k] = gCtl[in.ctlAt + k];
     }
     if (ev.top > cap) {
         err.set(-1, "more events than the output buffer holds");

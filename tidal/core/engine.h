@@ -64,20 +64,26 @@ struct Event {
 };
 
 // ---- engine ------------------------------------------------------------------
-// Events alive during one query (all intermediate results included):
-// 1024 x 212 B = 212 KB. `make bench` peaks at 384 for a one-cycle query of
-// its heaviest pattern (97 for quarter-cycle windows); a query that needs
-// more fails with "too many events", and the scheduler should retry with
-// a smaller window. Too big for internal RAM on the MK66: place it in
-// SDRAM with TC_ENGINE_ARENA_ATTR, e.g. __NOINIT(EXTERNAL_RAM); it is
-// always written before it is read.
+// Events alive during one query (all intermediate results included) live
+// in an arena of kEventArena slim internal events (engineEventBytes(), ~52
+// B; their control maps sit in a pool of kCtlPool entries, 8 B each).
+// `make bench` peaks at 384 events for a one-cycle query of its heaviest
+// pattern (97 for quarter-cycle windows); a query that needs more fails
+// with "too many events", and the scheduler should retry with a smaller
+// window. TC_ENGINE_ARENA_ATTR places the arena and pools, e.g. in SDRAM
+// (__NOINIT(EXTERNAL_RAM)); they are always written before being read.
 #ifndef TC_ENGINE_ARENA
 #define TC_ENGINE_ARENA 1024
+#endif
+#ifndef TC_ENGINE_CTL_POOL
+#define TC_ENGINE_CTL_POOL 8192
 #endif
 #ifndef TC_ENGINE_ARENA_ATTR
 #define TC_ENGINE_ARENA_ATTR
 #endif
 constexpr int kEventArena = TC_ENGINE_ARENA;
+constexpr int kCtlPool = TC_ENGINE_CTL_POOL;
+constexpr int kParamStack = 256;  // parameter values of nested patterned arguments
 constexpr int kMaxEvalDepth = 64;
 
 // Query expression `expr` of a checked program over `arc`. Returns the
@@ -89,13 +95,16 @@ int queryPattern(const Program& p, uint16_t expr, Arc arc, Event* out, int cap, 
 int formatVal(const Program& p, const Val& v, char* buf, int cap);
 int formatCtl(const Program& p, const Ctl& c, char* buf, int cap);
 
-// Highest arena use since the last reset (to size kEventArena).
+// Highest arena use since the last reset (to size kEventArena). Returned
+// events (Event, 212 B) are self-contained copies.
 int engineHighWater();
 void engineResetStats();
-// Query into `storage` (cap events) instead of the built-in arena; nullptr
+// Query into `storage` (bytes) instead of the built-in arena; nullptr
 // switches back. For measuring memory placement (bench).
-void engineUseArena(Event* storage, int cap);
-Event* engineDefaultArena();
+void engineUseArena(void* storage, int bytes);
+void* engineDefaultArena();
+int engineEventBytes();    // size of one internal (arena) event
+int engineCtlHighWater();  // control pool use since engineResetStats()
 // Lowest stack address reached by the evaluator since engineResetMinStack()
 // (only tracked with -DTC_TRACK_STACK; else UINTPTR_MAX).
 uintptr_t engineMinStack();

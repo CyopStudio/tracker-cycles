@@ -208,6 +208,16 @@ folders listed in the project (e.g. a manifest) on project load.
      Next: slim events (control maps out of line, ~40 B events, no full
      zeroing), no tail memmove in drop(); and cut the audio floor (the
      engine only gets what the ISR leaves).
+     Memory rework (2026-11-09): internal events 52 B (Ev; control maps
+     out of line in a copy-on-write pool, kCtlPool 8192 x 8 B, reset per
+     query; queryPattern still returns the 212 B public Event); withParam
+     moves its parameter values to a small stack (kParamStack 256) so
+     results land in place (no memmove). Host peaks: arena 384 events =
+     19 KB one-cycle, pool 2432 entries (quarter cycle ~5 KB + ~5 KB:
+     could live in internal RAM). Stack per nesting level ~1.3 KB (was
+     ~2.4 KB): callLib reads args in place (592 B), qApp sizes its arg
+     array with alloca, qNode 520 B. Bench builds: Profiler::init leaves a
+     32 KB stack reserve (TIDAL_BENCH) instead of 8 KB.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at

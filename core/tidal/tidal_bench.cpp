@@ -123,13 +123,14 @@ int runAll(int run, int at) {
 
     int n = 0;
     n += snprintf(report + n, sizeof report - n,
-                  "Tracker Cycles engine bench v4, run %d (%d s after boot)\n"
+                  "Tracker Cycles engine bench v5, run %d (%d s after boot)\n"
                   "event %u B, arena %d events, %d one-cycle + %d quarter-cycle queries per pattern\n"
                   "times in microseconds; peak = arena high water (events); arena + program in SDRAM\n\n"
                   "%-6s %-5s %-6s %-7s %-7s %-6s %-6s  pattern\n",
-                  run, at / 1000, (unsigned)sizeof(tc::Event), tc::kEventArena, kReps, kReps * 4, "events", "peak",
+                  run, at / 1000, (unsigned)tc::engineEventBytes(), tc::kEventArena, kReps, kReps * 4, "events", "peak",
                   "peak/4", "us/cyc", "max", "us/q4", "max");
     uint32_t worstAvg = 0, worstQ4 = 0;
+    int worstCtl = 0, worstCtl4 = 0;
     pcStart();
     for (int i = 0; i < tc::benchCaseCount() && n < (int)sizeof report - 200; i++) {
         tc::BenchResult r;
@@ -139,6 +140,8 @@ int runAll(int run, int at) {
         }
         if (r.avgUs > worstAvg) worstAvg = r.avgUs;
         if (r.avgUs4 > worstQ4) worstQ4 = r.avgUs4;
+        if (r.ctl > worstCtl) worstCtl = r.ctl;
+        if (r.ctl4 > worstCtl4) worstCtl4 = r.ctl4;
         n += snprintf(report + n, sizeof report - n, "%-6d %-5d %-6d %-7lu %-7lu %-6lu %-6lu  %.60s\n", r.events,
                       r.peak, r.peak4, (unsigned long)r.avgUs, (unsigned long)r.maxUs, (unsigned long)r.avgUs4,
                       (unsigned long)r.maxUs4, r.code);
@@ -150,10 +153,12 @@ int runAll(int run, int at) {
                   "\nworst: %lu us/cycle, %lu us/quarter; audio max %d %% during the run (avg since reset %d %%)\n"
                   "stack: bench entry %lu B below the top of RAM, evaluator deepest %lu B (%lu B below entry);\n"
                   "  heap end (brk) %lu B below the top: %ld B left between the deepest point and the heap\n"
+                  "control pool peak %d one-cycle, %d quarter-cycle (of %d)\n"
                   "pc samples: %lu (outside flash %lu)\n",
                   (unsigned long)worstAvg, (unsigned long)worstQ4, u.tempMaximum, u.average,
                   (unsigned long)(top - sp), (unsigned long)(top - minSp), (unsigned long)(sp - minSp),
-                  (unsigned long)(top - brk), (long)minSp - (long)brk, (unsigned long)gTidalPcTotal,
+                  (unsigned long)(top - brk), (long)minSp - (long)brk, worstCtl, worstCtl4, tc::kCtlPool,
+                  (unsigned long)gTidalPcTotal,
                   (unsigned long)gTidalPcOther);
     bool ok = save(run, true, n);
 

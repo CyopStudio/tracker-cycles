@@ -15,6 +15,7 @@ struct BenchResult {
     const char* code;
     int events;          // events in the last one-cycle query
     int peak, peak4;     // arena high water: one-cycle / quarter-cycle queries
+    int ctl, ctl4;       // control pool high water, same
     uint32_t avgUs, maxUs;    // per one-cycle query
     uint32_t avgUs4, maxUs4;  // per quarter-cycle query
     bool ok;

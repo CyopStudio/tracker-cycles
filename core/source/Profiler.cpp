@@ -16,6 +16,9 @@ extern "C"
 {
     extern void _vStackTop(void); // symbols from linker script
     extern void _vStackBase(void);
+#if defined(TIDAL_BENCH) && !defined(PLATFORM_IMX)
+    extern char* __brkval; // teensy core heap end
+#endif
 }
 Profiler* Profiler::instance = nullptr;
 
@@ -29,6 +32,20 @@ void Profiler::init()
     size_t allocSize = 4096;
     do
     {
+#if defined(TIDAL_BENCH) && !defined(PLATFORM_IMX)
+        // Tracker Cycles bench: leave a stack reserve for the Tidal
+        // evaluator's recursion instead of claiming all but 8 KB (teensy
+        // STACK_MARGIN) for the heap.
+        {
+            static constexpr size_t kTidalStackReserve = 32 * 1024;
+            volatile char here = 0;
+            if ((size_t)((const char*)&here - __brkval) < kTidalStackReserve + allocSize + 64)
+            {
+                allocSize /= 2;
+                continue;
+            }
+        }
+#endif
         void* buf = malloc(allocSize);
         if (buf != nullptr)
         {

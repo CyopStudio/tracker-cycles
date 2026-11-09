@@ -35,7 +35,7 @@ bool runBenchCase(int i, Program& prog, Event* out, int cap, BenchClock clock, i
         return false;
     }
     uint16_t expr = prog.at(prog.block[0]).first;
-    auto timed = [&](int n, int den, int& peak, uint32_t& avg, uint32_t& mx) {
+    auto timed = [&](int n, int den, int& peak, int& ctl, uint32_t& avg, uint32_t& mx) {
         engineResetStats();
         uint64_t total = 0;
         for (int k = 0; k < n; k++) {
@@ -54,10 +54,11 @@ bool runBenchCase(int i, Program& prog, Event* out, int cap, BenchClock clock, i
         }
         avg = (uint32_t)(total / (uint64_t)(n > 0 ? n : 1));
         peak = engineHighWater();
+        ctl = engineCtlHighWater();
         return true;
     };
-    if (oneCycle && !timed(reps, 1, r.peak, r.avgUs, r.maxUs)) return false;
-    if (!timed(reps * 4, 4, r.peak4, r.avgUs4, r.maxUs4)) return false;
+    if (oneCycle && !timed(reps, 1, r.peak, r.ctl, r.avgUs, r.maxUs)) return false;
+    if (!timed(reps * 4, 4, r.peak4, r.ctl4, r.avgUs4, r.maxUs4)) return false;
     r.ok = true;
     return true;
 }

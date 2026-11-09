@@ -696,7 +696,7 @@ static void testGolden() {
         }
     }
     printf("engine: %d/%d golden cases match, arena high water %d/%d events (%zu B each)", engineOk, engineTotal,
-           engineHighWater(), kEventArena, sizeof(Event));
+           engineHighWater(), kEventArena, (size_t)engineEventBytes());
     if (!newlyPassing.empty()) {
         printf(" (%zu not yet in golden/engine_pass.txt:", newlyPassing.size());
         for (auto& s : newlyPassing) printf(" %s", s.c_str());
