@@ -229,6 +229,16 @@ folders listed in the project (e.g. a manifest) on project load.
      working set 256 events / 1024 controls / 128 params = 25.6 KB, fits
      every bench pattern on the host); v6 adds that pass in internal RAM.
      -O2 variant (TC_ENGINE_O2): flash 1,006,428 B (96%) vs 982,292 B.
+     v6 results (2026-11-09; docs/tidal_bench_o2.txt, docs/tidal_bench.txt
+     is a v5 -Os rerun): -O2 vs -Os 1.2-1.3x (run 2 q4 stut 69 -> 53 ms,
+     jux 33 -> 28, echo 38 -> 33). Internal-RAM working set on top: stut
+     81% of SDRAM, jux 50%, echo 68%, everyday ~75%. Best (-O2 + internal
+     RAM) run 2 q4: stut 43 ms, echo 22, sometimes 19, jux 14, off 11,
+     chunk 8, hh*16+pan 7, simple 0.8-3 ms; run 1 ~4x faster. Stack at
+     -O2 20.6 KB deepest. Engine -O2 profile: qCompress (inlined rational
+     maths) 11% of all samples, operator+ 6%, still rationals-bound.
+     Decision input for 4b: real build = engine -O2 + q4 working set in
+     internal RAM (~26 KB) + ~24 KB stack reserve.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at
