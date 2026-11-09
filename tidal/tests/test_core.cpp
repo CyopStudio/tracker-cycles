@@ -708,6 +708,7 @@ static void testGolden() {
 }
 
 void testScheduler(int& pass, int& fail);
+void testMapping(int& pass, int& fail);
 
 int main() {
     testNodeSize();
@@ -720,6 +721,7 @@ int main() {
     testRefinement();
     testGolden();
     testScheduler(gPass, gFail);
+    testMapping(gPass, gFail);
     printf("%d passed, %d failed\n", gPass, gFail);
     return gFail ? 1 : 0;
 }

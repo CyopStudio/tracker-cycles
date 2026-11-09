@@ -70,6 +70,9 @@ static const ControlDef kControls[] = {
     {"room", 'f'},    {"crush", 'f'},   {"shape", 'f'},   {"begin", 'f'},   {"end", 'f'},
     {"speed", 'f'},   {"legato", 'f'},  {"sustain", 'f'}, {"nudge", 'f'},   {"cut", 'i'},
     {"orbit", 'i'},   {"unit", 's'},
+    // Tracker mapping (docs/tidal_control_mapping.md)
+    {"amp", 'f'},     {"velocity", 'f'}, {"attack", 'f'},  {"release", 'f'}, {"hresonance", 'f'},
+    {"distort", 'f'}, {"midichan", 'f'}, {"ccn", 'f'},     {"ccv", 'f'},     {"midibend", 'f'},
 };
 int controlCount() { return (int)(sizeof kControls / sizeof kControls[0]); }
 const ControlDef& controlDef(int key) { return kControls[key]; }
@@ -83,6 +86,12 @@ static const char* controlFor(const char* fn) {
     if (!strcmp(fn, "sound")) return "s";
     if (!strcmp(fn, "up")) return "note";
     if (!strcmp(fn, "hpf")) return "hcutoff";
+    if (!strcmp(fn, "lpf")) return "cutoff";
+    if (!strcmp(fn, "lpq")) return "resonance";
+    if (!strcmp(fn, "hpq")) return "hresonance";
+    if (!strcmp(fn, "bpf")) return "bandf";
+    if (!strcmp(fn, "att")) return "attack";
+    if (!strcmp(fn, "rel")) return "release";
     return fn;
 }
 

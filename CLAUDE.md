@@ -315,6 +315,18 @@ folders listed in the project (e.g. a manifest) on project load.
      more passes in set 1. Interrupt side unchanged, still no drops.
    - 4c. Control mapping to playerEngine noteOn/mod*() calls, MIDI out for
      MIDI channels, and the per-channel voice allocator (Polyphony below).
+     Design: docs/tidal_control_mapping.md (draft v0.1, 2026-11-09):
+     portable mapper in tidal/core/mapping.* (all conversion on the main
+     loop), new playerEngine::tidalNoteOn (per-note overrides on the
+     player's sequencer-FX lane 0, every event from instrument defaults),
+     per-name instrument cache, Tracker-mode checker from the same table.
+     Decided (v0.2): Entry 48 B / 10 mods, gain 1 = the instrument's
+     volume, looped instruments release at the event's end, `n` = pitch
+     on non-sliced instruments. Step 1 done: tidal/core/mapping.*
+     (TrackerMapper, host-tested in tests/test_mapping.cpp), 10 new
+     controls + 6 aliases (golden cases from real Tidal). Next: Tracker-
+     mode checker (step 2), then playerEngine::tidalNoteOn + MIDI on the
+     device (step 3).
    - 4d. Device editor: step 1 editor logic + FT812 drawing layer +
      pad/encoder input.
    - 4e. Project files: .tidal file + sample banks load/save on SD.

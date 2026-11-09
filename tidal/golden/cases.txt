@@ -172,3 +172,6 @@ alt_slow_inner    4  s "<a b/2>"
 iter_alt          4  iter 4 $ s "<a b> c d e"
 fastcat_alt       2  fastcat [s "<a b>", s "c"]
 seq_slow_whole    2  s "bd sd/2 hh"
+ctl_aliases       1  s "bd*2" # lpf 300 # lpq 0.2 # hpq "0.1 0.3" # bpf 200 # att 0.01 # rel 0.5
+ctl_tracker       1  s "bd sd" # amp 0.3 # velocity "0.5 1" # distort 0.2 # hresonance 0.4
+ctl_midi          1  n "0 7" # s "midi" # midichan 2 # ccn 7 # ccv "64 100" # midibend 100

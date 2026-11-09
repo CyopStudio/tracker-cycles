@@ -130,3 +130,6 @@ irand
 chop_begin
 chop_range
 chop_reverse
+ctl_aliases
+ctl_tracker
+ctl_midi

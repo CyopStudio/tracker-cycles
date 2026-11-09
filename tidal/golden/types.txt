@@ -74,6 +74,24 @@ sustain :: Pattern Double -> ControlPattern
 nudge :: Pattern Double -> ControlPattern
 cut :: Pattern Int -> ControlPattern
 orbit :: Pattern Int -> ControlPattern
+end :: Pattern Double -> ControlPattern
+unit :: Pattern String -> ControlPattern
+amp :: Pattern Double -> ControlPattern
+velocity :: Pattern Double -> ControlPattern
+attack :: Pattern Double -> ControlPattern
+release :: Pattern Double -> ControlPattern
+hresonance :: Pattern Double -> ControlPattern
+distort :: Pattern Double -> ControlPattern
+midichan :: Pattern Double -> ControlPattern
+ccn :: Pattern Double -> ControlPattern
+ccv :: Pattern Double -> ControlPattern
+midibend :: Pattern Double -> ControlPattern
+lpf :: Pattern Double -> ControlPattern
+lpq :: Pattern Double -> ControlPattern
+hpq :: Pattern Double -> ControlPattern
+bpf :: Pattern Double -> ControlPattern
+att :: Pattern Double -> ControlPattern
+rel :: Pattern Double -> ControlPattern
 # :: Unionable b => Pattern b -> Pattern b -> Pattern b
 |+| :: (Applicative a, Num b) => a b -> a b -> a b
 |+ :: Num a => Pattern a -> Pattern a -> Pattern a

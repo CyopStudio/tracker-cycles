@@ -19,13 +19,13 @@ namespace tc {
 
 constexpr int kBlockSamples = 128;
 constexpr int kRingSize = 128;           // entries per slot (power of two)
-constexpr int kMaxMods = 6;
+constexpr int kMaxMods = 10;
 constexpr int kMaxPendingOffs = 8;       // per slot (MIDI chords)
 
 enum class EntryKind : uint8_t { Note = 0 };
 
-// One trigger, 32 bytes. The control mapping (step 4c) fills everything
-// but the timing; the interrupt applies it as given.
+// One trigger, 48 bytes. The control mapping (step 4c, mapping.h) fills
+// everything but the timing; the interrupt applies it as given.
 struct Entry {
     uint32_t block;      // absolute block index of the onset
     uint32_t dur;        // samples until the noteOff (0 = none, plays out)
@@ -33,12 +33,13 @@ struct Entry {
     EntryKind kind;
     uint8_t chan;        // instrument (sample slots) / MIDI channel
     uint8_t note;
-    uint8_t vel;
+    uint8_t vel;         // sample: volume step 0..100, 255 = instrument's; MIDI: velocity
     uint8_t nmods;
     uint8_t modId[kMaxMods];
     uint16_t modVal[kMaxMods];
+    uint8_t pad[2];
 };
-static_assert(sizeof(Entry) == 32, "Entry must stay 32 bytes");
+static_assert(sizeof(Entry) == 48, "Entry must stay 48 bytes");
 
 // Event -> entry (step 4c). Called on the main loop for every onset.
 // `lenSamples` is the event's whole length in samples (for legato).
