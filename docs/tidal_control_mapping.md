@@ -136,7 +136,13 @@ mode is what the device can do (minus sound differences).
    fallback, slices, lengths, priority drop, MIDI, through the
    scheduler; mutations in the gain curve, filter curve and priority
    order caught).
-2. Checker: Tracker-mode errors from the table; editor menus filtered.
+2. Done (2026-11-09): `trackerLibIssue()` / `trackerCheck()` in
+   tidal/core/mapping.* (every library control needs a rule, unknown
+   ones are refused; tested in tests/test_mapping.cpp); the prototype
+   editor uses it on evaluate and in `recheck()`, so menus leave out
+   anything the device can't play on that slot kind (smoke session 10).
+   The prototype's MIDI routing now uses `|<` so a `# midichan` in the
+   code wins, as on the device.
 3. Device: `playerEngine::tidalNoteOn` (core/AudioEngine/mtAudioTidal.cpp)
    + MIDI out; tick test v4 plays a listening set (pan, cutoff sweep,
    crush, room, begin/end, slices, speed, legato, MIDI) and reports

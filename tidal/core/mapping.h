@@ -69,6 +69,17 @@ struct MapWarnings {
     char lastUnknown[24];   // the last unknown `s` name
 };
 
+// ---- Tracker mode (design section 5) ------------------------------------------
+// Can the device play library entry `libId` (a function or control) in
+// block `slot` (0..7 sample tracks, 8..15 MIDI)? nullptr if yes, else why
+// not, e.g. "has no effect on MIDI slots (d9-d16)". Host-only functions,
+// controls the Tracker doesn't map, and controls of the other slot kind
+// are refused; unknown controls are refused by default.
+const char* trackerLibIssue(int libId, int slot);
+// First issue in block `slot` of `p`: false with err.msg ("tracker mode:
+// 'cutoff' has no effect on MIDI slots (d9-d16)") and err.node.
+bool trackerCheck(const Program& p, int slot, Error& err);
+
 class TrackerMapper : public Mapper {
 public:
     void init(const TrackerHost* host, float sampleRate);

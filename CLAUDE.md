@@ -324,9 +324,10 @@ folders listed in the project (e.g. a manifest) on project load.
      volume, looped instruments release at the event's end, `n` = pitch
      on non-sliced instruments. Step 1 done: tidal/core/mapping.*
      (TrackerMapper, host-tested in tests/test_mapping.cpp), 10 new
-     controls + 6 aliases (golden cases from real Tidal). Next: Tracker-
-     mode checker (step 2), then playerEngine::tidalNoteOn + MIDI on the
-     device (step 3).
+     controls + 6 aliases (golden cases from real Tidal). Step 2 done:
+     trackerCheck() (same table) in the prototype's evaluate + recheck,
+     menus filtered per slot kind (smoke session 10). Next: step 3,
+     playerEngine::tidalNoteOn + MIDI on the device.
    - 4d. Device editor: step 1 editor logic + FT812 drawing layer +
      pad/encoder input.
    - 4e. Project files: .tidal file + sample banks load/save on SD.

@@ -192,24 +192,35 @@ Play/Rec block, and the jog wheel at the bottom. FX1 is
 
 Headless `--keys` tokens: `left right up down wheel+ wheel- wheel++ wheel--
 replace wrap insert delete unwrap undo eval hush next prev ok cancel save
-tracker`, plus `menu:N`, `shot:FILE.png`, `wait:MS`, `print`, and
+tracker`, plus `menu:N`, `shot:FILE.png`, `wait:MS`, `print`,
+`menulist` (the open menu's items on stdout), `msg` (the status line on
+stdout), and
 `hw:CONTROL` / `hw:shift+CONTROL` to press a Tracker control (`s1`..`s8`,
 `play`, `insert`, `delete`, `jog+`, `jog-`, `pad1`..`pad48`, `file`,
 `config`, `copy`, `note`, `instr`, `fx1`, `fx2`, ...; see
 `proto/hardware.cpp`). New action tokens: `copy paste home notes samples
 functions controls quick1..quick4 launch`. `--panel` makes screenshots include the mock panel.
-`tests/proto/session3.keys` to `session9.keys` use only `hw:` tokens.
+`tests/proto/session3.keys` to `session9.keys` use only `hw:` tokens;
+`session10.keys` checks Tracker mode (menus per slot kind, the evaluate
+error).
 
 ## Behaviour notes
 
 - Every edit is type-checked before it's offered; a menu only lists
   choices that check. Holes (`??`) are allowed while editing, but block
   evaluation.
-- **Tracker mode** (default on): refuses host-only functions (`chop`,
-  `striate`) on evaluate. MIDI slots d9..d16 are sent as
-  `dN $ (…) # s "midi" # midichan N-9`; that routing is never stored.
-  Not yet emulated: the device's voices per channel (spec: Polyphony in
-  CLAUDE.md) and the limited control set.
+- **Tracker mode** (default on): only what the device can play, by
+  `trackerCheck()` in core/mapping.* (the same table the device mapper
+  uses, docs/tidal_control_mapping.md section 5): no host-only functions
+  (`chop`, `striate`), no `orbit` / `unit`, sample controls (`s`, `pan`,
+  filters, `crush`, `speed`, ...) only on d1..d8, MIDI controls
+  (`midichan`, `ccn`, `ccv`, `midibend`) only on d9..d16. Menus leave
+  out anything that would break that (an edit that would is refused);
+  a block that already breaks it (loaded from a file) stays editable and
+  evaluate reports the first problem. MIDI slots d9..d16 are sent as
+  `dN $ (…) |< s "midi" |< midichan N-9` (a `# midichan` in the code
+  wins); that routing is never stored. Not yet emulated: the device's
+  voices per channel (Polyphony in CLAUDE.md).
 - `setcps` is sent before the first evaluate and whenever it changes.
 
 ## Known gaps (next steps)

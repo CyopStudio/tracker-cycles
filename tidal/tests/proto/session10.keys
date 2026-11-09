@@ -1,0 +1,4 @@
+hw:shift+pad13 down controls menulist cancel
+hw:shift+pad1 controls menulist cancel
+tracker hw:shift+pad13 down controls menu:7 ok
+tracker eval msg undo eval msg print

@@ -11,6 +11,7 @@
 
 #include "check.h"
 #include "engine.h"
+#include "library.h"
 #include "mapping.h"
 #include "parse.h"
 #include "scheduler.h"
@@ -321,6 +322,61 @@ void testThroughScheduler() {
     MEXPECT(ok, "entries through the scheduler: %zu notes", voice.on.size());
 }
 
+// Tracker mode: which functions / controls the device takes, per slot kind.
+void testTrackerCheck() {
+    // every library control has an explicit rule (a new control must decide)
+    for (int id = 0; id < libCount(); id++) {
+        if (lib(id).cat != Cat::Control) continue;
+        const char* a = trackerLibIssue(id, 0);
+        const char* b = trackerLibIssue(id, 8);
+        bool unmapped = (a && !strcmp(a, "isn't mapped on the Tracker")) || (b && !strcmp(b, "isn't mapped on the Tracker"));
+        MEXPECT(!unmapped, "control '%s' has no Tracker rule", lib(id).name);
+        MEXPECT(!a || !b || strstr(a, "isn't available"), "control '%s' works on no slot kind", lib(id).name);
+    }
+    struct C {
+        int slot;
+        const char* code;
+        const char* err;  // nullptr = fine
+    } cases[] = {
+        {0, "s \"bd*2\" # cutoff 300 # pan sine # speed 2 # legato 0.5", nullptr},
+        {0, "every 2 (# crush 4) $ n \"0 3\" # s \"arpy\" # lpf 800 # lpq 0.2", nullptr},
+        {8, "n \"0 7\" # velocity 0.8 # midichan 3 # ccn 74 # ccv sine # legato 0.9", nullptr},
+        {8, "n \"0\" # cutoff 300", "tracker mode: 'cutoff' has no effect on MIDI slots (d9-d16)"},
+        {8, "n \"0\" |* speed 2", "tracker mode: 'speed' has no effect on MIDI slots (d9-d16)"},
+        {9, "s \"bd\"", "tracker mode: 's' has no effect on MIDI slots (d9-d16)"},
+        {0, "s \"bd\" # midichan 2", "tracker mode: 'midichan' only works on MIDI slots (d9-d16)"},
+        {0, "s \"bd\" # orbit 1", "tracker mode: 'orbit' isn't available on the Tracker (one effects bus)"},
+        {3, "s \"bd\" # unit \"c\"", "tracker mode: 'unit' isn't available on the Tracker (no cycle-relative speed)"},
+        {0, "chop 4 $ s \"break\"", "tracker mode: 'chop' isn't available on the Tracker"},
+    };
+    for (const C& c : cases) {
+        std::string text = "d" + std::to_string(c.slot + 1) + " $ " + c.code + "\n";
+        Error e, ce;
+        gProg.clear();
+        if (!parseFile(gProg, text.c_str(), (int)text.size(), e) || !checkProgram(gProg, ce)) {
+            MEXPECT(false, "%s: %s%s", c.code, e.msg, ce.msg);
+            continue;
+        }
+        Error te;
+        bool ok = trackerCheck(gProg, c.slot, te);
+        if (!c.err) {
+            MEXPECT(ok, "%s: %s", c.code, te.msg);
+        } else {
+            MEXPECT(!ok && !strcmp(te.msg, c.err), "%s: got '%s'", c.code, ok ? "(ok)" : te.msg);
+            MEXPECT(ok || (te.node && gProg.at(te.node).kind == Kind::Fn), "%s: error node not the function",
+                    c.code);
+        }
+    }
+    // a wide block (long sequence) is no problem
+    std::string wide = "d1 $ s \"";  // kMaxSeqSteps steps: more children than any fixed stack would hold
+    for (int i = 0; i < kMaxSeqSteps; i++) wide += "bd ";
+    wide += "\" # pan 0.5\n";
+    Error e, ce, te;
+    gProg.clear();
+    bool parsed = parseFile(gProg, wide.c_str(), (int)wide.size(), e) && checkProgram(gProg, ce);
+    MEXPECT(parsed && trackerCheck(gProg, 0, te), "wide block: %s%s%s", e.msg, ce.msg, te.msg);
+}
+
 }  // namespace
 
 void testMapping(int& pass, int& fail) {
@@ -334,5 +390,6 @@ void testMapping(int& pass, int& fail) {
     testOverflow();
     testMidi();
     testThroughScheduler();
+    testTrackerCheck();
     printf("mapping: %s\n", fail == f0 ? "ok" : "FAILED");
 }

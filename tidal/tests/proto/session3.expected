@@ -1,6 +1,6 @@
 > setcps (120/60/4)
 > d3 $ n "0 .. 7" # s "arpy" # begin "<1 2>"
-> d16 $ (n "c e g") # s "midi" # midichan 7
+> d16 $ (n "c e g") |< s "midi" |< midichan 7
 > hush
 setcps (120/60/4)
 

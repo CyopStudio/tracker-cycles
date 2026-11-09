@@ -99,6 +99,16 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
                 for (const auto& l : ed.backend()->log) printf("| %s\n", l.c_str());
         } else if (tok == "print") {
             fputs(ed.fileText().c_str(), stdout);
+        } else if (tok == "menulist") {  // the open menu's items, on stdout (smoke tests)
+            if (!ed.menuOpen()) {
+                printf("menu: (closed)\n");
+            } else {
+                printf("menu %s:", ed.menuTitle().c_str());
+                for (const auto& it : ed.menu()) printf(" [%s]", it.label.c_str());
+                printf("\n");
+            }
+        } else if (tok == "msg") {  // the status line, on stdout (smoke tests)
+            printf("msg: %s%s\n", ed.messageIsError() ? "ERROR " : "", ed.message().c_str());
         } else {
             Action a;
             if (!actionFromName(tok, a)) {

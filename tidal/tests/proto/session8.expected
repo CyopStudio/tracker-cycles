@@ -1,6 +1,6 @@
 > setcps (120/60/4)
 > d3 $ n "0 3 ~" # s "arpy" # speed "<1 2>"
-> d9 $ (n "0 4" # legato 0.5) # s "midi" # midichan 0
+> d9 $ (n "0 4" # legato 0.5) |< s "midi" |< midichan 0
 setcps (120/60/4)
 
 -- kick and snare

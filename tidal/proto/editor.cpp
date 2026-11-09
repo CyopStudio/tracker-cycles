@@ -9,6 +9,7 @@
 
 #include "check.h"
 #include "library.h"
+#include "mapping.h"
 #include "parse.h"
 #include "render.h"
 
@@ -54,7 +55,11 @@ static const char* controlDefault(const char* name) {
         {"resonance", "0.2"},   {"hpf", "200"},         {"bandf", "1000"},   {"delay", "0.3"},
         {"room", "0.3"},        {"crush", "4"},         {"shape", "0.3"},    {"begin", "0.25"},
         {"speed", "2"},         {"legato", "1"},        {"sustain", "0.5"},  {"nudge", "0.1"},
-        {"cut", "1"},           {"orbit", "1"},
+        {"cut", "1"},           {"orbit", "1"},         {"end", "0.75"},     {"amp", "0.4"},
+        {"velocity", "0.8"},    {"attack", "0.01"},     {"release", "0.2"},  {"hresonance", "0.2"},
+        {"distort", "0.3"},     {"midichan", "1"},      {"ccn", "74"},       {"ccv", "\"0 64 127\""},
+        {"midibend", "0"},      {"lpf", "1000"},        {"lpq", "0.2"},      {"hpq", "0.2"},
+        {"bpf", "1000"},        {"att", "0.01"},        {"rel", "0.2"},
     };
     for (auto& x : t)
         if (strcmp(x.n, name) == 0) return x.d;
@@ -174,6 +179,16 @@ bool Editor::recheck(Program& p, std::string& err) const {
     if (!checkBlock(p, slot_, e)) {
         err = e.msg;
         return false;
+    }
+    // Tracker mode: refuse edits (and so menu items) that bring in something
+    // the device can't play; a block that already has such a thing (loaded
+    // from a file) stays editable, evaluate() reports it.
+    if (trackerMode_) {
+        Error now, before;
+        if (!trackerCheck(p, slot_, now) && trackerCheck(*prog_, slot_, before)) {
+            err = now.msg;
+            return false;
+        }
     }
     return true;
 }
@@ -1171,7 +1186,9 @@ std::string Editor::evalText(int slot, std::string* errOut) const {
     // goes into the tree or the .tidal file.
     r.expr(*prog_, prog_->at(b).first);
     if (r.overflow() && errOut) *errOut = "block too long";
-    return launchHead(slot) + " $ (" + buf + ") # s \"midi\" # midichan " + std::to_string(slot - kSampleSlots);
+    // |< : the block's own values win (a `# midichan` in the code), the
+    // slot's channel only fills in (same rule as the device mapper)
+    return launchHead(slot) + " $ (" + buf + ") |< s \"midi\" |< midichan " + std::to_string(slot - kSampleSlots);
 }
 
 void Editor::evaluate() {
@@ -1184,21 +1201,7 @@ void Editor::evaluate() {
         return error(e.msg);
     }
     if (holes) return error("fill in the ?? first");
-    if (trackerMode_) {
-        // walk this block's subtree for functions the device won't have
-        int hostOnly = -1;
-        std::vector<uint16_t> stack{b};
-        while (!stack.empty() && hostOnly < 0) {
-            uint16_t x = stack.back();
-            stack.pop_back();
-            const Node& n = prog_->at(x);
-            if (n.kind == Kind::Fn && lib((int)n.a).device == Device::HostOnly) hostOnly = (int)n.a;
-            for (uint16_t c = n.first; c; c = prog_->at(c).next) stack.push_back(c);
-        }
-        if (hostOnly >= 0)
-            return error(std::string("tracker mode: '") + lib(hostOnly).name +
-                         "' isn't available on the Tracker");
-    }
+    if (trackerMode_ && !trackerCheck(*prog_, slot_, e)) return error(e.msg);
     std::string err;
     std::string text = evalText(slot_, &err);
     if (!err.empty()) return error(err);

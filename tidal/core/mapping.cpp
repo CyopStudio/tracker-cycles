@@ -7,6 +7,8 @@
 // seconds. MIDI: note 0 = MIDI 60.
 #include "mapping.h"
 
+#include "library.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -58,7 +60,76 @@ struct ModList {
     }
 };
 
+// Where each control does something on the Tracker (design sections 3-4).
+enum Where : uint8_t { kNowhere = 0, kSample = 1, kMidi = 2, kBoth = 3 };
+struct CtlRule {
+    const char* name;
+    Where where;
+    const char* why;  // kNowhere: the reason
+};
+const CtlRule kCtlRules[] = {
+    {"s", kSample, nullptr},        {"sound", kSample, nullptr},    {"n", kBoth, nullptr},
+    {"note", kBoth, nullptr},       {"up", kBoth, nullptr},         {"gain", kBoth, nullptr},
+    {"amp", kBoth, nullptr},        {"velocity", kBoth, nullptr},   {"legato", kBoth, nullptr},
+    {"sustain", kBoth, nullptr},    {"nudge", kBoth, nullptr},      {"pan", kSample, nullptr},
+    {"cutoff", kSample, nullptr},   {"lpf", kSample, nullptr},      {"resonance", kSample, nullptr},
+    {"lpq", kSample, nullptr},      {"hpf", kSample, nullptr},      {"hresonance", kSample, nullptr},
+    {"hpq", kSample, nullptr},      {"bandf", kSample, nullptr},    {"bpf", kSample, nullptr},
+    {"delay", kSample, nullptr},    {"room", kSample, nullptr},     {"crush", kSample, nullptr},
+    {"shape", kSample, nullptr},    {"distort", kSample, nullptr},  {"begin", kSample, nullptr},
+    {"end", kSample, nullptr},      {"speed", kSample, nullptr},    {"attack", kSample, nullptr},
+    {"att", kSample, nullptr},      {"release", kSample, nullptr},  {"rel", kSample, nullptr},
+    {"cut", kSample, nullptr},      {"midichan", kMidi, nullptr},   {"ccn", kMidi, nullptr},
+    {"ccv", kMidi, nullptr},        {"midibend", kMidi, nullptr},
+    {"orbit", kNowhere, "isn't available on the Tracker (one effects bus)"},
+    {"unit", kNowhere, "isn't available on the Tracker (no cycle-relative speed)"},
+};
+
 }  // namespace
+
+const char* trackerLibIssue(int libId, int slot) {
+    const LibEntry& e = lib(libId);
+    if (e.device == Device::HostOnly) return "isn't available on the Tracker";
+    if (e.cat != Cat::Control) return nullptr;
+    const bool midi = slot >= kSampleSlots;
+    for (const CtlRule& r : kCtlRules) {
+        if (strcmp(r.name, e.name) != 0) continue;
+        if (r.where == kNowhere) return r.why;
+        if (midi && !(r.where & kMidi)) return "has no effect on MIDI slots (d9-d16)";
+        if (!midi && !(r.where & kSample)) return "only works on MIDI slots (d9-d16)";
+        return nullptr;
+    }
+    return "isn't mapped on the Tracker";
+}
+
+namespace {
+// Depth-first; depth is bounded by the tree's nesting (the parser and the
+// editor cap it far below this), width by nothing.
+bool checkNode(const Program& p, uint16_t x, int slot, int depth, Error& err) {
+    if (depth > 200) {
+        err = Error();
+        err.set(-1, "tracker mode: expression too deep to check");
+        return false;
+    }
+    const Node& n = p.at(x);
+    if (n.kind == Kind::Fn) {
+        if (const char* why = trackerLibIssue((int)n.a, slot)) {
+            err = Error();
+            err.set(-1, "tracker mode: '%s' %s", lib((int)n.a).name, why);
+            err.node = x;
+            return false;
+        }
+    }
+    for (uint16_t c = n.first; c; c = p.at(c).next)
+        if (!checkNode(p, c, slot, depth + 1, err)) return false;
+    return true;
+}
+}  // namespace
+
+bool trackerCheck(const Program& p, int slot, Error& err) {
+    const uint16_t b = p.block[slot];
+    return !b || checkNode(p, b, slot, 0, err);
+}
 
 void TrackerMapper::init(const TrackerHost* host, float sampleRate) {
     host_ = host;
