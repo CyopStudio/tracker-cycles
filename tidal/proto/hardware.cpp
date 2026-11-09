@@ -76,8 +76,11 @@ bool ctlFromId(const std::string& s, Ctl& out) {
     return false;
 }
 
-// Pads: the first 8 pads of the top row are d1..d8 (sample tracks), the
-// first 8 of the second row d9..d16 (MIDI). The rest are free for now.
+// Pads depend on context. On a number / note / rest in a numeric pattern
+// they enter values (-12 top left .. 35 bottom right: 0 starts the second
+// row, so for n/note it's a 4-octave keyboard from c4). Elsewhere, and
+// always with Shift, the first 8 pads of the top row select d1..d8 (sample
+// tracks) and the first 8 of the second row d9..d16 (MIDI).
 Ctl slotPad(int s) {
     if (s < 0 || s >= tc::kSlots) return Ctl::Count;
     int row = s / tc::kSampleSlots, col = s % tc::kSampleSlots;
@@ -88,6 +91,13 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
     const bool menu = ed.menuOpen();
     if (isPad(c)) {
         int i = padIndex(c), row = i / kPadCols, col = i % kPadCols;
+        if (!shift && ed.padNumeric()) {
+            Command k;
+            k.type = Command::Number;
+            k.number = padNumber(i);
+            k.label = std::to_string(k.number);
+            return k;
+        }
         if (row < 2 && col < tc::kSampleSlots) {
             Command k;
             k.type = Command::Slot;
@@ -152,7 +162,7 @@ bool controlFor(const Editor& ed, Action a, Ctl& c, bool& shift) {
     if (a == Action::NextSlot || a == Action::PrevSlot) {
         int s = (ed.slot() + (a == Action::NextSlot ? 1 : tc::kSlots - 1)) % tc::kSlots;
         c = slotPad(s);
-        shift = false;
+        shift = true;
         return true;
     }
     for (int sh = 0; sh < 2; sh++)
@@ -172,6 +182,7 @@ bool press(Editor& ed, Ctl c, bool shift) {
     switch (k.type) {
         case Command::Act: ed.act(k.action); return true;
         case Command::Slot: ed.gotoSlot(k.slot); return true;
+        case Command::Number: ed.enterNumber(k.number); return true;
         default: return false;
     }
 }

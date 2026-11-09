@@ -39,16 +39,19 @@ const char* ctlFwName(Ctl c);  // firmware enum, e.g. "interfaceButtonSampleLoad
 bool ctlFromId(const std::string& s, Ctl& out);
 
 struct Command {
-    enum Type { None, Act, Slot } type = None;
+    enum Type { None, Act, Slot, Number } type = None;
     Action action = Action::Cancel;
     int slot = -1;
+    int number = 0;  // Type::Number: value a pad enters
     std::string label;  // short, for the panel / screen soft-key bar
 };
 
 // What pressing `c` (with Shift held or not) does right now.
 Command controlCommand(const Editor& ed, Ctl c, bool shift);
-// Pad that selects slot s (d1..d16), or Ctl::Count.
+// Pad that selects slot s (d1..d16) with Shift held, or Ctl::Count.
 Ctl slotPad(int s);
+// Value a pad enters in number mode: -12 top left, 0 at the second row.
+inline int padNumber(int pad) { return pad - kPadCols; }
 // Find a control (+ shift) that performs `a` in the current context.
 bool controlFor(const Editor& ed, Action a, Ctl& c, bool& shift);
 // Runs the command; returns false if the control does nothing here.

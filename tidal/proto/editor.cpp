@@ -281,6 +281,42 @@ void Editor::openMenu(const std::string& title, std::vector<MenuItem> items) {
     info(title + ": wheel to choose, ok to apply, cancel to close");
 }
 
+bool Editor::padNumeric() const {
+    if (menuOpen_ || !cursor_) return false;
+    const Node& n = prog_->at(cursor_);
+    // a number argument, the quotes of a numeric pattern, or anything inside
+    // them (a step, or a group like <1 2> / 0 .. 7, which gets replaced)
+    if (!(n.kind == Kind::Num || n.kind == Kind::Mini || isMiniKind(n.kind))) return false;
+    return n.type == kTyPatBase + (int)Base::Time || n.type == kTyPatBase + (int)Base::Double ||
+           n.type == kTyPatBase + (int)Base::Int || n.type == kTyPatBase + (int)Base::Note;
+}
+
+bool Editor::cursorInt(int& v) const {
+    if (!cursor_) return false;
+    const Node& n = prog_->at(cursor_);
+    if (n.kind == Kind::MNote) {
+        v = (int32_t)n.a;
+        return true;
+    }
+    if ((n.kind == Kind::Num || n.kind == Kind::MNum) && n.b == 1) {
+        v = (int32_t)n.a;
+        return true;
+    }
+    return false;
+}
+
+void Editor::enterNumber(int v) {
+    if (!padNumeric()) return error("pads enter numbers inside a numeric pattern");
+    bool mini = isMiniKind(prog_->at(cursor_).kind);
+    std::string code = std::to_string(v);
+    if (v < 0 && !mini) code = "(" + code + ")";
+    uint16_t nn;
+    auto r = tryReplace(code, mini, nn);
+    if (!r) return error(std::to_string(v) + " doesn't fit here");
+    commit(std::unique_ptr<Program>(new Program(*r)), nn);
+    if (!messageError_) info("= " + std::to_string(v));
+}
+
 void Editor::gotoSlot(int s) {
     if (s < 0 || s >= kSlots) return;
     enterSlot(s);

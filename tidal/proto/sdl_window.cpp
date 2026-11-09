@@ -131,8 +131,9 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
                 } else if (mapKey(e.key, kbShift, k)) {
                     std::string via = "key " + keyName(e.key);
                     if (k.isCtl) {
-                        // Shift+digit already chose the second pad row
-                        bool sh = isPad(k.ctl) ? false : shift;
+                        // digits are Shift+pad (slot select); Shift+digit
+                        // already chose the second pad row
+                        bool sh = isPad(k.ctl) ? true : shift;
                         pressCtl(ed, k.ctl, sh, via, st, litUntil);
                     } else {
                         Ctl c;

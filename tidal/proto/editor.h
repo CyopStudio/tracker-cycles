@@ -44,7 +44,12 @@ public:
 
     void act(Action a);
     void selectMenu(int i);   // jump to a menu entry (scripted use)
-    void gotoSlot(int s);     // select d(s+1) (a pad on the Tracker)
+    void gotoSlot(int s);     // select d(s+1) (Shift + pad on the Tracker)
+    // Pad number entry: active anywhere in a numeric pattern (Time / Double /
+    // Int / Note: a step, a group, the quotes) or on a number argument.
+    bool padNumeric() const;
+    bool cursorInt(int& v) const;  // current value, if a whole number / note
+    void enterNumber(int v);   // replace the value at the cursor
 
     // state for the view
     const tc::Program& prog() const { return *prog_; }

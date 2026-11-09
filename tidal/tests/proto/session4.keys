@@ -1,9 +1,9 @@
 hw:down hw:right hw:right hw:right hw:copy
-hw:pad2 hw:down hw:shift+copy
+hw:shift+pad2 hw:down hw:shift+copy
 hw:shift+insert hw:note menu:1 hw:s8
-hw:pad3 hw:down hw:down hw:down hw:right hw:down hw:instr menu:4 hw:play
+hw:shift+pad3 hw:down hw:down hw:down hw:right hw:down hw:instr menu:4 hw:play
 hw:shift+insert hw:fx1 menu:0 hw:play
 hw:down hw:down hw:down hw:fx2 menu:5 hw:play
 hw:shift+delete hw:shift+copy
-hw:pad4 hw:shift+copy hw:play
+hw:shift+pad4 hw:shift+copy hw:play
 print

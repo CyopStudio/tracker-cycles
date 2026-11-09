@@ -1,6 +1,6 @@
 hw:pattern hw:jog+ hw:jog+ hw:play hw:play
-hw:pad13 hw:pattern menu:6 hw:s8 hw:play
-hw:pad2 hw:pattern hw:s1 hw:play
-hw:pad1 hw:pattern menu:0 hw:play hw:play
-hw:pad4 hw:pattern
+hw:shift+pad13 hw:pattern menu:6 hw:s8 hw:play
+hw:shift+pad2 hw:pattern hw:s1 hw:play
+hw:shift+pad1 hw:pattern menu:0 hw:play hw:play
+hw:shift+pad4 hw:pattern
 print

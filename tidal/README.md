@@ -119,8 +119,8 @@ hardware can't.
 | FX1 | functions menu: wrap in a function or operator (`fast 2 $ …`, `|+ n 12` …) | | `f` |
 | FX2 | `# control` menu; from inside `"..."` the control goes on the enclosing pattern | | `c` |
 | Pattern | launch menu: `dN $` (now), `jumpMod N 2/4/8/16`, `jumpIn N 1/2/4` (when the next evaluation takes effect) | | `l` |
-| Pads 1–8 (top row) | select d1..d8 (sample tracks) | | `1`..`8` |
-| Pads 13–20 (2nd row) | select d9..d16 (MIDI) | | Shift+`1`..`8` |
+| Pads in a numeric pattern | enter a number: −12 top left, 0 at the start of the 2nd row, 35 bottom right (for `n`/`note`: semitones, a 4-octave keyboard from c4). Replaces the value, group (`<1 2>`, `0 .. 7`) or quoted pattern at the cursor; the current value's pad is framed | | click |
+| Pads elsewhere, or Shift + pad | 1–8 (top row) select d1..d8, 13–20 (2nd row) d9..d16 | | `1`..`8`, Shift+`1`..`8` |
 | | next / previous slot pad | | Tab / Shift+Tab |
 | File | save | | Ctrl+S |
 | Config | tracker mode on/off | | `t` |
@@ -157,7 +157,7 @@ tracker`, plus `menu:N`, `shot:FILE.png`, `wait:MS`, `print`, and
 `config`, `copy`, `note`, `instr`, `fx1`, `fx2`, ...; see
 `proto/hardware.cpp`). New action tokens: `copy paste home notes samples
 functions controls quick1..quick4 launch`. `--panel` makes screenshots include the mock panel.
-`tests/proto/session3.keys` to `session6.keys` use only `hw:` tokens.
+`tests/proto/session3.keys` to `session7.keys` use only `hw:` tokens.
 
 ## Behaviour notes
 

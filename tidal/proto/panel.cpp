@@ -213,6 +213,7 @@ static void drawPad(Framebuffer& fb, const Editor& ed, Ctl c, const PanelState& 
     ctlRect(c, r);
     Command k = controlCommand(ed, c, st.shift);
     uint32_t fill = pc::padOff;
+    bool cur = false;
     if (k.type == Command::Slot) {
         switch (ed.slotState(k.slot)) {
             case SlotState::Playing: fill = pc::padPlaying; break;
@@ -220,15 +221,23 @@ static void drawPad(Framebuffer& fb, const Editor& ed, Ctl c, const PanelState& 
             case SlotState::Error: fill = pc::padError; break;
             default: fill = pc::padEmpty; break;
         }
+        cur = k.slot == ed.slot();
+    } else if (k.type == Command::Number) {
+        // rows alternate shades like octaves; 0 (second row start) stands out
+        fill = (padIndex(c) / kPadCols) % 2 ? 0x2B3340 : 0x252B35;
+        int v;
+        cur = ed.cursorInt(v) && v == k.number;
+        if (k.number == 0) fill = 0x35506B;
     }
     if (st.lit == c) fill = pc::btnLit;
     fb.rect(r.x, r.y, r.w, r.h, fill);
-    bool cur = k.type == Command::Slot && k.slot == ed.slot();
     fb.frame(r.x, r.y, r.w, r.h, cur ? 0xFFFFFF : (st.lit == c ? pc::accent : pc::btnEdge));
     if (cur) fb.frame(r.x + 1, r.y + 1, r.w - 2, r.h - 2, 0xFFFFFF);
     if (k.type == Command::Slot) {
         centered(fb, r, r.y + 8, k.label, pc::label, FontId::Mono14);
         centered(fb, r, r.y + 30, keyHint(ed, c), pc::key);
+    } else if (k.type == Command::Number) {
+        centered(fb, r, r.y + 17, k.label, pc::label, FontId::Mono14);
     }
 }
 
@@ -268,7 +277,7 @@ void drawPanel(const Editor& ed, const Framebuffer& screen, Framebuffer& out, co
     const char* legend[] = {
         "Button: name / function / key / purple = with Shift",
         "Click to press; click Shift to latch it.",
-        "Pads 1-8 / 13-20 = d1..d8 / d9..d16",
+        "Pads: numbers on a value, else slots; Shift+pad = slot",
         "Tab, Shift+Tab: next / prev slot pad",
         "Ctrl+Q quits (no Tracker equivalent)",
     };

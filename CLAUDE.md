@@ -54,7 +54,12 @@ to upstream CE.
   - Note / Instrument / FX1 / FX2: notes, samples, functions, # control
     menus (filtered, type-checked). Pattern: launch menu (`dN $`,
     `jumpMod N k $`, `jumpIn N k $`; spec 2.1).
-  - Pads 1-8 = d1..d8, pads 13-20 = d9..d16 (pads light by slot state).
+  - Pads by context: inside a numeric pattern (Time/Double/Int/Note) or on
+    a number argument they enter numbers, -12 top left .. 35 bottom right
+    (0 starts row 2; for n/note a 4-octave chromatic keyboard), replacing
+    the value / group at the cursor. Elsewhere, and always with Shift, pads
+    1-8 = d1..d8, 13-20 = d9..d16 (lit by slot state). Keyboard digits are
+    Shift+pad.
   - File = save, Config = tracker mode. Free: Params, Perform, Master,
     Sample *, Song, Rec, other pads.
 - Launch: tidal/run_proto.sh (rebuilds, opens tidal/work.tidal, gitignored)
