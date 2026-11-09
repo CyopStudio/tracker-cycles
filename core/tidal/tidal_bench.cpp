@@ -26,7 +26,33 @@ const char* const kPath = "/tidal_bench.txt";
 // Big buffers in SDRAM, constructed when the bench starts (NOLOAD section).
 __NOINIT(EXTERNAL_RAM) unsigned char progRaw[sizeof(tc::Program)] __attribute__((aligned(8)));
 __NOINIT(EXTERNAL_RAM) unsigned char outRaw[sizeof(tc::Event) * kOutCap] __attribute__((aligned(8)));
-__NOINIT(EXTERNAL_RAM) char report[6144];
+__NOINIT(EXTERNAL_RAM) char report[8192];
+// Small arena + output in internal RAM: quarter-cycle queries only (peak 97
+// events), to measure what SDRAM costs the engine. The program stays in SDRAM.
+constexpr int kFastArena = 112, kFastOut = 48;
+unsigned char fastArenaRaw[sizeof(tc::Event) * kFastArena] __attribute__((aligned(8)));
+unsigned char fastOutRaw[sizeof(tc::Event) * kFastOut] __attribute__((aligned(8)));
+
+// Stack high water (MK66 Profiler::maxStackBytes() returns 0): paint the
+// gap between heap and stack before a run, find the deepest overwrite after.
+extern "C" char* __brkval;
+extern "C" unsigned long _estack;
+constexpr uint32_t kPaint = 0x5AC3A55Cu;
+uintptr_t gPaintLo = 0, gPaintHi = 0;
+
+__attribute__((noinline)) void paintStack() {
+    volatile char here = 0;
+    uintptr_t sp = (uintptr_t)&here;
+    gPaintLo = ((uintptr_t)__brkval + 1024 + 3) & ~(uintptr_t)3;  // room for heap growth
+    gPaintHi = (sp - 512) & ~(uintptr_t)3;
+    for (volatile uint32_t* p = (uint32_t*)gPaintLo; p < (uint32_t*)gPaintHi; p++) *p = kPaint;
+}
+// deepest stack use in bytes below the top of RAM (main loop + interrupts)
+uint32_t stackDepth() {
+    const uint32_t* p = (const uint32_t*)gPaintLo;
+    while (p < (const uint32_t*)gPaintHi && *p == kPaint) p++;
+    return (uint32_t)((uintptr_t)&_estack - (uintptr_t)p);
+}
 
 Platform* gPlatform = nullptr;
 int gStage = 0;  // 0: wait run 1, 1: run 1 shown, 2: wait run 2, 3: run 2 shown, 4: done
@@ -37,6 +63,17 @@ char gLine1[64], gLine2[64];
 
 uint32_t clockUs() { return gPlatform->getTimer()->micros(); }
 
+void save(int run, bool first, int n, bool& ok) {
+    FileSystem* fs = gPlatform->getFileSystem();
+    auto [o, fh] =
+        fs->openFile(kPath, run == 1 && first ? FileSystem::kWriteCreateNew : FileSystem::kWriteAppend);
+    ok = o && fh;
+    if (ok) {
+        fs->writeFile(report, (size_t)n, fh);
+        fs->closeFile(fh);
+    }
+}
+
 int runAll(int run, int at) {
     tc::Program* prog = new (progRaw) tc::Program();
     tc::Event* out = reinterpret_cast<tc::Event*>(outRaw);
@@ -44,15 +81,19 @@ int runAll(int run, int at) {
 
     Profiler::AudioProcessorUsage before{}, after{};
     Profiler::getInstance()->getAudioProcessingUsagePercent(before, true);
+    paintStack();
+    const uint32_t gap = (uint32_t)(gPaintHi - gPaintLo);
 
     int n = 0;
     n += snprintf(report + n, sizeof report - n,
                   "Tracker Cycles engine bench, run %d (%d s after boot)\n"
                   "event %u B, arena %d events, %d one-cycle + %d quarter-cycle queries per pattern\n"
-                  "times in microseconds; peak = arena high water (events)\n\n"
+                  "times in microseconds; peak = arena high water (events)\n"
+                  "free heap/stack gap at start %lu B, stack top %08lx\n\n"
                   "%-6s %-5s %-6s %-7s %-7s %-6s %-6s  pattern\n",
-                  run, at / 1000, (unsigned)sizeof(tc::Event), tc::kEventArena, kReps, kReps * 4, "events",
-                  "peak", "peak/4", "us/cyc", "max", "us/q4", "max");
+                  run, at / 1000, (unsigned)sizeof(tc::Event), tc::kEventArena, kReps, kReps * 4,
+                  (unsigned long)gap, (unsigned long)(uintptr_t)&_estack, "events", "peak", "peak/4", "us/cyc",
+                  "max", "us/q4", "max");
     uint32_t worstAvg = 0, worstMax = 0;
     for (int i = 0; i < tc::benchCaseCount() && n < (int)sizeof report - 200; i++) {
         tc::BenchResult r;
@@ -69,19 +110,38 @@ int runAll(int run, int at) {
     Profiler::getInstance()->getAudioProcessingUsagePercent(after, true);
     n += snprintf(report + n, sizeof report - n,
                   "\nworst one-cycle query: avg %lu us, max %lu us\n"
-                  "audio interrupt load: max %d %% during the run; since the last reset avg %d %%, max %d %%\n\n",
+                  "audio interrupt load: max %d %% during the run; since the last reset avg %d %%, max %d %%\n"
+                  "deepest stack: %lu B below the top of RAM\n",
                   (unsigned long)worstAvg, (unsigned long)worstMax, after.tempMaximum, after.average,
-                  after.maximum);
+                  after.maximum, (unsigned long)stackDepth());
+    bool ok = false;
+    save(run, true, n, ok);  // on the card before the riskier internal-RAM pass
 
-    FileSystem* fs = gPlatform->getFileSystem();
-    auto [ok, fh] = fs->openFile(kPath, run == 1 ? FileSystem::kWriteCreateNew : FileSystem::kWriteAppend);
-    if (ok && fh) {
-        fs->writeFile(report, (size_t)n, fh);
-        fs->closeFile(fh);
+    n = 0;
+    n += snprintf(report + n, sizeof report - n,
+                  "\nquarter-cycle queries with arena (%d) + output in internal RAM:\n%-6s %-6s %-6s  pattern\n",
+                  kFastArena, "peak/4", "us/q4", "max");
+    tc::Event* fastArena = reinterpret_cast<tc::Event*>(fastArenaRaw);
+    tc::Event* fastOut = reinterpret_cast<tc::Event*>(fastOutRaw);
+    for (int i = 0; i < kFastOut; i++) new (&fastOut[i]) tc::Event();
+    tc::engineUseArena(fastArena, kFastArena);
+    for (int i = 0; i < tc::benchCaseCount() && n < (int)sizeof report - 200; i++) {
+        tc::BenchResult r;
+        if (!tc::runBenchCase(i, *prog, fastOut, kFastOut, clockUs, kReps, r, false)) {
+            n += snprintf(report + n, sizeof report - n, "error: %s: %.60s\n", r.err, r.code);
+            continue;
+        }
+        n += snprintf(report + n, sizeof report - n, "%-6d %-6lu %-6lu  %.60s\n", r.peak4, (unsigned long)r.avgUs4,
+                      (unsigned long)r.maxUs4, r.code);
     }
+    tc::engineUseArena(nullptr, 0);
+    n += snprintf(report + n, sizeof report - n, "deepest stack: %lu B below the top of RAM\n\n",
+                  (unsigned long)stackDepth());
+    bool ok2 = false;
+    save(run, false, n, ok2);
     prog->~Program();
     snprintf(gLine2, sizeof gLine2, "worst %lu us/cycle (max %lu)%s", (unsigned long)worstAvg,
-             (unsigned long)worstMax, ok ? "" : " - SD write failed");
+             (unsigned long)worstMax, ok && ok2 ? "" : " - SD write failed");
     return n;
 }
 

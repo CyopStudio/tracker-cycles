@@ -26,6 +26,8 @@ const char* benchCase(int i);
 
 // Queries case i `reps` times one cycle at a time (cycles 0..15 in turn),
 // then 4 * reps quarter-cycle windows. `out` receives each query's events.
-bool runBenchCase(int i, Program& prog, Event* out, int cap, BenchClock clock, int reps, BenchResult& r);
+// oneCycle = false skips the one-cycle queries (for a small arena).
+bool runBenchCase(int i, Program& prog, Event* out, int cap, BenchClock clock, int reps, BenchResult& r,
+                  bool oneCycle = true);
 
 }  // namespace tc

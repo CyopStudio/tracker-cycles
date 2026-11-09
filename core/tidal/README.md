@@ -18,7 +18,9 @@ cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_TidalBench.ptf
 
 `tidal_bench.cpp` runs the shared bench patterns (`tidal/core/bench.cpp`,
 the same as `make -C tidal bench`) 10 s after boot and again at 60 s,
-shows a popup before and after each run, and writes `/tidal_bench.txt` on
+shows a popup before and after each run (each run also repeats the
+quarter-cycle queries with a 128-event arena in internal RAM, to measure
+the cost of uncached SDRAM), and writes `/tidal_bench.txt` on
 the SD card (run 1 creates it, run 2 appends). Start a project playing
 between the two runs so run 2 measures with the audio interrupt busy.
 While a run is going the main loop is blocked for a few seconds: the

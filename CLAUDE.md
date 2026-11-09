@@ -153,6 +153,20 @@ folders listed in the project (e.g. a manifest) on project load.
      contention suspected (arena + program in SDRAM). Main suspect: every
      Q op does a 64-bit Euclid GCD (`qgcd`) = software __aeabi_ldivmod on
      the M4. Needs >= 20-50x before 4b; fix rationals first, then re-bench.
+     Rationals fixed (2026-11-09): 32-bit hardware-divide fast paths, no
+     GCD for integer + fraction, cross-reduced * and /, 64-bit only on
+     overflow fallback (random test vs a 128-bit reference); host 1.4-1.6x.
+     Re-bench also times quarter-cycle queries with the arena in internal
+     RAM. Found: only the code-bus cache is on (LMEM_PCCCR); the system-bus
+     cache (PSCCR, covers SDRAM) is off, so all SDRAM data is uncached
+     (engine arena/program, samples, delay line). Enabling it is a separate
+     experiment (DMA into SDRAM needs cache maintenance).
+     Stack: the engine recurses on the C stack (one Eval::callLib per
+     nested function). callLib's frame was 4 KB (Pat arrays in switch
+     cases) + 4.7 KB lambda; moved those cases to noinline helpers ->
+     ~1 KB, ~2.5 KB per nesting level. A bench build with only ~35 KB
+     heap/stack gap hung in run 1. Keep checking .su files (-fstack-usage)
+     and the bench's "deepest stack" line; budget the stack before 4b.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at
@@ -215,6 +229,23 @@ folders listed in the project (e.g. a manifest) on project load.
     audio profiler build (core/tidal/README.md) splits it per graph node.
   - The main loop (Tidal queries, UI) only gets what the ISR leaves:
     ~40% idle, ~15% with the heavy project.
+- Audio profiler (docs/audio_profile.txt, 2026-11-09; % of the block):
+  - Empty project stopped 48% (Config read 60% earlier: state differed,
+    unexplained). Always-on: Polyverb reverb 18.1, mixers ~8.4, short
+    delay 5.4, master limiter 4.2 (5.9 with master FX on), per-voice idle
+    chain (MonoToStereo, amps, RMS meters) ~4.5, sequencer.tick 1.8,
+    dynamics 0.9, line input 0.6.
+  - Per playing voice: AudioPlayMemory 2.7 (antialias ~0.8 of it), filter
+    1.5, bit-crusher 0.15. Filters keep running (1.5 each) on silent tracks
+    once used: 1 track playing still cost 12% in filters.
+  - "Master FX off" / "more headroom off" don't stop the limiter/dynamics
+    nodes; reverb and delay run regardless of sends.
+  - Reverb buffers are in uncached SDRAM on MK66 (`internalRamReverbBuff`
+    is __NOINIT(EXTERNAL_RAM) for MK66 in effect_polyverb.cpp), as are the
+    delay line and samples.
+  - Levers: skip reverb / delay / filters when input is silent and the
+    tail has decayed; reverb buffer (32 KB) to internal RAM; SDRAM cache
+    (PSCCR) on. Players are the real per-voice cost: 16 voices = +35%.
 
 ## Engine constraints
 - No malloc/new in audio or sequencer real-time paths. Fixed node pools,

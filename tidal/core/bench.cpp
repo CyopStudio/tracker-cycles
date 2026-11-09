@@ -24,7 +24,7 @@ static const char* const kCases[] = {
 int benchCaseCount() { return (int)(sizeof kCases / sizeof kCases[0]); }
 const char* benchCase(int i) { return kCases[i]; }
 
-bool runBenchCase(int i, Program& prog, Event* out, int cap, BenchClock clock, int reps, BenchResult& r) {
+bool runBenchCase(int i, Program& prog, Event* out, int cap, BenchClock clock, int reps, BenchResult& r, bool oneCycle) {
     memset(&r, 0, sizeof r);
     r.code = kCases[i];
     char text[512];
@@ -42,7 +42,7 @@ bool runBenchCase(int i, Program& prog, Event* out, int cap, BenchClock clock, i
             int c = k % (16 * den);
             Error qe;
             uint32_t t0 = clock();
-            int got = queryPattern(prog, expr, Arc{Q{c, den}, Q{c + 1, den}}, out, cap, qe);
+            int got = queryPattern(prog, expr, Arc{qmake(c, den), qmake(c + 1, den)}, out, cap, qe);
             uint32_t dt = clock() - t0;
             if (got < 0) {
                 snprintf(r.err, sizeof r.err, "%s", qe.msg);
@@ -56,7 +56,7 @@ bool runBenchCase(int i, Program& prog, Event* out, int cap, BenchClock clock, i
         peak = engineHighWater();
         return true;
     };
-    if (!timed(reps, 1, r.peak, r.avgUs, r.maxUs)) return false;
+    if (oneCycle && !timed(reps, 1, r.peak, r.avgUs, r.maxUs)) return false;
     if (!timed(reps * 4, 4, r.peak4, r.avgUs4, r.maxUs4)) return false;
     r.ok = true;
     return true;

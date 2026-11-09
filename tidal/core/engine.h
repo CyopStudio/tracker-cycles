@@ -92,5 +92,8 @@ int formatCtl(const Program& p, const Ctl& c, char* buf, int cap);
 // Highest arena use since the last reset (to size kEventArena).
 int engineHighWater();
 void engineResetStats();
+// Query into `storage` (cap events) instead of the built-in arena; nullptr
+// switches back. For measuring memory placement (bench).
+void engineUseArena(Event* storage, int cap);
 
 }  // namespace tc

@@ -114,6 +114,89 @@ static void typeCheck(const char* code, const char* errPart = nullptr) {
         EXPECT(ok, "type error for '%s': %s", code, ce.msg);
 }
 
+// Rational fast paths (qtime.h) against a straightforward 128-bit reference:
+// exact when the result fits 32 bits, otherwise flagged as overflow (never a
+// silently wrong value).
+static bool refQ(__int128 n, __int128 d, Q& out) {
+    if (d == 0) return false;
+    if (d < 0) n = -n, d = -d;
+    __int128 a = n < 0 ? -n : n, b = d;
+    while (b) {
+        __int128 t = a % b;
+        a = b;
+        b = t;
+    }
+    if (a > 1) n /= a, d /= a;
+    if (n > INT32_MAX || n < INT32_MIN || d > INT32_MAX) return false;
+    out = Q{(int32_t)n, (int32_t)d};
+    return true;
+}
+static void testRationals() {
+    uint64_t seed = 12345;
+    auto rnd = [&]() {
+        seed = seed * 6364136223846793005ull + 1442695040888963407ull;
+        return (uint32_t)(seed >> 33);
+    };
+    const int32_t edge[] = {0, 1, -1, 2, 3, 4, 7, 12, 16, 48, 65536, 1 << 30, INT32_MAX, INT32_MIN, -INT32_MAX};
+    auto pick = [&](bool den) -> int32_t {
+        uint32_t r = rnd() % 4;
+        int32_t v;
+        if (r == 0) v = edge[rnd() % (sizeof edge / sizeof edge[0])];
+        else if (r == 1) v = (int32_t)(rnd() % 33) - 16;
+        else if (r == 2) v = (int32_t)(rnd() % 2001) - 1000;
+        else v = (int32_t)rnd();
+        if (den) {
+            if (v == INT32_MIN) v = INT32_MAX;
+            v = v < 0 ? -v : v;
+            if (v == 0) v = 1;
+        }
+        return v;
+    };
+    int bad = 0, exact = 0;
+    for (int i = 0; i < 200000 && bad < 5; i++) {
+        Q a, b;
+        if (!refQ(pick(false), pick(true), a) || !refQ(pick(false), pick(true), b)) continue;
+        for (int op = 0; op < 5; op++) {
+            Q want{0, 1};
+            bool fits;
+            switch (op) {
+                case 0: fits = refQ((__int128)a.n * b.d + (__int128)b.n * a.d, (__int128)a.d * b.d, want); break;
+                case 1: fits = refQ((__int128)a.n * b.d - (__int128)b.n * a.d, (__int128)a.d * b.d, want); break;
+                case 2: fits = refQ((__int128)a.n * b.n, (__int128)a.d * b.d, want); break;
+                case 3: fits = refQ((__int128)a.n * b.d, (__int128)a.d * b.n, want); break;
+                default: fits = true; break;
+            }
+            qOverflowFlag() = false;
+            Q got = op == 0 ? a + b : op == 1 ? a - b : op == 2 ? a * b : op == 3 ? a / b : Q{0, 1};
+            bool over = qOverflow();
+            if (op == 4) {
+                __int128 fl = a.n >= 0 ? a.n / a.d : -((-(__int128)a.n + a.d - 1) / a.d);
+                if (qfloor(a) != (int64_t)fl) bad++, printf("FAIL qfloor %d/%d\n", a.n, a.d);
+                continue;
+            }
+            if (fits && !over && got == want) exact++;
+            else if (!fits && over) exact++;
+            else if (fits && over) {
+                // allowed only when an intermediate overflows 64 bits
+                __int128 x = (__int128)a.n * b.d, y = (__int128)b.n * a.d;
+                __int128 s = op == 0 ? x + y : x - y;
+                if (op > 1 || (s <= INT64_MAX && s >= INT64_MIN)) {
+                    bad++;
+                    printf("FAIL q op %d: %d/%d, %d/%d flagged overflow, want %d/%d\n", op, a.n, a.d, b.n, b.d, want.n,
+                           want.d);
+                }
+            } else {
+                bad++;
+                printf("FAIL q op %d: %d/%d, %d/%d -> %d/%d (over %d), want %d/%d (fits %d)\n", op, a.n, a.d, b.n,
+                       b.d, got.n, got.d, over, want.n, want.d, fits);
+            }
+        }
+    }
+    qOverflowFlag() = false;
+    EXPECT(bad == 0, "rationals: %d mismatches", bad);
+    EXPECT(exact > 500000, "rationals: only %d checks", exact);
+}
+
 static void testRoundTrips() {
     // expressions
     roundTrip("s \"bd*2 [sd cp]\"");
@@ -624,6 +707,7 @@ static void testGolden() {
 int main() {
     testNodeSize();
     testTypesPool();
+    testRationals();
     testRoundTrips();
     testParseErrors();
     testFiles();

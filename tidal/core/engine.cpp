@@ -37,18 +37,21 @@
 
 namespace tc {
 
-bool& qOverflowFlag() {
-    static bool f = false;
-    return f;
-}
-
-int64_t qgcd(int64_t a, int64_t b) {
-    while (b) {
-        int64_t t = a % b;
-        a = b;
-        b = t;
+// Floor modulo / division on cycle and step numbers; 32-bit (hardware
+// divide on the M4) when both fit, which is always in practice.
+static inline int64_t imod(int64_t a, int64_t n) {
+    if (qfits(a) && qfits(n)) {
+        int32_t r = (int32_t)a % (int32_t)n;
+        return (r != 0 && ((r < 0) != (n < 0))) ? r + n : r;
     }
-    return a ? a : 1;
+    return ((a % n) + n) % n;
+}
+static inline int64_t idivFloor(int64_t a, int64_t n) {
+    if (qfits(a) && qfits(n)) {
+        int32_t q = (int32_t)a / (int32_t)n;
+        return (q * (int32_t)n != (int32_t)a && (((int32_t)a < 0) != (n < 0))) ? q - 1 : q;
+    }
+    return (a - imod(a, n)) / n;
 }
 
 bool subArc(Arc a, Arc b, Arc& out) {
@@ -361,10 +364,15 @@ static Pat pWrap(Pat::K k, const Pat* x) {
 // Raw storage, so nothing runs at static-init time (the firmware may place
 // it in NOLOAD SDRAM); events are constructed in push().
 TC_ENGINE_ARENA_ATTR static unsigned char gArenaRaw[sizeof(Event) * kEventArena] __attribute__((aligned(8)));
-static Event* const gArena = reinterpret_cast<Event*>(gArenaRaw);
+static Event* gArena = reinterpret_cast<Event*>(gArenaRaw);
+static int gArenaCap = kEventArena;
 static int gHighWater = 0;
 int engineHighWater() { return gHighWater; }
 void engineResetStats() { gHighWater = 0; }
+void engineUseArena(Event* storage, int cap) {
+    gArena = storage ? storage : reinterpret_cast<Event*>(gArenaRaw);
+    gArenaCap = storage ? cap : kEventArena;
+}
 
 class Eval {
 public:
@@ -386,7 +394,7 @@ private:
         }
     }
     Event* push() {
-        if (top >= kEventArena) {
+        if (top >= gArenaCap) {
             fail("too many events in one query");
             return nullptr;
         }
@@ -484,6 +492,11 @@ private:
     // functions
     void queryApply(uint16_t fn, const Pat& x, Arc a);
     void callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_t at, Arc a);
+    // Cases with big Pat arrays live outside callLib so its (recursive)
+    // frame stays small: the M4 stack is tight.
+    __attribute__((noinline)) void qIter(const Pat& x, int64_t k, Arc a);
+    __attribute__((noinline)) void qList(Fn fn, uint16_t list, Arc a);
+    __attribute__((noinline)) void qEchoLayers(const Pat& x, int64_t count, Q t, float fb, uint8_t gain, Arc a);
     void binop(int id, const Pat& l, const Pat& r, Arc a);
     template <class C>
     void appLeft(const Pat& l, const Pat& r, Arc a, C combine);
@@ -638,8 +651,8 @@ void Eval::qZoom(const Pat& x, Q s, Q e, Arc a) {
 void Eval::qCat(const Pat* pats, int n, Arc a) {
     if (n <= 0) return;
     forCycles(a, [&](Arc sub, int64_t c) {
-        int64_t i = ((c % n) + n) % n;
-        int64_t k = (c - i) / n;  // floor(c / n)
+        int64_t i = imod(c, n);
+        int64_t k = idivFloor(c, n);
         Q off = qint(c - k);
         int m = top;
         query(pats[i], Arc{sub.s - off, sub.e - off});
@@ -762,7 +775,7 @@ void Eval::qAtom(uint16_t n, Arc a) {
     switch (nd.kind) {
         case Kind::MRest: return;
         case Kind::MWord: qPure(strV((uint16_t)nd.a, nd.b ? (int)nd.b - 1 : -1), a); return;
-        case Kind::MNum: qPure(numQ(Q{(int32_t)nd.a, (int32_t)nd.b}), a); return;
+        case Kind::MNum: qPure(numQ(qmake((int32_t)nd.a, (int32_t)nd.b)), a); return;
         case Kind::MNote: qPure(numQ(qint((int32_t)nd.a)), a); return;
         case Kind::MBool: qPure(boolV(nd.a != 0), a); return;
         case Kind::MChord: {
@@ -790,7 +803,7 @@ void Eval::qEuclid(const Pat& x, int64_t k, int64_t n, int64_t r, bool inv, Arc 
     bool bits[64];
     bjorklund((int)(neg ? -k : k), (int)n, bits);
     if (neg) inv = !inv;
-    Q rot = qmake(((r % n) + n) % n, n);  // rotate left by r steps
+    Q rot = qmake(imod(r, n), n);  // rotate left by r steps
     int m = top;
     Arc q{a.s + rot, a.e + rot};
     for (int i = 0; i < n && !bad(); i++)
@@ -801,7 +814,7 @@ void Eval::qEuclid(const Pat& x, int64_t k, int64_t n, int64_t r, bool inv, Arc 
 void Eval::qNode(uint16_t n, Arc a) {
     const Node& nd = P.at(n);
     switch (nd.kind) {
-        case Kind::Num: qPure(numQ(Q{(int32_t)nd.a, (int32_t)nd.b}), a); return;
+        case Kind::Num: qPure(numQ(qmake((int32_t)nd.a, (int32_t)nd.b)), a); return;
         case Kind::Mini: return nd.first ? qNode(nd.first, a) : void();
         case Kind::MSeq: return qSeq(n, a);
         case Kind::MSub:
@@ -840,7 +853,7 @@ void Eval::qNode(uint16_t n, Arc a) {
         }
         case Kind::MDegrade: {  // x? drops events with probability 0.5 (or x?p)
             uint16_t arg = P.at(nd.first).next;
-            float p = arg ? qfloat(Q{(int32_t)P.at(arg).a, (int32_t)P.at(arg).b}) : 0.5f;
+            float p = arg ? qfloat(qmake((int32_t)P.at(arg).a, (int32_t)P.at(arg).b)) : 0.5f;
             return qDegrade(pNode(nd.first), p, false, miniSeed(n), a);
         }
         case Kind::MFast:
@@ -1298,6 +1311,47 @@ uint32_t Eval::miniSeed(uint16_t n) {
     return count;
 }
 
+void Eval::qIter(const Pat& x, int64_t k, Arc a) {
+    Pat rots[64];
+    for (int64_t i = 0; i < k; i++) {
+        rots[i].k = Pat::Shift;
+        rots[i].x = &x;
+        rots[i].q = -qmake(i, k);
+    }
+    qCat(rots, (int)k, a);
+}
+
+void Eval::qList(Fn fn, uint16_t list, Arc a) {
+    Pat items[64];
+    int k = listPats(list, items, 64);
+    if (fn == Fn::Stack) {
+        for (int i = 0; i < k; i++) query(items[i], a);
+    } else if (fn == Fn::Fastcat) {
+        for (int i = 0; i < k; i++) qCompress(items[i], qmake(i, k), qmake(i + 1, k), a);
+    } else {
+        qCat(items, k, a);
+    }
+}
+
+// echo count time feedback: each echo shifted by time, gain * fb
+void Eval::qEchoLayers(const Pat& x, int64_t count, Q t, float fb, uint8_t gain, Arc a) {
+    Pat shifted[32], mul[32], layer[32];
+    layer[0] = x;
+    for (int64_t e = 1; e < count; e++) {
+        shifted[e].k = Pat::Shift;
+        shifted[e].x = &layer[e - 1];
+        shifted[e].q = t;
+        mul[e].k = Pat::MulCtl;
+        mul[e].x = &shifted[e];
+        mul[e].key = gain;
+        mul[e].v = numF(fb);
+        layer[e].k = Pat::Overlay;
+        layer[e].x = &mul[e];
+        layer[e].y = &x;
+    }
+    query(layer[count > 1 ? count - 1 : 0], a);
+}
+
 void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_t at, Arc a) {
     const FnInfo& fi = fnInfo(id);
     Pat all[9];
@@ -1386,13 +1440,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
                 int64_t k = intOf(v);
                 if (k == 0) return query(x, sub);
                 if (k < 0 || k > 64) return fail("iter: 1..64 supported", at);
-                Pat rots[64];
-                for (int64_t i = 0; i < k; i++) {
-                    rots[i].k = Pat::Shift;
-                    rots[i].x = &x;
-                    rots[i].q = -qmake(i, k);
-                }
-                qCat(rots, (int)k, sub);
+                qIter(x, k, sub);
             });
             return;
         }
@@ -1450,15 +1498,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
         case Fn::Cat:
         case Fn::Slowcat: {
             if (!need(1) || all[0].k != Pat::Node) return;
-            Pat items[64];
-            int k = listPats(all[0].node, items, 64);
-            if (fi.fn == Fn::Stack) {
-                for (int i = 0; i < k; i++) query(items[i], a);
-            } else if (fi.fn == Fn::Fastcat) {
-                for (int i = 0; i < k; i++) qCompress(items[i], qmake(i, k), qmake(i + 1, k), a);
-            } else {
-                qCat(items, k, a);
-            }
+            qList(fi.fn, all[0].node, a);
             return;
         }
         case Fn::Overlay:
@@ -1669,23 +1709,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
                             }
                         } else {
                             // echo count time feedback: each echo shifted by time, gain * fb
-                            Q t = timeOf(v1);
-                            float fb = num(v2);
-                            Pat shifted[32], mul[32], layer[32];
-                            layer[0] = x;
-                            for (int64_t e = 1; e < count; e++) {
-                                shifted[e].k = Pat::Shift;
-                                shifted[e].x = &layer[e - 1];
-                                shifted[e].q = t;
-                                mul[e].k = Pat::MulCtl;
-                                mul[e].x = &shifted[e];
-                                mul[e].key = gain;
-                                mul[e].v = numF(fb);
-                                layer[e].k = Pat::Overlay;
-                                layer[e].x = &mul[e];
-                                layer[e].y = &x;
-                            }
-                            query(layer[count > 1 ? count - 1 : 0], s3);
+                            qEchoLayers(x, count, timeOf(v1), num(v2), gain, s3);
                         }
                     });
                 });
@@ -1700,7 +1724,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
                 int64_t k = intOf(v);
                 if (k <= 0) return query(x, sub);
                 forCycles(sub, [&](Arc s2, int64_t c) {
-                    int64_t i = ((c % k) + k) % k;
+                    int64_t i = imod(c, k);
                     Q off = qint(c - (c - i) / k);
                     Arc loc{s2.s - off, s2.e - off};
                     Q lo = qmake(i, k), hi = qmake(i + 1, k);
@@ -1776,7 +1800,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
                 const char* name = valStr(p, r.v.str);
                 const NamedSet* s = findSet(kScales, (int)(sizeof kScales / sizeof kScales[0]), name);
                 if (!s) return fail("scale not supported yet", at), false;
-                int64_t x = intOf(l.v), len = s->n, i = ((x % len) + len) % len, oct = (x - i) / len;
+                int64_t x = intOf(l.v), len = s->n, i = imod(x, len), oct = idivFloor(x, len);
                 o.v = numQ(qint(s->v[i] + 12 * oct));
                 return true;
             });
