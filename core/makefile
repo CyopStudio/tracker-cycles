@@ -21,6 +21,7 @@ CPP_SRCS 	+= $(shell find ./FileManager/ -name *.cpp)
 CPP_SRCS 	+= $(shell find ./Exporter/ -name *.cpp)
 CPP_SRCS 	+= $(shell find ./AudioEngine/ -name *.cpp)
 CPP_SRCS 	+= $(shell find ./synth/ -name *.cpp)
+CPP_SRCS 	+= $(shell find ./tidal/ -name *.cpp)
 C_SRCS 	 	+= $(shell find ./libs/ -name *.c)
 
 _CPP_OBJS	= $(patsubst ./%.cpp, %.o, $(CPP_SRCS))

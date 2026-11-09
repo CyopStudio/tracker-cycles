@@ -143,8 +143,12 @@ folders listed in the project (e.g. a manifest) on project load.
      engine ~34 KB text at -Os (pragma on ARM; TC_ENGINE_O2 for -O2,
      ~67 KB), no double. `make -C tidal bench`: heaviest pattern peaks at
      384 events per one-cycle query (97 per quarter cycle), host ~175 us /
-     cycle at -O2 (-Os ~1.5x slower on the host). Next: the on-device
-     timing build with the same bench patterns.
+     cycle at -O2 (-Os ~1.5x slower on the host).
+     Timing build ready (core/tidal/README.md): `make original
+     CUSTOM_DEFINES="-DTIDAL_BENCH"` runs the bench at 10 s and 60 s after
+     boot and writes /tidal_bench.txt. Pending (user, on device): flash it,
+     start a project playing before 60 s, send the file. Bench build cost:
+     flash +65.5 KB, internal RAM +29 KB, SDRAM +403 KB.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at
@@ -226,6 +230,8 @@ folders listed in the project (e.g. a manifest) on project load.
   (platforms/mk66/3rdparty/teensy_core/mk66fx1m0.ld)
 - synth/lib/ precompiled libPolySynth.a, libPolyDSP.a (not used on MK66)
 - docs/developer_guide.md  architecture, hardware limits, gotchas
+- core/tidal/  firmware wrappers that build tidal/core into libTracker.a
+  (only with -DTIDAL_BENCH for now), and the on-device timing bench.
 - tidal/     our code (host build, `make -C tidal test smoke arm`):
   core/ shared tree/parser/renderer/checker (no heap, portable),
   proto/ editor prototype, tests/, golden/ (cases + events captured from

@@ -30,6 +30,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <new>
+
 #include "check.h"
 #include "library.h"
 
@@ -356,7 +358,10 @@ static Pat pWrap(Pat::K k, const Pat* x) {
 }
 
 // ---- evaluator ---------------------------------------------------------------------
-TC_ENGINE_ARENA_ATTR static Event gArena[kEventArena];
+// Raw storage, so nothing runs at static-init time (the firmware may place
+// it in NOLOAD SDRAM); events are constructed in push().
+TC_ENGINE_ARENA_ATTR static unsigned char gArenaRaw[sizeof(Event) * kEventArena] __attribute__((aligned(8)));
+static Event* const gArena = reinterpret_cast<Event*>(gArenaRaw);
 static int gHighWater = 0;
 int engineHighWater() { return gHighWater; }
 void engineResetStats() { gHighWater = 0; }
@@ -385,7 +390,7 @@ private:
             fail("too many events in one query");
             return nullptr;
         }
-        Event* e = &gArena[top++];
+        Event* e = new (&gArena[top++]) Event();
         if (top > gHighWater) gHighWater = top;
         return e;
     }

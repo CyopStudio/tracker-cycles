@@ -1,6 +1,7 @@
 #include "Platform.h"
 #include "Profiler.h"
 #include "TrackerImpl.h"
+#include "../tidal/tidal_bench.h"
 #include "mtWavetableEnvelopes.h"
 #include "core/interface.h"
 #include "elapsedMillis.h"
@@ -176,6 +177,7 @@ void TrackerImpl::update()
     mtInterface.update();
     engine.updateSdStream();
     sequencer.update();
+    tidalBenchUpdate(platform);  // no-op unless built with -DTIDAL_BENCH
 }
 
 void TrackerImpl::updateAudioBuffers(void* left, void* right, int length)

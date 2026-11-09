@@ -249,7 +249,7 @@ void Renderer::mini(const Program& p, uint16_t idx) {
                 for (uint32_t k = 1; k < n.a; k++) puts(" !");
             } else {
                 char buf[16];
-                snprintf(buf, sizeof buf, "!%u", n.a);
+                snprintf(buf, sizeof buf, "!%u", (unsigned)n.a);
                 puts(buf);
             }
             break;
@@ -293,7 +293,7 @@ void Renderer::mini(const Program& p, uint16_t idx) {
             puts(p.str((int)n.a));
             if (n.b) {
                 char buf[16];
-                snprintf(buf, sizeof buf, ":%u", n.b - 1);
+                snprintf(buf, sizeof buf, ":%u", (unsigned)(n.b - 1));
                 puts(buf);
             }
             break;
