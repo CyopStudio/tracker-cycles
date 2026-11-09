@@ -35,13 +35,12 @@ void Profiler::init()
 #if (defined(TIDAL_BENCH) || defined(TIDAL_TICK)) && !defined(PLATFORM_IMX)
         // Tracker Cycles bench / tick test: leave a stack reserve for the
         // Tidal evaluator's recursion (deepest 20.6 KB measured) instead of
-        // claiming all but 8 KB (teensy STACK_MARGIN) for the heap.
+        // claiming all but 8 KB (teensy STACK_MARGIN) for the heap. This only
+        // holds at boot: later mallocs that the freed pool can't serve still
+        // grow the heap towards the stack (tick v4: 4 KB), so the pool must
+        // stay big enough too (checker in SDRAM, tidal_config.h).
         {
-#ifdef TIDAL_BENCH
             static constexpr size_t kTidalStackReserve = 32 * 1024;
-#else
-            static constexpr size_t kTidalStackReserve = 24 * 1024;
-#endif
             volatile char here = 0;
             if ((size_t)((const char*)&here - __brkval) < kTidalStackReserve + allocSize + 64)
             {

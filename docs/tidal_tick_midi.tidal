@@ -1,0 +1,7 @@
+-- Tick test MIDI check: copy to the SD card as /tidal_tick.tidal (the
+-- test then plays only this, 60 s). d9 = MIDI channel 1, d10 = channel 2.
+d1 $ s "bd*4"
+
+d9 $ n "0 4 7 12" # velocity "0.5 1" # legato 0.5
+
+d10 $ n "<c'maj e'min>" # midichan 1 # ccn 74 # ccv (range 0 127 sine) # legato 1

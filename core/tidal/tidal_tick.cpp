@@ -1,5 +1,7 @@
 // Device tick test build (see tidal_tick.h and README.md).
 //
+// v5: listening sets one track at a time (solo, with a hint popup);
+// checker in SDRAM, 32 KB stack reserve (v4 left 1.9 KB of stack).
 // v4: the real control mapping (plan 4c): tidal/core/mapping.* on the main
 // loop, playerEngine::tidalNoteOn and MIDI out (tidal_device.*) in the
 // interrupt; sets 5-6 are listening tests (sample controls, MIDI).
@@ -52,7 +54,7 @@ using tc::Entry;
 
 #define CYCLES() (*(volatile uint32_t*)0xE0001004u)  // DWT->CYCCNT
 
-constexpr uint32_t kStartMs = 15000, kStartLatestMs = 60000, kSetMs = 20000, kFileSetMs = 60000;
+constexpr uint32_t kStartMs = 15000, kStartLatestMs = 60000, kFileSetMs = 60000;
 constexpr uint32_t kUpdateBudgetUs = 4000;
 #ifdef TC_ENGINE_O2
 #define TC_TICK_VARIANT "engine -O2"
@@ -63,54 +65,66 @@ const char* const kPath = "/tidal_tick.txt";
 #endif
 const char* const kUserSet = "/tidal_tick.tidal";
 
-// Built-in sets. Names resolve onto any project (see the top).
-const char* const kSets[] = {
-    // 1: light
-    "d1 $ s \"bd*4\"\n"
-    "d2 $ s \"~ sd\"\n"
-    "d3 $ s \"hh*8\" # gain 0.8\n",
-    // 2: everyday, 8 slots
-    "d1 $ s \"bd*2 [~ bd] bd\"\n"
-    "d2 $ s \"~ sd\" # n \"<0 1>\"\n"
-    "d3 $ every 2 (fast 2) $ s \"hh*8\"\n"
-    "d4 $ n \"0 .. 7\" # s \"arpy\"\n"
-    "d5 $ off 0.125 (|+ n 12) $ n \"0 3 7\" # s \"bass\"\n"
-    "d6 $ s \"cp*2\" # pan sine\n"
-    "d7 $ sometimes (# speed 2) $ s \"drum*4\"\n"
-    "d8 $ s \"<lt mt ht>*3\"\n",
-    // 3: heavy (bench patterns) at a faster tempo
-    "setcps 0.7\n"
-    "d1 $ stut 8 0.5 0.0625 $ s \"hh*16\" # n \"0 .. 15\"\n"
-    "d2 $ jux rev $ chop 8 $ s \"bd*8 sd*8\" # speed \"1 2\"\n"
-    "d3 $ echo 8 0.125 0.7 $ s \"bd(5,8) sd(3,8,2)\" # n (irand 8)\n"
-    "d4 $ off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale \"major\" \"0 .. 7\") # s \"arpy\"\n"
-    "d5 $ chunk 4 (hurry 2) $ iter 4 $ s \"bd sd hh cp hh sd bd cp\" # n \"0 .. 7\"\n"
-    "d6 $ s \"hh*16\" # n \"0 .. 15\" # pan sine # gain (range 0.8 1 saw)\n"
-    "d7 $ sometimes (# speed 2) $ often (# crush 4) $ s \"[bd*4, hh*8, ~ sd]\"\n"
-    "d8 $ n (arp \"up\" \"<c'maj e'min7 g'dom7 a'min>*2\") # s \"bass\" # legato 0.5\n",
-    // 4: every slot hits together (note-start cap: 8 starts per 16th)
-    "setcps 0.575\n"
-    "d1 $ s \"bd*16\"\n"
-    "d2 $ s \"sd*16\"\n"
-    "d3 $ s \"hh*16\"\n"
-    "d4 $ s \"cp*16\"\n"
-    "d5 $ s \"ho*16\"\n"
-    "d6 $ s \"cr*16\"\n"
-    "d7 $ s \"lt*16\"\n"
-    "d8 $ s \"mt*16\"\n",
-    // 5: listening, sample controls (one effect per track, see README)
-    "d1 $ s \"bd*4\" # pan \"0 1\"\n"
-    "d2 $ s \"hh*8\" # cutoff (range 300 8000 $ slow 4 sine) # resonance 0.3\n"
-    "d3 $ s \"sd*2\" # crush \"<16 8 6 4>\"\n"
-    "d4 $ n \"0 .. 7\" # s \"arpy\" # room 0.5 # legato 0.5\n"
-    "d5 $ s \"bd\" # speed \"<1 2 -1 0.5>\" # gain 1.1\n"
-    "d6 $ s \"cp*2\" # begin \"<0 0.25 0.5>\" # hpf 400\n"
-    "d7 $ s \"<lt mt ht>*2\" # shape 0.6 # delay 0.4\n"
-    "d8 $ s \"drum*4\" # gain \"1 0.7 0.85 0.7\" # attack \"<0 0.05>\" # release 0.1\n",
-    // 6: listening, MIDI out (channels 1 and 2) next to a kick
-    "d1 $ s \"bd*4\"\n"
-    "d9 $ n \"0 4 7 12\" # velocity \"0.5 1\" # legato 0.5\n"
-    "d10 $ n \"<c'maj e'min>\" # midichan 1 # ccn 74 # ccv (range 0 127 sine) # legato 1\n",
+// Built-in sets. Names resolve onto any project (see the top). `solo`:
+// hush everything first (listening sets: only this set's tracks sound; it
+// starts at the next cycle, up to ~1.7 s later at cps 0.575).
+struct TestSet {
+    const char* text;
+    uint16_t seconds;
+    bool solo;
+    const char* hint;  // popup line 2: what to listen for
+};
+const TestSet kSets[] = {
+    {"d1 $ s \"bd*4\"\n"
+     "d2 $ s \"~ sd\"\n"
+     "d3 $ s \"hh*8\" # gain 0.8\n",
+     20, false, "timing: light, 3 tracks"},
+    {"d1 $ s \"bd*2 [~ bd] bd\"\n"
+     "d2 $ s \"~ sd\" # n \"<0 1>\"\n"
+     "d3 $ every 2 (fast 2) $ s \"hh*8\"\n"
+     "d4 $ n \"0 .. 7\" # s \"arpy\"\n"
+     "d5 $ off 0.125 (|+ n 12) $ n \"0 3 7\" # s \"bass\"\n"
+     "d6 $ s \"cp*2\" # pan sine\n"
+     "d7 $ sometimes (# speed 2) $ s \"drum*4\"\n"
+     "d8 $ s \"<lt mt ht>*3\"\n",
+     20, false, "timing: everyday, 8 tracks"},
+    {"setcps 0.7\n"
+     "d1 $ stut 8 0.5 0.0625 $ s \"hh*16\" # n \"0 .. 15\"\n"
+     "d2 $ jux rev $ chop 8 $ s \"bd*8 sd*8\" # speed \"1 2\"\n"
+     "d3 $ echo 8 0.125 0.7 $ s \"bd(5,8) sd(3,8,2)\" # n (irand 8)\n"
+     "d4 $ off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale \"major\" \"0 .. 7\") # s \"arpy\"\n"
+     "d5 $ chunk 4 (hurry 2) $ iter 4 $ s \"bd sd hh cp hh sd bd cp\" # n \"0 .. 7\"\n"
+     "d6 $ s \"hh*16\" # n \"0 .. 15\" # pan sine # gain (range 0.8 1 saw)\n"
+     "d7 $ sometimes (# speed 2) $ often (# crush 4) $ s \"[bd*4, hh*8, ~ sd]\"\n"
+     "d8 $ n (arp \"up\" \"<c'maj e'min7 g'dom7 a'min>*2\") # s \"bass\" # legato 0.5\n",
+     20, false, "timing: heavy, 8 tracks"},
+    {"setcps 0.575\n"
+     "d1 $ s \"bd*16\"\n"
+     "d2 $ s \"sd*16\"\n"
+     "d3 $ s \"hh*16\"\n"
+     "d4 $ s \"cp*16\"\n"
+     "d5 $ s \"ho*16\"\n"
+     "d6 $ s \"cr*16\"\n"
+     "d7 $ s \"lt*16\"\n"
+     "d8 $ s \"mt*16\"\n",
+     20, false, "timing: all 8 tracks together"},
+    // listening: one sample control per set, alone
+    {"d1 $ s \"bd*4\" # pan \"0 1\"\n", 7, true, "d1 kick: hard left / hard right"},
+    {"d2 $ s \"hh*8\" # cutoff (range 300 8000 $ slow 4 sine) # resonance 0.3\n", 11, true,
+     "d2 hats: filter dull -> bright -> dull"},
+    {"d3 $ s \"sd*2\" # crush \"<16 8 6 4>\"\n", 11, true, "d3 snare: crunchier every cycle"},
+    {"d4 $ n \"0 .. 7\" # s \"arpy\" # room 0.5 # legato 0.5\n", 8, true, "d4 arpy: rising run, short, reverb"},
+    {"d5 $ s \"bd\" # speed \"<1 2 -1 0.5>\" # gain 1.1\n", 11, true,
+     "d5 kick: normal, octave up, reverse, down"},
+    {"d6 $ s \"cp*2\" # begin \"<0 0.25 0.5>\" # hpf 400\n", 9, true, "d6 clap: thin, starts later each cycle"},
+    {"d7 $ s \"<lt mt ht>*2\" # shape 0.6 # delay 0.4\n", 8, true, "d7 toms: distorted, with echoes"},
+    {"d8 $ s \"drum*4\" # gain \"1 0.7 0.85 0.7\" # attack \"<0 0.05>\" # release 0.1\n", 9, true,
+     "d8: accent on 1; every other cycle fades in"},
+    // listening: MIDI (copy docs/tidal_tick_midi.tidal to the card to run this alone)
+    {"d1 $ s \"bd*4\"\n"
+     "d9 $ n \"0 4 7 12\" # velocity \"0.5 1\" # legato 0.5\n"
+     "d10 $ n \"<c'maj e'min>\" # midichan 1 # ccn 74 # ccv (range 0 127 sine) # legato 1\n",
+     20, true, "MIDI: ch1 C E G C, ch2 chords + CC74"},
 };
 constexpr int kSetCount = sizeof kSets / sizeof kSets[0];
 
@@ -248,20 +262,27 @@ bool save(int n) {
     return ok;
 }
 
-const char* setText(int i) { return gUserSet ? userText : kSets[i]; }
+const char* setText(int i) { return gUserSet ? userText : kSets[i].text; }
+uint32_t setMs(int i) { return gUserSet ? kFileSetMs : kSets[i].seconds * 1000u; }
+bool setSolo(int i) { return gUserSet || kSets[i].solo; }
+const char* setHint(int i) { return gUserSet ? "your /tidal_tick.tidal" : kSets[i].hint; }
 
 // Evaluates the set's blocks (`dN $`: switch at the next cycle); slots it
 // doesn't use are silenced. Errors go into the report.
 int loadSet(int set, int n) {
     const char* text = setText(set);
     tc::Error e, ce;
+    if (setSolo(set)) sched->hush();
+    const uint32_t t0 = clockUs();
     edit->clear();
     if (!tc::parseFile(*edit, text, (int)strlen(text), e)) {
         int line, col;
         tc::errorLineCol(text, e.pos, line, col);
         return n + snprintf(report + n, sizeof report - n, "parse error line %d: %s\n", line, e.msg);
     }
+    const uint32_t t1 = clockUs();
     if (!tc::checkProgram(*edit, ce)) return n + snprintf(report + n, sizeof report - n, "type error: %s\n", ce.msg);
+    const uint32_t t2 = clockUs();
     if (edit->cpsExpr) {
         tc::Event* buf = reinterpret_cast<tc::Event*>(bufRaw);
         tc::Error qe;
@@ -280,7 +301,10 @@ int loadSet(int set, int n) {
             sched->silence(i);
         }
     }
-    return n;
+    const uint32_t t3 = clockUs();
+    return n + snprintf(report + n, sizeof report - n,
+                        "evaluate: parse %lu us, check %lu us (checker in SDRAM), scheduler %lu us\n",
+                        (unsigned long)(t1 - t0), (unsigned long)(t2 - t1), (unsigned long)(t3 - t2));
 }
 
 void start() {
@@ -324,11 +348,11 @@ int activeInstruments() {
 
 int header(int n) {
     return n + snprintf(report + n, sizeof report - n,
-                        "Tracker Cycles device tick test v4 (" TC_TICK_VARIANT "), %s, %d s per set\n"
+                        "Tracker Cycles device tick test v5 (" TC_TICK_VARIANT "), %s\n"
                         "%d active instruments; scheduler object %u B (internal RAM), entries %u B, live program "
                         "%u B (SDRAM); engine working set in internal RAM: %s; mono sample slots\n"
                         "cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles\n\n",
-                        gUserSet ? kUserSet : "built-in sets", (int)((gUserSet ? kFileSetMs : kSetMs) / 1000),
+                        gUserSet ? kUserSet : "built-in sets",
                         activeInstruments(), (unsigned)sizeof(tc::Scheduler), (unsigned)sizeof storageRaw,
                         (unsigned)sizeof(tc::Program),
                         tc::engineMemoryBytes(kFastEvents, kFastCtls, kFastParams) <= (int)sizeof fastMem ? "yes"
@@ -411,7 +435,8 @@ void resetCounters() {
 
 void beginSet(int set, int n) {
     gSet = set;
-    n += snprintf(report + n, sizeof report - n, "== set %d of %d\n%s", set + 1, gSetCount, setText(set));
+    n += snprintf(report + n, sizeof report - n, "== set %d of %d (%s, %lu s%s)\n%s", set + 1, gSetCount,
+                  setHint(set), (unsigned long)(setMs(set) / 1000), setSolo(set) ? ", solo" : "", setText(set));
     if (report[n - 1] != '\n') n += snprintf(report + n, sizeof report - n, "\n");
     n = loadSet(set, n);
     n += snprintf(report + n, sizeof report - n, "--\n");
@@ -419,7 +444,7 @@ void beginSet(int set, int n) {
     resetCounters();
     gSetStart = gPlatform->getTimer()->millis();
     snprintf(gLine1, sizeof gLine1, "Tidal tick test: set %d of %d", set + 1, gSetCount);
-    mtPopups.showInfoPopup(gLine1, kPath);
+    mtPopups.showInfoPopup(gLine1, setHint(set));
 }
 
 }  // namespace
@@ -470,8 +495,7 @@ void tidalTickUpdate(Platform* platform) {
     updUs += t1 - t0;
     if (t1 - t0 > updMaxUs) updMaxUs = t1 - t0;
 
-    const uint32_t setMs = gUserSet ? kFileSetMs : kSetMs;
-    if (ms - gSetStart < setMs) return;
+    if (ms - gSetStart < setMs(gSet)) return;
     int n = setReport(0, ms - gSetStart);
     if (gSet + 1 < gSetCount) {
         beginSet(gSet + 1, n);

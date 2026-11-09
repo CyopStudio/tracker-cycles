@@ -337,8 +337,20 @@ folders listed in the project (e.g. a manifest) on project load.
      STACK: heap end now 20,480 B below the top of RAM (was 24,576), the
      evaluator's deepest 18.5 KB -> only 1.9 KB spare. Fix before more
      RAM goes in: move the checker's 28 KB type pool to SDRAM (used on
-     evaluate only) or raise the reserve. Listening results not yet
-     reported.
+     evaluate only) or raise the reserve. Listening (user, set 5 all
+     together): "sounded OK", hard to tell apart; MIDI not yet checked.
+     v5 (2026-11-09, docs/tidal_tick.txt, PolyendTrac_TidalTick5.ptf):
+     checker in SDRAM (TC_CHECKER_ATTR, internal RAM 219.5 -> 191.7 KB),
+     stack reserve 32 KB; set 5 split into eight solo sets with hint
+     popups, MIDI set solo; docs/tidal_tick_midi.tidal = MIDI-only card
+     file. Results: stack 14.2 KB spare (heap end 32 KB below the top,
+     evaluator deepest 18.5 KB); no drops. User: solo sets "sounded
+     good"; reverb (room) hard to judge with the project's short global
+     reverb, retest with a longer one; MIDI not yet checked. Evaluate
+     (main loop): check 0.2-3 ms, heavy 8-slot set 17 ms (SDRAM checker
+     fine); parse ~12 ms even for one line, mostly Program::clear() on
+     the 70 KB SDRAM program (cheap to fix: reset counts instead of
+     clearing all).
    - 4d. Device editor: step 1 editor logic + FT812 drawing layer +
      pad/encoder input.
    - 4e. Project files: .tidal file + sample banks load/save on SD.

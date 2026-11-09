@@ -8,6 +8,12 @@
 #define TC_ENGINE_ARENA_ATTR __NOINIT(EXTERNAL_RAM)
 #endif
 
+// The type checker (~27 KB) runs on evaluate only: SDRAM keeps internal
+// RAM for the stack (tick v4 had only 1.9 KB of stack margin with it there).
+#ifndef TC_CHECKER_ATTR
+#define TC_CHECKER_ATTR __NOINIT(EXTERNAL_RAM)
+#endif
+
 // The timing bench and the tick test measure the evaluator's stack depth.
 #if defined(TIDAL_BENCH) || defined(TIDAL_TICK)
 #define TC_TRACK_STACK

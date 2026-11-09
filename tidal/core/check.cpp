@@ -376,8 +376,14 @@ struct Checker {
     }
 };
 
+// TC_CHECKER_ATTR places the checker (~27 KB), e.g. in SDRAM on the device
+// (core/tidal/tidal_config.h): it runs on evaluate / edits only, never in
+// the audio path. Raw storage + placement-new, so no static constructor.
+#ifndef TC_CHECKER_ATTR
+#define TC_CHECKER_ATTR
+#endif
 Checker* gChecker = nullptr;
-alignas(Checker) unsigned char gCheckerStorage[sizeof(Checker)];
+TC_CHECKER_ATTR alignas(Checker) unsigned char gCheckerStorage[sizeof(Checker)];
 
 Checker& freshChecker(Program& p, Error& e) {
     // Fixed storage, no heap: the checker is large (type pool + per-node map).

@@ -112,6 +112,21 @@ else wrapped onto the active instruments; `n` / `note` add to C5; `gain`
 x100 = step volume; looped instruments get a noteOff after the event's
 length, one-shots play out. d9..d16 (MIDI) are not mapped yet.
 
+v5 (2026-11-09, PolyendTrac_TidalTick5.ptf):
+- Listening sets one track at a time: 13 sets, 4 timing sets (20 s) then
+  set 5's eight tracks each alone (7-11 s, all other tracks hushed first),
+  then MIDI (20 s); the popup's second line says what to listen for. A
+  solo set starts at the next cycle (up to ~1.7 s of silence first).
+  About 3 min 20 s in all.
+- MIDI alone: copy docs/tidal_tick_midi.tidal to the card as
+  /tidal_tick.tidal; the test then plays only that, 60 s.
+- Stack: the type checker (27 KB) lives in SDRAM (TC_CHECKER_ATTR in
+  tidal_config.h; it runs on evaluate only) and the stack reserve is 32
+  KB. v4 had 1.9 KB of stack left: the reserve only holds at boot, later
+  mallocs grew the heap 4 KB into it. Internal RAM 219,524 -> 191,748 B.
+  The report times each evaluate (parse / check / scheduler) to show the
+  SDRAM checker's cost.
+
 v4 (2026-11-09, PolyendTrac_TidalTick4.ptf): the real control mapping
 (plan 4c step 3). The main loop maps events with tidal/core/mapping.*
 (`DeviceHost` in tidal_device.* describes mtProject's instruments); the
