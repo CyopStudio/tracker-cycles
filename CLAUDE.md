@@ -272,18 +272,19 @@ folders listed in the project (e.g. a manifest) on project load.
      after sequencer.tick in the audio callback, update() on the main
      loop, 4 built-in sets on the project's instruments, report in
      /tidal_tick.txt; core/tidal/README.md). Flash 996,180 B (95 %).
-     v1 results (2026-11-09, docs/tidal_tick.txt, -Os): interrupt side
-     fine: cap holds (<= 4 starts/block), noteOn avg 27-37 us (max 58),
-     worst tick block 40k cycles = 223 us (7.7 % of a block), avg tick
-     1.2-2.3 %; but an idle tick still costs ~5.7k cycles (32 us: rings +
-     noteOff tables in uncached SDRAM). Audio load 82-87 % avg (94 % max),
-     so the main loop starves: everyday set on 8 slots plays with no
-     drops but update() takes 43 % of main-loop wall time; heavy set
-     can't keep up (322 dropped, 555 horizon skips); dense trivial set
-     (8x bd*16) also dropped 330 / skipped 580 (unexplained: needs
-     per-query timing). Stack 18.5 KB deepest, 6 KB spare of 24 KB.
-     Test bugs: set 1 ended at once (stale ms), active-instrument count
-     taken before the project loaded.
+     v1 results (2026-11-09, docs/tidal_tick.txt = run 2, -Os; run 1 in
+     git 9666bba had a project loading mid-test: 1 s main-loop stalls ->
+     drops and horizon skips). Run 2: no drops, no skips in any set,
+     main-loop gaps <= 2.6 ms. Interrupt: cap holds (<= 4 starts/block),
+     noteOn avg 26-36 us (max 58), worst tick block ~40k cycles = 226 us
+     (7.8 % of a block); an idle tick still costs ~5.5k cycles (31 us:
+     rings + noteOff tables in uncached SDRAM). update() share of
+     main-loop wall time: everyday 8 slots 47 %, heavy set 75 %, 8x bd*16
+     49 %; audio load 76-81 % avg. Heavy set: 21 % of notes 3-7 blocks
+     late from the cap (3328 holds): stut/chop put several starts of one
+     monophonic slot in the same block, each counted by the cap though
+     only the last is heard. Stack 18.5 KB deepest, 6 KB spare of 24 KB.
+     Test bugs: set 1 ends at once (stale ms).
    - 4c. Control mapping to playerEngine noteOn/mod*() calls, MIDI out for
      MIDI channels, and the per-channel voice allocator (Polyphony below).
    - 4d. Device editor: step 1 editor logic + FT812 drawing layer +
