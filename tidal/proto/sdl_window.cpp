@@ -36,6 +36,7 @@ bool mapKey(const SDL_KeyboardEvent& k, bool shift, Key& out) {
     bool ctrl = k.keysym.mod & KMOD_CTRL;
     SDL_Keycode s = k.keysym.sym;
     if (s >= SDLK_1 && s <= SDLK_8) return ctl(padCtl((shift ? kPadCols : 0) + (s - SDLK_1)));
+    if (s >= SDLK_F1 && s <= SDLK_F8) return ctl((Ctl)((int)Ctl::Screen0 + (s - SDLK_F1)));
     switch (s) {
         case SDLK_LEFT: return ctl(Ctl::Left);
         case SDLK_RIGHT: return ctl(Ctl::Right);

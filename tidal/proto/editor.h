@@ -20,6 +20,7 @@ enum class Action {
     Copy, Paste, Home,                 // clipboard, jump to the block's top
     MenuNotes, MenuSamples,            // filtered replace menus
     MenuFunctions, MenuControls,       // filtered wrap menus
+    Quick1, Quick2, Quick3, Quick4,    // context buttons: brackets / operators
 };
 const char* actionName(Action a);
 bool actionFromName(const std::string& s, Action& out);
@@ -57,6 +58,9 @@ public:
     SlotState slotState(int s) const { return state_[s]; }
     bool trackerMode() const { return trackerMode_; }
     std::string cursorInfo() const;
+    // Context buttons (Screen 5..8): inside "..." brackets [ ] < > { }%4 (3,8),
+    // on a pattern # <last control>, |+, |*, <~. Empty label: nothing here.
+    std::string quickLabel(int i) const;
     std::string evalText(int slot, std::string* err = nullptr) const;  // what gets sent
 
     void setBackend(Backend* b) { backend_ = b; }
@@ -84,6 +88,7 @@ private:
                          bool mini) const;
     void ensureBlock();
     void doCopy();
+    void quick(int i);
     void doPaste();
     void doDelete();
     void doUnwrap();
@@ -117,6 +122,7 @@ private:
     std::string lastCps_;  // last setcps sent to the backend
     std::string clip_;     // copied code (rendered text)
     bool clipMini_ = false;  // clip_ is mini-notation (a step inside "...")
+    std::string lastControl_ = "gain 1";  // for the # context button
 };
 
 }  // namespace proto

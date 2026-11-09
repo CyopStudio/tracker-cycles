@@ -132,6 +132,15 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
         case Ctl::Screen1: return act(Action::Wrap, "Wrap");
         case Ctl::Screen2: return act(Action::Unwrap, "Unwrap");
         case Ctl::Screen3: return act(Action::Undo, "Undo");
+        case Ctl::Screen4:
+        case Ctl::Screen5:
+        case Ctl::Screen6:
+        case Ctl::Screen7: {
+            int q = (int)c - (int)Ctl::Screen4;
+            std::string l = ed.quickLabel(q);
+            if (l.empty()) return {};
+            return act((Action)((int)Action::Quick1 + q), l.c_str());
+        }
         case Ctl::File: return act(Action::Save, "Save");
         case Ctl::Config: return act(Action::ToggleTrackerMode, "Trk mode");
         default: return {};

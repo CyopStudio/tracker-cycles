@@ -90,6 +90,8 @@ bool panelHit(int x, int y, Ctl& out) {
 static const char* fixedKey(Ctl c) {
     static const char* digits[8] = {"1", "2", "3", "4", "5", "6", "7", "8"};
     static const char* sdigits[8] = {"S+1", "S+2", "S+3", "S+4", "S+5", "S+6", "S+7", "S+8"};
+    static const char* fkeys[8] = {"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8"};
+    if (c <= Ctl::Screen7) return fkeys[(int)c];
     switch (c) {
         case Ctl::Left: return "Left";
         case Ctl::Right: return "Right";

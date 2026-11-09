@@ -28,6 +28,8 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"copy", Action::Copy},       {"paste", Action::Paste},       {"home", Action::Home},
     {"notes", Action::MenuNotes}, {"samples", Action::MenuSamples},
     {"functions", Action::MenuFunctions}, {"controls", Action::MenuControls},
+    {"quick1", Action::Quick1},   {"quick2", Action::Quick2},     {"quick3", Action::Quick3},
+    {"quick4", Action::Quick4},
 };
 
 const char* actionName(Action a) {
@@ -316,6 +318,7 @@ void Editor::act(Action a) {
             case Action::Confirm:
             case Action::Evaluate: {
                 MenuItem& it = menu_[menuSel_];
+                if (it.label.rfind("# ", 0) == 0) lastControl_ = it.label.substr(2);
                 snapshot();
                 prog_.reset(new Program(*it.result));
                 cursor_ = it.cursor;
@@ -349,6 +352,10 @@ void Editor::act(Action a) {
         case Action::MenuSamples: openSamples(); break;
         case Action::MenuFunctions: openWrap(WrapMode::Functions); break;
         case Action::MenuControls: openWrap(WrapMode::Controls); break;
+        case Action::Quick1: quick(0); break;
+        case Action::Quick2: quick(1); break;
+        case Action::Quick3: quick(2); break;
+        case Action::Quick4: quick(3); break;
         case Action::Insert: {
             if (!cursor_) break;
             uint16_t par = prog_->parentOf(cursor_);
@@ -600,6 +607,81 @@ void Editor::doPaste() {
     }
     commit(std::unique_ptr<Program>(new Program(*r)), nn);
     if (!messageError_) info("pasted " + clip_);
+}
+
+// ---------------------------------------------------------------------------
+// context buttons
+
+static uint16_t firstNumber(const Program& p, uint16_t n) {
+    if (!n) return 0;
+    Kind k = p.at(n).kind;
+    if (k == Kind::Num || k == Kind::MNum) return n;
+    for (uint16_t c = p.at(n).first; c; c = p.at(c).next)
+        if (uint16_t f = firstNumber(p, c)) return f;
+    return 0;
+}
+
+static uint16_t childAt(const Program& p, uint16_t n, int i) {
+    uint16_t c = p.at(n).first;
+    while (c && i-- > 0) c = p.at(c).next;
+    return c;
+}
+
+static uint16_t lastChild(const Program& p, uint16_t n) {
+    uint16_t c = p.at(n).first;
+    while (c && p.at(c).next) c = p.at(c).next;
+    return c;
+}
+
+std::string Editor::quickLabel(int i) const {
+    if (i < 0 || i > 3 || menuOpen_ || !cursor_) return "";
+    Kind k = prog_->at(cursor_).kind;
+    if (isMiniKind(k)) {
+        static const char* m[4] = {"[ ]", "< >", "{ }%4", "(3,8)"};
+        return m[i];
+    }
+    if (k == Kind::Block) return "";
+    if (i == 0) return "# " + lastControl_.substr(0, lastControl_.find(' '));
+    static const char* o[4] = {"", "|+", "|*", "<~"};
+    return o[i];
+}
+
+void Editor::quick(int i) {
+    std::string label = quickLabel(i);
+    if (label.empty()) return error("select a pattern first");
+    Kind k = prog_->at(cursor_).kind;
+    uint16_t nn = 0, target = 0;
+    std::shared_ptr<Program> r;
+    if (isMiniKind(k)) {
+        std::string t = renderNode(*prog_, cursor_);
+        bool multi = k == Kind::MSeq && prog_->at(cursor_).first && prog_->at(prog_->at(cursor_).first).next;
+        std::string step = multi ? "[" + t + "]" : t;  // modifiers bind to one step
+        static const char* pre[4] = {"[", "<", "{", ""};
+        static const char* post[4] = {"]", ">", "}%4", "(3,8)"};
+        std::string code = std::string(pre[i]) + (i == 3 ? step : t) + post[i];
+        r = tryReplace(code, true, nn);
+        if (r) {
+            uint16_t n = nn;
+            while (r->at(n).kind == Kind::MSeq && r->at(n).first && !r->at(r->at(n).first).next) n = r->at(n).first;
+            if (r->at(n).kind == Kind::MPoly) target = firstNumber(*r, lastChild(*r, n));
+            else if (r->at(n).kind == Kind::MEuclid) target = firstNumber(*r, childAt(*r, n, 1));
+        }
+    } else {
+        // operator wraps; the cursor lands on the new number so the jog edits it
+        struct { const char* op; const char* rhs; const char* bare; bool left; } ops[4] = {
+            {"#", lastControl_.c_str(), nullptr, true},
+            {"|+", "n 12", "12", true},
+            {"|*", "speed 2", "2", true},
+            {"<~", "0.25", nullptr, false},
+        };
+        auto& o = ops[i];
+        r = tryWrapOp(o.op, o.rhs, o.left, nn);
+        if (!r && o.bare) r = tryWrapOp(o.op, o.bare, o.left, nn);  // plain value patterns
+        if (r) target = firstNumber(*r, o.left ? childAt(*r, nn, 1) : childAt(*r, nn, 0));
+    }
+    if (!r) return error(label + " doesn't fit here");
+    commit(std::unique_ptr<Program>(new Program(*r)), target ? target : nn);
+    if (!messageError_) info(label + (target ? ": jog changes the number" : ""));
 }
 
 void Editor::openReplace() {
