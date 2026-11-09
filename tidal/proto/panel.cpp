@@ -32,7 +32,7 @@ constexpr uint32_t note = 0x4FD1C5, instr = 0xE6E29A, fx1 = 0xC88BE0, fx2 = 0x56
 // then the jog wheel at the bottom right.
 constexpr int kSX = 30, kSY = 40;                  // screen origin
 constexpr int kSbY = kSY + kH + 14, kSbW = 76, kSbH = 40;
-constexpr int kRX = 870, kBW = 68, kBH = 66, kBStep = 76;  // right-hand button block
+constexpr int kRX = 866, kBW = 76, kBH = 66, kBStep = 82;  // right-hand button block
 constexpr int kRowA = kSY, kRowB = kSY + 74, kRowC = kSY + 148;
 constexpr int kRowD = 330, kRowE = 404;
 constexpr int kPY = 600;                           // pads
@@ -103,6 +103,11 @@ static const char* fixedKey(Ctl c) {
         case Ctl::File: return "Ctrl+S";
         case Ctl::Config: return "t";
         case Ctl::Shift: return "Shift";
+        case Ctl::Copy: return "Ctrl+C";
+        case Ctl::Note: return "n";
+        case Ctl::Instr: return "s";
+        case Ctl::Fx1: return "f";
+        case Ctl::Fx2: return "c";
         default: break;
     }
     if (isPad(c)) {
@@ -122,6 +127,8 @@ static const char* actionKey(Action a) {
         case Action::Hush: return "h";
         case Action::Confirm: return "Enter";
         case Action::Cancel: return "Esc";
+        case Action::Paste: return "Ctrl+V";
+        case Action::Home: return "Home";
         default: return nullptr;
     }
 }
@@ -191,7 +198,7 @@ static void drawButton(Framebuffer& fb, const Editor& ed, Ctl c, const PanelStat
     centered(fb, r, r.y + 18, n.label.empty() ? "-" : n.label, lc);
     centered(fb, r, r.y + 33, keyHint(ed, c), pc::key);
     if (hasShift) {
-        std::string sh = "S: " + s.label;
+        std::string sh = s.label;  // purple = with Shift
         std::string sk = shiftHint(ed, c);
         if (!sk.empty()) sh += " " + sk;
         centered(fb, r, r.y + 48, sh, showShift ? pc::label : pc::shift);
@@ -237,7 +244,7 @@ static void drawJog(Framebuffer& fb, const Editor& ed, const PanelState& st) {
         Command n = controlCommand(ed, c, false), s = controlCommand(ed, c, true);
         centered(fb, r, y0, n.label, st.shift ? pc::name : pc::label);
         centered(fb, r, y0 + 15, keyHint(ed, c), pc::key);
-        centered(fb, r, y0 + 30, "S: " + s.label, st.shift ? pc::label : pc::shift);
+        centered(fb, r, y0 + 30, s.label, st.shift ? pc::label : pc::shift);
     }
 
 }
@@ -256,7 +263,7 @@ void drawPanel(const Editor& ed, const Framebuffer& screen, Framebuffer& out, co
     // legend between the Play/Rec block and the jog wheel
     int ly = kRowE + kBH + 10;
     const char* legend[] = {
-        "Button: name / function / key.  S: = with Shift",
+        "Button: name / function / key / purple = with Shift",
         "Click to press; click Shift to latch it.",
         "Pads 1-8 / 13-20 = d1..d8 / d9..d16",
         "Tab, Shift+Tab: next / prev slot pad",

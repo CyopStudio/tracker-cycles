@@ -3,6 +3,7 @@
 #   make test       run the tests
 #   make proto SDL=1 SDL_PREFIX=/usr   prototype with an SDL2 window
 #   make arm        cross-compile the core for the MK66 (size check only)
+#   make run        build (SDL) and open the prototype window (run_proto.sh)
 
 CXX       ?= g++
 CXXFLAGS  ?= -std=c++17 -O2 -g -Wall -Wextra -Wno-missing-field-initializers -Wno-format-truncation
@@ -31,7 +32,7 @@ CXXFLAGS_SDL := -DTC_HAVE_SDL -I$(SDL_PREFIX)/include -I$(SDL_PREFIX)/include/SD
 PROTO_LIBS += -L$(SDL_PREFIX)/lib/x86_64-linux-gnu -L$(SDL_PREFIX)/lib -lSDL2
 endif
 
-.PHONY: all test smoke proto arm clean
+.PHONY: all test smoke proto arm clean run
 all: $(BUILD)/run_tests $(BUILD)/tidal_proto
 
 test: $(BUILD)/run_tests
@@ -42,6 +43,9 @@ smoke: $(BUILD)/tidal_proto
 	tests/proto/run_smoke.sh $(BUILD)/tidal_proto
 
 proto: $(BUILD)/tidal_proto
+
+run:
+	./run_proto.sh
 
 $(BUILD)/run_tests: $(CORE_OBJ) $(TEST_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^

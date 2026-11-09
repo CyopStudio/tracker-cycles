@@ -121,8 +121,13 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
         case Ctl::JogUp: return shift ? act(Action::WheelUpFast, "value ++") : act(Action::WheelUp, "value +");
         case Ctl::JogDown: return shift ? act(Action::WheelDownFast, "value --") : act(Action::WheelDown, "value -");
         case Ctl::Play: return shift ? act(Action::Hush, "Hush") : act(Action::Evaluate, "Evaluate");
-        case Ctl::Insert: return act(Action::Insert, "Insert");
-        case Ctl::Delete: return act(Action::Delete, "Delete");
+        case Ctl::Insert: return shift ? act(Action::Home, "Home") : act(Action::Insert, "Insert");
+        case Ctl::Delete: return shift ? act(Action::Unwrap, "Unwrap") : act(Action::Delete, "Delete");
+        case Ctl::Copy: return shift ? act(Action::Paste, "Paste") : act(Action::Copy, "Copy");
+        case Ctl::Note: return act(Action::MenuNotes, "notes");
+        case Ctl::Instr: return act(Action::MenuSamples, "samples");
+        case Ctl::Fx1: return act(Action::MenuFunctions, "functions");
+        case Ctl::Fx2: return act(Action::MenuControls, "# control");
         case Ctl::Screen0: return act(Action::Replace, "Replace");
         case Ctl::Screen1: return act(Action::Wrap, "Wrap");
         case Ctl::Screen2: return act(Action::Unwrap, "Unwrap");

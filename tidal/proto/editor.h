@@ -17,6 +17,9 @@ enum class Action {
     Replace, Wrap, Insert, Delete, Unwrap,
     Undo, Evaluate, Hush, NextSlot, PrevSlot,
     Confirm, Cancel, Save, ToggleTrackerMode,
+    Copy, Paste, Home,                 // clipboard, jump to the block's top
+    MenuNotes, MenuSamples,            // filtered replace menus
+    MenuFunctions, MenuControls,       // filtered wrap menus
 };
 const char* actionName(Action a);
 bool actionFromName(const std::string& s, Action& out);
@@ -73,7 +76,15 @@ private:
     void navigate(Action a);
     void wheel(int dir, bool fast);
     void openReplace();
-    void openWrap(bool controlsOnly);
+    enum class WrapMode { All, Functions, Controls };
+    void openWrap(WrapMode mode);
+    void openNotes();
+    void openSamples();
+    void addReplaceItems(std::vector<MenuItem>& items, const std::string& label, const std::string& code,
+                         bool mini) const;
+    void ensureBlock();
+    void doCopy();
+    void doPaste();
     void doDelete();
     void doUnwrap();
     void evaluate();
@@ -104,6 +115,8 @@ private:
     Backend* backend_ = nullptr;
     std::vector<std::string> samples_;
     std::string lastCps_;  // last setcps sent to the backend
+    std::string clip_;     // copied code (rendered text)
+    bool clipMini_ = false;  // clip_ is mini-notation (a step inside "...")
 };
 
 }  // namespace proto

@@ -54,7 +54,12 @@ bool mapKey(const SDL_KeyboardEvent& k, bool shift, Key& out) {
         case SDLK_DELETE:
         case SDLK_BACKSPACE: return ctl(Ctl::Delete);
         case SDLK_t: return ctl(Ctl::Config);
-        case SDLK_s: return ctrl ? ctl(Ctl::File) : false;
+        case SDLK_s: return ctl(ctrl ? Ctl::File : Ctl::Instr);
+        case SDLK_n: return ctl(Ctl::Note);
+        case SDLK_f: return ctl(Ctl::Fx1);
+        case SDLK_c: return ctl(ctrl ? Ctl::Copy : Ctl::Fx2);
+        case SDLK_v: return ctrl ? intent(Action::Paste) : false;
+        case SDLK_HOME: return intent(Action::Home);
         case SDLK_r: return intent(Action::Replace);
         case SDLK_w: return intent(Action::Wrap);
         case SDLK_u: return intent(Action::Unwrap);

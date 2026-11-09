@@ -30,3 +30,6 @@ __pycache__/
 # Tracker Cycles host build
 tidal/build/
 tidal/build-*/
+
+# Tracker Cycles prototype: personal working file
+tidal/work.tidal

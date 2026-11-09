@@ -18,7 +18,20 @@ make smoke      # scripted editor sessions
 make arm        # cross-compile core for the Cortex-M4 and print sizes
 ```
 
-Window (needs SDL2; one-time `sudo apt install libsdl2-dev`):
+Quickest way to open the window (rebuilds first if anything changed):
+
+```bash
+tidal/run_proto.sh                     # opens tidal/work.tidal (yours, not in git)
+tidal/run_proto.sh my.tidal --backend ghci --boot proto/boot.ghci
+make -C tidal run                      # same as the first line
+tidal/run_proto.sh --install-shortcut  # "Tracker Cycles" in the app menu;
+                                       # on WSL2: Windows Start menu, via WSLg
+```
+
+`work.tidal` starts as a copy of `proto/example.tidal`; Ctrl+S saves it.
+When started from the shortcut, output goes to `build-sdl/launch.log`.
+
+Building by hand (needs SDL2; one-time `sudo apt install libsdl2-dev`):
 
 ```bash
 make proto SDL=1 BUILD=build-sdl
@@ -70,7 +83,15 @@ hardware can't.
 | Play | evaluate current block | OK | Space |
 | Shift + Play | hush | | `h` |
 | Insert | copy step / element, or add a `# control` | | `i` |
+| Shift + Insert (Home) | jump to the top of the block | | Home |
 | Delete | delete (step, operand, or leave a `??` hole) | | `x` / Del |
+| Shift + Delete (Backspace) | unwrap (same as Screen 3) | | |
+| Copy | copy the selection (whole pattern on a block) | | Ctrl+C |
+| Shift + Copy (Paste) | replace the selection with the copy; a step can be pasted as a pattern (`"bd"`); works on an empty slot | | Ctrl+V |
+| Note | notes menu: note names, chords, numbers inside `"..."`, else `note`/`n`/`scale`/`arp` patterns | | `n` |
+| Instrument | samples menu: names and `name:1..3` inside `"..."`, else `s "name"` | | `s` |
+| FX1 | functions menu: wrap in a function or operator (`fast 2 $ …`, `|+ n 12` …) | | `f` |
+| FX2 | `# control` menu; from inside `"..."` the control goes on the enclosing pattern | | `c` |
 | Pads 1–8 (top row) | select d1..d8 (sample tracks) | | `1`..`8` |
 | Pads 13–20 (2nd row) | select d9..d16 (MIDI) | | Shift+`1`..`8` |
 | | next / previous slot pad | | Tab / Shift+Tab |
@@ -79,8 +100,9 @@ hardware can't.
 | (none) | quit | | Ctrl+Q |
 
 Unused for now: Screen 5–7, Params, Perform, Master, Smp Load/Play/Edit/Rec,
-Song, Note, Instrument, FX1, FX2, Pattern, Copy, Rec, pads outside the two slot
-rows. Pads light like on the device: green playing, amber edited, red
+Song, Pattern, Rec, pads outside the two slot rows. Purple text on a
+button is its Shift function, following the labels printed on the device
+(Paste, Home, Backspace). Pads light like on the device: green playing, amber edited, red
 error; the current slot has a white frame.
 
 The panel follows the Original Tracker's front: screen top left with the
@@ -95,8 +117,10 @@ replace wrap insert delete unwrap undo eval hush next prev ok cancel save
 tracker`, plus `menu:N`, `shot:FILE.png`, `wait:MS`, `print`, and
 `hw:CONTROL` / `hw:shift+CONTROL` to press a Tracker control (`s1`..`s8`,
 `play`, `insert`, `delete`, `jog+`, `jog-`, `pad1`..`pad48`, `file`,
-`config`, ...; see `proto/hardware.cpp`). `--panel` makes screenshots
-include the mock panel. `tests/proto/session3.keys` uses only `hw:` tokens.
+`config`, `copy`, `note`, `instr`, `fx1`, `fx2`, ...; see
+`proto/hardware.cpp`). New action tokens: `copy paste home notes samples
+functions controls`. `--panel` makes screenshots include the mock panel.
+`tests/proto/session3.keys` and `session4.keys` use only `hw:` tokens.
 
 ## Behaviour notes
 

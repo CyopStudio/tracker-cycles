@@ -25,6 +25,9 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"eval", Action::Evaluate},   {"hush", Action::Hush},         {"next", Action::NextSlot},
     {"prev", Action::PrevSlot},   {"ok", Action::Confirm},        {"cancel", Action::Cancel},
     {"save", Action::Save},       {"tracker", Action::ToggleTrackerMode},
+    {"copy", Action::Copy},       {"paste", Action::Paste},       {"home", Action::Home},
+    {"notes", Action::MenuNotes}, {"samples", Action::MenuSamples},
+    {"functions", Action::MenuFunctions}, {"controls", Action::MenuControls},
 };
 
 const char* actionName(Action a) {
@@ -335,7 +338,17 @@ void Editor::act(Action a) {
         case Action::WheelUpFast: wheel(+1, true); break;
         case Action::WheelDownFast: wheel(-1, true); break;
         case Action::Replace: openReplace(); break;
-        case Action::Wrap: openWrap(false); break;
+        case Action::Wrap: openWrap(WrapMode::All); break;
+        case Action::Copy: doCopy(); break;
+        case Action::Paste: doPaste(); break;
+        case Action::Home:
+            if (exprRoot()) cursor_ = exprRoot();
+            info(cursorInfo());
+            break;
+        case Action::MenuNotes: openNotes(); break;
+        case Action::MenuSamples: openSamples(); break;
+        case Action::MenuFunctions: openWrap(WrapMode::Functions); break;
+        case Action::MenuControls: openWrap(WrapMode::Controls); break;
         case Action::Insert: {
             if (!cursor_) break;
             uint16_t par = prog_->parentOf(cursor_);
@@ -353,7 +366,7 @@ void Editor::act(Action a) {
                 commit(std::move(p), c);
                 if (!messageError_) info("inserted a copy");
             } else {
-                openWrap(true);
+                openWrap(WrapMode::Controls);
             }
             break;
         }
@@ -504,22 +517,97 @@ void Editor::wheelFn(int dir) {
     if (!messageError_) info(lib(next).name);
 }
 
+// Empty slot: create its (empty) block and put the cursor on it.
+void Editor::ensureBlock() {
+    if (cursor_) return;
+    auto p = std::unique_ptr<Program>(new Program(*prog_));
+    uint16_t b = p->alloc(Kind::Block);
+    p->at(b).a = (uint32_t)slot_;
+    p->block[slot_] = b;
+    prog_ = std::move(p);
+    cursor_ = b;
+}
+
+void Editor::addReplaceItems(std::vector<MenuItem>& items, const std::string& label, const std::string& code,
+                             bool mini) const {
+    uint16_t nn;
+    auto r = tryReplace(code, mini, nn);
+    if (r) items.push_back(MenuItem{label, r, nn});
+}
+
+// Note button: pitches. Inside "..." single steps, otherwise note patterns.
+void Editor::openNotes() {
+    ensureBlock();
+    std::vector<MenuItem> items;
+    auto add = [&](const std::string& l, const std::string& code, bool mini) { addReplaceItems(items, l, code, mini); };
+    if (isMiniKind(prog_->at(cursor_).kind)) {
+        for (const char* v : {"c", "d", "e", "f", "g", "a", "b", "cs", "ef", "fs", "af", "bf", "c4", "c6",
+                              "c'maj", "c'min", "c'maj7", "c'min7", "c'dom7", "c'sus4", "e'min", "g'maj"})
+            add(v, v, true);
+        for (int i = 0; i <= 12; i++) add(std::to_string(i), std::to_string(i), true);
+        add("rest ~", "~", true);
+    } else {
+        for (const char* v : {"note \"c e g\"", "n \"0 .. 7\"", "n \"c'maj e'min\"",
+                              "n (scale \"major\" \"0 .. 7\")", "n (arp \"up\" \"<c'maj e'min>\")",
+                              "\"c e g\"", "\"0 .. 7\"", "\"<c'maj e'min>\"", "(scale \"major\" \"0 .. 7\")",
+                              "(arp \"up\" \"<c'maj e'min>\")"})
+            add(v, v, false);
+    }
+    openMenu("notes", std::move(items));
+}
+
+// Instrument button: samples. Inside "..." names (and name:n), otherwise s "name".
+void Editor::openSamples() {
+    ensureBlock();
+    std::vector<MenuItem> items;
+    bool mini = isMiniKind(prog_->at(cursor_).kind);
+    for (auto& s : samples_) {
+        if (mini) {
+            addReplaceItems(items, s, s, true);
+            for (int i = 1; i <= 3; i++) addReplaceItems(items, s + ":" + std::to_string(i), s + ":" + std::to_string(i), true);
+        } else {
+            addReplaceItems(items, "s \"" + s + "\"", "s \"" + s + "\"", false);
+        }
+    }
+    openMenu("samples", std::move(items));
+}
+
+void Editor::doCopy() {
+    if (!cursor_) return error("nothing to copy");
+    uint16_t n = prog_->at(cursor_).kind == Kind::Block ? exprRoot() : cursor_;
+    if (!n) return error("nothing to copy");
+    clip_ = renderNode(*prog_, n);
+    clipMini_ = isMiniKind(prog_->at(n).kind);
+    info("copied " + clip_);
+}
+
+// Replace the selection with the clipboard; a copied step can also go where
+// a pattern is expected (as "step"). Type-checked like every other edit.
+void Editor::doPaste() {
+    if (clip_.empty()) return error("clipboard is empty (Copy first)");
+    std::unique_ptr<Program> before(new Program(*prog_));
+    uint16_t beforeCursor = cursor_;
+    ensureBlock();
+    bool targetMini = isMiniKind(prog_->at(cursor_).kind);
+    uint16_t nn;
+    std::shared_ptr<Program> r;
+    if (targetMini == clipMini_) r = tryReplace(clip_, clipMini_, nn);
+    else if (clipMini_) r = tryReplace("\"" + clip_ + "\"", false, nn);
+    if (!r) {
+        prog_ = std::move(before);  // ensureBlock may have added an empty block
+        cursor_ = beforeCursor;
+        return error("can't paste " + clip_ + " here");
+    }
+    commit(std::unique_ptr<Program>(new Program(*r)), nn);
+    if (!messageError_) info("pasted " + clip_);
+}
+
 void Editor::openReplace() {
     std::vector<MenuItem> items;
     auto add = [&](const std::string& label, const std::string& code, bool mini) {
-        uint16_t nn;
-        auto r = tryReplace(code, mini, nn);
-        if (r) items.push_back(MenuItem{label, r, nn});
+        addReplaceItems(items, label, code, mini);
     };
-    if (!cursor_) {
-        // empty slot: create the block, then offer starters
-        auto p = std::unique_ptr<Program>(new Program(*prog_));
-        uint16_t b = p->alloc(Kind::Block);
-        p->at(b).a = (uint32_t)slot_;
-        p->block[slot_] = b;
-        prog_ = std::move(p);
-        cursor_ = b;
-    }
+    ensureBlock();
     const Node& n = prog_->at(cursor_);
     if (n.kind == Kind::Block || cursor_ == exprRoot()) {
         bool midi = slot_ >= kSampleSlots;
@@ -561,8 +649,21 @@ void Editor::openReplace() {
     openMenu("replace", std::move(items));
 }
 
-void Editor::openWrap(bool controlsOnly) {
+void Editor::openWrap(WrapMode mode) {
     if (!cursor_ || prog_->at(cursor_).kind == Kind::Block) return error("select a pattern first");
+    bool controlsOnly = mode == WrapMode::Controls;
+    if (controlsOnly) {
+        // from inside "..." a control goes on the enclosing pattern
+        uint16_t up = cursor_;
+        while (up && (isMiniKind(prog_->at(up).kind) || prog_->at(up).kind == Kind::Mini)) up = prog_->parentOf(up);
+        if (up && up != cursor_) {
+            if (prog_->at(up).kind == Kind::Block) return error("select a pattern first");
+            uint16_t par = prog_->parentOf(up);
+            // `s "bd"` is an App: step out of its argument to the whole App
+            if (par && prog_->at(par).kind == Kind::App && prog_->at(up).kind != Kind::App) up = par;
+            cursor_ = up;
+        }
+    }
     std::vector<MenuItem> items;
     const Node& n = prog_->at(cursor_);
     if (isMiniKind(n.kind)) {
@@ -608,9 +709,9 @@ void Editor::openWrap(bool controlsOnly) {
             auto r = tryWrapApp(head, nn);
             if (r) items.push_back(MenuItem{head + " $ ...", r, nn});
         }
-        addControls();
+        if (mode == WrapMode::All) addControls();
     }
-    openMenu(controlsOnly ? "add control" : "wrap", std::move(items));
+    openMenu(controlsOnly ? "add control" : mode == WrapMode::Functions ? "functions" : "wrap", std::move(items));
 }
 
 void Editor::doDelete() {
