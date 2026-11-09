@@ -23,17 +23,21 @@ constexpr uint32_t padEmpty = 0x34383F;
 constexpr uint32_t padEdited = 0x6B5420;
 constexpr uint32_t padPlaying = 0x2E6B3A;
 constexpr uint32_t padError = 0x7A2B2B;
+constexpr uint32_t note = 0x4FD1C5, instr = 0xE6E29A, fx1 = 0xC88BE0, fx2 = 0x56CFE0, rec = 0xD9726A;
 }  // namespace pc
 
-// ---- layout ----------------------------------------------------------------
+// ---- layout (matches the Original Tracker's front panel) --------------------
+// Screen top left with the 8 screen buttons under it and the 12x4 pads below.
+// Right: three rows of five beside the screen, then the Play/Rec block,
+// then the jog wheel at the bottom right.
 constexpr int kSX = 30, kSY = 40;                  // screen origin
 constexpr int kSbY = kSY + kH + 14, kSbW = 76, kSbH = 40;
 constexpr int kRX = 870, kBW = 68, kBH = 66, kBStep = 76;  // right-hand button block
-constexpr int kRowA = 280, kRowB = 354;            // beside the screen
-constexpr int kPY = 600;                           // pads and the rows next to them
-constexpr int kRowC = kPY, kRowD = kPY + 74, kRowE = kPY + 148;
+constexpr int kRowA = kSY, kRowB = kSY + 74, kRowC = kSY + 148;
+constexpr int kRowD = 330, kRowE = 404;
+constexpr int kPY = 600;                           // pads
 constexpr int kPadW = 58, kPadH = 52, kPadStepX = 66, kPadStepY = 62;
-constexpr int kJogX = kRX + 2 * kBStep + kBW / 2, kJogY = 150, kJogR = 95;
+constexpr int kJogX = kRX + 2 * kBStep + kBW / 2, kJogY = 720, kJogR = 110;
 
 struct Rect {
     int x, y, w, h;
@@ -172,7 +176,17 @@ static void drawButton(Framebuffer& fb, const Editor& ed, Ctl c, const PanelStat
         centered(fb, r, r.y + 21, keyHint(ed, c), pc::key);
         return;
     }
-    centered(fb, r, r.y + 3, ctlName(c), pc::name);
+    uint32_t tint = 0;
+    switch (c) {
+        case Ctl::Note: tint = pc::note; break;
+        case Ctl::Instr: tint = pc::instr; break;
+        case Ctl::Fx1: tint = pc::fx1; break;
+        case Ctl::Fx2: tint = pc::fx2; break;
+        case Ctl::Rec: tint = pc::rec; break;
+        default: break;
+    }
+    if (tint) fb.rect(r.x + 1, r.y + r.h - 5, r.w - 2, 4, tint);
+    centered(fb, r, r.y + 3, ctlName(c), tint ? tint : pc::name);
     uint32_t lc = n.label.empty() ? pc::unused : (showShift ? pc::name : pc::label);
     centered(fb, r, r.y + 18, n.label.empty() ? "-" : n.label, lc);
     centered(fb, r, r.y + 33, keyHint(ed, c), pc::key);
@@ -211,21 +225,21 @@ static void drawPad(Framebuffer& fb, const Editor& ed, Ctl c, const PanelState& 
 static void drawJog(Framebuffer& fb, const Editor& ed, const PanelState& st) {
     fb.disc(kJogX, kJogY, kJogR + 4, pc::btnEdge);
     fb.disc(kJogX, kJogY, kJogR, pc::btn);
-    if (st.lit == Ctl::JogUp) fb.rect(kJogX - 60, kJogY - 70, 120, 4, pc::accent);
-    if (st.lit == Ctl::JogDown) fb.rect(kJogX - 60, kJogY + 66, 120, 4, pc::accent);
+    if (st.lit == Ctl::JogUp) fb.rect(kJogX - 60, kJogY - 90, 120, 4, pc::accent);
+    if (st.lit == Ctl::JogDown) fb.rect(kJogX - 60, kJogY + 86, 120, 4, pc::accent);
     fb.rect(kJogX - kJogR + 8, kJogY, 2 * kJogR - 16, 1, pc::btnEdge);
     fb.disc(kJogX, kJogY, 22, pc::bezel);
     Rect up = {kJogX - 80, 0, 160, 0}, dn = up;
     for (int k = 0; k < 2; k++) {
         Ctl c = k ? Ctl::JogDown : Ctl::JogUp;
         const Rect& r = k ? dn : up;
-        int y0 = k ? kJogY + 26 : kJogY - 76;
+        int y0 = k ? kJogY + 30 : kJogY - 80;
         Command n = controlCommand(ed, c, false), s = controlCommand(ed, c, true);
         centered(fb, r, y0, n.label, st.shift ? pc::name : pc::label);
         centered(fb, r, y0 + 15, keyHint(ed, c), pc::key);
         centered(fb, r, y0 + 30, "S: " + s.label, st.shift ? pc::label : pc::shift);
     }
-    fb.text(kJogX - kJogR, kJogY - kJogR - 18, "Jog wheel", pc::name, FontId::Sans12);
+
 }
 
 void drawPanel(const Editor& ed, const Framebuffer& screen, Framebuffer& out, const PanelState& st) {
@@ -239,22 +253,19 @@ void drawPanel(const Editor& ed, const Framebuffer& screen, Framebuffer& out, co
     for (int i = (int)Ctl::Params; i <= (int)Ctl::Right; i++) drawButton(out, ed, (Ctl)i, st);
     for (int i = 0; i < 48; i++) drawPad(out, ed, padCtl(i), st);
 
-    // legend between the upper and lower button blocks
-    int ly = kRowB + kBH + 16;
+    // legend between the Play/Rec block and the jog wheel
+    int ly = kRowE + kBH + 10;
     const char* legend[] = {
-        "Each button: name / function / key",
-        "S: = with Shift held (Shift is purple)",
-        "Click a control to press it; click",
-        "Shift to latch it for the next press.",
-        "Pads 1-8, 13-20 = d1..d8, d9..d16",
-        "Tab / Shift+Tab = next / prev slot pad",
+        "Button: name / function / key.  S: = with Shift",
+        "Click to press; click Shift to latch it.",
+        "Pads 1-8 / 13-20 = d1..d8 / d9..d16",
+        "Tab, Shift+Tab: next / prev slot pad",
         "Ctrl+Q quits (no Tracker equivalent)",
     };
     for (const char* l : legend) {
         out.text(kRX, ly, l, pc::name, FontId::Sans12);
-        ly += 16;
+        ly += 15;
     }
-    out.text(kRX, ly + 4, st.shift ? "SHIFT ON" : "", pc::shift, FontId::MonoBold17);
 
     // last input
     std::string last = st.last.empty() ? "press a key or click a control" : st.last;

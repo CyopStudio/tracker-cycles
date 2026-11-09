@@ -19,7 +19,7 @@ enum class Ctl : uint8_t {
     Screen0, Screen1, Screen2, Screen3, Screen4, Screen5, Screen6, Screen7,  // btn 0..7
     Params, Perform, File, Config, Master,                                  // btn 8..12
     SmpLoad, SmpPlay, SmpEdit, SmpRec, Song,                                // btn 13..17
-    Note, Instr, Vol, Fx, Pattern,                                          // btn 18..22
+    Note, Instr, Fx1, Fx2, Pattern,                                         // btn 18..22 (FX1 = interfaceButtonVol)
     Play, Copy, Insert, Up, Delete,                                         // btn 23..27
     Rec, Shift, Left, Down, Right,                                          // btn 28..32
     JogUp, JogDown,                                                         // pot 0

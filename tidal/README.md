@@ -79,14 +79,16 @@ hardware can't.
 | (none) | quit | | Ctrl+Q |
 
 Unused for now: Screen 5–7, Params, Perform, Master, Smp Load/Play/Edit/Rec,
-Song, Note, Instr, Vol, Fx, Pattern, Copy, Rec, pads outside the two slot
+Song, Note, Instrument, FX1, FX2, Pattern, Copy, Rec, pads outside the two slot
 rows. Pads light like on the device: green playing, amber edited, red
 error; the current slot has a white frame.
 
-The panel arrangement (screen buttons under the display, jog wheel and two
-rows of five beside it, three rows of five beside the pads) follows the
-firmware's button groups in `core/interface/core/interfaceDefs.h`; check it
-against the real unit and fix `ctlRect()` in `proto/panel.cpp` if needed.
+The panel follows the Original Tracker's front: screen top left with the
+8 screen buttons and the 12×4 pads below; on the right three rows of five
+(Params…Master, Sample Loader…Song, Note/Instrument/FX1/FX2/Pattern), the
+Play/Rec block, and the jog wheel at the bottom. FX1 is
+`interfaceButtonVol` and FX2 `interfaceButtonFx` in the firmware (see
+`fPatternEdit.cpp`). Layout: `ctlRect()` in `proto/panel.cpp`.
 
 Headless `--keys` tokens: `left right up down wheel+ wheel- wheel++ wheel--
 replace wrap insert delete unwrap undo eval hush next prev ok cancel save
