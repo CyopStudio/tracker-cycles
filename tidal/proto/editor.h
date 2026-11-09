@@ -49,7 +49,10 @@ public:
     // Int / Note: a step, a group, the quotes) or on a number argument.
     bool padNumeric() const;
     bool cursorInt(int& v) const;  // current value, if a whole number / note
-    void enterNumber(int v);   // replace the value at the cursor
+    bool cursorRest() const;
+    // Replace the value at the cursor (rest: ~), then select the next step's
+    // value, or append a copy at the end of the sequence (Delete removes it).
+    void enterNumber(int v, bool rest = false);
 
     // state for the view
     const tc::Program& prog() const { return *prog_; }
@@ -99,6 +102,7 @@ private:
     void quick(int i);
     void doPaste();
     void doDelete();
+    void deleteNode();  // remove / hole the cursor node (Delete outside "...")
     void doUnwrap();
     void evaluate();
     void openMenu(const std::string& title, std::vector<MenuItem> items);
@@ -131,6 +135,7 @@ private:
     std::string clip_;     // copied code (rendered text)
     bool clipMini_ = false;  // clip_ is mini-notation (a step inside "...")
     std::string lastControl_ = "gain 1";  // for the # context button
+    uint16_t pending_ = 0;  // step appended by pad entry; Delete removes it
 };
 
 }  // namespace proto

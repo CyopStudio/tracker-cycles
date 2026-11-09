@@ -77,8 +77,8 @@ bool ctlFromId(const std::string& s, Ctl& out) {
 }
 
 // Pads depend on context. On a number / note / rest in a numeric pattern
-// they enter values (-12 top left .. 35 bottom right: 0 starts the second
-// row, so for n/note it's a 4-octave keyboard from c4). Elsewhere, and
+// they enter values (-12 top left .. 34, then a rest pad bottom right; 0
+// starts the second row, so for n/note it's a keyboard from c4). Elsewhere, and
 // always with Shift, the first 8 pads of the top row select d1..d8 (sample
 // tracks) and the first 8 of the second row d9..d16 (MIDI).
 Ctl slotPad(int s) {
@@ -94,8 +94,9 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
         if (!shift && ed.padNumeric()) {
             Command k;
             k.type = Command::Number;
+            k.rest = i == kRestPad;
             k.number = padNumber(i);
-            k.label = std::to_string(k.number);
+            k.label = k.rest ? "~" : std::to_string(k.number);
             return k;
         }
         if (row < 2 && col < tc::kSampleSlots) {
@@ -182,7 +183,7 @@ bool press(Editor& ed, Ctl c, bool shift) {
     switch (k.type) {
         case Command::Act: ed.act(k.action); return true;
         case Command::Slot: ed.gotoSlot(k.slot); return true;
-        case Command::Number: ed.enterNumber(k.number); return true;
+        case Command::Number: ed.enterNumber(k.number, k.rest); return true;
         default: return false;
     }
 }

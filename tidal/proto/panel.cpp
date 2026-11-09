@@ -226,8 +226,9 @@ static void drawPad(Framebuffer& fb, const Editor& ed, Ctl c, const PanelState& 
         // rows alternate shades like octaves; 0 (second row start) stands out
         fill = (padIndex(c) / kPadCols) % 2 ? 0x2B3340 : 0x252B35;
         int v;
-        cur = ed.cursorInt(v) && v == k.number;
+        cur = k.rest ? ed.cursorRest() : (ed.cursorInt(v) && v == k.number);
         if (k.number == 0) fill = 0x35506B;
+        if (k.rest) fill = 0x3A3F48;
     }
     if (st.lit == c) fill = pc::btnLit;
     fb.rect(r.x, r.y, r.w, r.h, fill);

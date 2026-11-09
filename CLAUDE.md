@@ -48,6 +48,7 @@ to upstream CE.
     plain value patterns). Cursor lands on the new number for the jog.
     No `|-` / `~>`: use negative numbers.
   - Play = evaluate block, Shift+Play = hush.
+  - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
     Backspace = Unwrap.
@@ -55,9 +56,11 @@ to upstream CE.
     menus (filtered, type-checked). Pattern: launch menu (`dN $`,
     `jumpMod N k $`, `jumpIn N k $`; spec 2.1).
   - Pads by context: inside a numeric pattern (Time/Double/Int/Note) or on
-    a number argument they enter numbers, -12 top left .. 35 bottom right
-    (0 starts row 2; for n/note a 4-octave chromatic keyboard), replacing
-    the value / group at the cursor. Elsewhere, and always with Shift, pads
+    a number argument they enter numbers, -12 top left .. 34, bottom right
+    = rest `~` (0 starts row 2; for n/note a chromatic keyboard), replacing
+    the value / group at the cursor, then selecting the next step's value
+    or appending a copy at the end (tracker-style entry); Delete removes
+    that appended copy and ends entry. Elsewhere, and always with Shift, pads
     1-8 = d1..d8, 13-20 = d9..d16 (lit by slot state). Keyboard digits are
     Shift+pad.
   - File = save, Config = tracker mode. Free: Params, Perform, Master,

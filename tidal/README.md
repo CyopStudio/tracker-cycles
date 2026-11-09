@@ -110,7 +110,7 @@ hardware can't.
 | Shift + Play | hush | | `h` |
 | Insert | copy step / element, or add a `# control` | | `i` |
 | Shift + Insert (Home) | jump to the top of the block | | Home |
-| Delete | delete (step, operand, or leave a `??` hole) | | `x` / Del |
+| Delete | inside `"..."`: a step becomes `~` (timing stays), a `~` is removed, the step pad entry just appended is removed (ends entry); elsewhere: delete (operand, or leave a `??` hole) | | `x` / Del |
 | Shift + Delete (Backspace) | unwrap (same as Screen 3) | | |
 | Copy | copy the selection (whole pattern on a block) | | Ctrl+C |
 | Shift + Copy (Paste) | replace the selection with the copy; a step can be pasted as a pattern (`"bd"`); works on an empty slot | | Ctrl+V |
@@ -119,7 +119,7 @@ hardware can't.
 | FX1 | functions menu: wrap in a function or operator (`fast 2 $ …`, `|+ n 12` …) | | `f` |
 | FX2 | `# control` menu; from inside `"..."` the control goes on the enclosing pattern | | `c` |
 | Pattern | launch menu: `dN $` (now), `jumpMod N 2/4/8/16`, `jumpIn N 1/2/4` (when the next evaluation takes effect) | | `l` |
-| Pads in a numeric pattern | enter a number: −12 top left, 0 at the start of the 2nd row, 35 bottom right (for `n`/`note`: semitones, a 4-octave keyboard from c4). Replaces the value, group (`<1 2>`, `0 .. 7`) or quoted pattern at the cursor; the current value's pad is framed | | click |
+| Pads in a numeric pattern | enter a number: −12 top left, 0 at the start of the 2nd row, 34, then `~` (rest) bottom right (for `n`/`note`: semitones, a keyboard from c4). Replaces the value, group (`<1 2>`, `0 .. 7`) or quoted pattern at the cursor, then selects the next step's value, or appends a copy at the end of the sequence to type over; Delete removes that copy and ends entry. On the quotes this writes a pattern from scratch: pads `0 3 5 7`, Delete → `"0 3 5 7"`. A range fills low, then high. The current value's pad is framed | | click |
 | Pads elsewhere, or Shift + pad | 1–8 (top row) select d1..d8, 13–20 (2nd row) d9..d16 | | `1`..`8`, Shift+`1`..`8` |
 | | next / previous slot pad | | Tab / Shift+Tab |
 | File | save | | Ctrl+S |
@@ -157,7 +157,7 @@ tracker`, plus `menu:N`, `shot:FILE.png`, `wait:MS`, `print`, and
 `config`, `copy`, `note`, `instr`, `fx1`, `fx2`, ...; see
 `proto/hardware.cpp`). New action tokens: `copy paste home notes samples
 functions controls quick1..quick4 launch`. `--panel` makes screenshots include the mock panel.
-`tests/proto/session3.keys` to `session7.keys` use only `hw:` tokens.
+`tests/proto/session3.keys` to `session8.keys` use only `hw:` tokens.
 
 ## Behaviour notes
 

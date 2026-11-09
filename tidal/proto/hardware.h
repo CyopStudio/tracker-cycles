@@ -43,6 +43,7 @@ struct Command {
     Action action = Action::Cancel;
     int slot = -1;
     int number = 0;  // Type::Number: value a pad enters
+    bool rest = false;  // Type::Number: the rest pad (~)
     std::string label;  // short, for the panel / screen soft-key bar
 };
 
@@ -50,8 +51,10 @@ struct Command {
 Command controlCommand(const Editor& ed, Ctl c, bool shift);
 // Pad that selects slot s (d1..d16) with Shift held, or Ctl::Count.
 Ctl slotPad(int s);
-// Value a pad enters in number mode: -12 top left, 0 at the second row.
+// Value a pad enters in number mode: -12 top left, 0 at the second row;
+// the bottom right pad enters a rest instead of 35.
 inline int padNumber(int pad) { return pad - kPadCols; }
+constexpr int kRestPad = kPadCols * kPadRows - 1;
 // Find a control (+ shift) that performs `a` in the current context.
 bool controlFor(const Editor& ed, Action a, Ctl& c, bool& shift);
 // Runs the command; returns false if the control does nothing here.

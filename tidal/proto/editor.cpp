@@ -305,20 +305,87 @@ bool Editor::cursorInt(int& v) const {
     return false;
 }
 
-void Editor::enterNumber(int v) {
+bool Editor::cursorRest() const { return cursor_ && prog_->at(cursor_).kind == Kind::MRest; }
+
+// The step a mini node belongs to: climb out of modifier targets (bd in
+// bd*2). A range's ends (lo .. hi) are values of their own, so stop there.
+static uint16_t stepOf(const Program& p, uint16_t n) {
+    for (;;) {
+        uint16_t par = p.parentOf(n);
+        if (!par || !isMiniModifier(p.at(par).kind) || p.at(par).kind == Kind::MRange || p.at(par).first != n)
+            return n;
+        n = par;
+    }
+}
+
+// The value to select in a step: descend into modifier targets.
+static uint16_t valueOf(const Program& p, uint16_t step) {
+    while (step && isMiniModifier(p.at(step).kind) && p.at(step).first) step = p.at(step).first;
+    return step;
+}
+
+void Editor::enterNumber(int v, bool rest) {
     if (!padNumeric()) return error("pads enter numbers inside a numeric pattern");
+    std::string label = rest ? "~" : std::to_string(v);
+    const uint16_t oldCursor = cursor_;
+    if (prog_->at(cursor_).kind == Kind::Mini) cursor_ = prog_->at(cursor_).first;  // whole "..."
     bool mini = isMiniKind(prog_->at(cursor_).kind);
-    std::string code = std::to_string(v);
-    if (v < 0 && !mini) code = "(" + code + ")";
+    std::string code = rest ? "~" : std::to_string(v);
+    if (!mini && rest) {
+        cursor_ = oldCursor;
+        return error("a rest only goes inside \"...\"");
+    }
+    if (!mini && v < 0) code = "(" + code + ")";
     uint16_t nn;
     auto r = tryReplace(code, mini, nn);
-    if (!r) return error(std::to_string(v) + " doesn't fit here");
-    commit(std::unique_ptr<Program>(new Program(*r)), nn);
-    if (!messageError_) info("= " + std::to_string(v));
+    if (!r) {
+        cursor_ = oldCursor;
+        return error(label + " doesn't fit here");
+    }
+    uint16_t cur = nn, appended = 0;
+    if (mini) {
+        // replacing a whole sequence leaves a one-step sequence: use its step
+        while (r->at(cur).kind == Kind::MSeq && r->at(cur).first && !r->at(r->at(cur).first).next)
+            cur = r->at(cur).first;
+        uint16_t step = stepOf(*r, cur), par = r->parentOf(step);
+        if (par && r->at(par).kind == Kind::MRange) {
+            if (r->at(step).next) {
+                par = 0;  // lo: go on to hi
+                cur = r->at(step).next;
+            } else {
+                step = stepOf(*r, par);  // hi: continue after the range
+                par = r->parentOf(step);
+            }
+        }
+        if (par && r->at(par).kind == Kind::MSeq) {
+            uint16_t next = r->at(step).next;
+            if (next) {
+                cur = valueOf(*r, next);
+            } else {
+                // end of the sequence: append a copy to type over (of the
+                // value just entered, not of a whole range)
+                uint16_t src = r->at(step).kind == Kind::MRange ? cur : step;
+                uint16_t c2 = r->copyTree(*r, src);
+                if (c2) {
+                    r->at(c2).next = 0;
+                    r->at(step).next = c2;
+                    cur = appended = valueOf(*r, c2);
+                }
+            }
+        }
+    }
+    commit(std::unique_ptr<Program>(new Program(*r)), cur);
+    if (messageError_) {
+        cursor_ = oldCursor;
+        return;
+    }
+    pending_ = appended;
+    info("= " + label + (appended ? "  (next value; Del ends entry)" : ""));
 }
 
 void Editor::gotoSlot(int s) {
     if (s < 0 || s >= kSlots) return;
+    pending_ = 0;
     enterSlot(s);
     info(cursorInfo());
 }
@@ -341,6 +408,9 @@ std::string Editor::cursorInfo() const {
 // actions
 
 void Editor::act(Action a) {
+    uint16_t pending = pending_;
+    pending_ = 0;  // only the very next Delete may remove an appended step
+    if (a == Action::Delete && pending && pending == cursor_) pending_ = pending;
     if (menuOpen_) {
         switch (a) {
             case Action::WheelUp:
@@ -847,7 +917,42 @@ void Editor::openWrap(WrapMode mode) {
     openMenu(controlsOnly ? "add control" : mode == WrapMode::Functions ? "functions" : "wrap", std::move(items));
 }
 
+// Delete inside "...": a step becomes a rest (timing stays), a rest is
+// removed, and the step pad entry just appended is removed (ends entry).
 void Editor::doDelete() {
+    if (!cursor_) return;
+    Kind k = prog_->at(cursor_).kind;
+    if (pending_ && pending_ == cursor_) {
+        pending_ = 0;
+        uint16_t step = stepOf(*prog_, cursor_);
+        uint16_t prev = prog_->prevSibling(step);
+        cursor_ = step;
+        deleteNode();
+        if (!messageError_) {
+            if (prev) cursor_ = valueOf(*prog_, prev);
+            info("entry done");
+        }
+        return;
+    }
+    if (isMiniKind(k) && k != Kind::MSeq) {
+        if (k == Kind::MRest) {
+            cursor_ = stepOf(*prog_, cursor_);  // ~*2 goes as a whole
+            uint16_t par = prog_->parentOf(cursor_);
+            if (par && prog_->at(par).kind == Kind::MSeq && prog_->childCount(par) > 1) return deleteNode();
+            return error("already a rest");
+        }
+        uint16_t nn;
+        auto r = tryReplace("~", true, nn);
+        if (r) {
+            commit(std::unique_ptr<Program>(new Program(*r)), nn);
+            if (!messageError_) info("rest (Delete again removes the step)");
+            return;
+        }
+    }
+    deleteNode();
+}
+
+void Editor::deleteNode() {
     if (!cursor_) return;
     Program& cur = *prog_;
     uint16_t par = cur.parentOf(cursor_);
