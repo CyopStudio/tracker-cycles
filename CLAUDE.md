@@ -252,11 +252,14 @@ folders listed in the project (e.g. a manifest) on project load.
      riskiest firmware change (the sequencer has many callers).
    - 4b. Scheduler: queries on the main loop a fixed window ahead into a
      fixed-size event queue; the audio ISR only pops due events.
-     Design: docs/tidal_scheduler.md (v0.1: per-slot SPSC rings of 32 B
+     Design: docs/tidal_scheduler.md (v0.2: per-slot SPSC rings of 32 B
      entries in SDRAM, windows <= 125 ms, lookahead 250 ms, switches by
      truncating the queue at S, sample note-start cap 4 per block (MIDI
-     uncapped), live program
-     via copyTree). Implement host-first (tidal/core/scheduler.*).
+     uncapped), noteOff = duration on the entry + per-slot table in the
+     ISR, cps change after the furthest horizon, live program via
+     copyTree). Host implementation done (tidal/core/scheduler.*, tests in
+     tidal/tests/test_scheduler.cpp; 6.1 KB flash at -Os, 73 KB object in
+     SDRAM). Next: OSC backend (step 3), then the device tick.
    - 4c. Control mapping to playerEngine noteOn/mod*() calls, MIDI out for
      MIDI channels, and the per-channel voice allocator (Polyphony below).
    - 4d. Device editor: step 1 editor logic + FT812 drawing layer +

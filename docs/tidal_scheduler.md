@@ -1,10 +1,16 @@
-# Tracker Cycles scheduler (plan step 4b) - design v0.1
+# Tracker Cycles scheduler (plan step 4b) - design v0.2
 
 How patterns turn into sounds on the Original Tracker: the engine is
 queried on the main loop a little ahead of time into fixed-size queues,
 and the audio interrupt only pops due entries and calls the voice API.
 Measurements this is based on: CLAUDE.md "Original Tracker budgets" and
 plan step 2 (bench v1-v6), docs/tidal_bench*.txt, docs/audio_profile.txt.
+
+Status: implemented host-side in tidal/core/scheduler.{h,cpp}, tested by
+tidal/tests/test_scheduler.cpp (section 9). v0.2 changes from v0.1:
+noteOffs are a duration on the noteOn entry plus a small per-slot table
+in the interrupt (section 5), and a cps change waits for the furthest
+queued horizon instead of truncating (section 3).
 
 ## 1. Constraints (measured)
 
@@ -51,15 +57,19 @@ plan step 2 (bench v1-v6), docs/tidal_bench*.txt, docs/audio_profile.txt.
   (wraps after ~144 days). Sample time = block * 128 (+ offset).
 - **Cycle clock**: an anchor (cycle C0 as an exact rational, block B0)
   plus `cps`. cycle(b) = C0 + (b - B0) * 128 * cps / fs.
-- **Conversion** (main loop only): onset cycle q (exact) -> d = q - C0 in
-  exact rationals (small), then to samples as float (d / cps * fs). The
-  anchor is moved forward to each window start, so d stays below one
-  window and float error stays well under a sample. Result: block index
-  + sample offset 0..127 (the offset is kept for MIDI and for a future
-  sub-block voice start).
-- **cps changes** (`setcps`, tempo control) take effect at the next
-  window boundary: re-anchor there, truncate every queue at that block
-  and re-query from it (section 6).
+- **Conversion** (main loop only): onset cycle q (exact) -> d = q - C0,
+  split into whole cycles k and a fraction f. Samples per cycle are an
+  exact fraction (fs = 750000/17 Hz, cps limited to denominators <=
+  65536), so k cycles convert exactly in 64-bit integers and only f goes
+  through float (error < 0.03 samples). No drift however long it runs
+  (tested to 100k cycles against a 128-bit reference). Result: block
+  index + sample offset 0..127 (the offset is kept for MIDI and for a
+  future sub-block voice start).
+- **cps changes** (`setcps`, tempo control) take effect at the first
+  window boundary after the furthest queued horizon (<= lookahead + one
+  window from now, ~375 ms), so nothing already queued is re-timed: a new
+  anchor starts there, the old one stays valid before it until the audio
+  passes it. A second change meanwhile waits for the first.
 - The cycle clock runs while Tidal mode is active (Tidal's clock never
   stops; `hush` silences slots). `resetCycles` re-anchors to cycle 0.
 
@@ -94,7 +104,11 @@ plan step 2 (bench v1-v6), docs/tidal_bench*.txt, docs/audio_profile.txt.
 - Durations: noteOff at onset + `sustain` seconds, or onset + `legato` *
   event length; otherwise no noteOff (SuperDirt plays the sample out).
   Looped / sustained Tracker instruments need a default (open question).
-  A noteOff is its own queue entry at its own time.
+  The mapper sets the duration (samples) on the noteOn entry; when the
+  interrupt plays it, it notes the noteOff in a per-slot table of 8
+  (MIDI chords; a full table releases its oldest note early). That keeps
+  each ring in time order. A sample slot's new note clears the table (one
+  voice per slot cuts the previous note).
 - Control mapping (step 4c) happens here, on the main loop: `s` ->
   instrument slot, `n`/`note` -> note or slice, gain/pan/cutoff/... ->
   values in the Tracker's units. The interrupt applies them as given.
@@ -104,20 +118,23 @@ plan step 2 (bench v1-v6), docs/tidal_bench*.txt, docs/audio_profile.txt.
 | Field | Size | |
 | :--- | ---: | :--- |
 | block | 4 | absolute block index |
+| dur | 4 | samples until the noteOff (0 = none) |
 | offset | 1 | sample within the block (0-127) |
-| kind | 1 | noteOn, noteOff, midiOn, midiOff, mod |
+| kind | 1 | note (the slot says sample voice or MIDI) |
 | instrument / MIDI channel | 1 | |
 | note | 1 | |
 | velocity | 1 | |
 | nmods | 1 | |
-| mods | 6 x 3 | (id, value16) for mod*() calls after the noteOn |
-| spare | 5 | |
+| mod ids | 6 | for mod*() calls after the noteOn |
+| mod values | 6 x 2 | |
 
 Per slot a power-of-two ring of 128 entries (16 slots x 128 x 32 B = 64 KB,
 in SDRAM: the interrupt reads only a few entries per block). 128 covers
 the heaviest bench pattern (37 onsets per quarter cycle) at L = 250 ms
-with room for noteOffs; a full ring stops the slot's querying until the
-interrupt drains it (the horizon simply waits).
+with room to spare; a full ring stops the slot's querying until the
+interrupt drains it (the horizon simply waits). A window whose onsets
+fill more than half a ring, or whose query overflows the engine, is
+halved and retried (down to 1/64 window; past that the slot fails).
 
 ## 6. Evaluate, launch modes, hush
 
@@ -156,6 +173,7 @@ today (CLAUDE.md CPU section), only in Tidal mode:
    a MIDI note-on is a few UART bytes, so MIDI always goes out on its
    block.
 4. Entries more than ~20 ms overdue are dropped (counted).
+5. Due noteOffs from the per-slot tables run first in each block.
 
 Synchronisation: single producer / single consumer per ring; head and
 tail are 32-bit and written by one side each; the producer fills an
@@ -164,6 +182,12 @@ entry before publishing the head. Truncation is the only producer write
 to the tail that can move it backwards, so it runs with interrupts off.
 
 ## 8. Budgets
+
+Code: scheduler.o 6.1 KB flash at -Os (13.9 KB at -O2; only tick() is
+interrupt code). Scheduler object 73 KB (rings 64 KB, a 4 KB sort buffer,
+slot state), in SDRAM: placement-new it after SDRAM init (CLAUDE.md
+static-constructor gotcha), then init().
+
 
 | Item | Where | Size |
 | :--- | :--- | ---: |
@@ -179,9 +203,12 @@ slot ~9%. Everything else in the main loop gets the rest.
 
 ## 9. Testing
 
-- Host first (portable, `tidal/core/scheduler.*`): a fake interrupt
-  advances the block clock; a fake voice records (block, offset, kind,
-  values). Tests:
+- Host first (portable, `tidal/core/scheduler.*`, done): a fake interrupt
+  advances the block clock, a fake main loop calls update() every 1-40
+  blocks at random, a fake voice records (block, offset, note, lateness).
+  Expected onsets come from querying the engine directly over the whole
+  span, timed with exact 128-bit arithmetic. Tests (all pass; deliberate
+  bugs in the cap, the switch truncation and the cps anchor are caught):
   - onset times vs the golden events (`golden/expected.txt`) mapped
     through cps: every onset at the right block/offset;
   - evaluate at random times, jumpMod / jumpIn switch exactly at S,
@@ -189,7 +216,11 @@ slot ~9%. Everything else in the main loop gets the rest.
   - cps change mid-pattern: no gap, no duplicate;
   - stalls: block the "main loop" for 100 ms / 2 s: late notes inside
     20 ms play, older ones drop, the horizon skips forward;
-  - ring full: the slot waits, nothing is overwritten.
+  - ring full (`bd*1024` at cps 1): windows split, the slot waits,
+    nothing is lost or overwritten;
+  - note-start cap: 8 sample slots together -> <= 4 per block, 1 block
+    late at most, round robin; MIDI never held back;
+  - hush, `silence`, and a slot failing without affecting others.
 - Then the prototype (step 3): the same scheduler driving OSC to
   SuperDirt, compared with real Tidal's timing.
 - Then the device (4b/4c): replace `sequencer.tick` in Tidal mode,

@@ -1,0 +1,200 @@
+// Scheduler (plan step 4b, design docs/tidal_scheduler.md): queries each
+// slot's pattern on the main loop a little ahead of time into per-slot
+// single-producer / single-consumer rings; the audio interrupt (tick())
+// only pops due entries and calls the voice interface.
+//
+// Portable, no heap. Two sides:
+//   main loop: evaluate(), hush(), setCps(), update()   (the producer)
+//   interrupt: tick()                                     (the consumer)
+// Times on the main loop are samples (int64); entries carry a 32-bit block
+// index (block = 128 samples) plus a sample offset inside the block.
+#pragma once
+#include <stdint.h>
+
+#include "engine.h"
+#include "qtime.h"
+#include "tree.h"
+
+namespace tc {
+
+constexpr int kBlockSamples = 128;
+constexpr int kRingSize = 128;           // entries per slot (power of two)
+constexpr int kMaxMods = 6;
+constexpr int kMaxPendingOffs = 8;       // per slot (MIDI chords)
+
+enum class EntryKind : uint8_t { Note = 0 };
+
+// One trigger, 32 bytes. The control mapping (step 4c) fills everything
+// but the timing; the interrupt applies it as given.
+struct Entry {
+    uint32_t block;      // absolute block index of the onset
+    uint32_t dur;        // samples until the noteOff (0 = none, plays out)
+    uint8_t offset;      // sample within the block (0..127)
+    EntryKind kind;
+    uint8_t chan;        // instrument (sample slots) / MIDI channel
+    uint8_t note;
+    uint8_t vel;
+    uint8_t nmods;
+    uint8_t modId[kMaxMods];
+    uint16_t modVal[kMaxMods];
+};
+static_assert(sizeof(Entry) == 32, "Entry must stay 32 bytes");
+
+// Event -> entry (step 4c). Called on the main loop for every onset.
+// `lenSamples` is the event's whole length in samples (for legato).
+// Returns false to skip the event.
+class Mapper {
+public:
+    virtual bool map(const Program& p, int slot, const Event& e, float samplesPerCycle, float lenSamples,
+                     Entry& out) = 0;
+};
+
+// What the interrupt drives (playerEngine / MIDI on the device, a recorder
+// in tests). Called from tick() only.
+class Voice {
+public:
+    // `late` = blocks after the scheduled block (note-start cap, jitter)
+    virtual void noteOn(int slot, const Entry& e, uint32_t late) = 0;
+    virtual void noteOff(int slot, uint8_t note, uint8_t offset) = 0;
+    virtual void allOff() = 0;
+};
+
+// Single-producer / single-consumer ring of entries, in time order.
+struct Ring {
+    Entry e[kRingSize];
+    volatile uint32_t head;  // written by the consumer
+    volatile uint32_t tail;  // written by the producer
+    uint32_t count() const { return tail - head; }
+    uint32_t space() const { return kRingSize - count(); }
+};
+
+struct SchedulerStats {
+    uint32_t dropped;     // entries too late when due (interrupt)
+    uint32_t capped;      // note starts moved to a later block by the cap
+    uint32_t skips;       // horizon skipped forward after a stall
+    uint32_t queries;     // queries run
+    uint32_t splits;      // windows halved (too many events / ring space)
+};
+
+// Interrupt hooks (device: disable / enable IRQs; host: none).
+struct SchedulerHooks {
+    void (*lock)();
+    void (*unlock)();
+};
+
+class Scheduler {
+public:
+    using Hooks = SchedulerHooks;
+    // No constructor work: the object may live in SDRAM (placement-new it
+    // after SDRAM init, then call init()).
+    // `live` is the scheduler's own program (evaluate copies blocks into
+    // it); `buf` / `cap` the query output buffer.
+    void init(Program* live, Event* buf, int cap, Mapper* mapper, Hooks hooks = Hooks{nullptr, nullptr});
+
+    // Sample rate as an exact fraction (MK66: 750000/17 = 44117.647 Hz).
+    void setSampleRate(int64_t num, int64_t den);
+    void setLookahead(uint32_t samples) { lookahead_ = samples; }
+    void setLateLimit(uint32_t blocks) { lateBlocks_ = blocks; }
+    void setNoteStartCap(int n) { cap_ = n; }
+
+    // ---- main loop ----------------------------------------------------------
+    // Evaluate block `slot` of `edit` (a checked program): copies its tree
+    // into the live program, switching at the time its launch mode gives.
+    // False (and `err`) if the live program is full.
+    bool evaluate(const Program& edit, int slot, Error& err);
+    void silence(int slot);           // `dN silence`, switching like evaluate
+    void hush();                      // stop everything now
+    // Cycles per second (exact). Takes effect at the window boundary after
+    // everything already queued (<= lookahead + one window from now).
+    void setCps(Q cps);
+    Q cps() const { return pendingCps_ ? nextCps_ : cur_.cps; }
+    // Fill the rings. `clockUs` / `budgetUs` time-box the work (nullptr =
+    // until every slot is queued `lookahead` ahead). Returns queries run.
+    int update(uint32_t (*clockUs)() = nullptr, uint32_t budgetUs = 0);
+
+    // Slot state for the UI.
+    bool playing(int slot) const { return slot_[slot].expr || slot_[slot].next; }
+    const Error* error(int slot) const { return slot_[slot].failed ? &slot_[slot].err : nullptr; }
+    Q horizon(int slot) const { return slot_[slot].h; }
+    const SchedulerStats& stats() const { return stats_; }
+
+    // Time conversion (main loop). Cycle -> absolute sample (floor).
+    int64_t sampleAt(Q cycle) const;
+    // Sample -> cycle, rounded down to 1/kNowGrid of a cycle.
+    Q cycleAt(int64_t sample) const;
+    static constexpr int kNowGrid = 4096;
+    Q window() const;  // current query window W (cycles)
+    // Cycle the latest cps change takes effect at (0 if none yet).
+    Q anchorCycle() const { return cur_.c0; }
+
+    // ---- interrupt -----------------------------------------------------------
+    // Called once per audio block: plays due entries, then advances the
+    // block clock.
+    void tick(Voice& v);
+    uint32_t block() const { return block_; }
+
+private:
+    struct Anchor {
+        Q c0;          // cycle
+        int64_t s0;    // sample (integer part) at c0
+        float s0f;     // fractional sample at c0, [0, 1)
+        Q cps;
+        int64_t num;   // samples per cycle = num / den
+        int64_t den;
+    };
+    struct Slot {
+        uint16_t expr;     // live program root playing now (0 = none)
+        uint16_t next;     // pending root from `at` on (0 = silence)
+        bool pending;      // a switch at `at` is pending
+        Q at;              // switch cycle
+        Q h;               // horizon: everything before h is queued
+        bool failed;
+        Error err;
+    };
+    struct Off {
+        uint32_t block;
+        uint8_t offset;
+        uint8_t note;
+        bool active;
+    };
+
+    Anchor makeAnchor(Q c0, int64_t s0, float s0f, Q cps) const;
+    const Anchor& anchorFor(Q cycle) const;
+    int64_t sampleAtAnchor(const Anchor& a, Q cycle, float* frac) const;
+    Q nowCycle() const;
+    void retireAnchor();
+    void truncate(int slot, int64_t fromSample);
+    void switchTo(int slot, uint16_t root, Q at);
+    bool queryWindow(int slot, Q s, Q e);
+    void fail(int slot, const char* msg);
+
+    Program* live_;
+    Event* buf_;
+    int bufCap_;
+    Mapper* mapper_;
+    Hooks hooks_;
+    int64_t fsNum_, fsDen_;
+    uint32_t lookahead_;
+    uint32_t lateBlocks_;
+    int cap_;
+
+    Anchor cur_;           // valid from cur_.c0 on
+    Anchor prev_;          // valid before cur_.c0 while hasPrev_
+    bool hasPrev_;
+    bool pendingCps_;      // a cps request waiting for prev_ to retire
+    Q nextCps_;
+
+    Slot slot_[kSlots];
+    Entry tmp_[kRingSize];
+    SchedulerStats stats_;
+
+    // interrupt side
+    Ring ring_[kSlots];
+    volatile uint32_t block_;
+    volatile uint32_t hushReq_;   // incremented by hush()
+    uint32_t hushSeen_;
+    uint8_t rr_;                  // round-robin start among sample slots
+    Off off_[kSlots][kMaxPendingOffs];
+};
+
+}  // namespace tc

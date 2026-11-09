@@ -707,6 +707,8 @@ static void testGolden() {
     printf("golden: %zu cases, %zu events, max denominator %lld\n", cases.size(), events, maxDen);
 }
 
+void testScheduler(int& pass, int& fail);
+
 int main() {
     testNodeSize();
     testTypesPool();
@@ -717,6 +719,7 @@ int main() {
     testTypes();
     testRefinement();
     testGolden();
+    testScheduler(gPass, gFail);
     printf("%d passed, %d failed\n", gPass, gFail);
     return gFail ? 1 : 0;
 }
