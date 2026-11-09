@@ -218,6 +218,13 @@ folders listed in the project (e.g. a manifest) on project load.
      ~2.4 KB): callLib reads args in place (592 B), qApp sizes its arg
      array with alloca, qNode 520 B. Bench builds: Profiler::init leaves a
      32 KB stack reserve (TIDAL_BENCH) instead of 8 KB.
+     v5 device results (2026-11-09): q4 stut 8 16.5 ms run 1 / 69 ms run 2
+     (v4 23 / 97), jux/chop 8.0 / 33, echo 9.0 / 37, simple 0.3 / 1.3.
+     mem* 27% -> 9.5% of samples: the engine is compute-bound (rationals
+     ~1/3 of it, qCompress 6% of all). Stack deepest 18.8 KB, 13.9 KB
+     clear of the heap with the 32 KB reserve. Everyday patterns fit
+     easily; 8 tracks of the heaviest bench pattern would not under the
+     heavy project. Next: v6 internal-RAM pass + -O2 variant.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at
