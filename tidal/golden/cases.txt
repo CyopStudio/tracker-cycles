@@ -3,6 +3,8 @@
 # capture.py queries it in real Tidal over cycles 0..cycles and writes the
 # events to expected.txt; test_core checks every case parses and type-checks
 # here (and, once the engine exists, that it produces the same events).
+# Names starting with @ are Tidal-only expressions (not d1 code), e.g. the
+# pure transition functions; they're captured but not parsed here.
 
 # ---- mini-notation -----------------------------------------------------------
 seq_basic         1  s "bd sd hh cp"
@@ -144,3 +146,16 @@ arith_plus        2  n ("0 2" + "<12 7>")
 arith_minus       1  n ("12 7" - 2)
 arith_mul         1  n ("1 2" * 3)
 arith_div         1  speed ("1 2" / 4)
+
+# ---- transitions (block heads jumpMod N k / jumpIn N k) ----------------------
+# Tidal's pure functions: jumpMod k now [new, old], now = cycle position at
+# evaluation. Events show where "old" switches to "new".
+@jumpMod_4_now_2.5   9  jumpMod 4 (5/2) [s "new", s "old"]
+@jumpMod_4_now_4     9  jumpMod 4 4 [s "new", s "old"]
+@jumpMod_4_now_3.9   9  jumpMod 4 (39/10) [s "new", s "old"]
+@jumpMod_1_now_2.5   9  jumpMod 1 (5/2) [s "new", s "old"]
+@jumpMod_3_now_0     9  jumpMod 3 0 [s "new", s "old"]
+@jumpIn_0_now_2.5    9  jumpIn 0 (5/2) [s "new", s "old"]
+@jumpIn_2_now_2.5    9  jumpIn 2 (5/2) [s "new", s "old"]
+@jumpIn_2_now_3      9  jumpIn 2 3 [s "new", s "old"]
+@jumpMod_2_subcycle  4  jumpMod 2 (1/2) [s "new*2", s "old*3"]

@@ -52,10 +52,11 @@ to upstream CE.
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
     Backspace = Unwrap.
   - Note / Instrument / FX1 / FX2: notes, samples, functions, # control
-    menus (filtered, type-checked).
+    menus (filtered, type-checked). Pattern: launch menu (`dN $`,
+    `jumpMod N k $`, `jumpIn N k $`; spec 2.1).
   - Pads 1-8 = d1..d8, pads 13-20 = d9..d16 (pads light by slot state).
   - File = save, Config = tracker mode. Free: Params, Perform, Master,
-    Sample *, Song, Pattern, Rec, other pads.
+    Sample *, Song, Rec, other pads.
 - Launch: tidal/run_proto.sh (rebuilds, opens tidal/work.tidal, gitignored)
   or `make -C tidal run`; `--install-shortcut` makes Windows Desktop +
   Start menu shortcuts via wslg.exe (WSLg doesn't list .desktop apps here).

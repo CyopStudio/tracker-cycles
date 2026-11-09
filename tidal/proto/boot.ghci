@@ -30,4 +30,9 @@ let p = streamReplace tidal
     d14 = p 14
     d15 = p 15
     d16 = p 16
+    -- transitions, as in Tidal's BootTidal.hs: jumpMod 1 4 $ ... switches d1
+    -- at the next multiple of 4 cycles, jumpIn 1 2 $ ... two cycles after
+    -- the next cycle start
+    jumpMod i t = transition tidal True (Sound.Tidal.Context.jumpMod t) i
+    jumpIn i t = transition tidal True (Sound.Tidal.Context.jumpIn t) i
 :}

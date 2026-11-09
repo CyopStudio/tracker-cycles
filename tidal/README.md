@@ -118,6 +118,7 @@ hardware can't.
 | Instrument | samples menu: names and `name:1..3` inside `"..."`, else `s "name"` | | `s` |
 | FX1 | functions menu: wrap in a function or operator (`fast 2 $ …`, `|+ n 12` …) | | `f` |
 | FX2 | `# control` menu; from inside `"..."` the control goes on the enclosing pattern | | `c` |
+| Pattern | launch menu: `dN $` (now), `jumpMod N 2/4/8/16`, `jumpIn N 1/2/4` (when the next evaluation takes effect) | | `l` |
 | Pads 1–8 (top row) | select d1..d8 (sample tracks) | | `1`..`8` |
 | Pads 13–20 (2nd row) | select d9..d16 (MIDI) | | Shift+`1`..`8` |
 | | next / previous slot pad | | Tab / Shift+Tab |
@@ -136,7 +137,7 @@ with a negative shift. Each wrap is type-checked; one that doesn't fit
 shows an error.
 
 Unused for now: Params, Perform, Master, Smp Load/Play/Edit/Rec,
-Song, Pattern, Rec, pads outside the two slot rows. Purple text on a
+Song, Rec, pads outside the two slot rows. Purple text on a
 button is its Shift function, following the labels printed on the device
 (Paste, Home, Backspace). Pads light like on the device: green playing, amber edited, red
 error; the current slot has a white frame.
@@ -155,8 +156,8 @@ tracker`, plus `menu:N`, `shot:FILE.png`, `wait:MS`, `print`, and
 `play`, `insert`, `delete`, `jog+`, `jog-`, `pad1`..`pad48`, `file`,
 `config`, `copy`, `note`, `instr`, `fx1`, `fx2`, ...; see
 `proto/hardware.cpp`). New action tokens: `copy paste home notes samples
-functions controls quick1..quick4`. `--panel` makes screenshots include the mock panel.
-`tests/proto/session3.keys` to `session5.keys` use only `hw:` tokens.
+functions controls quick1..quick4 launch`. `--panel` makes screenshots include the mock panel.
+`tests/proto/session3.keys` to `session6.keys` use only `hw:` tokens.
 
 ## Behaviour notes
 

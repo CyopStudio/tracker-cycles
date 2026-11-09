@@ -24,6 +24,7 @@ enum class Kind : uint8_t {
     None = 0,
     // program
     Block,      // child: expression (or none). a = slot (0..15)
+                //   launch (flags & kLaunchMask): dN / jumpMod / jumpIn, b = cycles
     // expressions
     Num,        // a = numerator (int32), b = denominator; flags = decimals
     Mini,       // child: mini root (MSeq / MSub)
@@ -69,6 +70,16 @@ constexpr uint16_t kHasSteps = 1 << 4;    // MPoly: last child is %steps
 constexpr uint16_t kDigitStyle = 1 << 5;  // MBool: 1/0 instead of t/f
 constexpr uint16_t kNegParen = 1 << 6;    // Num: written as (-x)
 constexpr uint16_t kDecimalsMask = 0x0F00; // Num/MNum: fractional digits
+constexpr uint16_t kLaunchMask = 0x3000;   // Block: when an evaluation takes effect
+constexpr int kLaunchShift = 12;
+
+// Block launch modes (Tidal transitions, spec 2.1). Tidal 1.10.3 timing,
+// now = the cycle position when evaluated (golden/expected.txt @jump*):
+//   Now      "dN $ ..."           replace (our engine: at the next cycle)
+//   JumpMod  "jumpMod N k $ ..."  switch at the smallest multiple of k > now
+//   JumpIn   "jumpIn N k $ ..."   switch at ceil(now) + k
+enum class Launch : uint8_t { Now = 0, JumpMod = 1, JumpIn = 2 };
+constexpr uint32_t kMaxLaunchCycles = 256;
 constexpr int kDecimalsShift = 8;
 
 struct Node {
@@ -155,6 +166,11 @@ inline void setNodeRational(Node& n, Rational r, int decimals) {
 
 const char* kindName(Kind k);
 bool isMiniKind(Kind k);
+inline Launch blockLaunch(const Node& b) { return (Launch)((b.flags & kLaunchMask) >> kLaunchShift); }
+inline void setBlockLaunch(Node& b, Launch l, uint32_t cycles) {
+    b.flags = (uint16_t)((b.flags & ~kLaunchMask) | ((uint16_t)l << kLaunchShift));
+    b.b = l == Launch::Now ? 0 : cycles;
+}
 bool isMiniAtom(Kind k);
 bool isMiniModifier(Kind k);
 

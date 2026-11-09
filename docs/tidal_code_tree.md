@@ -52,6 +52,28 @@ A program is a fixed set of block slots plus globals.
 - Evaluating a block compiles its expression and replaces that channel's
   pattern at the next cycle boundary.
 
+### 2.1 Launch modes (transitions)
+
+A block can instead switch with one of Tidal's jump transitions. The mode
+is a property of the block (`Block` flags `kLaunchMask`, cycles in `b`),
+not an expression node; it only changes when an evaluation takes effect.
+
+| Mode | Text form | Switches at (now = cycle position when evaluated) |
+| :--- | :--- | :--- |
+| Now | `dN $ <expr>` | next cycle boundary (Tidal: immediately) |
+| JumpMod | `jumpMod N k $ <expr>` | smallest multiple of k strictly after now (k 1..256) |
+| JumpIn | `jumpIn N k $ <expr>` | `ceil(now) + k` (k 0..256) |
+
+Timing observed in Tidal 1.10.3 (golden cases `@jump*`): `jumpMod 4` at
+2.5, 3.9 → 4, at 4 → 8; `jumpMod 3` at 0 → 3; `jumpIn 2` at 2.5 → 5, at
+3 → 5; `jumpIn 0` at 2.5 → 3. N and k are plain whole numbers (Tidal:
+`ID -> Int`); only one form per slot is allowed in a file. The prototype's
+GHCi boot script defines both as in Tidal's BootTidal.hs. `xfade`,
+`jumpMod'` and the other transitions are out of v1.
+
+Note: plain `dN $` replaces immediately in Tidal but at the next cycle in
+our engine; step 3's OSC comparison has to allow for that.
+
 ---
 
 ## 3. Type system
@@ -344,7 +366,8 @@ cursor and offers only matching choices.
 4. **Random seeds.** `?`, `|`, `rand` and friends are deterministic in Tidal
    (seeded from cycle position). The tree only records where randomness is;
    matching Tidal's exact values is an engine/golden-test question.
-5. **Transitions** (`xfade`, `jumpIn`, ...), `once`, `p "name"`, muting with
+5. **Transitions**: `jumpMod` and `jumpIn` are supported as block launch
+   modes (2.1). `xfade` and the rest, `once`, `p "name"`, muting with
    `_d1`: out of v1.
 6. **Mini-notation corner cases**: resolved; results in section 10.
    Modifier chaining and `..` with note names (5.2); descending `..`

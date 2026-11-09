@@ -21,6 +21,7 @@ enum class Action {
     MenuNotes, MenuSamples,            // filtered replace menus
     MenuFunctions, MenuControls,       // filtered wrap menus
     Quick1, Quick2, Quick3, Quick4,    // context buttons: brackets / operators
+    MenuLaunch,                        // dN / jumpMod / jumpIn for the block
 };
 const char* actionName(Action a);
 bool actionFromName(const std::string& s, Action& out);
@@ -83,6 +84,8 @@ private:
     enum class WrapMode { All, Functions, Controls };
     void openWrap(WrapMode mode);
     void openNotes();
+    void openLaunch();
+    std::string launchHead(int slot) const;
     void openSamples();
     void addReplaceItems(std::vector<MenuItem>& items, const std::string& label, const std::string& code,
                          bool mini) const;

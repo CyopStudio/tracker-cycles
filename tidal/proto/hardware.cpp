@@ -128,6 +128,7 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
         case Ctl::Instr: return act(Action::MenuSamples, "samples");
         case Ctl::Fx1: return act(Action::MenuFunctions, "functions");
         case Ctl::Fx2: return act(Action::MenuControls, "# control");
+        case Ctl::Pattern: return act(Action::MenuLaunch, "launch");
         case Ctl::Screen0: return act(Action::Replace, "Replace");
         case Ctl::Screen1: return act(Action::Wrap, "Wrap");
         case Ctl::Screen2: return act(Action::Unwrap, "Unwrap");

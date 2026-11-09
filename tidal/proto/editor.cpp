@@ -29,7 +29,7 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"notes", Action::MenuNotes}, {"samples", Action::MenuSamples},
     {"functions", Action::MenuFunctions}, {"controls", Action::MenuControls},
     {"quick1", Action::Quick1},   {"quick2", Action::Quick2},     {"quick3", Action::Quick3},
-    {"quick4", Action::Quick4},
+    {"quick4", Action::Quick4},   {"launch", Action::MenuLaunch},
 };
 
 const char* actionName(Action a) {
@@ -352,6 +352,7 @@ void Editor::act(Action a) {
         case Action::MenuSamples: openSamples(); break;
         case Action::MenuFunctions: openWrap(WrapMode::Functions); break;
         case Action::MenuControls: openWrap(WrapMode::Controls); break;
+        case Action::MenuLaunch: openLaunch(); break;
         case Action::Quick1: quick(0); break;
         case Action::Quick2: quick(1); break;
         case Action::Quick3: quick(2); break;
@@ -921,6 +922,47 @@ void Editor::doUnwrap() {
     error("can't unwrap this");
 }
 
+// "d3", "jumpMod 3 4" or "jumpIn 3 2" for the slot's launch mode.
+std::string Editor::launchHead(int slot) const {
+    uint16_t b = prog_->block[slot];
+    std::string n = std::to_string(slot + 1);
+    if (!b) return "d" + n;
+    const Node& bn = prog_->at(b);
+    switch (blockLaunch(bn)) {
+        case Launch::JumpMod: return "jumpMod " + n + " " + std::to_string(bn.b);
+        case Launch::JumpIn: return "jumpIn " + n + " " + std::to_string(bn.b);
+        default: return "d" + n;
+    }
+}
+
+// Pattern button: when this block's next evaluation takes effect.
+void Editor::openLaunch() {
+    uint16_t b = prog_->block[slot_];
+    if (!b || !prog_->at(b).first) return error("empty slot: write a pattern first");
+    std::string n = std::to_string(slot_ + 1);
+    struct { Launch l; uint32_t k; std::string label; } opts[] = {
+        {Launch::Now, 0, "d" + n + " $  (now)"},
+        {Launch::JumpMod, 2, "jumpMod " + n + " 2  (every 2 cycles)"},
+        {Launch::JumpMod, 4, "jumpMod " + n + " 4  (every 4 cycles)"},
+        {Launch::JumpMod, 8, "jumpMod " + n + " 8  (every 8 cycles)"},
+        {Launch::JumpMod, 16, "jumpMod " + n + " 16  (every 16 cycles)"},
+        {Launch::JumpIn, 1, "jumpIn " + n + " 1  (after 1 cycle)"},
+        {Launch::JumpIn, 2, "jumpIn " + n + " 2  (after 2 cycles)"},
+        {Launch::JumpIn, 4, "jumpIn " + n + " 4  (after 4 cycles)"},
+    };
+    std::vector<MenuItem> items;
+    int sel = 0;
+    const Node& cur = prog_->at(b);
+    for (auto& o : opts) {
+        auto p = std::make_shared<Program>(*prog_);
+        setBlockLaunch(p->at(b), o.l, o.k);
+        if (o.l == blockLaunch(cur) && (o.l == Launch::Now || o.k == cur.b)) sel = (int)items.size();
+        items.push_back(MenuItem{o.label, p, cursor_});
+    }
+    openMenu("launch", std::move(items));
+    menuSel_ = sel;
+}
+
 std::string Editor::evalText(int slot, std::string* errOut) const {
     char buf[8192];
     Renderer r(buf, sizeof buf);
@@ -935,8 +977,7 @@ std::string Editor::evalText(int slot, std::string* errOut) const {
     // goes into the tree or the .tidal file.
     r.expr(*prog_, prog_->at(b).first);
     if (r.overflow() && errOut) *errOut = "block too long";
-    return "d" + std::to_string(slot + 1) + " $ (" + buf + ") # s \"midi\" # midichan " +
-           std::to_string(slot - kSampleSlots);
+    return launchHead(slot) + " $ (" + buf + ") # s \"midi\" # midichan " + std::to_string(slot - kSampleSlots);
 }
 
 void Editor::evaluate() {

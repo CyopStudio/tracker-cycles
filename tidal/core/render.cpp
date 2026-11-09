@@ -333,8 +333,13 @@ int Renderer::block(const Program& p, int slot) {
     uint16_t b = p.block[slot];
     if (!b) return n_;
     begin(b);
-    char buf[8];
-    snprintf(buf, sizeof buf, "d%d", slot + 1);
+    char buf[40];
+    const Node& bn = p.at(b);
+    switch (blockLaunch(bn)) {
+        case Launch::JumpMod: snprintf(buf, sizeof buf, "jumpMod %d %u", slot + 1, (unsigned)bn.b); break;
+        case Launch::JumpIn: snprintf(buf, sizeof buf, "jumpIn %d %u", slot + 1, (unsigned)bn.b); break;
+        default: snprintf(buf, sizeof buf, "d%d", slot + 1); break;
+    }
     puts(buf);
     uint16_t e = p.at(b).first;
     if (e) {

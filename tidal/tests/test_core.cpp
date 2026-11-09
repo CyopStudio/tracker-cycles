@@ -214,6 +214,39 @@ static void testFiles() {
     Error e2;
     EXPECT(!parseFile(gProg, bad, (int)strlen(bad), e2) && strstr(e2.msg, "more than once"),
            "duplicate block rejected: %s", e2.msg);
+    // launch modes (spec 2.1)
+    const char* jf = "jumpMod 1 4 $ s \"bd sd\"\n\njumpIn 9 0 $ n \"c e\"\n\nd2 $ s \"hh\"\n";
+    Error je;
+    bool jok = parseFile(gProg, jf, (int)strlen(jf), je);
+    EXPECT(jok, "jump file parse: %s", je.msg);
+    if (jok) {
+        EXPECT(blockLaunch(gProg.at(gProg.block[0])) == Launch::JumpMod && gProg.at(gProg.block[0]).b == 4,
+               "jumpMod 1 4 stored");
+        EXPECT(blockLaunch(gProg.at(gProg.block[8])) == Launch::JumpIn && gProg.at(gProg.block[8]).b == 0,
+               "jumpIn 9 0 stored");
+        EXPECT(blockLaunch(gProg.at(gProg.block[1])) == Launch::Now, "d2 is Now");
+        char jo[512];
+        Renderer jr(jo, sizeof jo);
+        jo[0] = 0;
+        jr.file(gProg);
+        const char* jwant = "jumpMod 1 4 $ s \"bd sd\"\n\nd2 $ s \"hh\"\n\njumpIn 9 0 $ n \"c e\"\n";
+        EXPECT(strcmp(jo, jwant) == 0, "jump render:\n%s---\nwant:\n%s", jo, jwant);
+    }
+    struct { const char* text; const char* msg; } jbad[] = {
+        {"jumpMod 1 0 $ s \"bd\"\n", "cycles must be 1..256"},
+        {"jumpIn 1 300 $ s \"bd\"\n", "cycles must be 0..256"},
+        {"jumpMod 17 4 $ s \"bd\"\n", "slots 1..16"},
+        {"jumpIn 1 $ s \"bd\"\n", "whole number of cycles"},
+        {"jumpMod 1 4.5 $ s \"bd\"\n", "whole number of cycles"},
+        {"jumpMod x 4 $ s \"bd\"\n", "slot number"},
+        {"jumpMod 1 4 $ s \"bd\"\nd1 $ s \"sd\"\n", "more than once"},
+    };
+    for (auto& jb : jbad) {
+        Error x;
+        EXPECT(!parseFile(gProg, jb.text, (int)strlen(jb.text), x) && strstr(x.msg, jb.msg),
+               "'%s' rejected with '%s' (got '%s')", jb.text, jb.msg, x.msg);
+    }
+
     const char* bad2 = "d17 $ s \"bd\"\n";
     Error e3;
     EXPECT(!parseFile(gProg, bad2, (int)strlen(bad2), e3) && strstr(e3.msg, "d1..d16"),
@@ -345,6 +378,7 @@ static void testGolden() {
                 }
             }
         }
+        if (c.name[0] == '@') continue;  // Tidal-only expression (transitions)
         std::string text = "d1 $ " + c.code + "\n";
         Error e;
         bool parsed = parseFile(gProg, text.c_str(), (int)text.size(), e);

@@ -845,7 +845,9 @@ static bool lineIsComment(const char* s, int a, int b) {
 static bool startsStatement(const char* s, int a, int b) {
     if (a >= b || isspace((unsigned char)s[a])) return false;
     if (s[a] == 'd' && a + 1 < b && isdigit((unsigned char)s[a + 1])) return true;
-    return (b - a >= 6 && strncmp(s + a, "setcps", 6) == 0) ||
+    return (b - a >= 7 && strncmp(s + a, "jumpMod", 7) == 0) ||
+           (b - a >= 6 && strncmp(s + a, "jumpIn", 6) == 0) ||
+           (b - a >= 6 && strncmp(s + a, "setcps", 6) == 0) ||
            (b - a >= 4 && strncmp(s + a, "hush", 4) == 0);
 }
 
@@ -868,8 +870,41 @@ static bool parseStatement(Program& prog, const char* text, int a, int b, int co
         prog.cpsExpr = e;
         return true;
     }
-    if (wl >= 2 && w[0] == 'd' && isdigit((unsigned char)w[1])) {
-        int n = 0;
+    // "d1 $ expr", "d1 expr", or with a transition "jumpMod 1 4 $ expr" /
+    // "jumpIn 1 4 $ expr" (slot number, then cycles)
+    Launch launch = Launch::Now;
+    uint32_t cycles = 0;
+    int n = -1;
+    if ((wl == 7 && strncmp(w, "jumpMod", 7) == 0) || (wl == 6 && strncmp(w, "jumpIn", 6) == 0)) {
+        launch = wl == 7 ? Launch::JumpMod : Launch::JumpIn;
+        const char* name = wl == 7 ? "jumpMod" : "jumpIn";
+        long v[2];
+        for (int k = 0; k < 2; k++) {
+            while (i < b && isspace((unsigned char)text[i])) i++;
+            int ns = i;
+            while (i < b && isdigit((unsigned char)text[i])) i++;
+            if (ns == i || ns + 4 < i || (i < b && !isspace((unsigned char)text[i]) && text[i] != '$')) {
+                err.set(ns, k == 0 ? "%s: expected the slot number (1..16), e.g. %s 1 4 $ ..."
+                                   : "%s: expected a whole number of cycles, e.g. %s 1 4 $ ...",
+                        name, name);
+                return false;
+            }
+            v[k] = 0;
+            for (int d = ns; d < i; d++) v[k] = v[k] * 10 + (text[d] - '0');  // at most 4 digits
+        }
+        n = (int)v[0];
+        if (n < 1 || n > kSlots) {
+            err.set(st, "%s: only slots 1..16 are supported", name);
+            return false;
+        }
+        long lo = launch == Launch::JumpMod ? 1 : 0;
+        if (v[1] < lo || v[1] > (long)kMaxLaunchCycles) {
+            err.set(st, "%s: cycles must be %ld..%u", name, lo, (unsigned)kMaxLaunchCycles);
+            return false;
+        }
+        cycles = (uint32_t)v[1];
+    } else if (wl >= 2 && w[0] == 'd' && isdigit((unsigned char)w[1])) {
+        n = 0;
         for (int k = 1; k < wl; k++) {
             if (!isdigit((unsigned char)w[k])) {
                 n = -1;
@@ -881,12 +916,13 @@ static bool parseStatement(Program& prog, const char* text, int a, int b, int co
             err.set(st, "only d1..d16 are supported");
             return false;
         }
+    }
+    if (n > 0) {
         int slot = n - 1;
         if (prog.block[slot]) {
             err.set(st, "d%d appears more than once", n);
             return false;
         }
-        // "d1 $ expr" or "d1 expr"
         int j = i;
         while (j < b && isspace((unsigned char)text[j])) j++;
         if (j < b && text[j] == '$' && (j + 1 >= b || !isSym(text[j + 1]))) j++;
@@ -896,6 +932,7 @@ static bool parseStatement(Program& prog, const char* text, int a, int b, int co
             return false;
         }
         prog.at(blk).a = (uint32_t)slot;
+        setBlockLaunch(prog.at(blk), launch, cycles);
         int before = prog.liveNodes();
         uint16_t e = parseExpr(prog, text + j, b - j, err, j);
         if (!e) return false;
@@ -913,7 +950,7 @@ static bool parseStatement(Program& prog, const char* text, int a, int b, int co
         c[out] = 0;
         return true;
     }
-    err.set(st, "unsupported statement (expected d1..d16, setcps or hush)");
+    err.set(st, "unsupported statement (expected d1..d16, jumpMod, jumpIn, setcps or hush)");
     return false;
 }
 
