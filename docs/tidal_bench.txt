@@ -1,0 +1,38 @@
+Tracker Cycles engine bench, run 1 (10 s after boot)
+event 212 B, arena 1024 events, 16 one-cycle + 64 quarter-cycle queries per pattern
+times in microseconds; peak = arena high water (events)
+
+events peak  peak/4 us/cyc  max     us/q4  max     pattern
+5      11    5      2379    5081    897    2041    s "bd*2 [~ sd] bd sd" # gain 1
+5      23    9      8291    13987   2587   5209    every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # n "<0 2>" # speed
+16     33    9      29721   30846   7664   8359    s "hh*16" # n "0 .. 15" # pan sine # gain (range 0.8 1 saw)
+128    148   40     215282  216511  56299  57643   stut 8 0.5 0.0625 $ s "hh*16" # n "0 .. 15"
+256    384   97     88278   89123   23294  25218   jux rev $ chop 8 $ s "bd*8 sd*8" # speed "1 2"
+64     115   33     83032   83617   25716  27728   echo 8 0.125 0.7 $ s "bd(5,8) sd(3,8,2)" # n (irand 8)
+32     49    13     36446   37116   10891  11484   off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale "major" "
+13     43    17     60866   62643   18906  22606   sometimes (# speed 2) $ often (# crush 4) $ s "[bd*4, hh*8, 
+7      15    7      6704    7736    3034   4579    n (arp "up" "<c'maj e'min7 g'dom7 a'min>*2") # s "arpy" # le
+10     34    12     31015   31586   8784   10393   chunk 4 (hurry 2) $ iter 4 $ s "bd sd hh cp hh sd bd cp" # n
+
+worst one-cycle query: avg 215282 us, max 216511 us
+audio interrupt load: max 51 % during the run; since the last reset avg 50 %, max 53 %
+
+Tracker Cycles engine bench, run 2 (60 s after boot)
+event 212 B, arena 1024 events, 16 one-cycle + 64 quarter-cycle queries per pattern
+times in microseconds; peak = arena high water (events)
+
+events peak  peak/4 us/cyc  max     us/q4  max     pattern
+5      11    5      8159    11536   3179   8483    s "bd*2 [~ sd] bd sd" # gain 1
+5      23    9      29738   49035   9340   17230   every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # n "<0 2>" # speed
+16     33    9      106793  107325  27785  31778   s "hh*16" # n "0 .. 15" # pan sine # gain (range 0.8 1 saw)
+128    148   40     771553  774400  201873 205992  stut 8 0.5 0.0625 $ s "hh*16" # n "0 .. 15"
+256    384   97     313523  316007  82826  87093   jux rev $ chop 8 $ s "bd*8 sd*8" # speed "1 2"
+64     115   33     295941  298663  92026  95647   echo 8 0.125 0.7 $ s "bd(5,8) sd(3,8,2)" # n (irand 8)
+32     49    13     130924  133497  39299  43449   off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale "major" "
+13     43    17     219027  223114  68225  81063   sometimes (# speed 2) $ often (# crush 4) $ s "[bd*4, hh*8, 
+7      15    7      23964   26171   10880  14492   n (arp "up" "<c'maj e'min7 g'dom7 a'min>*2") # s "arpy" # le
+10     34    12     111510  113077  31556  34815   chunk 4 (hurry 2) $ iter 4 $ s "bd sd hh cp hh sd bd cp" # n
+
+worst one-cycle query: avg 771553 us, max 774400 us
+audio interrupt load: max 101 % during the run; since the last reset avg 77 %, max 108 %
+

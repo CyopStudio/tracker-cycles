@@ -1,6 +1,7 @@
 #include "Platform.h"
 #include "Profiler.h"
 #include "TrackerImpl.h"
+#include "../tidal/audio_profile.h"
 #include "../tidal/tidal_bench.h"
 #include "mtWavetableEnvelopes.h"
 #include "core/interface.h"
@@ -177,7 +178,8 @@ void TrackerImpl::update()
     mtInterface.update();
     engine.updateSdStream();
     sequencer.update();
-    tidalBenchUpdate(platform);  // no-op unless built with -DTIDAL_BENCH
+    tidalBenchUpdate(platform);    // no-op unless built with -DTIDAL_BENCH
+    audioProfileUpdate(platform);  // no-op unless built with -DAUDIO_PROFILE
 }
 
 void TrackerImpl::updateAudioBuffers(void* left, void* right, int length)
@@ -191,7 +193,9 @@ void TrackerImpl::updateAudioBuffers(void* left, void* right, int length)
         midiSetAudioBlockStartUs(platform->getTimer()->micros());
     }
     Profiler::getInstance()->startMeasuringAudio();
+    AUDIO_PROFILE_MARK(apStart);
     midiUpdate();
+    AUDIO_PROFILE_MARK(apMidi);
 
     // Exact hardware I2S sample rate:
     // - IMX (Tracker+ and Tracker Mini): PLL4 = 24 MHz * (37 + 15168/24000) / 2 / 4 / 10 / 256 = 44100.0 Hz
@@ -204,10 +208,16 @@ void TrackerImpl::updateAudioBuffers(void* left, void* right, int length)
 
     float updateIntervalSeconds = length / kAudioSampleRate;
     sequencer.tick(updateIntervalSeconds);
+    AUDIO_PROFILE_MARK(apSeq);
 
     engine.update();
+    AUDIO_PROFILE_MARK(apPlayers);
 
     engine.updateAudioBuffers(left, right, length);
+#ifdef AUDIO_PROFILE
+    AUDIO_PROFILE_MARK(apGraph);
+    audioProfileBlock(apMidi - apStart, apSeq - apMidi, apPlayers - apSeq, apGraph - apPlayers);
+#endif
     Profiler::getInstance()->stopMeasuringAudio();
 }
 

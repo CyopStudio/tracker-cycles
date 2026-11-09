@@ -144,11 +144,15 @@ folders listed in the project (e.g. a manifest) on project load.
      ~67 KB), no double. `make -C tidal bench`: heaviest pattern peaks at
      384 events per one-cycle query (97 per quarter cycle), host ~175 us /
      cycle at -O2 (-Os ~1.5x slower on the host).
-     Timing build ready (core/tidal/README.md): `make original
-     CUSTOM_DEFINES="-DTIDAL_BENCH"` runs the bench at 10 s and 60 s after
-     boot and writes /tidal_bench.txt. Pending (user, on device): flash it,
-     start a project playing before 60 s, send the file. Bench build cost:
-     flash +65.5 KB, internal RAM +29 KB, SDRAM +403 KB.
+     Timing build (core/tidal/README.md, `-DTIDAL_BENCH`; flash +65.5 KB,
+     internal RAM +29 KB, SDRAM +403 KB). First device result (2026-11-09,
+     -Os, run 1 ~50% audio load / run 2 heavy project ~77%): ~600-1000x
+     slower than the host. Worst (stut 8, 128 events) 215 ms per cycle
+     (run 2: 772 ms; quarter cycle 202 ms); simplest pattern 2.4 ms / 8 ms.
+     Run 2 / run 1 = 3.6x, more than the CPU share alone (~2.2x): memory
+     contention suspected (arena + program in SDRAM). Main suspect: every
+     Q op does a 64-bit Euclid GCD (`qgcd`) = software __aeabi_ldivmod on
+     the M4. Needs >= 20-50x before 4b; fix rationals first, then re-bench.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at
@@ -207,8 +211,8 @@ folders listed in the project (e.g. a manifest) on project load.
     (spill to the next block, <= 2.9 ms) or precompute noteOn setup.
   - Max > 100%: heavy stock projects already overrun.
   - So 16 full voices don't fit a heavy project; the fallback (cheap extra
-    players) costs less but the real lever is the 60% floor. Next: profile
-    the stages of engine.update() to see what can be skipped when idle.
+    players) costs less but the real lever is the 60% floor. Next: the
+    audio profiler build (core/tidal/README.md) splits it per graph node.
   - The main loop (Tidal queries, UI) only gets what the ISR leaves:
     ~40% idle, ~15% with the heavy project.
 
@@ -253,7 +257,8 @@ folders listed in the project (e.g. a manifest) on project load.
 - synth/lib/ precompiled libPolySynth.a, libPolyDSP.a (not used on MK66)
 - docs/developer_guide.md  architecture, hardware limits, gotchas
 - core/tidal/  firmware wrappers that build tidal/core into libTracker.a
-  (only with -DTIDAL_BENCH for now), and the on-device timing bench.
+  (only with -DTIDAL_BENCH for now), the on-device timing bench, and the
+  audio profiler (-DAUDIO_PROFILE, per-stage / per-node audio cost).
 - tidal/     our code (host build, `make -C tidal test smoke arm`):
   core/ shared tree/parser/renderer/checker (no heap, portable),
   proto/ editor prototype, tests/, golden/ (cases + events captured from
