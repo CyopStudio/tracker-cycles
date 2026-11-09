@@ -195,6 +195,19 @@ folders listed in the project (e.g. a manifest) on project load.
      deep, into malloc's free space. Measure engine stack via SP tracking.
      Bench v4: PC-sampling profile (SysTick vector swapped at run time;
      core/tidal/bench_profile.py) + evaluator SP tracking.
+     v4 results (2026-11-09, docs/tidal_bench.txt): timings as v3. Profile
+     run 1 (~10k samples): audio ISR ~45% (reverb alone 18%), engine code
+     29%, memmove/memcpy/memset 26% (nearly all engine: ~45% of the
+     engine's time is moving 212 B events in uncached SDRAM; drop()
+     memmoves the arena tail, Event() zeroes 20 ctl slots), rationals ~10%
+     (~15% of the engine). Run 2: audio ~75% of all samples, engine gets
+     the rest. Stack: evaluator deepest 22.9 KB below the top of RAM, 10.6
+     KB INTO the heap (heap ends 12.3 KB below the top) -> must fix before
+     a real build (smaller frames / iterative evaluation + reserve a stack
+     margin when Profiler::init claims the heap).
+     Next: slim events (control maps out of line, ~40 B events, no full
+     zeroing), no tail memmove in drop(); and cut the audio floor (the
+     engine only gets what the ISR leaves).
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at
