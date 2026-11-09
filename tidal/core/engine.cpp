@@ -12,6 +12,11 @@
 //  - `#`, `|+`, ... take structure from the left: the right side is queried
 //    over each left whole, and parts are intersected (fragments).
 //  - Signals have no whole; their value is taken at the query start.
+//  - Randomness is ours, not Tidal's (its generator is only defined in GPL
+//    source): deterministic like Tidal (a hash of exact time and a seed),
+//    same probabilities and structure, different values. Events are tested
+//    at their whole start; each ? / | in mini-notation has its own seed
+//    (its position among the ? and | of that pattern).
 #include "engine.h"
 
 #include <math.h>
@@ -140,7 +145,7 @@ static bool numOp(NumOp op, const Val& a, const Val& b, Val& out) {
 enum class Fn : uint8_t {
     None, Silence, Fast, Slow, Hurry, Rev, Palindrome, Brak, Iter, Ply, Linger, Segment, Stack, Cat,
     Fastcat, Slowcat, Overlay, Every, Whenmod, Range, Struct, Mask, Euclid, EuclidInv, EuclidFull,
-    Random, Sine, Cosine, Saw, Tri, Square, Superimpose, Off, Jux, Stut, Echo, Chunk, Chop, Striate,
+    DegradeBy, SometimesBy, Sometimes, SomeCyclesBy, Rand, Irand, Sine, Cosine, Saw, Tri, Square, Superimpose, Off, Jux, Stut, Echo, Chunk, Chop, Striate,
     LoopAt, Splice, Scale, Arp, Control,
     // operators
     OpUnionR, OpUnionL, OpNum, ShiftL, ShiftR,
@@ -152,6 +157,7 @@ struct FnInfo {
     NumOp nop = NumOp::Add;
     Side side = Side::Left;
     int8_t key = -1;  // Control: output key
+    double prob = 0;  // Sometimes: fixed probability
 };
 
 static const FnInfo& fnInfo(int id) {
@@ -167,10 +173,10 @@ static const FnInfo& fnInfo(int id) {
             {"overlay", Fn::Overlay},   {"every", Fn::Every},         {"whenmod", Fn::Whenmod},
             {"range", Fn::Range},       {"struct", Fn::Struct},       {"mask", Fn::Mask},
             {"euclid", Fn::Euclid},     {"euclidInv", Fn::EuclidInv}, {"euclidFull", Fn::EuclidFull},
-            {"degradeBy", Fn::Random},  {"sometimesBy", Fn::Random},  {"sometimes", Fn::Random},
-            {"often", Fn::Random},      {"rarely", Fn::Random},       {"almostNever", Fn::Random},
-            {"almostAlways", Fn::Random}, {"someCyclesBy", Fn::Random}, {"rand", Fn::Random},
-            {"irand", Fn::Random},      {"sine", Fn::Sine},           {"cosine", Fn::Cosine},
+            {"degradeBy", Fn::DegradeBy}, {"sometimesBy", Fn::SometimesBy}, {"sometimes", Fn::Sometimes},
+            {"often", Fn::Sometimes},   {"rarely", Fn::Sometimes},    {"almostNever", Fn::Sometimes},
+            {"almostAlways", Fn::Sometimes}, {"someCyclesBy", Fn::SomeCyclesBy}, {"rand", Fn::Rand},
+            {"irand", Fn::Irand},      {"sine", Fn::Sine},           {"cosine", Fn::Cosine},
             {"saw", Fn::Saw},           {"tri", Fn::Tri},             {"square", Fn::Square},
             {"superimpose", Fn::Superimpose}, {"off", Fn::Off},       {"jux", Fn::Jux},
             {"stut", Fn::Stut},         {"echo", Fn::Echo},           {"chunk", Fn::Chunk},
@@ -184,6 +190,10 @@ static const FnInfo& fnInfo(int id) {
             FnInfo& fi = table[id];
             for (auto& n : names)
                 if (!strcmp(n.n, e.name)) fi.fn = n.f;
+            static const struct { const char* n; double p; } odds[] = {
+                {"sometimes", 0.5}, {"often", 0.75}, {"rarely", 0.25}, {"almostNever", 0.1}, {"almostAlways", 0.9}};
+            for (auto& o : odds)
+                if (!strcmp(o.n, e.name)) fi.prob = o.p;
             if (e.cat == Cat::Control) {
                 fi.fn = Fn::Control;
                 fi.key = (int8_t)controlKey(controlFor(e.name));
@@ -280,6 +290,19 @@ static void bjorklund(int k, int n, bool* out) {
         int len = g < na ? al[g] : bl[g - na];
         for (int i = len - 1; i >= 0 && pos < n; i--) out[pos++] = (bits >> i) & 1;
     }
+}
+
+// Deterministic random number in [0, 1) for a time and seed (splitmix64
+// finaliser over the exact rational time).
+static double rnd(Q t, uint32_t seed) {
+    uint64_t x = (uint64_t)(uint32_t)t.n * 0x9E3779B97F4A7C15ull ^ (uint64_t)(uint32_t)t.d * 0xC2B2AE3D27D4EB4Full ^
+                 ((uint64_t)seed + 1) * 0x165667B19E3779F9ull;
+    x ^= x >> 30;
+    x *= 0xBF58476D1CE4E5B9ull;
+    x ^= x >> 27;
+    x *= 0x94D049BB133111EBull;
+    x ^= x >> 31;
+    return (double)(x >> 11) * (1.0 / 9007199254740992.0);
 }
 
 // ---- patterns as closures ------------------------------------------------------------
@@ -440,6 +463,8 @@ private:
     bool combineVals(Fn f, NumOp op, const Event& l, const Event& r, Event& out);
     void sampleAt(const Pat& p, Q t, Val& out, bool& found);
     void qPly(const Pat& x, Q n, bool chop, Arc a);
+    void qDegrade(const Pat& x, double p, bool invert, uint32_t seed, Arc a);
+    uint32_t miniSeed(uint16_t n);
     void qArp(const Pat& x, const Val& mode, Arc a);
     void qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a);
     int listPats(uint16_t list, Pat* out, int cap);
@@ -773,8 +798,21 @@ void Eval::qNode(uint16_t n, Arc a) {
             }
             return;
         }
-        case Kind::MChoice: return fail("random choice '|' not implemented yet", n);
-        case Kind::MDegrade: return fail("random '?' not implemented yet", n);
+        case Kind::MChoice: {  // one alternative per cycle
+            int k = P.childCount(n);
+            if (k <= 0) return;
+            uint32_t seed = miniSeed(n);
+            forCycles(a, [&](Arc sub, int64_t c) {
+                int i = (int)(rnd(qint(c), seed) * k);
+                qNode(P.child(n, i < k ? i : k - 1), sub);
+            });
+            return;
+        }
+        case Kind::MDegrade: {  // x? drops events with probability 0.5 (or x?p)
+            uint16_t arg = P.at(nd.first).next;
+            double p = arg ? qdouble(Q{(int32_t)P.at(arg).a, (int32_t)P.at(arg).b}) : 0.5;
+            return qDegrade(pNode(nd.first), p, false, miniSeed(n), a);
+        }
         case Kind::MFast:
         case Kind::MSlow: {
             Pat x = pNode(nd.first);
@@ -1186,6 +1224,51 @@ void Eval::qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a) {
     drop(m, ie);
 }
 
+// Keep events whose random value (at their whole start) is >= p, or < p
+// when inverted (the complement, for sometimesBy).
+void Eval::qDegrade(const Pat& x, double p, bool invert, uint32_t seed, Arc a) {
+    int m = top;
+    query(x, a);
+    int w = m;
+    for (int i = m; i < top; i++) {
+        const Event& e = gArena[i];
+        double r = rnd(e.hasWhole ? e.whole.s : e.part.s, seed);
+        if ((r >= p) != invert) gArena[w++] = gArena[i];
+    }
+    top = w;
+}
+
+// Seed of a ? / | node: its position among the ? and | of its mini pattern,
+// in source order (so editing elsewhere doesn't reshuffle).
+uint32_t Eval::miniSeed(uint16_t n) {
+    uint16_t root = n;
+    for (uint16_t up = P.parentOf(root); up; up = P.parentOf(root)) {
+        root = up;
+        if (P.at(root).kind == Kind::Mini) break;
+    }
+    uint32_t count = 0;
+    bool found = false;
+    // iterative pre-order walk
+    uint16_t stack[kMaxDepth * 4];
+    int sp = 0;
+    stack[sp++] = root;
+    while (sp && !found) {
+        uint16_t x = stack[--sp];
+        if (x == n) {
+            found = true;
+            break;
+        }
+        Kind k = P.at(x).kind;
+        if (k == Kind::MDegrade || k == Kind::MChoice) count++;
+        // push children in reverse so the first child is visited first
+        uint16_t kids[kMaxChildren];
+        int nk = 0;
+        for (uint16_t c = P.at(x).first; c && nk < kMaxChildren; c = P.at(c).next) kids[nk++] = c;
+        for (int i = nk - 1; i >= 0 && sp < kMaxDepth * 4; i--) stack[sp++] = kids[i];
+    }
+    return count;
+}
+
 void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_t at, Arc a) {
     const FnInfo& fi = fnInfo(id);
     Pat all[9];
@@ -1438,7 +1521,66 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
             });
             return;
         }
-        case Fn::Random: return fail("random functions are not implemented yet", at);
+        case Fn::DegradeBy: {
+            if (!need(2)) return;
+            const Pat& x = all[1];
+            withParam(all[0], a, [&](const Val& v, Arc sub) { qDegrade(x, v.f, false, 0, sub); });
+            return;
+        }
+        case Fn::SometimesBy:
+        case Fn::Sometimes: {
+            // each event either untouched (random >= p) or from f x (random < p)
+            int pi = fi.fn == Fn::SometimesBy ? 1 : 0;
+            if (!need(pi + 2)) return;
+            uint16_t f = fnArg(pi);
+            const Pat& x = all[pi + 1];
+            Pat fx;
+            fx.k = Pat::Apply;
+            fx.node = f;
+            fx.x = &x;
+            auto run = [&](double p, Arc sub) {
+                qDegrade(x, p, false, 0, sub);
+                qDegrade(fx, p, true, 0, sub);
+            };
+            if (fi.fn == Fn::Sometimes) return run(fi.prob, a);
+            withParam(all[0], a, [&](const Val& v, Arc sub) { run(v.f, sub); });
+            return;
+        }
+        case Fn::SomeCyclesBy: {
+            if (!need(3)) return;
+            uint16_t f = fnArg(1);
+            const Pat& x = all[2];
+            withParam(all[0], a, [&](const Val& v, Arc sub) {
+                forCycles(sub, [&](Arc s2, int64_t c) {
+                    if (rnd(qint(c), 0) < v.f) queryApply(f, x, s2);
+                    else query(x, s2);
+                });
+            });
+            return;
+        }
+        case Fn::Rand: {  // continuous, like a signal
+            Event* e = push();
+            if (!e) return;
+            e->hasWhole = false;
+            e->part = a;
+            e->isMap = false;
+            e->nctl = 0;
+            e->v = numF(rnd(a.s, 0));
+            return;
+        }
+        case Fn::Irand: {
+            if (!need(1)) return;
+            withParam(all[0], a, [&](const Val& v, Arc sub) {
+                Event* e = push();
+                if (!e) return;
+                e->hasWhole = false;
+                e->part = sub;
+                e->isMap = false;
+                e->nctl = 0;
+                e->v = numQ(qint((int64_t)floor(rnd(sub.s, 0) * (double)intOf(v))));
+            });
+            return;
+        }
         case Fn::Sine:
         case Fn::Cosine:
         case Fn::Saw:

@@ -363,9 +363,17 @@ cursor and offers only matching choices.
 2. **Operator fixities** (4.1): resolved. Every Tidal operator family is
    infixl 9 (`:info`, 2026-11-09).
 3. **Numeric defaulting** (3.2): resolved, no defaulting needed.
-4. **Random seeds.** `?`, `|`, `rand` and friends are deterministic in Tidal
-   (seeded from cycle position). The tree only records where randomness is;
-   matching Tidal's exact values is an engine/golden-test question.
+4. **Random seeds: decided.** Our randomness is deterministic like Tidal's
+   but uses our own generator (Tidal's is only defined in GPL source), so
+   values differ: a hash of the exact event time and a seed. Events are
+   tested at their whole start; `rand` / `irand` take the value at the
+   query start like signals. Each `?` / `|` in a mini pattern has its own
+   seed: its position among the `?` and `|` of that pattern, so editing
+   elsewhere doesn't reshuffle. Probabilities follow Tidal's docs
+   (`sometimes` 0.5, `often` 0.75, `rarely` 0.25, `almostNever` 0.1,
+   `almostAlways` 0.9; `sometimesBy p f` applies f to each event with
+   probability p and leaves the rest). Golden random cases check
+   behaviour (golden/random.txt), not Tidal's values.
 5. **Transitions**: `jumpMod` and `jumpIn` are supported as block launch
    modes (2.1). `xfade` and the rest, `once`, `p "name"`, muting with
    `_d1`: out of v1.

@@ -113,3 +113,17 @@ alt_slow_inner
 iter_alt
 fastcat_alt
 seq_slow_whole
+euclid_degrade
+degrade_mini
+degrade_prob
+choice
+degradeBy
+sometimesBy
+sometimes
+often
+rarely
+almostNever
+almostAlways
+someCyclesBy
+rand
+irand

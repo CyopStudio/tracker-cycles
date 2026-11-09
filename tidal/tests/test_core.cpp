@@ -9,7 +9,9 @@
 #include <stdlib.h>
 
 #include <algorithm>
+#include <map>
 #include <set>
+#include <sstream>
 
 #include "check.h"
 #include "engine.h"
@@ -421,6 +423,92 @@ static std::string engineDiff(const golden::Case& c, const golden::Case& x, cons
     return "";
 }
 
+// ---- property checks for random cases (golden/random.txt) ------------------------
+static Program gProg3;
+static Event gRef[4096];
+
+static bool sameTimes(const Event& a, const Event& b) {
+    if (a.hasWhole != b.hasWhole || a.part.s != b.part.s || a.part.e != b.part.e) return false;
+    return !a.hasWhole || (a.whole.s == b.whole.s && a.whole.e == b.whole.e);
+}
+static bool sameEngineEvent(const Event& a, const Event& b) {
+    if (!sameTimes(a, b) || a.nctl != b.nctl) return false;
+    for (int i = 0; i < a.nctl; i++) {
+        bool found = false;
+        for (int j = 0; j < b.nctl && !found; j++) {
+            const Ctl &x = a.ctl[i], &y = b.ctl[j];
+            if (x.key != y.key || x.tag != y.tag || x.v.t != y.v.t) continue;
+            found = fabs(x.v.f - y.v.f) < 1e-9;
+            if (x.v.t == VT::Str) {
+                char s1[64], s2[64];
+                formatVal(gProg, x.v, s1, sizeof s1);
+                formatVal(gProg3, y.v, s2, sizeof s2);
+                found = strcmp(s1, s2) == 0;
+            }
+        }
+        if (!found) return false;
+    }
+    return true;
+}
+
+// "" if every check on the line holds for our events of case c.
+static std::string randomChecks(const golden::Case& c, const std::vector<std::string>& checks, uint16_t expr) {
+    Error e;
+    Arc arc{Q{0, 1}, Q{c.cycles, 1}};
+    int n = queryPattern(gProg, expr, arc, gEvents, 4096, e);
+    if (n < 0) return std::string("engine error: ") + e.msg;
+    for (const auto& chk : checks) {
+        std::istringstream in(chk);
+        std::string what;
+        in >> what;
+        std::string rest;
+        std::getline(in, rest);
+        if (what == "subset" || what == "like") {
+            std::string text = "d1 $" + rest + "\n";
+            Error pe, ce, qe;
+            if (!parseFile(gProg3, text.c_str(), (int)text.size(), pe) || !checkProgram(gProg3, ce))
+                return "bad reference: " + rest;
+            int m = queryPattern(gProg3, gProg3.at(gProg3.block[0]).first, arc, gRef, 4096, qe);
+            if (m < 0) return std::string("reference error: ") + qe.msg;
+            std::vector<bool> used(m, false);
+            if (what == "like" && m != n) return "like:" + rest + ": " + std::to_string(n) + " events, want " + std::to_string(m);
+            for (int i = 0; i < n; i++) {
+                bool ok = false;
+                for (int j = 0; j < m && !ok; j++)
+                    if (!used[j] && (what == "like" ? sameTimes(gEvents[i], gRef[j]) : sameEngineEvent(gEvents[i], gRef[j])))
+                        used[j] = ok = true;
+                if (!ok) return what + ":" + rest + ": not expected: " + eventText(gProg, gEvents[i]);
+            }
+        } else if (what == "count") {
+            int lo, hi;
+            in.clear();
+            std::istringstream r(rest);
+            r >> lo >> hi;
+            if (n < lo || n > hi) return "count " + std::to_string(n) + " not in " + rest;
+        } else if (what == "key" || what == "value") {
+            std::istringstream r(rest);
+            std::string key;
+            double lo, hi;
+            r >> key >> lo >> hi;
+            int k = controlKey(key.c_str()), with = 0;
+            for (int i = 0; i < n; i++) {
+                const Ctl* found = nullptr;
+                for (int j = 0; j < gEvents[i].nctl; j++)
+                    if (gEvents[i].ctl[j].key == k) found = &gEvents[i].ctl[j];
+                if (found) with++;
+                if (what == "value" && (!found || found->v.f < lo || found->v.f >= hi))
+                    return "value " + key + " out of range in " + eventText(gProg, gEvents[i]);
+            }
+            double frac = n ? (double)with / n : 0;
+            if (what == "key" && (frac < lo || frac > hi))
+                return "key " + key + ": fraction " + std::to_string(frac) + " not in" + rest.substr(key.size() + 1);
+        } else {
+            return "unknown check " + what;
+        }
+    }
+    return "";
+}
+
 // Golden cases (golden/cases.txt, captured from real Tidal into
 // golden/expected.txt by golden/capture.py): every case must parse and
 // type-check here, render stably, and match its captured block. Event
@@ -444,6 +532,25 @@ static void testGolden() {
         std::string line;
         while (std::getline(f, line))
             if (!line.empty() && line[0] != '#') mustPass.insert(line);
+    }
+    std::map<std::string, std::vector<std::string>> randomCases;
+    {
+        std::ifstream f("golden/random.txt");
+        std::string line;
+        while (std::getline(f, line)) {
+            if (line.empty() || line[0] == '#') continue;
+            std::vector<std::string> parts;
+            size_t pos;
+            while ((pos = line.find(" | ")) != std::string::npos) {
+                parts.push_back(line.substr(0, pos));
+                line = line.substr(pos + 3);
+            }
+            parts.push_back(line);
+            std::string name = parts[0];
+            name.erase(name.find_last_not_of(' ') + 1);
+            parts.erase(parts.begin());
+            randomCases[name] = parts;
+        }
     }
     const char* verbose = getenv("GOLDEN_VERBOSE");
     int engineOk = 0, engineTotal = 0;
@@ -486,7 +593,10 @@ static void testGolden() {
         EXPECT(strcmp(a, b) == 0, "golden %s: render not stable:\n%s%s", c.name.c_str(), a, b);
         if (i < expected.size() && gProg.block[0]) {
             engineTotal++;
-            std::string d = engineDiff(c, expected[i], gProg, gProg.at(gProg.block[0]).first);
+            uint16_t expr = gProg.at(gProg.block[0]).first;
+            auto rc = randomCases.find(c.name);
+            std::string d = rc != randomCases.end() ? randomChecks(c, rc->second, expr)
+                                                    : engineDiff(c, expected[i], gProg, expr);
             bool must = mustPass.count(c.name) > 0;
             if (d.empty()) {
                 engineOk++;

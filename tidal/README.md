@@ -39,10 +39,14 @@ Cases listed in `golden/engine_pass.txt` must keep matching (a ratchet);
 `GOLDEN_VERBOSE= ./build/run_tests` shows why each other case differs
 (`GOLDEN_VERBOSE=stut` limits it to names containing "stut").
 
-Engine status: 113/127 cases match. The 14 that don't are the random
-functions (`?`, `|`, `degradeBy`, `sometimes`..., `rand`, `irand`),
-not implemented yet: matching Tidal's values needs Tidal's random-number
-formula, which is only in its GPL source (CLAUDE.md "Licensing").
+Engine status: all 127 cases pass: 113 match Tidal's events exactly, and
+the 14 random ones (`?`, `|`, `degradeBy`, `sometimes`..., `rand`,
+`irand`) pass the property checks in `golden/random.txt`. Our random
+numbers are deterministic like Tidal's (a hash of exact time and a seed)
+but not Tidal's values: its generator is only defined in GPL source
+(CLAUDE.md "Licensing"). So random cases check behaviour instead: events
+are a subset of a reference pattern, counts, the share of events `f` was
+applied to, value ranges.
 
 Things the captures show the engine must do:
 - Control aliases: `hpf` arrives as `hcutoff`.

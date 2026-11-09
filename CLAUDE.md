@@ -133,9 +133,11 @@ folders listed in the project (e.g. a manifest) on project load.
    - Desktop test runner + golden tests: event lists captured from real
      Tidal by a capture script (needs host GHC + Tidal; no SuperDirt).
      Done: tidal/golden/ (capture.py, types.txt) and a first query engine
-     (tidal/core/engine.*): 113/127 golden cases match exactly; the rest
-     are the random functions (open decision: Tidal's PRNG is only defined
-     in GPL source). Engine is host-first; before the MK66 build: events
+     (tidal/core/engine.*): 113/127 golden cases match exactly; the 14
+     random ones pass property checks (golden/random.txt). Decided: our
+     own deterministic randomness (hash of exact time + seed; each ? / |
+     seeded by its position), same probabilities as Tidal's docs, values
+     differ from Tidal's. Engine is host-first; before the MK66 build: events
      are ~712 B each (fixed 20-control map + doubles) and the arena is
      8192 events = 5.8 MB; code is ~69 KB text on ARM; values use double
      (software on the M4F). Shrink: control maps in a shared pool, float
