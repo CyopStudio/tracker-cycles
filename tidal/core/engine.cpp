@@ -378,7 +378,9 @@ struct Ev {
 };
 TC_ENGINE_ARENA_ATTR static unsigned char gArenaRaw[sizeof(Ev) * kEventArena] __attribute__((aligned(8)));
 static Ev* gArena = reinterpret_cast<Ev*>(gArenaRaw);
-TC_ENGINE_ARENA_ATTR static Ctl gCtl[kCtlPool];
+TC_ENGINE_ARENA_ATTR static Ctl gCtlPool[kCtlPool];
+static Ctl* gCtl = gCtlPool;
+static int gCtlCap = kCtlPool;
 static int gCtlTop = 0, gCtlHighWater = 0;
 // withParam's values, moved out of the arena so results land in place
 struct ParamVal {
@@ -390,7 +392,8 @@ struct ParamVal {
 // no static constructor (it would run before SDRAM is set up); entries
 // are assigned before they are read
 TC_ENGINE_ARENA_ATTR static unsigned char gParamsRaw[sizeof(ParamVal) * kParamStack] __attribute__((aligned(8)));
-static ParamVal* const gParams = reinterpret_cast<ParamVal*>(gParamsRaw);
+static ParamVal* gParams = reinterpret_cast<ParamVal*>(gParamsRaw);
+static int gParamCap = kParamStack;
 static int gParamTop = 0;
 static int gArenaCap = kEventArena;
 static int gHighWater = 0;
@@ -417,6 +420,27 @@ void* engineDefaultArena() { return gArenaRaw; }
 void engineUseArena(void* storage, int bytes) {
     gArena = storage ? reinterpret_cast<Ev*>(storage) : reinterpret_cast<Ev*>(gArenaRaw);
     gArenaCap = storage ? bytes / (int)sizeof(Ev) : kEventArena;
+}
+int engineMemoryBytes(int events, int ctls, int params) {
+    return events * (int)sizeof(Ev) + ctls * (int)sizeof(Ctl) + params * (int)sizeof(ParamVal) + 16;
+}
+void engineUseMemory(void* storage, int events, int ctls, int params) {
+    if (!storage) {
+        engineUseArena(nullptr, 0);
+        gCtl = gCtlPool;
+        gCtlCap = kCtlPool;
+        gParams = reinterpret_cast<ParamVal*>(gParamsRaw);
+        gParamCap = kParamStack;
+        return;
+    }
+    uintptr_t p = ((uintptr_t)storage + 7) & ~(uintptr_t)7;
+    engineUseArena((void*)p, events * (int)sizeof(Ev));
+    p += events * sizeof(Ev);
+    gCtl = reinterpret_cast<Ctl*>(p);
+    gCtlCap = ctls;
+    p += ctls * sizeof(Ctl);
+    gParams = reinterpret_cast<ParamVal*>(p);
+    gParamCap = params;
 }
 int engineEventBytes() { return (int)sizeof(Ev); }
 int engineCtlHighWater() { return gCtlHighWater; }
@@ -452,7 +476,7 @@ private:
     // control maps (gCtl): read, allocate, copy-on-write with room to add
     static const Ctl* ctls(const Ev& e) { return &gCtl[e.ctlAt]; }
     int ctlAlloc(int n) {
-        if (gCtlTop + n > kCtlPool) {
+        if (gCtlTop + n > gCtlCap) {
             fail("too many controls in one query");
             return -1;
         }
@@ -511,7 +535,7 @@ private:
         int m = top;
         query(param, a);
         int k = top - m, base = gParamTop;
-        if (base + k > kParamStack) return fail("patterned arguments nested too deeply");
+        if (base + k > gParamCap) return fail("patterned arguments nested too deeply");
         for (int j = 0; j < k; j++) new (&gParams[base + j]) ParamVal{gArena[m + j].v, gArena[m + j].part, gArena[m + j].isMap};
         top = m;
         gParamTop = base + k;

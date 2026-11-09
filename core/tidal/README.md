@@ -27,7 +27,21 @@ between the two runs so run 2 measures with the audio interrupt busy.
 While a run is going the main loop is blocked for a few seconds: the
 screen and SD streaming pause; audio keeps running.
 
-Each run (v4) also records a PC-sampling profile: the SysTick vector
+Each run (v6) then repeats the quarter-cycle queries with the engine's
+whole working set (256 events, 1024 controls, 128 parameter values,
+~25 KB) in internal RAM (engineUseMemory), as a real build could.
+
+`-O2` variant (engine at -O2 instead of the -Os pragma; ~24 KB more
+flash), writes `/tidal_bench_o2.txt`:
+
+```bash
+make clean
+make original CUSTOM_DEFINES="-DTIDAL_BENCH -DTC_ENGINE_O2"
+cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_TidalBenchO2.ptf
+cp platforms/mk66/build/PolyendTracker.axf build/PolyendTrac_TidalBenchO2.axf
+```
+
+Each run (v4+) also records a PC-sampling profile: the SysTick vector
 (1 kHz, above the audio interrupt) is swapped at run time for a handler
 that bins the interrupted instruction address (32-byte bins), and the
 evaluator's deepest stack point (TC_TRACK_STACK) against the heap end.

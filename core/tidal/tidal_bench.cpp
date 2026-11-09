@@ -68,7 +68,18 @@ namespace {
 constexpr int kOutCap = 512;
 constexpr int kReps = 16;  // one-cycle queries per pattern (and 4x quarter-cycle ones)
 constexpr uint32_t kRunAtMs[2] = {10000, 60000};
+#ifdef TC_ENGINE_O2
+#define TC_BENCH_VARIANT "engine -O2"
+const char* const kPath = "/tidal_bench_o2.txt";
+#else
+#define TC_BENCH_VARIANT "engine -Os"
 const char* const kPath = "/tidal_bench.txt";
+#endif
+
+// v6: quarter-cycle pass with the whole working set (arena, control pool,
+// parameter stack) in internal RAM, sized like a real build could afford.
+constexpr int kFastEvents = 256, kFastCtls = 1024, kFastParams = 128;
+unsigned char fastMem[26 * 1024] __attribute__((aligned(8)));
 
 // Big buffers in SDRAM, constructed when the bench starts (NOLOAD section).
 __NOINIT(EXTERNAL_RAM) unsigned char progRaw[sizeof(tc::Program)] __attribute__((aligned(8)));
@@ -123,7 +134,7 @@ int runAll(int run, int at) {
 
     int n = 0;
     n += snprintf(report + n, sizeof report - n,
-                  "Tracker Cycles engine bench v5, run %d (%d s after boot)\n"
+                  "Tracker Cycles engine bench v6 (" TC_BENCH_VARIANT "), run %d (%d s after boot)\n"
                   "event %u B, arena %d events, %d one-cycle + %d quarter-cycle queries per pattern\n"
                   "times in microseconds; peak = arena high water (events); arena + program in SDRAM\n\n"
                   "%-6s %-5s %-6s %-7s %-7s %-6s %-6s  pattern\n",
@@ -161,6 +172,34 @@ int runAll(int run, int at) {
                   (unsigned long)gTidalPcTotal,
                   (unsigned long)gTidalPcOther);
     bool ok = save(run, true, n);
+
+    // internal-RAM pass (quarter-cycle queries only)
+    const int need = tc::engineMemoryBytes(kFastEvents, kFastCtls, kFastParams);
+    n = snprintf(report, sizeof report,
+                 "\nquarter-cycle queries, working set in internal RAM (%d B: %d events, %d controls, %d params):\n"
+                 "%-6s %-6s %-6s %-6s  pattern\n",
+                 need, kFastEvents, kFastCtls, kFastParams, "peak/4", "ctl/4", "us/q4", "max");
+    uint32_t worstFast = 0;
+    if (need <= (int)sizeof fastMem) {
+        tc::engineUseMemory(fastMem, kFastEvents, kFastCtls, kFastParams);
+        for (int i = 0; i < tc::benchCaseCount() && n < (int)sizeof report - 200; i++) {
+            tc::BenchResult r;
+            if (!tc::runBenchCase(i, *prog, out, kOutCap, clockUs, kReps, r, false)) {
+                n += snprintf(report + n, sizeof report - n, "error: %s: %.60s\n", r.err, r.code);
+                continue;
+            }
+            if (r.avgUs4 > worstFast) worstFast = r.avgUs4;
+            n += snprintf(report + n, sizeof report - n, "%-6d %-6d %-6lu %-6lu  %.60s\n", r.peak4, r.ctl4,
+                          (unsigned long)r.avgUs4, (unsigned long)r.maxUs4, r.code);
+        }
+        tc::engineUseMemory(nullptr, 0, 0, 0);
+        n += snprintf(report + n, sizeof report - n, "worst %lu us/quarter (%lu%% of the SDRAM pass)\n",
+                      (unsigned long)worstFast, (unsigned long)(worstQ4 ? worstFast * 100 / worstQ4 : 0));
+    } else {
+        n += snprintf(report + n, sizeof report - n, "skipped: needs %d B, buffer %u B\n", need,
+                      (unsigned)sizeof fastMem);
+    }
+    ok = save(run, false, n) && ok;
 
     // histogram: "pc <run> <bin address> <count>", non-empty bins only
     n = snprintf(report, sizeof report, "pcprofile run %d samples %lu other %lu bin %lu\n", run,

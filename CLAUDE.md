@@ -225,6 +225,10 @@ folders listed in the project (e.g. a manifest) on project load.
      clear of the heap with the 32 KB reserve. Everyday patterns fit
      easily; 8 tracks of the heaviest bench pattern would not under the
      heavy project. Next: v6 internal-RAM pass + -O2 variant.
+     Bench v6: engineUseMemory() runs queries in one caller block (q4
+     working set 256 events / 1024 controls / 128 params = 25.6 KB, fits
+     every bench pattern on the host); v6 adds that pass in internal RAM.
+     -O2 variant (TC_ENGINE_O2): flash 1,006,428 B (96%) vs 982,292 B.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at

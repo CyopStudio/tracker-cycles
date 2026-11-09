@@ -34,5 +34,21 @@ int main() {
     }
     printf("worst arena peak %d events x %d B = %d KB (arena %d); control pool peak %d of %d\n", worst,
            engineEventBytes(), worst * engineEventBytes() / 1024, kEventArena, worstCtl, kCtlPool);
+
+    // the small block the device bench uses in internal RAM: quarter-cycle queries only
+    static unsigned char small[64 * 1024];
+    const int kEv = 256, kCtl = 1024, kPar = 128;
+    int bytes = engineMemoryBytes(kEv, kCtl, kPar);
+    engineUseMemory(small, kEv, kCtl, kPar);
+    printf("\nquarter-cycle queries in a %d B block (%d events, %d controls, %d params):\n", bytes, kEv, kCtl, kPar);
+    for (int i = 0; i < benchCaseCount(); i++) {
+        BenchResult r;
+        if (!runBenchCase(i, gProg, gOut, 1024, clockUs, 200, r, false)) {
+            printf("error: %s: %s\n", r.err, r.code);
+            continue;
+        }
+        printf("peak %-4d ctl %-5d %-6u  %.60s\n", r.peak4, r.ctl4, r.avgUs4, r.code);
+    }
+    engineUseMemory(nullptr, 0, 0, 0);
     return 0;
 }

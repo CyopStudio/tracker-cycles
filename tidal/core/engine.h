@@ -104,6 +104,11 @@ void engineResetStats();
 void engineUseArena(void* storage, int bytes);
 void* engineDefaultArena();
 int engineEventBytes();    // size of one internal (arena) event
+// Run queries in one caller-provided block (e.g. internal RAM) holding
+// `events` arena events, `ctls` control entries and `params` parameter
+// values; engineMemoryBytes() gives its size. nullptr switches back.
+int engineMemoryBytes(int events, int ctls, int params);
+void engineUseMemory(void* storage, int events, int ctls, int params);
 int engineCtlHighWater();  // control pool use since engineResetStats()
 // Lowest stack address reached by the evaluator since engineResetMinStack()
 // (only tracked with -DTC_TRACK_STACK; else UINTPTR_MAX).
