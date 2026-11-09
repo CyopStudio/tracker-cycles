@@ -181,6 +181,18 @@ folders listed in the project (e.g. a manifest) on project load.
      Lazy rationals (no GCD while denominators <= 2^16, == cross-
      multiplies, queryPattern returns normalised times): host stut 8
      165 -> 73 us/cycle since the start.
+     Bench v3 (2026-11-09): alias NOT readable (bus fault) -> no way to
+     cache SDRAM data on the MK66. Lazy rationals: no device gain (stut 8
+     97 ms/cycle run 1, 364 ms run 2; q4 25 / 96 ms), so the device cost
+     is not arithmetic: suspect memory (uncached SDRAM arena + program,
+     212 B events copied per layer) and flash code fetch (37 KB engine vs
+     8 KB code cache shared with the audio ISR). Measure before changing:
+     device PC-sampling profile.
+     Heap: Profiler::init() mallocs all free RAM at boot and frees it, so
+     the heap ends 8 KB (teensy STACK_MARGIN) below the boot-time stack;
+     freed .bss becomes free heap, not stack. The bench's painted gap is
+     therefore always ~10.6 KB; "saturated" = the stack went at least that
+     deep, into malloc's free space. Measure engine stack via SP tracking.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at
