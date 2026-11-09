@@ -191,6 +191,12 @@ idle tick cost ~31 us); the ring entries + a 4 KB sort buffer (68 KB,
 `Scheduler::kStorageEntries`) are caller storage in SDRAM. Placement-new
 the object at run time, then init().
 
+update() early exit (device tick v3): after a call that queued every
+slot up to the lookahead, update() returns at once until the first block
+at which a slot needs a query (its horizon - lookahead) or a cps anchor
+retires; evaluate / silence / hush / setCps reset it. v2 measured ~36 us
+per call on every main-loop pass (~10k/s) without it.
+
 Mono slots (`setMonoSlots`, on for the device): a sample slot has one
 voice, so when several of its starts are due in the same block only the
 last is audible; the earlier ones are skipped (`superseded`) and don't

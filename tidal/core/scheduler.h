@@ -83,6 +83,7 @@ struct SchedulerStats {
     uint32_t queries;     // queries run
     uint32_t splits;      // windows halved (too many events / ring space)
     uint32_t superseded;  // mono slots: due starts skipped for a later due one
+    uint32_t idleUpdates; // update() calls that returned at once (nothing due yet)
     // per slot, when update() gets a clock: time in query windows (query,
     // mapping, sort; retries included), windows queued, longest window
     uint32_t slotUs[kSlots];
@@ -112,7 +113,10 @@ public:
 
     // Sample rate as an exact fraction (MK66: 750000/17 = 44117.647 Hz).
     void setSampleRate(int64_t num, int64_t den);
-    void setLookahead(uint32_t samples) { lookahead_ = samples; }
+    void setLookahead(uint32_t samples) {
+        lookahead_ = samples;
+        idleValid_ = false;
+    }
     void setLateLimit(uint32_t blocks) { lateBlocks_ = blocks; }
     void setNoteStartCap(int n) { cap_ = n; }
     // Sample slots play one note at a time: when several of a slot's starts
@@ -134,6 +138,10 @@ public:
     Q cps() const { return pendingCps_ ? nextCps_ : cur_.cps; }
     // Fill the rings. `clockUs` / `budgetUs` time-box the work (nullptr =
     // until every slot is queued `lookahead` ahead). Returns queries run.
+    // Cheap to call every main-loop pass: after a call that ran out of work
+    // it returns at once until the first block at which a slot needs a
+    // query (or a cps change takes effect); evaluate / silence / hush /
+    // setCps end that early.
     int update(uint32_t (*clockUs)() = nullptr, uint32_t budgetUs = 0);
 
     // Slot state for the UI.
@@ -192,6 +200,7 @@ private:
     void switchTo(int slot, uint16_t root, Q at);
     bool queryWindow(int slot, Q s, Q e);
     void fail(int slot, const char* msg);
+    void setIdle();
 
     Program* live_;
     Event* buf_;
@@ -203,6 +212,8 @@ private:
     uint32_t lateBlocks_;
     int cap_;
     bool mono_;
+    bool idleValid_;       // update() may return at once before idleUntil_
+    uint32_t idleUntil_;   // block
 
     Anchor cur_;           // valid from cur_.c0 on
     Anchor prev_;          // valid before cur_.c0 while hasPrev_

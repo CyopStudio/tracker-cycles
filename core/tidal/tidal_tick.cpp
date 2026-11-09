@@ -354,7 +354,7 @@ int activeInstruments() {
 
 int header(int n) {
     return n + snprintf(report + n, sizeof report - n,
-                        "Tracker Cycles device tick test v2 (" TC_TICK_VARIANT "), %s, %d s per set\n"
+                        "Tracker Cycles device tick test v3 (" TC_TICK_VARIANT "), %s, %d s per set\n"
                         "%d active instruments; scheduler object %u B (internal RAM), entries %u B, live program "
                         "%u B (SDRAM); engine working set in internal RAM: %s; mono sample slots\n"
                         "cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles\n\n",
@@ -383,7 +383,8 @@ int setReport(int n, uint32_t ms) {
                   "unmapped %lu\n"
                   "main loop: update() %lu calls, %lu ms in %lu ms (%lu.%lu %%), longest call %lu us; "
                   "longest gap between main-loop passes %lu us\n"
-                  "scheduler: queries %lu, window splits %lu, horizon skips %lu, window %ld/%ld cycle; "
+                  "scheduler: queries %lu, idle update() calls %lu, window splits %lu, horizon skips %lu, "
+                  "window %ld/%ld cycle; "
                   "mapping %lu events, avg %lu cycles\n"
                   "audio load: avg %d %%, max %d %%\n",
                   (unsigned long)s.blocks, avg(s.cyc, s.blocks), (unsigned long)s.cycMax, (unsigned long)idle,
@@ -396,6 +397,7 @@ int setReport(int n, uint32_t ms) {
                   (unsigned long)updCalls, (unsigned long)(updUs / 1000), (unsigned long)ms,
                   (unsigned long)(ms ? updUs / 10 / ms : 0), (unsigned long)(ms ? updUs / ms % 10 : 0),
                   (unsigned long)updMaxUs, (unsigned long)loopGapMaxUs, (unsigned long)st.queries,
+                  (unsigned long)st.idleUpdates,
                   (unsigned long)st.splits, (unsigned long)st.skips, (long)sched->window().n, (long)sched->window().d,
                   (unsigned long)mapper.maps, avg(mapper.mapCyc, mapper.maps), u.average, u.tempMaximum);
     n += snprintf(report + n, sizeof report - n, "per slot (wall time, interrupts included): windows, avg us, max us\n");

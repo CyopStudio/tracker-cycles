@@ -52,6 +52,8 @@ void Scheduler::init(Program* live, Event* buf, int cap, Mapper* mapper, Entry* 
     hooks_ = hooks;
     cap_ = 4;
     mono_ = false;
+    idleValid_ = false;
+    idleUntil_ = 0;
     tmp_ = storage + kSlots * kRingSize;
     hasPrev_ = false;
     pendingCps_ = false;
@@ -82,6 +84,7 @@ void Scheduler::resetStats() { memset(&stats_, 0, sizeof stats_); }
 void Scheduler::setSampleRate(int64_t num, int64_t den) {
     fsNum_ = num;
     fsDen_ = den;
+    idleValid_ = false;
     float fs = (float)num / (float)den;
     lookahead_ = (uint32_t)(fs * 0.25f);
     lateBlocks_ = (uint32_t)(fs * 0.02f / kBlockSamples + 0.5f);
@@ -158,6 +161,7 @@ void Scheduler::truncate(int slot, int64_t fromSample) {
 }
 
 void Scheduler::switchTo(int i, uint16_t root, Q at) {
+    idleValid_ = false;
     Slot& s = slot_[i];
     if (s.pending && s.next) live_->freeTree(s.next);
     if (!s.expr && !s.pending) s.h = at;  // idle slot: starts at `at`
@@ -191,6 +195,7 @@ bool Scheduler::evaluate(const Program& edit, int i, Error& err) {
 void Scheduler::silence(int i) { switchTo(i, 0, launchTime(Launch::Now, 0, nowCycle())); }
 
 void Scheduler::hush() {
+    idleValid_ = false;
     int64_t now = (int64_t)block_ * kBlockSamples;
     Q nowC = cycleAt(now);
     for (int i = 0; i < kSlots; i++) {
@@ -207,6 +212,7 @@ void Scheduler::hush() {
 
 void Scheduler::setCps(Q c) {
     if (c.n <= 0 || c.d <= 0) return;
+    idleValid_ = false;
     c = tameCps(c);
     if (hasPrev_) {  // one change at a time: apply after the pending one
         pendingCps_ = true;
@@ -233,6 +239,25 @@ void Scheduler::retireAnchor() {
         pendingCps_ = false;
         setCps(nextCps_);
     }
+}
+
+// After update() queued every slot up to the lookahead: the first block at
+// which one needs a query again (its horizon - lookahead; cycleAt() rounds
+// down, so update() might still find nothing then, never miss work), or a
+// cps anchor retires.
+void Scheduler::setIdle() {
+    const int64_t now = (int64_t)block_ * kBlockSamples;
+    int64_t until = now + (int64_t)lookahead_ + (int64_t)kBlockSamples * 4096;  // re-check now and then
+    for (int i = 0; i < kSlots; i++) {
+        const Slot& s = slot_[i];
+        if (!s.expr && !s.pending) continue;
+        int64_t need = sampleAt(s.h) - (int64_t)lookahead_;
+        if (need < until) until = need;
+    }
+    if (hasPrev_ && cur_.s0 < until) until = cur_.s0;
+    if (until <= now) return;
+    idleUntil_ = (uint32_t)(until / kBlockSamples);
+    idleValid_ = true;
 }
 
 void Scheduler::fail(int i, const char* msg) {
@@ -318,6 +343,11 @@ bool Scheduler::queryWindow(int i, Q s, Q e) {
 }
 
 int Scheduler::update(uint32_t (*clockUs)(), uint32_t budgetUs) {
+    if (idleValid_ && (int32_t)(block_ - idleUntil_) < 0) {
+        stats_.idleUpdates++;
+        return 0;
+    }
+    idleValid_ = false;
     retireAnchor();
     int64_t now = (int64_t)block_ * kBlockSamples;
     Q nowC = cycleAt(now);
@@ -333,7 +363,10 @@ int Scheduler::update(uint32_t (*clockUs)(), uint32_t budgetUs) {
             if ((!s.expr && !s.pending) || (waiting >> j & 1) || !(s.h < target)) continue;
             if (i < 0 || s.h < slot_[i].h) i = j;
         }
-        if (i < 0) break;
+        if (i < 0) {
+            if (!waiting) setIdle();  // all queued: nothing to do for a while
+            break;
+        }
         Slot& s = slot_[i];
         // stalled (e.g. project load): skip what can no longer play in time
         if (sampleAt(s.h) + (int64_t)lateBlocks_ * kBlockSamples < now) {

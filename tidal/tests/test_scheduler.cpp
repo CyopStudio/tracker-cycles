@@ -305,6 +305,32 @@ void testPlayback() {
     SEXPECT(offs9 >= ons9 - 4 && offs9 <= ons9, "d9: %d noteOns, %d noteOffs", ons9, offs9);
 }
 
+// update() every block (like the device main loop): most calls return at
+// once, and nothing is lost or late; an evaluate during the idle stretch
+// still switches on time.
+void testIdleUpdates() {
+    reset();
+    if (!load("d1 $ s \"bd*4\"\nd2 $ s \"hh*8\"\nd9 $ n \"0 7\" # s \"midi\" # legato 0.5\n")) return;
+    evalSlot(0);
+    evalSlot(8);
+    const uint32_t mid = (uint32_t)(refSample(Q{5, 2}) / kBlockSamples);
+    run((uint32_t)(refSample(Q{7, 1}) / kBlockSamples) + 20, 1, [&](uint32_t b) {
+        if (b == mid) evalSlot(1);  // d2 joins at cycle 3
+    });
+    std::vector<Onset> want;
+    refOnsets(0, Q{1, 1}, Q{7, 1}, want);
+    refOnsets(8, Q{1, 1}, Q{7, 1}, want);
+    refOnsets(1, Q{3, 1}, Q{7, 1}, want);
+    sameOnsets(played(0, refSample(Q{7, 1}) - 1), want, "update() every block");
+    int late = 0;
+    for (const Rec& r : gVoice.on) late += r.late != 0;
+    SEXPECT(late == 0, "%d notes late", late);
+    const SchedulerStats& st = gS.stats();
+    uint32_t calls = (uint32_t)(refSample(Q{7, 1}) / kBlockSamples);
+    SEXPECT(st.idleUpdates > calls * 9 / 10, "only %u of ~%u update() calls returned at once", st.idleUpdates,
+            calls);
+}
+
 // 8 sample slots hitting together: at most 4 starts per block, the rest one
 // block later, fairly; MIDI never waits.
 void testNoteStartCap() {
@@ -585,6 +611,7 @@ void testScheduler(int& pass, int& fail) {
     testStall();
     testDense();
     testMono();
+    testIdleUpdates();
     testHushAndErrors();
     printf("scheduler: %s\n", fail == f0 ? "ok" : "FAILED");
 }

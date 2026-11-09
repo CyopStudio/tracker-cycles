@@ -112,6 +112,9 @@ else wrapped onto the active instruments; `n` / `note` add to C5; `gain`
 x100 = step volume; looped instruments get a noteOff after the event's
 length, one-shots play out. d9..d16 (MIDI) are not mapped yet.
 
+v3 (2026-11-09): update() returns at once while no slot needs a query
+(report: "idle update() calls"); build as PolyendTrac_TidalTick3.ptf.
+
 v2 (2026-11-09): scheduler object in internal RAM (ring entries in
 SDRAM), mono sample slots (`setMonoSlots`: of several starts due in one
 block only the last plays), set 1 timing fixed.

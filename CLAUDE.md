@@ -296,13 +296,23 @@ folders listed in the project (e.g. a manifest) on project load.
      set 2 ~34k (4 starts). Audio load 59 % (set 1) / 77-79 %. Main loop:
      update() takes 36-42 % of wall time even for set 1 (3 trivial
      slots): ~36 us per call x ~10k calls/s, mostly NOT queries (set 1
-     queries total 59 ms of 7.2 s) -> next: early exit when no slot needs
-     work yet. Heavy set queries ~10 s of 14 s (-Os) in update; stut 8
+     queries total 59 ms of 7.2 s) -> fixed in v3 (below). Heavy set queries ~10 s of 14 s (-Os) in update; stut 8
      window 11.2 ms avg -Os / 8.5 ms -O2 (wall, interrupts included).
      -O2 vs -Os: 1.1-1.5x on queries, flash 97.4 % vs 95.1 %, stack 20.2
      KB deepest (4.4 KB spare of 24 KB) vs 18.5 KB. Mapping 3-25k cycles
      per event (wall; s-name lookup scans 48 instruments in mtProject:
      cache it in 4c).
+     v3 (2026-11-09, docs/tidal_tick.txt, -Os): update() early exit: after a call that queued
+     everything it returns at once until the first block a slot needs a
+     query (horizon - lookahead) or a cps anchor retires; evaluate /
+     silence / hush / setCps / setSampleRate / setLookahead reset it.
+     Host test testIdleUpdates (update() every block: > 90 % idle calls,
+     nothing late); mutations (no reset on evaluate, wake one lookahead
+     late) caught. Report adds "idle update() calls". Results: update()
+     share of main-loop wall time set 1 36 -> 5.4 %, everyday 8 slots
+     40 -> 10.2 %, heavy 70 -> 56 % (now nearly all queries), 8x bd*16
+     42 -> 11.5 %; 96-99 % of calls return at once; main loop runs 1.7x
+     more passes in set 1. Interrupt side unchanged, still no drops.
    - 4c. Control mapping to playerEngine noteOn/mod*() calls, MIDI out for
      MIDI channels, and the per-channel voice allocator (Polyphony below).
    - 4d. Device editor: step 1 editor logic + FT812 drawing layer +
