@@ -92,7 +92,7 @@ struct RecVoice : Voice {
     void noteOn(int slot, const Entry& e, uint32_t late) override {
         on.push_back(Rec{now, slot, e.block, e.offset, e.note, late});
     }
-    void noteOff(int slot, uint8_t note, uint8_t offset) override {
+    void noteOff(int slot, uint8_t, uint8_t note, uint8_t offset) override {
         off.push_back(Rec{now, slot, now, offset, note, 0});
     }
     void allOff() override { allOffs++; }

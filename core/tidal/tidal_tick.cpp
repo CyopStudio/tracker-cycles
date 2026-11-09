@@ -1,22 +1,23 @@
 // Device tick test build (see tidal_tick.h and README.md).
 //
-// v2: the scheduler object (what the interrupt reads every block) in
-// internal RAM, ring entries in SDRAM; mono sample slots (of several starts
-// due in one block only the last plays); per-slot query timing; mapping
-// cost; idle-tick cost; waits for a loaded project.
+// v4: the real control mapping (plan 4c): tidal/core/mapping.* on the main
+// loop, playerEngine::tidalNoteOn and MIDI out (tidal_device.*) in the
+// interrupt; sets 5-6 are listening tests (sample controls, MIDI).
+// v2-v3: scheduler object in internal RAM, mono sample slots, per-slot
+// query timing, update() early exit; waits for a loaded project.
 //
 // Once a project with instruments is loaded (15 s after boot at the
-// earliest, 60 s at the latest) it plays a list of test sets (built in, or the one in
-// /tidal_tick.tidal if the card has it), 20 s each, on the loaded
-// project's sample instruments: `s` picks the instrument whose file name
-// matches (case-insensitive, without extension), else the instrument at
-// that name's position in the prototype's default list (bd = 1, sd = 2,
-// ...), else wraps onto the active instruments. `n` / `note` add to C5,
-// `gain` sets the step volume (x100). d9..d16 (MIDI) are not mapped yet.
+// earliest, 60 s at the latest) it plays a list of test sets (built in, or
+// the one in /tidal_tick.tidal if the card has it), 20 s each, on the
+// project's instruments: `s` picks the instrument whose file name matches
+// (case-insensitive, without extension); for this test a name with no
+// match falls back to its position in the prototype's default list (bd =
+// 1, sd = 2, ...), wrapped onto the active instruments, so any project
+// makes sound. MIDI (d9-d16) goes out on the configured MIDI ports.
 //
 // After each set it appends to /tidal_tick.txt: interrupt cost of
-// tidalTick per block (all blocks / blocks that started notes) and per
-// noteOn, note starts per block, lateness, the scheduler's counters, the
+// tidalTick per block and per noteOn (with its overrides), note starts per
+// block, lateness, the scheduler's and the mapper's counters, the
 // main-loop time spent in update() and the audio load.
 #ifdef TIDAL_TICK
 #include "tidal_tick.h"
@@ -38,6 +39,7 @@
 #include "../../tidal/core/check.h"
 #include "../../tidal/core/parse.h"
 #include "../../tidal/core/scheduler.h"
+#include "tidal_device.h"
 
 extern "C" {
 extern char* __brkval;        // heap end (teensy core)
@@ -96,6 +98,19 @@ const char* const kSets[] = {
     "d6 $ s \"cr*16\"\n"
     "d7 $ s \"lt*16\"\n"
     "d8 $ s \"mt*16\"\n",
+    // 5: listening, sample controls (one effect per track, see README)
+    "d1 $ s \"bd*4\" # pan \"0 1\"\n"
+    "d2 $ s \"hh*8\" # cutoff (range 300 8000 $ slow 4 sine) # resonance 0.3\n"
+    "d3 $ s \"sd*2\" # crush \"<16 8 6 4>\"\n"
+    "d4 $ n \"0 .. 7\" # s \"arpy\" # room 0.5 # legato 0.5\n"
+    "d5 $ s \"bd\" # speed \"<1 2 -1 0.5>\" # gain 1.1\n"
+    "d6 $ s \"cp*2\" # begin \"<0 0.25 0.5>\" # hpf 400\n"
+    "d7 $ s \"<lt mt ht>*2\" # shape 0.6 # delay 0.4\n"
+    "d8 $ s \"drum*4\" # gain \"1 0.7 0.85 0.7\" # attack \"<0 0.05>\" # release 0.1\n",
+    // 6: listening, MIDI out (channels 1 and 2) next to a kick
+    "d1 $ s \"bd*4\"\n"
+    "d9 $ n \"0 4 7 12\" # velocity \"0.5 1\" # legato 0.5\n"
+    "d10 $ n \"<c'maj e'min>\" # midichan 1 # ccn 74 # ccv (range 0 127 sine) # legato 1\n",
 };
 constexpr int kSetCount = sizeof kSets / sizeof kSets[0];
 
@@ -150,112 +165,67 @@ struct IsrStats {
     uint32_t offs;
     uint32_t maxStarts;    // note starts in one block
     uint32_t late[4];      // 0, 1, 2, 3+ blocks late
+    uint32_t mods;         // overrides carried by the notes played
 };
 IsrStats isr;
 volatile bool isrReset = false;
 volatile bool running = false;
 uint32_t blockStarts = 0;
 
-struct DeviceVoice : tc::Voice {
+// DeviceVoice, timed
+struct TickVoice : DeviceVoice {
     void noteOn(int slot, const Entry& e, uint32_t late) override {
-        if (slot >= audioEngine::kVoices) return;
         const uint32_t t0 = CYCLES();
-        instrumentPlayer[slot].noteOn(e.chan, (int8_t)e.note, e.vel == 255 ? -1 : (int8_t)e.vel, 0, 0, 0, 0);
+        DeviceVoice::noteOn(slot, e, late);
         const uint32_t c = CYCLES() - t0;
         isr.noteOnCyc += c;
         if (c > isr.noteOnCycMax) isr.noteOnCycMax = c;
         isr.notes++;
+        isr.mods += e.nmods;
         isr.late[late < 3 ? late : 3]++;
-        blockStarts++;
+        if (slot < audioEngine::kVoices) blockStarts++;
     }
-    void noteOff(int slot, uint8_t, uint8_t) override {
-        if (slot >= audioEngine::kVoices) return;
-        instrumentPlayer[slot].noteOff();
+    void noteOff(int slot, uint8_t chan, uint8_t note, uint8_t offset) override {
+        DeviceVoice::noteOff(slot, chan, note, offset);
         isr.offs++;
     }
-    void allOff() override {
-        for (int i = 0; i < audioEngine::kVoices; i++) instrumentPlayer[i].noteOff();
+};
+TickVoice voice;
+
+// Test only: names no instrument file matches fall back to the prototype's
+// default list (bd = 1, ...) wrapped onto the active instruments.
+struct TestHost : DeviceHost {
+    int fallbackInstrument(const char* name) const override {
+        int k = -1;
+        for (int i = 0; i < 48 && k < 0; i++)
+            if (!strcmp(name, kDefaultNames[i])) k = i;
+        if (k < 0) {
+            unsigned h = 0;
+            for (const char* c = name; *c; c++) h = h * 31 + (unsigned char)*c;
+            k = (int)(h % 48);
+        }
+        if (mtProject.instrument[k].isActive == 1) return k;
+        int active[kSampleInstrumentsCount], n = 0;
+        for (int i = 0; i < kSampleInstrumentsCount; i++)
+            if (mtProject.instrument[i].isActive == 1) active[n++] = i;
+        return n ? active[k % n] : -1;
     }
 };
-DeviceVoice voice;
+TestHost host;
 
-// ---- mapping (a first cut of step 4c) -------------------------------------------
-int nameMatches(const char* name, const char* file) {
-    int i = 0;
-    for (; name[i]; i++)
-        if (tolower((unsigned char)name[i]) != tolower((unsigned char)file[i])) return 0;
-    return file[i] == '.' || file[i] == 0;
-}
-
-int findInstrument(const char* name) {
-    for (int i = 0; i < kSampleInstrumentsCount; i++)
-        if (mtProject.instrument[i].isActive && nameMatches(name, mtProject.instrument[i].sample.file_name)) return i;
-    int k = -1;
-    for (int i = 0; i < 48 && k < 0; i++)
-        if (!strcmp(name, kDefaultNames[i])) k = i;
-    if (k < 0) {  // unknown name: a stable pick from its letters
-        unsigned h = 0;
-        for (const char* c = name; *c; c++) h = h * 31 + (unsigned char)*c;
-        k = (int)(h % 48);
-    }
-    if (mtProject.instrument[k].isActive) return k;
-    int active[kSampleInstrumentsCount], n = 0;
-    for (int i = 0; i < kSampleInstrumentsCount; i++)
-        if (mtProject.instrument[i].isActive) active[n++] = i;
-    return n ? active[k % n] : -1;
-}
-
-struct DeviceMapper : tc::Mapper {
-    int keyS = -1, keySound = -1, keyN = -1, keyNote = -1, keyGain = -1;
-    uint32_t unmapped = 0, maps = 0;
+// TrackerMapper, timed (cycles on the main loop, interrupts included)
+struct TimedMapper : tc::TrackerMapper {
+    uint32_t maps = 0;
     uint64_t mapCyc = 0;
-    void initKeys() {
-        keyS = tc::controlKey("s");
-        keySound = tc::controlKey("sound");
-        keyN = tc::controlKey("n");
-        keyNote = tc::controlKey("note");
-        keyGain = tc::controlKey("gain");
-    }
     bool map(const tc::Program& p, int slot, const tc::Event& e, float spc, float lenSamples, Entry& out) override {
         const uint32_t t0 = CYCLES();
-        const bool ok = mapTimed(p, slot, e, spc, lenSamples, out);
+        const bool ok = tc::TrackerMapper::map(p, slot, e, spc, lenSamples, out);
         mapCyc += CYCLES() - t0;
         maps++;
         return ok;
     }
-    bool mapTimed(const tc::Program& p, int slot, const tc::Event& e, float, float lenSamples, Entry& out) {
-        if (slot >= audioEngine::kVoices || !e.isMap) {
-            unmapped++;
-            return false;
-        }
-        int instr = -1;
-        float n = 0, gain = -1;
-        for (int i = 0; i < e.nctl; i++) {
-            const tc::Ctl& c = e.ctl[i];
-            if (c.key == keyS || c.key == keySound) {
-                char name[32];
-                tc::formatCtl(p, c, name, sizeof name);
-                instr = findInstrument(name);
-            } else if (c.key == keyN || c.key == keyNote) {
-                n += c.f;
-            } else if (c.key == keyGain) {
-                gain = c.f;
-            }
-        }
-        if (instr < 0) {
-            unmapped++;
-            return false;
-        }
-        long note = kC5Note + lroundf(n);
-        out.chan = (uint8_t)instr;
-        out.note = (uint8_t)(note < 0 ? 0 : note > 127 ? 127 : note);
-        out.vel = gain < 0 ? 255 : (uint8_t)fminf(fmaxf(gain * 100.0f, 0.0f), 100.0f);
-        // looped instruments need a release; one-shots play out
-        out.dur = mtProject.instrument[instr].playMode == playModeSingleShot ? 0 : (uint32_t)lenSamples;
-        return true;
-    }
 };
-DeviceMapper mapper;
+TimedMapper mapper;
 
 // ---- main-loop side -------------------------------------------------------------
 int gSet = -1;           // current set (-1: not started)
@@ -322,7 +292,7 @@ void start() {
     live->clear();
     if (tc::engineMemoryBytes(kFastEvents, kFastCtls, kFastParams) <= (int)sizeof fastMem)
         tc::engineUseMemory(fastMem, kFastEvents, kFastCtls, kFastParams);
-    mapper.initKeys();
+    mapper.init(&host, 750000.0f / 17.0f);
     tc::engineResetMinStack();
     sched->init(live, buf, kQueryCap, &mapper, reinterpret_cast<tc::Entry*>(storageRaw),
                 tc::Scheduler::Hooks{irqOff, irqOn});
@@ -354,7 +324,7 @@ int activeInstruments() {
 
 int header(int n) {
     return n + snprintf(report + n, sizeof report - n,
-                        "Tracker Cycles device tick test v3 (" TC_TICK_VARIANT "), %s, %d s per set\n"
+                        "Tracker Cycles device tick test v4 (" TC_TICK_VARIANT "), %s, %d s per set\n"
                         "%d active instruments; scheduler object %u B (internal RAM), entries %u B, live program "
                         "%u B (SDRAM); engine working set in internal RAM: %s; mono sample slots\n"
                         "cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles\n\n",
@@ -363,6 +333,12 @@ int header(int n) {
                         (unsigned)sizeof(tc::Program),
                         tc::engineMemoryBytes(kFastEvents, kFastCtls, kFastParams) <= (int)sizeof fastMem ? "yes"
                                                                                                          : "no");
+}
+
+uint32_t unmapped() {
+    uint32_t u = 0;
+    for (int i = 0; i < tc::kSlots; i++) u += mapper.warnings(i).unknownName + mapper.warnings(i).noSound;
+    return u;
 }
 
 int setReport(int n, uint32_t ms) {
@@ -378,7 +354,7 @@ int setReport(int n, uint32_t ms) {
     n += snprintf(report + n, sizeof report - n,
                   "tick: %lu blocks, avg %lu cycles, max %lu; idle blocks (no start) %lu: avg %lu, max %lu; "
                   "%lu blocks with starts: avg %lu, max %lu\n"
-                  "noteOn: %lu, avg %lu cycles, max %lu; noteOffs %lu; most starts in one block %lu\n"
+                  "noteOn: %lu (avg %lu.%lu overrides), avg %lu cycles, max %lu; noteOffs %lu; most starts in one block %lu\n"
                   "late (blocks): 0: %lu, 1: %lu, 2: %lu, 3+: %lu; dropped %lu, capped %lu, superseded %lu, "
                   "unmapped %lu\n"
                   "main loop: update() %lu calls, %lu ms in %lu ms (%lu.%lu %%), longest call %lu us; "
@@ -390,16 +366,24 @@ int setReport(int n, uint32_t ms) {
                   (unsigned long)s.blocks, avg(s.cyc, s.blocks), (unsigned long)s.cycMax, (unsigned long)idle,
                   avg(s.cyc - s.noteBlockCyc, idle), (unsigned long)s.idleCycMax, (unsigned long)s.noteBlocks,
                   avg(s.noteBlockCyc, s.noteBlocks), (unsigned long)s.noteBlockCycMax, (unsigned long)s.notes,
-                  avg(s.noteOnCyc, s.notes), (unsigned long)s.noteOnCycMax, (unsigned long)s.offs,
+                  avg(s.mods, s.notes), avg((uint64_t)s.mods * 10, s.notes) % 10, avg(s.noteOnCyc, s.notes), (unsigned long)s.noteOnCycMax, (unsigned long)s.offs,
                   (unsigned long)s.maxStarts, (unsigned long)s.late[0], (unsigned long)s.late[1],
                   (unsigned long)s.late[2], (unsigned long)s.late[3], (unsigned long)st.dropped,
-                  (unsigned long)st.capped, (unsigned long)st.superseded, (unsigned long)mapper.unmapped,
+                  (unsigned long)st.capped, (unsigned long)st.superseded, (unsigned long)unmapped(),
                   (unsigned long)updCalls, (unsigned long)(updUs / 1000), (unsigned long)ms,
                   (unsigned long)(ms ? updUs / 10 / ms : 0), (unsigned long)(ms ? updUs / ms % 10 : 0),
                   (unsigned long)updMaxUs, (unsigned long)loopGapMaxUs, (unsigned long)st.queries,
                   (unsigned long)st.idleUpdates,
                   (unsigned long)st.splits, (unsigned long)st.skips, (long)sched->window().n, (long)sched->window().d,
                   (unsigned long)mapper.maps, avg(mapper.mapCyc, mapper.maps), u.average, u.tempMaximum);
+    for (int i = 0; i < tc::kSlots; i++) {
+        const tc::MapWarnings& w = mapper.warnings(i);
+        if (w.unknownName || w.noSound || w.droppedMods || w.filterClash)
+            n += snprintf(report + n, sizeof report - n,
+                          "d%d mapping: unknown s %lu (last '%s'), no s %lu, too many controls %lu, filter clash %lu\n",
+                          i + 1, (unsigned long)w.unknownName, w.lastUnknown, (unsigned long)w.noSound,
+                          (unsigned long)w.droppedMods, (unsigned long)w.filterClash);
+    }
     n += snprintf(report + n, sizeof report - n, "per slot (wall time, interrupts included): windows, avg us, max us\n");
     for (int i = 0; i < tc::kSlots; i++)
         if (st.slotWindows[i])
@@ -418,7 +402,8 @@ int setReport(int n, uint32_t ms) {
 void resetCounters() {
     isrReset = true;
     updCalls = updUs = updMaxUs = loopGapMaxUs = 0;
-    mapper.unmapped = mapper.maps = 0;
+    mapper.resetWarnings();
+    mapper.maps = 0;
     mapper.mapCyc = 0;
     sched->resetStats();
     Profiler::getInstance()->resetMeasuringAudio();

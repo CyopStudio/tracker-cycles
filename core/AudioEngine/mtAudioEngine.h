@@ -273,6 +273,17 @@ class playerEngine
               AudioMixer<MixerAndFxs<audioEngine::kVoices>::kSendsInputsCount>* prePolyverbMixer);
 
     uint8_t noteOn(uint8_t instr_idx, int8_t note, int8_t velocity);
+    // Tracker Cycles (mtAudioTidal.cpp, only with -DTIDAL_TICK for now): a
+    // note with Tidal's per-note overrides (ids / values of tc::TMod,
+    // tidal/core/mapping.h). Every note starts from the instrument; the
+    // previous Tidal note's overrides that this one lacks are ended.
+    // velocity: volume step 0..100, -1 = the instrument's.
+    uint8_t tidalNoteOn(uint8_t instr_idx,
+                        int8_t note,
+                        int8_t velocity,
+                        const uint8_t* modId,
+                        const uint16_t* modVal,
+                        uint8_t nmods);
     uint8_t noteOn(uint8_t instr_idx,
                    int8_t note,
                    int8_t velocity,
@@ -599,6 +610,7 @@ class playerEngine
     envelopeGenerator* envelopePtr[envMax];
     uint8_t nChannel;
     uint8_t lastSeqFx[2];
+    uint32_t tidalMods = 0;  // TMod bits the last tidalNoteOn set
     uint8_t lastSeqVal[2];
     int8_t currentNote;
     uint32_t refreshRegister;

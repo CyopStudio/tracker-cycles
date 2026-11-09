@@ -103,12 +103,15 @@ private:
 
     const TrackerHost* host_ = nullptr;
     float fs_ = 44100.0f;
-    CacheSlot cache_[kCache];
-    MapWarnings warn_[kSlots];
+    CacheSlot cache_[kCache] = {};
+    MapWarnings warn_[kSlots] = {};
     // control keys (engine.h controlKey), resolved once
-    int kS_, kN_, kNote_, kSpeed_, kGain_, kAmp_, kVelocity_, kPan_, kCutoff_, kHcutoff_, kBandf_, kRes_,
-        kHres_, kShape_, kDistort_, kCrush_, kRoom_, kDelay_, kBegin_, kEnd_, kAttack_, kRelease_, kLegato_,
-        kSustain_, kMidichan_, kCcn_, kCcv_, kBend_;
+    // (all initialised: a static TrackerMapper is constant-initialised, no
+    // static constructor; CLAUDE.md SDRAM gotcha)
+    int kS_ = -1, kN_ = -1, kNote_ = -1, kSpeed_ = -1, kGain_ = -1, kAmp_ = -1, kVelocity_ = -1, kPan_ = -1,
+        kCutoff_ = -1, kHcutoff_ = -1, kBandf_ = -1, kRes_ = -1, kHres_ = -1, kShape_ = -1, kDistort_ = -1,
+        kCrush_ = -1, kRoom_ = -1, kDelay_ = -1, kBegin_ = -1, kEnd_ = -1, kAttack_ = -1, kRelease_ = -1,
+        kLegato_ = -1, kSustain_ = -1, kMidichan_ = -1, kCcn_ = -1, kCcv_ = -1, kBend_ = -1;
 };
 
 }  // namespace tc

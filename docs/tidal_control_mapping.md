@@ -143,10 +143,24 @@ mode is what the device can do (minus sound differences).
    anything the device can't play on that slot kind (smoke session 10).
    The prototype's MIDI routing now uses `|<` so a `# midichan` in the
    code wins, as on the device.
-3. Device: `playerEngine::tidalNoteOn` (core/AudioEngine/mtAudioTidal.cpp)
-   + MIDI out; tick test v4 plays a listening set (pan, cutoff sweep,
-   crush, room, begin/end, slices, speed, legato, MIDI) and reports
-   noteOn cost with mods.
+3. Built (2026-11-09), not yet run on the device:
+   `playerEngine::tidalNoteOn` (core/AudioEngine/mtAudioTidal.cpp, 1.8 KB):
+   the sequencer noteOn's steps; overrides set through the player's
+   lane-0 step-FX state and setters (filter + type, pan, bit depth,
+   sends, overdrive, reverse, fine tune, slice, start / end points,
+   amp attack / release via the ampAttack / ampRelease flags read by the
+   envelope init), resonance set on the filter directly (no step FX);
+   overrides of the previous Tidal note that this one lacks are ended
+   with the stock endFx*(0); step FX the stock sequencer left are ended
+   first. core/tidal/tidal_device.* (DeviceHost: instruments, kind,
+   slices, volume step by the ampLogValues curve; DeviceVoice:
+   tidalNoteOn / MIDI notes, CC, bend, all-notes-off on hush). The
+   scheduler's noteOff table now keeps the channel (`Voice::noteOff(slot,
+   chan, note, offset)`) so MIDI note-offs follow `midichan`. Tick test v4
+   with two listening sets (core/tidal/README.md).
+   Known approximations: attack-only events also set the decay to the
+   instrument's release (the step-FX envelope rule); pads / previews on a
+   track keep the last Tidal note's overrides until the next Tidal note.
 4. Then the per-channel voice allocator (Polyphony plan) is the next
    step on top: the Entry gets a voice field.
 

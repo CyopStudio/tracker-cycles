@@ -418,7 +418,7 @@ void Scheduler::tick(Voice& v) {
             if (o.active && (int32_t)(o.block - b) <= 0) {
                 o.active = false;
                 nOff_[i]--;
-                v.noteOff(i, o.note, o.offset);
+                v.noteOff(i, o.chan, o.note, o.offset);
             }
     }
     int starts = 0;
@@ -465,13 +465,14 @@ void Scheduler::tick(Voice& v) {
                     slotFor = &offs[0];
                     for (int j = 1; j < kMaxPendingOffs; j++)
                         if ((int32_t)(offs[j].block - slotFor->block) < 0) slotFor = &offs[j];
-                    v.noteOff(i, slotFor->note, 0);
+                    v.noteOff(i, slotFor->chan, slotFor->note, 0);
                 } else {
                     nOff_[i]++;
                 }
                 slotFor->block = (uint32_t)(at / kBlockSamples);
                 slotFor->offset = (uint8_t)(at % kBlockSamples);
                 slotFor->note = e.note;
+                slotFor->chan = e.chan;
                 slotFor->active = true;
             }
             h++;

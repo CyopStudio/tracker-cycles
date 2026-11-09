@@ -285,8 +285,9 @@ void testMidi() {
 // The scheduler carries the 48-byte entries through unchanged.
 struct RecVoice : Voice {
     std::vector<Entry> on;
+    std::vector<std::pair<int, int>> off;  // chan, note
     void noteOn(int, const Entry& e, uint32_t) override { on.push_back(e); }
-    void noteOff(int, uint8_t, uint8_t) override {}
+    void noteOff(int, uint8_t chan, uint8_t note, uint8_t) override { off.push_back({chan, note}); }
     void allOff() override {}
 };
 Entry gStorage[Scheduler::kStorageEntries];
@@ -320,6 +321,25 @@ void testThroughScheduler() {
              o.mod(TMod::Pan) == (i % 2 ? 100 : 0) && o.mod(TMod::BitDepth) == 6;
     }
     MEXPECT(ok, "entries through the scheduler: %zu notes", voice.on.size());
+
+    // MIDI noteOffs go to the channel their noteOn used (midichan varies)
+    gLive.clear();
+    gS.init(&gLive, gBuf, 256, &gMap, gStorage);
+    const char* midi = "d9 $ n \"0 1\" # midichan \"1 5\" # legato 0.5\n";
+    gProg.clear();
+    if (!parseFile(gProg, midi, (int)strlen(midi), e) || !checkProgram(gProg, ce)) {
+        MEXPECT(false, "parse midi");
+        return;
+    }
+    gS.evaluate(gProg, 8, err);
+    RecVoice mv;
+    for (int b = 0; b < 2000; b++) {
+        if (b % 8 == 0) gS.update();
+        gS.tick(mv);
+    }
+    bool chans = mv.off.size() >= 4;
+    for (const auto& o : mv.off) chans &= (o.second == 60 && o.first == 1) || (o.second == 61 && o.first == 5);
+    MEXPECT(chans, "MIDI noteOff channels: %zu offs", mv.off.size());
 }
 
 // Tracker mode: which functions / controls the device takes, per slot kind.

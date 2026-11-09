@@ -326,8 +326,19 @@ folders listed in the project (e.g. a manifest) on project load.
      (TrackerMapper, host-tested in tests/test_mapping.cpp), 10 new
      controls + 6 aliases (golden cases from real Tidal). Step 2 done:
      trackerCheck() (same table) in the prototype's evaluate + recheck,
-     menus filtered per slot kind (smoke session 10). Next: step 3,
-     playerEngine::tidalNoteOn + MIDI on the device.
+     menus filtered per slot kind (smoke session 10). Step 3:
+     playerEngine::tidalNoteOn (core/AudioEngine/mtAudioTidal.cpp),
+     core/tidal/tidal_device.* (DeviceHost / DeviceVoice, MIDI out), tick
+     test v4 with listening sets 5-6 (PolyendTrac_TidalTick4.ptf, flash
+     1,004,884 B = 95.8 %). v4 results (2026-11-09, docs/tidal_tick.txt):
+     no drops in any set; noteOn with overrides avg 5.0-5.8k cycles
+     (~31 us, max 7.1k), MIDI noteOn 3.3k; worst tick block ~25k cycles
+     (4.7 %); mapping 6k cycles per event (set 4, was 37k: name cache).
+     STACK: heap end now 20,480 B below the top of RAM (was 24,576), the
+     evaluator's deepest 18.5 KB -> only 1.9 KB spare. Fix before more
+     RAM goes in: move the checker's 28 KB type pool to SDRAM (used on
+     evaluate only) or raise the reserve. Listening results not yet
+     reported.
    - 4d. Device editor: step 1 editor logic + FT812 drawing layer +
      pad/encoder input.
    - 4e. Project files: .tidal file + sample banks load/save on SD.

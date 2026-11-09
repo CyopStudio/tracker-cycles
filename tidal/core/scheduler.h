@@ -61,7 +61,8 @@ class Voice {
 public:
     // `late` = blocks after the scheduled block (note-start cap, jitter)
     virtual void noteOn(int slot, const Entry& e, uint32_t late) = 0;
-    virtual void noteOff(int slot, uint8_t note, uint8_t offset) = 0;
+    // `chan` = the noteOn entry's chan (MIDI: the channel it went out on)
+    virtual void noteOff(int slot, uint8_t chan, uint8_t note, uint8_t offset) = 0;
     virtual void allOff() = 0;
 };
 
@@ -189,6 +190,7 @@ private:
         uint32_t block;
         uint8_t offset;
         uint8_t note;
+        uint8_t chan;
         bool active;
     };
 

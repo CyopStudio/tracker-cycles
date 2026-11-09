@@ -112,6 +112,37 @@ else wrapped onto the active instruments; `n` / `note` add to C5; `gain`
 x100 = step volume; looped instruments get a noteOff after the event's
 length, one-shots play out. d9..d16 (MIDI) are not mapped yet.
 
+v4 (2026-11-09, PolyendTrac_TidalTick4.ptf): the real control mapping
+(plan 4c step 3). The main loop maps events with tidal/core/mapping.*
+(`DeviceHost` in tidal_device.* describes mtProject's instruments); the
+interrupt plays them with `playerEngine::tidalNoteOn`
+(core/AudioEngine/mtAudioTidal.cpp) on tracks 1-8 and MIDI out
+(`sendMidiNoteOn/Off`, `sendCC`, `sendPitchbend`) for d9-d16. Six sets:
+1-4 as before (timing), then two listening sets, 20 s each:
+
+- Set 5, sample controls, one effect per track:
+  - d1 `bd*4 # pan "0 1"`: kicks alternate hard left / hard right.
+  - d2 `hh*8 # cutoff (range 300 8000 $ slow 4 sine)`: hats sweep dull to
+    bright and back about every 7 s (slight resonance).
+  - d3 `sd*2 # crush "<16 8 6 4>"`: snare gets crunchier each cycle.
+  - d4 `n "0 .. 7" # s "arpy" # room 0.5 # legato 0.5`: rising 8-note
+    run, short notes, in reverb.
+  - d5 `bd # speed "<1 2 -1 0.5>"`: per cycle normal, octave up,
+    backwards, octave down.
+  - d6 `cp*2 # begin "<0 0.25 0.5>" # hpf 400`: thin clap starting later
+    into the sample each cycle.
+  - d7 `<lt mt ht>*2 # shape 0.6 # delay 0.4`: distorted toms with echoes.
+  - d8 `drum*4 # gain "1 0.7 0.85 0.7" # attack "<0 0.05>"`: accent on
+    the first hit; every other cycle the hits fade in (50 ms attack).
+- Set 6, MIDI next to a kick: d9 on channel 1 plays C E G C (velocity
+  alternating soft / loud, short notes); d10 on channel 2 plays C major /
+  E minor chords, one per cycle, with CC 74 sweeping 0-127.
+
+Names follow the project's sample file names first; with no match the
+test falls back to the default-list position (bd = 1st instrument, ...).
+The report adds overrides per note and per-slot mapping warnings
+(unknown `s` names, too many controls, filter clashes).
+
 v3 (2026-11-09): update() returns at once while no slot needs a query
 (report: "idle update() calls"); build as PolyendTrac_TidalTick3.ptf.
 

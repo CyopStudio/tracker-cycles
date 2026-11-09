@@ -197,7 +197,7 @@ struct EngineBackend::Impl : Mapper, Voice {
         w.raw(m.b, m.len);
         if (w.ok) sendto(sock, b, w.n, 0, (const sockaddr*)&addr, addrLen);
     }
-    void noteOff(int, uint8_t, uint8_t) override {}  // SuperDirt plays events out by delta / legato
+    void noteOff(int, uint8_t, uint8_t, uint8_t) override {}  // SuperDirt plays events out by delta / legato
     void allOff() override {}
 
     // ---- threads ---------------------------------------------------------------------

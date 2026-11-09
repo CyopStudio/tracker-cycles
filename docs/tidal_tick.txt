@@ -1,25 +1,25 @@
-Tracker Cycles device tick test v3 (engine -Os), built-in sets, 20 s per set
-8 active instruments; scheduler object 3824 B (internal RAM), entries 69632 B, live program 71728 B (SDRAM); engine working set in internal RAM: yes; mono sample slots
+Tracker Cycles device tick test v4 (engine -Os), built-in sets, 20 s per set
+8 active instruments; scheduler object 3824 B (internal RAM), entries 104448 B, live program 71728 B (SDRAM); engine working set in internal RAM: yes; mono sample slots
 cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles
 
-== set 1 of 4
+== set 1 of 6
 d1 $ s "bd*4"
 d2 $ s "~ sd"
 d3 $ s "hh*8" # gain 0.8
 --
-tick: 6893 blocks, avg 1003 cycles, max 21498; idle blocks (no start) 6808: avg 891, max 1246; 85 blocks with starts: avg 10018, max 21498
-noteOn: 139, avg 5292 cycles, max 9249; noteOffs 0; most starts in one block 3
+tick: 6893 blocks, avg 1045 cycles, max 22179; idle blocks (no start) 6808: avg 926, max 1360; 85 blocks with starts: avg 10544, max 22179
+noteOn: 139 (avg 0.0 overrides), avg 5580 cycles, max 9633; noteOffs 0; most starts in one block 3
 late (blocks): 0: 139, 1: 0, 2: 0, 3+: 0; dropped 0, capped 0, superseded 0, unmapped 0
-main loop: update() 336915 calls, 1083 ms in 20000 ms (5.4 %), longest call 2921 us; longest gap between main-loop passes 1972 us
-scheduler: queries 513, idle update() calls 332621, window splits 0, horizon skips 0, window 1/16 cycle; mapping 140 events, avg 2929 cycles
-audio load: avg 59 %, max 66 %
+main loop: update() 328132 calls, 960 ms in 20000 ms (4.8 %), longest call 3202 us; longest gap between main-loop passes 8836 us
+scheduler: queries 513, idle update() calls 323897, window splits 0, horizon skips 0, window 1/16 cycle; mapping 140 events, avg 6372 cycles
+audio load: avg 59 %, max 67 %
 per slot (wall time, interrupts included): windows, avg us, max us
-  d1: 171, 126, 1170
-  d2: 171, 66, 107
-  d3: 171, 150, 171
-stack: evaluator deepest 7601 B below the top of RAM; heap end 24576 B below: 16975 B to spare
+  d1: 171, 139, 2869
+  d2: 171, 68, 135
+  d3: 171, 158, 199
+stack: evaluator deepest 7633 B below the top of RAM; heap end 20480 B below: 12847 B to spare
 
-== set 2 of 4
+== set 2 of 6
 d1 $ s "bd*2 [~ bd] bd"
 d2 $ s "~ sd" # n "<0 1>"
 d3 $ every 2 (fast 2) $ s "hh*8"
@@ -29,24 +29,24 @@ d6 $ s "cp*2" # pan sine
 d7 $ sometimes (# speed 2) $ s "drum*4"
 d8 $ s "<lt mt ht>*3"
 --
-tick: 6893 blocks, avg 1454 cycles, max 34313; idle blocks (no start) 6675: avg 1109, max 1553; 218 blocks with starts: avg 12024, max 34313
-noteOn: 455, avg 4966 cycles, max 10518; noteOffs 0; most starts in one block 4
+tick: 6893 blocks, avg 1521 cycles, max 35947; idle blocks (no start) 6675: avg 1150, max 1598; 218 blocks with starts: avg 12873, max 35947
+noteOn: 455 (avg 0.0 overrides), avg 5347 cycles, max 10812; noteOffs 0; most starts in one block 4
 late (blocks): 0: 397, 1: 58, 2: 0, 3+: 0; dropped 0, capped 58, superseded 0, unmapped 0
-main loop: update() 171666 calls, 2055 ms in 20000 ms (10.2 %), longest call 6090 us; longest gap between main-loop passes 2513 us
-scheduler: queries 1447, idle update() calls 169557, window splits 0, horizon skips 0, window 1/16 cycle; mapping 458 events, avg 24674 cycles
+main loop: update() 166769 calls, 1988 ms in 20000 ms (9.9 %), longest call 8111 us; longest gap between main-loop passes 2522 us
+scheduler: queries 1447, idle update() calls 164672, window splits 0, horizon skips 0, window 1/16 cycle; mapping 458 events, avg 21764 cycles
 audio load: avg 77 %, max 85 %
 per slot (wall time, interrupts included): windows, avg us, max us
-  d1: 184, 128, 188
-  d2: 184, 118, 215
-  d3: 184, 360, 2470
-  d4: 179, 2000, 2532
-  d5: 179, 848, 2756
-  d6: 179, 952, 2462
-  d7: 179, 1125, 2557
-  d8: 179, 754, 2524
-stack: evaluator deepest 9641 B below the top of RAM; heap end 24576 B below: 14935 B to spare
+  d1: 184, 131, 199
+  d2: 184, 120, 223
+  d3: 184, 392, 2484
+  d4: 179, 1929, 2537
+  d5: 179, 894, 2748
+  d6: 179, 1007, 2463
+  d7: 179, 1089, 2567
+  d8: 179, 731, 2550
+stack: evaluator deepest 9673 B below the top of RAM; heap end 20480 B below: 10807 B to spare
 
-== set 3 of 4
+== set 3 of 6
 setcps 0.7
 d1 $ stut 8 0.5 0.0625 $ s "hh*16" # n "0 .. 15"
 d2 $ jux rev $ chop 8 $ s "bd*8 sd*8" # speed "1 2"
@@ -57,24 +57,24 @@ d6 $ s "hh*16" # n "0 .. 15" # pan sine # gain (range 0.8 1 saw)
 d7 $ sometimes (# speed 2) $ often (# crush 4) $ s "[bd*4, hh*8, ~ sd]"
 d8 $ n (arp "up" "<c'maj e'min7 g'dom7 a'min>*2") # s "bass" # legato 0.5
 --
-tick: 6896 blocks, avg 3542 cycles, max 22331; idle blocks (no start) 5057: avg 1304, max 1633; 1839 blocks with starts: avg 9697, max 22331
-noteOn: 2758, avg 5183 cycles, max 5917; noteOffs 0; most starts in one block 4
-late (blocks): 0: 2349, 1: 409, 2: 0, 3+: 0; dropped 0, capped 409, superseded 4141, unmapped 0
-main loop: update() 73043 calls, 11301 ms in 20003 ms (56.4 %), longest call 11983 us; longest gap between main-loop passes 2538 us
-scheduler: queries 1796, idle update() calls 69536, window splits 0, horizon skips 0, window 1/16 cycle; mapping 6993 events, avg 7091 cycles
-audio load: avg 79 %, max 86 %
+tick: 6897 blocks, avg 3911 cycles, max 25393; idle blocks (no start) 5057: avg 1397, max 2403; 1840 blocks with starts: avg 10820, max 25393
+noteOn: 2759 (avg 1.9 overrides), avg 5836 cycles, max 6703; noteOffs 91; most starts in one block 4
+late (blocks): 0: 2350, 1: 409, 2: 0, 3+: 0; dropped 0, capped 409, superseded 4142, unmapped 0
+main loop: update() 62057 calls, 12174 ms in 20004 ms (60.8 %), longest call 14626 us; longest gap between main-loop passes 2601 us
+scheduler: queries 1796, idle update() calls 58558, window splits 0, horizon skips 0, window 1/16 cycle; mapping 6993 events, avg 16471 cycles
+audio load: avg 80 %, max 88 %
 per slot (wall time, interrupts included): windows, avg us, max us
-  d1: 225, 11197, 11954
-  d2: 225, 6773, 8364
-  d3: 225, 8927, 11559
-  d4: 225, 5658, 8206
-  d5: 224, 3013, 5371
-  d6: 224, 2527, 2778
-  d7: 224, 5519, 6041
-  d8: 224, 2437, 2881
-stack: evaluator deepest 18529 B below the top of RAM; heap end 24576 B below: 6047 B to spare
+  d1: 225, 11483, 14598
+  d2: 225, 7326, 8658
+  d3: 225, 10652, 14003
+  d4: 225, 5974, 8270
+  d5: 224, 3106, 5488
+  d6: 224, 2368, 2860
+  d7: 224, 6221, 8431
+  d8: 224, 1846, 2911
+stack: evaluator deepest 18561 B below the top of RAM; heap end 20480 B below: 1919 B to spare
 
-== set 4 of 4
+== set 4 of 6
 setcps 0.575
 d1 $ s "bd*16"
 d2 $ s "sd*16"
@@ -85,20 +85,71 @@ d6 $ s "cr*16"
 d7 $ s "lt*16"
 d8 $ s "mt*16"
 --
-tick: 6893 blocks, avg 2406 cycles, max 22305; idle blocks (no start) 6424: avg 1312, max 1632; 469 blocks with starts: avg 17380, max 22305
-noteOn: 1549, avg 4583 cycles, max 5807; noteOffs 0; most starts in one block 4
+tick: 6893 blocks, avg 2555 cycles, max 24573; idle blocks (no start) 6424: avg 1361, max 2452; 469 blocks with starts: avg 18922, max 24573
+noteOn: 1549 (avg 0.2 overrides), avg 5019 cycles, max 6612; noteOffs 6; most starts in one block 4
 late (blocks): 0: 842, 1: 707, 2: 0, 3+: 0; dropped 0, capped 707, superseded 283, unmapped 0
-main loop: update() 162962 calls, 2318 ms in 20000 ms (11.5 %), longest call 17054 us; longest gap between main-loop passes 2524 us
-scheduler: queries 1484, idle update() calls 160882, window splits 0, horizon skips 0, window 1/16 cycle; mapping 1780 events, avg 36882 cycles
-audio load: avg 78 %, max 85 %
+main loop: update() 155628 calls, 2342 ms in 20000 ms (11.7 %), longest call 17216 us; longest gap between main-loop passes 19753 us
+scheduler: queries 1484, idle update() calls 153522, window splits 0, horizon skips 0, window 1/16 cycle; mapping 1780 events, avg 6045 cycles
+audio load: avg 78 %, max 87 %
 per slot (wall time, interrupts included): windows, avg us, max us
-  d1: 185, 917, 14274
-  d2: 185, 543, 8300
-  d3: 185, 761, 11490
-  d4: 185, 2629, 8482
-  d5: 186, 380, 5360
-  d6: 186, 283, 2782
-  d7: 186, 540, 8165
-  d8: 186, 1884, 2813
-stack: evaluator deepest 18529 B below the top of RAM; heap end 24576 B below: 6047 B to spare
+  d1: 185, 937, 14361
+  d2: 185, 646, 8622
+  d3: 185, 885, 14305
+  d4: 185, 2661, 8522
+  d5: 186, 414, 5475
+  d6: 186, 304, 2846
+  d7: 186, 603, 8351
+  d8: 186, 2379, 2995
+stack: evaluator deepest 18561 B below the top of RAM; heap end 20480 B below: 1919 B to spare
+
+== set 5 of 6
+d1 $ s "bd*4" # pan "0 1"
+d2 $ s "hh*8" # cutoff (range 300 8000 $ slow 4 sine) # resonance 0.3
+d3 $ s "sd*2" # crush "<16 8 6 4>"
+d4 $ n "0 .. 7" # s "arpy" # room 0.5 # legato 0.5
+d5 $ s "bd" # speed "<1 2 -1 0.5>" # gain 1.1
+d6 $ s "cp*2" # begin "<0 0.25 0.5>" # hpf 400
+d7 $ s "<lt mt ht>*2" # shape 0.6 # delay 0.4
+d8 $ s "drum*4" # gain "1 0.7 0.85 0.7" # attack "<0 0.05>" # release 0.1
+--
+tick: 6894 blocks, avg 1498 cycles, max 24760; idle blocks (no start) 6771: avg 1172, max 2620; 123 blocks with starts: avg 19456, max 24760
+noteOn: 391 (avg 1.3 overrides), avg 5466 cycles, max 7137; noteOffs 89; most starts in one block 4
+late (blocks): 0: 290, 1: 101, 2: 0, 3+: 0; dropped 0, capped 101, superseded 0, unmapped 0
+main loop: update() 149979 calls, 2664 ms in 20002 ms (13.3 %), longest call 8309 us; longest gap between main-loop passes 2613 us
+scheduler: queries 1472, idle update() calls 147930, window splits 0, horizon skips 0, window 1/16 cycle; mapping 379 events, avg 24585 cycles
+audio load: avg 79 %, max 88 %
+per slot (wall time, interrupts included): windows, avg us, max us
+  d1: 184, 191, 225
+  d2: 184, 454, 2587
+  d3: 184, 2196, 2624
+  d4: 184, 492, 2634
+  d5: 184, 1804, 2565
+  d6: 184, 865, 2647
+  d7: 184, 1554, 2569
+  d8: 184, 1328, 2724
+stack: evaluator deepest 18561 B below the top of RAM; heap end 20480 B below: 1919 B to spare
+
+== set 6 of 6
+d1 $ s "bd*4"
+d9 $ n "0 4 7 12" # velocity "0.5 1" # legato 0.5
+d10 $ n "<c'maj e'min>" # midichan 1 # ccn 74 # ccv (range 0 127 sine) # legato 1
+--
+tick: 6894 blocks, avg 1124 cycles, max 23943; idle blocks (no start) 6844: avg 1046, max 2746; 50 blocks with starts: avg 11690, max 23943
+noteOn: 140 (avg 0.4 overrides), avg 3338 cycles, max 6850; noteOffs 79; most starts in one block 4
+late (blocks): 0: 137, 1: 3, 2: 0, 3+: 0; dropped 0, capped 3, superseded 0, unmapped 0
+main loop: update() 273301 calls, 1225 ms in 20001 ms (6.1 %), longest call 5963 us; longest gap between main-loop passes 2574 us
+scheduler: queries 610, idle update() calls 269376, window splits 0, horizon skips 0, window 1/16 cycle; mapping 138 events, avg 21223 cycles
+audio load: avg 65 %, max 87 %
+per slot (wall time, interrupts included): windows, avg us, max us
+  d1: 185, 127, 223
+  d2: 11, 859, 2578
+  d3: 11, 1727, 2577
+  d4: 11, 688, 2619
+  d5: 11, 1913, 2554
+  d6: 11, 679, 2628
+  d7: 11, 2135, 2563
+  d8: 11, 969, 2717
+  d9: 174, 211, 2554
+  d10: 174, 749, 2929
+stack: evaluator deepest 18561 B below the top of RAM; heap end 20480 B below: 1919 B to spare
 
