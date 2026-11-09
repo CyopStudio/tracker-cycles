@@ -25,6 +25,42 @@ to upstream CE.
 - Editing on device: structured tree editor (pads + scroll wheel); the text
   is rendered from the tree. Parser only runs when loading .tidal files.
 
+## Editor controls (prototype, agreed with the user)
+- Every input goes through an Original Tracker control: the button ->
+  editor mapping lives in tidal/proto/hardware.cpp (`controlCommand()`) and
+  is meant to be reused by the device editor (4d). Keyboard keys either
+  press a fixed control or the control that does that job right now; a key
+  with no Tracker equivalent does nothing. Full table: tidal/README.md.
+- The prototype window draws a mock front panel (tidal/proto/panel.cpp)
+  matching the real unit: screen top left, 8 screen buttons under it,
+  12x4 pads below; right side three rows of five (Params..Master,
+  Sample Loader..Song, Note/Instrument/FX1/FX2/Pattern), then Play/Copy/
+  Insert/Up/Delete and Rec/Shift/Left/Down/Right, jog wheel bottom right.
+  FX1 = `interfaceButtonVol`, FX2 = `interfaceButtonFx` (fPatternEdit.cpp).
+- Mapping (editing / in a menu):
+  - Arrows: siblings, parent / first child (menus: move). Jog: change
+    value; Shift+jog bigger step.
+  - Screen 1-4: Replace / Wrap / Unwrap / Undo (menus: Screen 1 Cancel,
+    Screen 8 and Play = OK).
+  - Screen 5-8 depend on context: inside "..." (a step, or the quotes =
+    whole sequence) `[ ]` `< >` `{ }%4` `(3,8)`; on a pattern
+    `# <last control>` `|+ n 12` `|* speed 2` `0.25 <~` (bare numbers on
+    plain value patterns). Cursor lands on the new number for the jog.
+    No `|-` / `~>`: use negative numbers.
+  - Play = evaluate block, Shift+Play = hush.
+  - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
+    Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
+    Backspace = Unwrap.
+  - Note / Instrument / FX1 / FX2: notes, samples, functions, # control
+    menus (filtered, type-checked).
+  - Pads 1-8 = d1..d8, pads 13-20 = d9..d16 (pads light by slot state).
+  - File = save, Config = tracker mode. Free: Params, Perform, Master,
+    Sample *, Song, Pattern, Rec, other pads.
+- Launch: tidal/run_proto.sh (rebuilds, opens tidal/work.tidal, gitignored)
+  or `make -C tidal run`; `--install-shortcut` makes Windows Desktop +
+  Start menu shortcuts via wslg.exe (WSLg doesn't list .desktop apps here).
+  `--panel` screenshots and `hw:` key tokens for headless sessions.
+
 ## Plan
 0. Shared code-tree spec, used by both the editor and the engine: node
    types, tree -> Tidal text rendering, text -> tree parsing, per-node size
