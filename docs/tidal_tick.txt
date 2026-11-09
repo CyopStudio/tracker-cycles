@@ -1,0 +1,73 @@
+Tracker Cycles device tick test v1 (engine -Os), built-in sets, 20 s per set
+0 active instruments; scheduler object 73160 B, live program 71728 B (SDRAM); engine working set in internal RAM: yes
+cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles
+
+== set 1 of 4
+d1 $ s "bd*4"
+d2 $ s "~ sd"
+d3 $ s "hh*8" # gain 0.8
+--
+tick: 0 blocks, avg 0 cycles, max 0; 0 blocks with note starts: avg 0, max 0
+noteOn: 0, avg 0 cycles, max 0; noteOffs 0; most starts in one block 0
+late (blocks): 0: 0, 1: 0, 2: 0, 3+: 0; dropped 0, capped 0, unmapped 0
+main loop: update() 1 calls, 0 ms in 4294967263 ms (0.0 %), longest call 22 us; longest gap between main-loop passes 1 us
+scheduler: queries 0, window splits 0, horizon skips 0, window 1/16 cycle
+audio load: avg 0 %, max 0 %
+stack: evaluator deepest 537067521 B below the top of RAM; heap end 24576 B below: -537042945 B to spare
+
+== set 2 of 4
+d1 $ s "bd*2 [~ bd] bd"
+d2 $ s "~ sd" # n "<0 1>"
+d3 $ every 2 (fast 2) $ s "hh*8"
+d4 $ n "0 .. 7" # s "arpy"
+d5 $ off 0.125 (|+ n 12) $ n "0 3 7" # s "bass"
+d6 $ s "cp*2" # pan sine
+d7 $ sometimes (# speed 2) $ s "drum*4"
+d8 $ s "<lt mt ht>*3"
+--
+tick: 6000 blocks, avg 6058 cycles, max 37365; 169 blocks with note starts: avg 17345, max 37365
+noteOn: 363, avg 4949 cycles, max 10525; noteOffs 0; most starts in one block 4
+late (blocks): 0: 315, 1: 48, 2: 0, 3+: 0; dropped 0, capped 48, unmapped 0
+main loop: update() 57648 calls, 8601 ms in 20002 ms (43.0 %), longest call 8779 us; longest gap between main-loop passes 980260 us
+scheduler: queries 1176, window splits 0, horizon skips 0, window 1/16 cycle
+audio load: avg 82 %, max 94 %
+stack: evaluator deepest 9601 B below the top of RAM; heap end 24576 B below: 14975 B to spare
+
+== set 3 of 4
+setcps 0.7
+d1 $ stut 8 0.5 0.0625 $ s "hh*16" # n "0 .. 15"
+d2 $ jux rev $ chop 8 $ s "bd*8 sd*8" # speed "1 2"
+d3 $ echo 8 0.125 0.7 $ s "bd(5,8) sd(3,8,2)" # n (irand 8)
+d4 $ off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale "major" "0 .. 7") # s "arpy"
+d5 $ chunk 4 (hurry 2) $ iter 4 $ s "bd sd hh cp hh sd bd cp" # n "0 .. 7"
+d6 $ s "hh*16" # n "0 .. 15" # pan sine # gain (range 0.8 1 saw)
+d7 $ sometimes (# speed 2) $ often (# crush 4) $ s "[bd*4, hh*8, ~ sd]"
+d8 $ n (arp "up" "<c'maj e'min7 g'dom7 a'min>*2") # s "bass" # legato 0.5
+--
+tick: 6900 blocks, avg 11868 cycles, max 40088; 2309 blocks with note starts: avg 24241, max 40088
+noteOn: 6023, avg 6681 cycles, max 10497; noteOffs 0; most starts in one block 4
+late (blocks): 0: 3507, 1: 794, 2: 614, 3+: 1108; dropped 322, capped 1471, unmapped 0
+main loop: update() 4088 calls, 18009 ms in 20005 ms (90.0 %), longest call 37522 us; longest gap between main-loop passes 29240 us
+scheduler: queries 1773, window splits 0, horizon skips 555, window 1/16 cycle
+audio load: avg 87 %, max 94 %
+stack: evaluator deepest 18489 B below the top of RAM; heap end 24576 B below: 6087 B to spare
+
+== set 4 of 4
+setcps 0.575
+d1 $ s "bd*16"
+d2 $ s "sd*16"
+d3 $ s "hh*16"
+d4 $ s "cp*16"
+d5 $ s "ho*16"
+d6 $ s "cr*16"
+d7 $ s "lt*16"
+d8 $ s "mt*16"
+--
+tick: 6894 blocks, avg 7217 cycles, max 37652; 495 blocks with note starts: avg 24921, max 37652
+noteOn: 1769, avg 4892 cycles, max 9127; noteOffs 0; most starts in one block 4
+late (blocks): 0: 910, 1: 735, 2: 46, 3+: 78; dropped 330, capped 2307, unmapped 0
+main loop: update() 48379 calls, 10220 ms in 20002 ms (51.0 %), longest call 29133 us; longest gap between main-loop passes 153700 us
+scheduler: queries 1493, window splits 0, horizon skips 580, window 1/16 cycle
+audio load: avg 86 %, max 94 %
+stack: evaluator deepest 18489 B below the top of RAM; heap end 24576 B below: 6087 B to spare
+

@@ -267,7 +267,23 @@ folders listed in the project (e.g. a manifest) on project load.
      ISR, cps change after the furthest horizon, live program via
      copyTree). Host implementation done (tidal/core/scheduler.*, tests in
      tidal/tests/test_scheduler.cpp; 6.1 KB flash at -Os, 73 KB object in
-     SDRAM). Next: OSC backend (step 3), then the device tick.
+     SDRAM). OSC backend (step 3) done. Device tick test build
+     (2026-11-09): `-DTIDAL_TICK`, core/tidal/tidal_tick.cpp (tidalTick()
+     after sequencer.tick in the audio callback, update() on the main
+     loop, 4 built-in sets on the project's instruments, report in
+     /tidal_tick.txt; core/tidal/README.md). Flash 996,180 B (95 %).
+     v1 results (2026-11-09, docs/tidal_tick.txt, -Os): interrupt side
+     fine: cap holds (<= 4 starts/block), noteOn avg 27-37 us (max 58),
+     worst tick block 40k cycles = 223 us (7.7 % of a block), avg tick
+     1.2-2.3 %; but an idle tick still costs ~5.7k cycles (32 us: rings +
+     noteOff tables in uncached SDRAM). Audio load 82-87 % avg (94 % max),
+     so the main loop starves: everyday set on 8 slots plays with no
+     drops but update() takes 43 % of main-loop wall time; heavy set
+     can't keep up (322 dropped, 555 horizon skips); dense trivial set
+     (8x bd*16) also dropped 330 / skipped 580 (unexplained: needs
+     per-query timing). Stack 18.5 KB deepest, 6 KB spare of 24 KB.
+     Test bugs: set 1 ended at once (stale ms), active-instrument count
+     taken before the project loaded.
    - 4c. Control mapping to playerEngine noteOn/mod*() calls, MIDI out for
      MIDI channels, and the per-channel voice allocator (Polyphony below).
    - 4d. Device editor: step 1 editor logic + FT812 drawing layer +
@@ -376,7 +392,8 @@ folders listed in the project (e.g. a manifest) on project load.
 - synth/lib/ precompiled libPolySynth.a, libPolyDSP.a (not used on MK66)
 - docs/developer_guide.md  architecture, hardware limits, gotchas
 - core/tidal/  firmware wrappers that build tidal/core into libTracker.a
-  (only with -DTIDAL_BENCH for now), the on-device timing bench, and the
+  (only with -DTIDAL_BENCH / -DTIDAL_TICK for now), the on-device timing
+  bench, the device tick test (tidal_tick.cpp), and the
   audio profiler (-DAUDIO_PROFILE, per-stage / per-node audio cost).
 - tidal/     our code (host build, `make -C tidal test smoke arm`):
   core/ shared tree/parser/renderer/checker (no heap, portable),

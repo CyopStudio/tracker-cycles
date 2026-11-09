@@ -16,7 +16,7 @@ extern "C"
 {
     extern void _vStackTop(void); // symbols from linker script
     extern void _vStackBase(void);
-#if defined(TIDAL_BENCH) && !defined(PLATFORM_IMX)
+#if (defined(TIDAL_BENCH) || defined(TIDAL_TICK)) && !defined(PLATFORM_IMX)
     extern char* __brkval; // teensy core heap end
 #endif
 }
@@ -32,12 +32,16 @@ void Profiler::init()
     size_t allocSize = 4096;
     do
     {
-#if defined(TIDAL_BENCH) && !defined(PLATFORM_IMX)
-        // Tracker Cycles bench: leave a stack reserve for the Tidal
-        // evaluator's recursion instead of claiming all but 8 KB (teensy
-        // STACK_MARGIN) for the heap.
+#if (defined(TIDAL_BENCH) || defined(TIDAL_TICK)) && !defined(PLATFORM_IMX)
+        // Tracker Cycles bench / tick test: leave a stack reserve for the
+        // Tidal evaluator's recursion (deepest 20.6 KB measured) instead of
+        // claiming all but 8 KB (teensy STACK_MARGIN) for the heap.
         {
+#ifdef TIDAL_BENCH
             static constexpr size_t kTidalStackReserve = 32 * 1024;
+#else
+            static constexpr size_t kTidalStackReserve = 24 * 1024;
+#endif
             volatile char here = 0;
             if ((size_t)((const char*)&here - __brkval) < kTidalStackReserve + allocSize + 64)
             {

@@ -62,11 +62,13 @@ void Scheduler::init(Program* live, Event* buf, int cap, Mapper* mapper, Hooks h
         s.at = s.h = Q{0, 1};
         s.failed = false;
         s.err = Error();
-        ring_[i].head = ring_[i].tail = 0;
+        ring_[i].head = 0;
+        ring_[i].tail = 0;
     }
     memset(off_, 0, sizeof off_);
     block_ = 0;
-    hushReq_ = hushSeen_ = 0;
+    hushReq_ = 0;
+    hushSeen_ = 0;
     rr_ = 0;
     setSampleRate(750000, 17);
 }

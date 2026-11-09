@@ -5,8 +5,8 @@ host-tested engine), so the core makefile builds them into libTracker.a
 with the firmware's flags. `tidal_config.h` is included first: it puts the
 engine's event arena in SDRAM (`__NOINIT(EXTERNAL_RAM)`).
 
-For now everything here compiles only with `-DTIDAL_BENCH`; a normal
-`make original` contains none of it.
+For now everything here compiles only with `-DTIDAL_BENCH` or
+`-DTIDAL_TICK`; a normal `make original` contains none of it.
 
 ## Timing build (plan step 2)
 
@@ -82,3 +82,42 @@ python3 core/tidal/audio_profile.py audio_profile.txt [build/PolyendTrac_AudioPr
 
 Cost (2026-11-09): flash +2.3 KB, internal RAM +5.3 KB, SDRAM +20 KB. The
 timing itself adds ~20 cycles per active node to the graph stage.
+
+## Device tick test (plan step 4b)
+
+```bash
+make clean
+make original CUSTOM_DEFINES="-DTIDAL_TICK"   # add -DTC_ENGINE_O2 for the -O2 engine
+cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_TidalTick.ptf
+for o in core/build-MK66-ORIGINAL/obj/tidal/*.o; do
+  arm-none-eabi-objdump -h $o | grep -q init_array && echo "static init: $o"; done
+```
+
+`tidal_tick.cpp` runs the real scheduler (tidal/core/scheduler.*): queries
+on the main loop (`update()`, 4 ms budget per pass, 250 ms lookahead), and
+`tidalTick()` in the audio callback right after `sequencer.tick()`, which
+pops due entries and calls `instrumentPlayer[slot].noteOn` (the
+sequencer's 7-argument path). Load a project with samples first: 15 s
+after boot it plays four built-in sets, 20 s each (light; everyday on 8
+slots; the heavy bench patterns at cps 0.7; all 8 slots hitting together
+for the note-start cap). A `/tidal_tick.tidal` on the card replaces them
+with one 60 s set. Don't press Play on the stock sequencer meanwhile.
+
+Mapping (a first cut of 4c): `s` = the instrument whose file name
+matches (case-insensitive, no extension), else the instrument at that
+name's index in the prototype's default list (bd 1, sd 2, hh 3, ...),
+else wrapped onto the active instruments; `n` / `note` add to C5; `gain`
+x100 = step volume; looped instruments get a noteOff after the event's
+length, one-shots play out. d9..d16 (MIDI) are not mapped yet.
+
+After each set it appends to `/tidal_tick.txt`: tidalTick cycles per block
+(all / blocks that started notes), cycles per noteOn, most starts in one
+block, lateness, dropped / capped, update() time and its share of the
+main loop, the longest main-loop gap, the scheduler's counters, audio
+load, and the evaluator's deepest stack vs the heap end.
+
+Cost (2026-11-09, -Os): flash +92.8 KB (903,364 -> 996,180 B, 95.0 %),
+internal RAM +55 KB (156,548 -> 213,316 B: checker type pool 28 KB, engine
+working set 26 KB),
+stack reserve 24 KB (Profiler::init), SDRAM: scheduler 73 KB, live +
+edit program, query buffer 54 KB, engine arena.

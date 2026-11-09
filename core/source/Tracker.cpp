@@ -3,6 +3,7 @@
 #include "TrackerImpl.h"
 #include "../tidal/audio_profile.h"
 #include "../tidal/tidal_bench.h"
+#include "../tidal/tidal_tick.h"
 #include "mtWavetableEnvelopes.h"
 #include "core/interface.h"
 #include "elapsedMillis.h"
@@ -179,6 +180,7 @@ void TrackerImpl::update()
     engine.updateSdStream();
     sequencer.update();
     tidalBenchUpdate(platform);    // no-op unless built with -DTIDAL_BENCH
+    tidalTickUpdate(platform);     // no-op unless built with -DTIDAL_TICK
     audioProfileUpdate(platform);  // no-op unless built with -DAUDIO_PROFILE
 }
 
@@ -208,6 +210,7 @@ void TrackerImpl::updateAudioBuffers(void* left, void* right, int length)
 
     float updateIntervalSeconds = length / kAudioSampleRate;
     sequencer.tick(updateIntervalSeconds);
+    tidalTick();  // no-op unless built with -DTIDAL_TICK
     AUDIO_PROFILE_MARK(apSeq);
 
     engine.update();
