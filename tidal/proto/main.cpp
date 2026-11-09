@@ -8,6 +8,7 @@
 //                                 "down right wheel+ wrap menu:3 ok eval"
 //                                 extra tokens: menu:N  shot:FILE.png  wait:MS
 //                                 print (file text to stdout)
+//                                 log (backend log, e.g. GHCi replies)
 //                                 hw:CONTROL / hw:shift+CONTROL presses a
 //                                 Tracker control, e.g. hw:s1 hw:jog+
 //                                 hw:shift+play hw:pad3 (ids: hardware.cpp)
@@ -83,6 +84,9 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
                 if (ed.backend()) ed.backend()->poll();
                 usleep(50000);
             }
+        } else if (tok == "log") {
+            if (ed.backend())
+                for (const auto& l : ed.backend()->log) printf("| %s\n", l.c_str());
         } else if (tok == "print") {
             fputs(ed.fileText().c_str(), stdout);
         } else {

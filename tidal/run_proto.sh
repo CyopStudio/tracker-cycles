@@ -58,6 +58,9 @@ fi
 
 make -s proto SDL=1 BUILD=build-sdl
 
+# ghci for --backend ghci: the shortcut starts without the user's shell setup
+[ -f "$HOME/.ghcup/env" ] && . "$HOME/.ghcup/env"
+
 file=work.tidal
 case "$1" in
     ""|-*) [ -f "$file" ] || cp proto/example.tidal "$file" ;;

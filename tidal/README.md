@@ -148,9 +148,10 @@ functions controls quick1..quick4`. `--panel` makes screenshots include the mock
 
 ## Known gaps (next steps)
 
-- Window mode not yet run by anyone (built and linked; SDL runtime wasn't
-  installed when it was written).
-- GHCi backend untested against real Tidal.
+- GHCi backend checked against real Tidal 1.10.3 (GHC 9.8.2, see
+  `docs/host_setup.md`): boot script loads, `setcps`/`dN`/`hush` and the
+  d9..d16 MIDI routing are accepted, errors show in the log (`log` key
+  token prints it headless). Not yet heard: SuperDirt isn't set up.
 - No editing of `setcps` or comments in the UI yet; edit the file.
 - Candidate menus are built by trial (copy program, check): fine on the
   host, needs a cheaper method on the device.

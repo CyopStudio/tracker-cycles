@@ -142,7 +142,7 @@ Fixities from `:info` in GHCi, Tidal 1.10.3 (checked 2026-11-08):
 | `\|+\|`, `\|+`, `+\|` | infixl 9 | yes |
 | `\|<`, `\|>` | infixl 9 | yes |
 | `<~`, `~>` | infixl 9 | yes |
-| `\|-\|`.., `\|*\|`.., `\|/\|`.., `\|%\|`.., `\|<\|`, `\|>\|`, `\|++\|`.., and the `\|\|op` forms | presumably infixl 9 | **no**, check before adding each to the library |
+| `\|-\|`.., `\|*\|`.., `\|/\|`.., `\|%\|`.., `\|<\|`, `\|>\|`, `\|++\|`.., and the `\|\|op` forms (`\|\|+` `\|\|-` `\|\|*` `\|\|/` `\|\|<` `\|\|>`) | infixl 9 | yes (2026-11-09) |
 
 Consequences for the parser and renderer:
 - All Tidal operators share one level and associate left:
@@ -338,17 +338,20 @@ cursor and offers only matching choices.
    MIDI target for this, so the prototype backend appends
    `# s "midi" # midichan N` (N = 0..7) when sending d9..d16 to SuperDirt;
    it is never stored in the tree or the `.tidal` file.
-2. **Operator fixities** (4.1): resolved for `#`, `|+|`, `|+`, `+|`,
-   `|<`, `|>`, `<~`, `~>`; the remaining families still need `:info`.
+2. **Operator fixities** (4.1): resolved. Every Tidal operator family is
+   infixl 9 (`:info`, 2026-11-09).
 3. **Numeric defaulting** (3.2): resolved, no defaulting needed.
 4. **Random seeds.** `?`, `|`, `rand` and friends are deterministic in Tidal
    (seeded from cycle position). The tree only records where randomness is;
    matching Tidal's exact values is an engine/golden-test question.
 5. **Transitions** (`xfade`, `jumpIn`, ...), `once`, `p "name"`, muting with
    `_d1`: out of v1.
-6. **Mini-notation corner cases**: modifier chaining and `..` with note
-   names resolved (5.2). Still to confirm: descending `..` (`e .. c`), `!`
-   without a number after a group, `_` after a group, nested polymeter `%`.
+6. **Mini-notation corner cases**: resolved; results in section 10.
+   Modifier chaining and `..` with note names (5.2); descending `..`
+   counts down; `!` and `_` after a group repeat / stretch the group;
+   nested polymeter `%` works; the `%` steps can be a pattern (`%[4]`).
+   Our parser accepts all of these. `[bd sd]!` renders as `[bd sd] !`,
+   which gives the same events.
 
 ---
 
@@ -362,3 +365,12 @@ From `queryArc` in GHCi, 2026-11-08. Times in cycles.
 | `"bd*2!2"` (String) | 0-1 | bd at 0, ¼, ½, ¾, each ¼ long |
 | `"bd(3,8)?"` (String) | 0-1 | 0-⅛ bd, ⅜-½ bd |
 | `"c .. e"` (Note) | 0-1 | 0, 1, 2, 3, 4 (c5..e5), each ⅕ long |
+| `"e .. c"` (Note) | 0-1 | 4, 3, 2, 1, 0 (e5 down to c5), each ⅕ long |
+| `"[bd sd]! hh"` (String) | 0-1 | bd 0-⅙, sd ⅙-⅓, bd ⅓-½, sd ½-⅔, hh ⅔-1 (`"[bd sd] ! hh"` the same) |
+| `"[bd sd] _ hh"` (String) | 0-1 | bd 0-⅓, sd ⅓-⅔, hh ⅔-1 |
+| `"{a {b c}%3}%4"` (String) | 0-1 | a 0-¼, b ¼-⅓, c ⅓-5/12, b 5/12-½, a ½-¾, c ¾-⅚, b ⅚-11/12, c 11/12-1 |
+| `"{a b c}%[4]"` (String) | 0-1 | a 0-¼, b ¼-½, c ½-¾, a ¾-1 |
+
+Golden tests: compare event times and values only. Tidal's `Event ==`
+also compares the source-position context, so two spellings with the
+same events (`"[bd sd]!"` / `"[bd sd] !"`) are not `==`.

@@ -37,6 +37,7 @@ curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | \
     BOOTSTRAP_HASKELL_NONINTERACTIVE=1 \
     BOOTSTRAP_HASKELL_GHC_VERSION=9.8.2 \
     BOOTSTRAP_HASKELL_CABAL_VERSION=recommended \
+    BOOTSTRAP_HASKELL_ADJUST_BASHRC=1 \
     sh
 
 source ~/.ghcup/env          # or open a new shell
@@ -50,6 +51,12 @@ cabal --version
 cabal update
 cabal install tidal-1.10.3 --lib
 ```
+
+Installed this way on 2026-11-09 (ghcup 0.2.6.2, cabal 3.16.1.0). The
+Tidal 1.10.3 startup banner says `[TidalCycles version 1.10.1]`; that is
+the version string inside the package, not a wrong install.
+`tidal/run_proto.sh` sources `~/.ghcup/env` itself, so the Windows
+shortcut finds `ghci` too.
 
 `--lib` registers Tidal in GHC's default package environment
 (`~/.ghc/x86_64-linux-9.8.2/environments/default`), so plain `ghci` can
