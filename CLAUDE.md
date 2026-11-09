@@ -88,6 +88,33 @@ query CPU; plan step 2 timing check). Don't build these before then.
   type-check per candidate), fine on the host, too slow / big for the
   MK66 as is.
 
+## V2 idea: Tidal sample folders (not for V1)
+V1 = 48 instruments loaded the normal Tracker way. V2 could load Tidal-style
+folders listed in the project (e.g. a manifest) on project load.
+- Folder of short files -> ONE sliced instrument: files sorted by name (as
+  SuperDirt does), mono, joined end to end, a slice point per file
+  (MAX_SLICE_NUMBER = 48, slice positions are uint16 fractions of the
+  length: pad joins with a little silence). `s` picks the instrument by
+  name, `n` picks the slice modulo the file count (SuperDirt semantics),
+  slicePlayThru = 0 gives "play this file to its end".
+- Long files -> one streamed instrument each (only a ~743 ms RAM head,
+  `kStreamPreCacheFrames`, 64 KB mono). Uses up instrument slots faster.
+- On MK66, Slice / Beat Slice can't stream (`isPlayModeStreamable()`); the
+  IMX has per-slice pre-cache. Porting it gives ~680 frames (~15 ms) of
+  head per slice with 48 slices: likely too short to hide an SD seek
+  without prefetch.
+- Budget: 7.5 MB sample pool ~ 89 s mono 44.1 kHz (~125 s with the
+  SAMPLE_MEMORY_SIZE reclaim). A small host tool should pre-convert
+  folders to mono 44.1 kHz WAV so project load is just reads.
+- Streaming helps Tidal: events shorter than the RAM head never read SD;
+  mid-file starts (`begin`, `chop`, `striate`, `splice`) do. Our look-ahead
+  scheduler (4b) knows upcoming starts, so a `VoiceStreamManager` prefetch
+  call could load them before the event fires.
+- Measure first: random 8 KB SD read latency on MK66, and how many
+  streaming voices run without underrun (16 voices ~ 1.4 MB/s + seeks).
+- Keep in V1: the engine resolves `s` name -> instrument, then `n` ->
+  slice on a sliced instrument, else pitch. Then V2 is mostly a loader.
+
 ## Plan
 0. Shared code-tree spec, used by both the editor and the engine: node
    types, tree -> Tidal text rendering, text -> tree parsing, per-node size
