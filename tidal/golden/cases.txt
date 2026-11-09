@@ -1,0 +1,146 @@
+# Golden cases: one per line, "name cycles code".
+# code (rest of the line) is a ControlPattern, as it would follow "d1 $".
+# capture.py queries it in real Tidal over cycles 0..cycles and writes the
+# events to expected.txt; test_core checks every case parses and type-checks
+# here (and, once the engine exists, that it produces the same events).
+
+# ---- mini-notation -----------------------------------------------------------
+seq_basic         1  s "bd sd hh cp"
+seq_rest          1  s "bd ~ sd ~"
+sub               1  s "bd [sd sd] hh"
+fast_mini         1  s "bd*2 sd"
+fast_mini_frac    1  s "bd*1.5 sd"
+slow_mini         2  s "bd sd/2"
+alt               4  s "bd <sd cp hh>"
+alt_nested        4  s "<bd [sd sd]> hh"
+alt_fast          2  s "<bd sd>*2"
+poly              1  s "{bd sd hh, cp cp}"
+poly_steps        2  s "{bd sd hh}%4"
+poly_nested       1  s "{a {b c}%3}%4"
+poly_steps_pat    1  s "{a b c}%[4]"
+stack_mini        1  s "[bd sd, hh hh hh]"
+euclid_mini       1  s "bd(3,8)"
+euclid_rot        1  s "bd(3,8,2)"
+euclid_pat        2  s "bd(<3 5>,8)"
+euclid_degrade    1  s "bd(3,8)?"
+replicate         1  s "bd!3 sd"
+replicate_bare    1  s "bd ! sd"
+replicate_group   1  s "[bd sd]! hh"
+chain_mods        1  s "bd*2!2"
+weight            1  s "bd@3 sd"
+elongate          1  s "bd _ _ sd"
+elongate_group    1  s "[bd sd] _ hh"
+degrade_mini      4  s "hh*8?"
+degrade_prob      2  s "hh*8?0.3"
+choice            4  s "[bd | sd | hh]"
+dots              1  s "bd sd . hh hh hh"
+sample_index      1  s "drum:1 drum:3"
+range_mini        1  n "0 .. 3"
+range_desc        1  n "3 .. 0"
+range_notes       1  note "c .. e"
+range_notes_desc  1  note "e .. c"
+notes             1  note "c e g a5 cs4"
+chords            1  n "c'maj e'min7"
+n_decimal         1  n "0.5 1.25"
+n_negative        1  n "-1 -12"
+
+# ---- time --------------------------------------------------------------------
+fast              1  fast 2 $ s "bd sd"
+fast_pat          2  fast "1 2" $ s "bd sd"
+slow              2  slow 2 $ s "bd sd hh cp"
+hurry             1  hurry 2 $ s "bd sd"
+rev               1  rev $ s "bd sd hh"
+rev_sub           1  rev $ s "bd [sd hh]"
+palindrome        2  palindrome $ s "bd sd hh"
+brak              2  brak $ s "bd sd"
+iter              4  iter 4 $ s "bd sd hh cp"
+ply               1  ply 2 $ s "bd sd"
+linger            1  linger 0.25 $ s "bd sd hh cp"
+segment           1  segment 4 $ pan saw
+every             4  every 2 (fast 2) $ s "bd sd"
+every_section     4  every 2 (0.25 <~) $ s "bd sd"
+every_compose     4  every 2 (fast 2 . rev) $ s "bd sd hh"
+whenmod           4  whenmod 4 2 rev $ s "bd sd hh"
+
+# ---- core / combining --------------------------------------------------------
+silence           1  silence
+stack             1  stack [s "bd*2", s "hh*3"]
+cat               3  cat [s "bd*2", s "hh*3"]
+fastcat           1  fastcat [s "bd", s "sd hh"]
+slowcat           2  slowcat [s "bd", s "sd"]
+overlay           1  overlay (s "bd") (s "hh*2")
+
+# ---- structure ---------------------------------------------------------------
+struct            1  struct "t ~ t t" $ s "bd"
+struct_bool       1  struct "t f t t" $ s "bd"
+mask              1  mask "1 0 1 1" $ s "hh*8"
+euclid            1  euclid 3 8 $ s "bd"
+euclidInv         1  euclidInv 3 8 $ s "bd"
+euclidFull        1  euclidFull 3 8 (s "bd") (s "hh")
+
+# ---- random (deterministic in Tidal) -----------------------------------------
+degradeBy         2  degradeBy 0.5 $ s "hh*8"
+sometimesBy       2  sometimesBy 0.5 (# speed 2) $ s "bd*8"
+sometimes         2  sometimes (# speed 2) $ s "bd*8"
+often             2  often (# speed 2) $ s "bd*8"
+rarely            2  rarely (# speed 2) $ s "bd*8"
+almostNever       2  almostNever (# speed 2) $ s "bd*8"
+almostAlways      2  almostAlways (# speed 2) $ s "bd*8"
+someCyclesBy      4  someCyclesBy 0.5 (# speed 2) $ s "bd*2"
+rand              1  s "bd*4" # pan rand
+irand             1  s "drum*4" # n (irand 8)
+
+# ---- signals -----------------------------------------------------------------
+sine              1  s "bd*4" # pan sine
+cosine            1  s "bd*4" # pan cosine
+saw               1  s "bd*4" # pan saw
+tri               1  s "bd*4" # pan tri
+square            1  s "bd*4" # pan square
+range             1  s "bd*4" # pan (range 0.2 0.8 sine)
+signal_bare       1  pan sine
+
+# ---- layering ----------------------------------------------------------------
+superimpose       1  superimpose (fast 2) $ s "bd sd"
+off               1  off 0.25 (# crush 4) $ s "bd sd"
+jux               1  jux rev $ s "bd sd hh"
+stut              1  stut 3 0.5 0.125 $ s "bd sd"
+echo              1  echo 3 0.2 0.5 $ s "bd sd"
+chunk             4  chunk 4 (fast 2) $ s "bd sd hh cp"
+
+# ---- samples -----------------------------------------------------------------
+chop              1  chop 2 $ s "bd sd"
+striate           1  striate 2 $ s "bd sd"
+loopAt            2  loopAt 2 $ chop 4 $ s "break"
+splice            1  splice 4 "0 2" $ s "bev"
+
+# ---- harmony -----------------------------------------------------------------
+scale             1  n (scale "major" "0 .. 7")
+arp               2  n (arp "up" "<c'maj e'min>")
+
+# ---- controls ----------------------------------------------------------------
+controls_all      1  s "bd" # gain 0.8 # pan 0.25 # cutoff 1000 # resonance 0.2 # hpf 200 # bandf 500 # delay 0.3 # room 0.4 # crush 4 # shape 0.5 # begin 0.25 # speed 2 # legato 1 # sustain 0.5 # nudge 0.1 # cut 1 # orbit 1
+sound_up          1  sound "bd" # up 12
+
+# ---- operators ---------------------------------------------------------------
+op_hash           1  s "bd*2" # n "1 2 3"
+op_plus_both      1  n "0 1" |+| n "10 20 30"
+op_plus_left      1  n "0 1" |+ n "10 20 30"
+op_plus_right     1  n "0 1" +| n "10 20 30"
+op_minus          1  n "10 20" |- n 1
+op_minus_both     1  n "10 20" |-| n "1 2 3"
+op_minus_right    1  n "10 20" -| n "1 2 3"
+op_mul            1  s "bd*2" # speed 1 |* speed "1 2"
+op_mul_both       1  speed "1 2" |*| speed "2 3 4"
+op_mul_right      1  speed "1 2" *| speed "2 3 4"
+op_div            1  s "bd" # speed 2 |/ speed 4
+op_div_both       1  speed "4 8" |/| speed "2 4 8"
+op_div_right      1  speed "4 8" /| speed "2 4 8"
+op_left_vals      1  s "bd sd" # n 1 |< n "5 6 7"
+op_right_vals     1  s "bd sd" # n 1 |> n "5 6 7"
+op_precedence     1  0.25 <~ s "bd sd" # n 1
+shift_left        1  0.25 <~ s "bd sd hh cp"
+shift_right       2  "<0 0.25>" ~> s "bd sd"
+arith_plus        2  n ("0 2" + "<12 7>")
+arith_minus       1  n ("12 7" - 2)
+arith_mul         1  n ("1 2" * 3)
+arith_div         1  speed ("1 2" / 4)

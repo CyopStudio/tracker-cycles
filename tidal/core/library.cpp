@@ -4,8 +4,9 @@
 
 namespace tc {
 
-// Signatures follow the docs / Hackage for Tidal 1.10.3 and still need a
-// :type check in GHCi as each function gets a golden test (spec 7.1).
+// Signatures checked against :t in GHCi, Tidal 1.10.3 (golden/types.txt,
+// 2026-11-09). Simplifications: Integer is Int (stut, echo count), the
+// Real constraint of saw/tri is dropped, |op| forms are typed on Pat.
 #define FN(n, s, c, d, def) {n, s, Cat::c, Device::d, def, 0, Assoc::None, false}
 #define CTL(n, t) {n, "Pat " t " -> Pat Control", Cat::Control, Device::Full, nullptr, 0, Assoc::None, false}
 #define OP(n, s, p, a, chk) {n, s, Cat::Operator, Device::Full, nullptr, p, Assoc::a, chk}
@@ -29,7 +30,7 @@ static const LibEntry kLib[] = {
     FN("slowcat", "[Pat a] -> Pat a", Core, Full, nullptr),
     FN("overlay", "Pat a -> Pat a -> Pat a", Core, Full, nullptr),
     FN("every", "Pat Int -> (Pat a -> Pat a) -> Pat a -> Pat a", Time, Full, "4 rev"),
-    FN("whenmod", "Pat Int -> Pat Int -> (Pat a -> Pat a) -> Pat a -> Pat a", Time, Full, "4 2 rev"),
+    FN("whenmod", "Pat Time -> Pat Time -> (Pat a -> Pat a) -> Pat a -> Pat a", Time, Full, "4 2 rev"),
     FN("range", "Num a => Pat a -> Pat a -> Pat a -> Pat a", Signal, Full, "1 5"),
     // ---- structure ----------------------------------------------------------
     FN("struct", "Pat Bool -> Pat a -> Pat a", Structure, Full, "\"t f t t\""),
@@ -70,7 +71,7 @@ static const LibEntry kLib[] = {
     FN("loopAt", "Pat Time -> Pat Control -> Pat Control", Sample, Approx, "2"),
     FN("splice", "Pat Int -> Pat Int -> Pat Control -> Pat Control", Sample, Approx, "4 \"0 2\""),
     // ---- harmony ------------------------------------------------------------
-    FN("scale", "Frac a => Pat String -> Pat a -> Pat a", Harmony, Full, "\"major\""),
+    FN("scale", "Frac a => Pat String -> Pat Int -> Pat a", Harmony, Full, "\"major\""),
     FN("arp", "Pat String -> Pat a -> Pat a", Harmony, Full, "\"up\""),
     // ---- controls -----------------------------------------------------------
     CTL("s", "String"),

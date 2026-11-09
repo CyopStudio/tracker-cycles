@@ -4,6 +4,7 @@
 #   make proto SDL=1 SDL_PREFIX=/usr   prototype with an SDL2 window
 #   make arm        cross-compile the core for the MK66 (size check only)
 #   make run        build (SDL) and open the prototype window (run_proto.sh)
+#   make golden     recapture golden/expected.txt + types.txt from real Tidal
 
 CXX       ?= g++
 CXXFLAGS  ?= -std=c++17 -O2 -g -Wall -Wextra -Wno-missing-field-initializers -Wno-format-truncation
@@ -32,7 +33,7 @@ CXXFLAGS_SDL := -DTC_HAVE_SDL -I$(SDL_PREFIX)/include -I$(SDL_PREFIX)/include/SD
 PROTO_LIBS += -L$(SDL_PREFIX)/lib/x86_64-linux-gnu -L$(SDL_PREFIX)/lib -lSDL2
 endif
 
-.PHONY: all test smoke proto arm clean run
+.PHONY: all test smoke proto arm clean run golden
 all: $(BUILD)/run_tests $(BUILD)/tidal_proto
 
 test: $(BUILD)/run_tests
@@ -46,6 +47,10 @@ proto: $(BUILD)/tidal_proto
 
 run:
 	./run_proto.sh
+
+# Needs GHC + Tidal 1.10.3 (docs/host_setup.md); ghcup's env is sourced if present.
+golden:
+	. $$HOME/.ghcup/env 2>/dev/null; python3 golden/capture.py
 
 $(BUILD)/run_tests: $(CORE_OBJ) $(TEST_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^

@@ -1,0 +1,97 @@
+# :t of every core/library.cpp entry in real Tidal (golden/capture.py).
+# tidal-1.10.3, GHC 9.8.2, captured 2026-11-09
+
+silence :: Pattern a
+fast :: Pattern Time -> Pattern a -> Pattern a
+slow :: Pattern Time -> Pattern a -> Pattern a
+hurry :: Pattern Rational -> ControlPattern -> ControlPattern
+rev :: Pattern a -> Pattern a
+palindrome :: Pattern a -> Pattern a
+brak :: Pattern a -> Pattern a
+iter :: Pattern Int -> Pattern c -> Pattern c
+ply :: Pattern Rational -> Pattern a -> Pattern a
+linger :: Pattern Time -> Pattern a -> Pattern a
+segment :: Pattern Time -> Pattern a -> Pattern a
+stack :: [Pattern a] -> Pattern a
+cat :: [Pattern a] -> Pattern a
+fastcat :: [Pattern a] -> Pattern a
+slowcat :: [Pattern a] -> Pattern a
+overlay :: Pattern a -> Pattern a -> Pattern a
+every :: Pattern Int -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+whenmod :: Pattern Time -> Pattern Time -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+range :: Num a => Pattern a -> Pattern a -> Pattern a -> Pattern a
+struct :: Pattern Bool -> Pattern a -> Pattern a
+mask :: Pattern Bool -> Pattern a -> Pattern a
+euclid :: Pattern Int -> Pattern Int -> Pattern a -> Pattern a
+euclidInv :: Pattern Int -> Pattern Int -> Pattern a -> Pattern a
+euclidFull :: Pattern Int -> Pattern Int -> Pattern a -> Pattern a -> Pattern a
+degradeBy :: Pattern Double -> Pattern a -> Pattern a
+sometimesBy :: Pattern Double -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+sometimes :: (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+often :: (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+rarely :: (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+almostNever :: (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+almostAlways :: (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+someCyclesBy :: Pattern Double -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+rand :: Fractional a => Pattern a
+irand :: Num a => Pattern Int -> Pattern a
+sine :: Fractional a => Pattern a
+cosine :: Fractional a => Pattern a
+saw :: (Fractional a, Real a) => Pattern a
+tri :: (Fractional a, Real a) => Pattern a
+square :: Fractional a => Pattern a
+superimpose :: (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+off :: Pattern Time -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+jux :: (Pattern ValueMap -> Pattern ValueMap) -> Pattern ValueMap -> Pattern ValueMap
+stut :: Pattern Integer -> Pattern Double -> Pattern Rational -> ControlPattern -> ControlPattern
+echo :: Pattern Integer -> Pattern Rational -> Pattern Double -> ControlPattern -> ControlPattern
+chunk :: Pattern Int -> (Pattern b -> Pattern b) -> Pattern b -> Pattern b
+chop :: Pattern Int -> ControlPattern -> ControlPattern
+striate :: Pattern Int -> ControlPattern -> ControlPattern
+loopAt :: Pattern Time -> ControlPattern -> ControlPattern
+splice :: Pattern Int -> Pattern Int -> ControlPattern -> Pattern (GMap.Map String Value)
+scale :: Fractional a => Pattern String -> Pattern Int -> Pattern a
+arp :: Pattern String -> Pattern a -> Pattern a
+s :: Pattern String -> ControlPattern
+sound :: Pattern String -> ControlPattern
+n :: Pattern Note -> ControlPattern
+note :: Pattern Note -> ControlPattern
+up :: Pattern Note -> ControlPattern
+gain :: Pattern Double -> ControlPattern
+pan :: Pattern Double -> ControlPattern
+cutoff :: Pattern Double -> ControlPattern
+resonance :: Pattern Double -> ControlPattern
+hpf :: Pattern Double -> ControlPattern
+bandf :: Pattern Double -> ControlPattern
+delay :: Pattern Double -> ControlPattern
+room :: Pattern Double -> ControlPattern
+crush :: Pattern Double -> ControlPattern
+shape :: Pattern Double -> ControlPattern
+begin :: Pattern Double -> ControlPattern
+speed :: Pattern Double -> ControlPattern
+legato :: Pattern Double -> ControlPattern
+sustain :: Pattern Double -> ControlPattern
+nudge :: Pattern Double -> ControlPattern
+cut :: Pattern Int -> ControlPattern
+orbit :: Pattern Int -> ControlPattern
+# :: Unionable b => Pattern b -> Pattern b -> Pattern b
+|+| :: (Applicative a, Num b) => a b -> a b -> a b
+|+ :: Num a => Pattern a -> Pattern a -> Pattern a
++| :: Num a => Pattern a -> Pattern a -> Pattern a
+|-| :: (Applicative a, Num b) => a b -> a b -> a b
+|- :: Num a => Pattern a -> Pattern a -> Pattern a
+-| :: Num a => Pattern a -> Pattern a -> Pattern a
+|*| :: (Applicative a, Num b) => a b -> a b -> a b
+|* :: Num a => Pattern a -> Pattern a -> Pattern a
+*| :: Num a => Pattern a -> Pattern a -> Pattern a
+|/| :: (Applicative a, Fractional b) => a b -> a b -> a b
+|/ :: Fractional a => Pattern a -> Pattern a -> Pattern a
+/| :: Fractional a => Pattern a -> Pattern a -> Pattern a
+|< :: Unionable a => Pattern a -> Pattern a -> Pattern a
+|> :: Unionable a => Pattern a -> Pattern a -> Pattern a
+<~ :: Pattern Time -> Pattern a -> Pattern a
+~> :: Pattern Time -> Pattern a -> Pattern a
++ :: Num a => a -> a -> a
+- :: Num a => a -> a -> a
+* :: Num a => a -> a -> a
+/ :: Fractional a => a -> a -> a

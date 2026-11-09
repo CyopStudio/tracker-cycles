@@ -2,7 +2,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#include <string>
+#include <vector>
+
 #include "check.h"
+#include "golden.h"
 #include "library.h"
 #include "parse.h"
 #include "render.h"
@@ -244,6 +248,10 @@ static void testTypes() {
     typeCheck("splice 8 \"0 2 4 <6 7>\" $ s \"break\"");
     typeCheck("splice 4 \"0 1.5\" $ s \"break\"", "fractional");
     typeCheck("s \"808 909\"");  // digits in a String pattern become words
+    // signatures checked against GHCi :t (golden/types.txt)
+    typeCheck("whenmod \"<8 4>\" 1.5 rev $ s \"bd sd\"");  // Pat Time, not Pat Int
+    typeCheck("n (scale \"major\" \"0 .. 7\")");
+    typeCheck("n (scale \"major\" \"0.5\")", "fractional");  // steps are Pat Int
     // errors
     typeCheck("fast 2", "ControlPattern");
     typeCheck("fast \"bd\" $ s \"bd\"", "not a Time");
@@ -306,6 +314,62 @@ static void testNodeSize() {
     EXPECT(n == kMaxNodes - 1, "pool holds %d nodes (got %d)", kMaxNodes - 1, n);
 }
 
+// Golden cases (golden/cases.txt, captured from real Tidal into
+// golden/expected.txt by golden/capture.py): every case must parse and
+// type-check here, render stably, and match its captured block. Event
+// times must fit the engine's 32-bit rationals. The event comparison
+// itself comes with the query engine.
+static void testGolden() {
+    std::vector<golden::Case> cases, expected;
+    std::string err;
+    bool ok = golden::loadCases("golden/cases.txt", cases, err) &&
+              golden::loadExpected("golden/expected.txt", expected, err);
+    EXPECT(ok, "golden files: %s", err.c_str());
+    if (!ok) return;
+    EXPECT(cases.size() == expected.size(), "golden: %zu cases, %zu captured (rerun make golden)", cases.size(),
+           expected.size());
+    size_t events = 0;
+    long long maxDen = 0;
+    for (size_t i = 0; i < cases.size(); i++) {
+        const golden::Case& c = cases[i];
+        if (i < expected.size()) {
+            const golden::Case& x = expected[i];
+            EXPECT(x.name == c.name && x.cycles == c.cycles && x.code == c.code,
+                   "golden %s: expected.txt is stale (rerun make golden)", c.name.c_str());
+            events += x.events.size();
+            for (const auto& e : x.events) {
+                for (const golden::Rat* r : {&e.ws, &e.we, &e.ps, &e.pe}) {
+                    EXPECT(r->num >= INT32_MIN && r->num <= INT32_MAX && r->den <= INT32_MAX,
+                           "golden %s: time %lld/%lld exceeds 32 bits", c.name.c_str(), r->num, r->den);
+                    if (r->den > maxDen) maxDen = r->den;
+                }
+            }
+        }
+        std::string text = "d1 $ " + c.code + "\n";
+        Error e;
+        bool parsed = parseFile(gProg, text.c_str(), (int)text.size(), e);
+        EXPECT(parsed, "golden %s (cases.txt:%d): parse: %s at %d", c.name.c_str(), c.line, e.msg, e.pos);
+        if (!parsed) continue;
+        Error ce;
+        EXPECT(checkProgram(gProg, ce), "golden %s (cases.txt:%d): type: %s", c.name.c_str(), c.line, ce.msg);
+        // render, reparse, render again: must be stable
+        char a[1024], b[1024];
+        Renderer r1(a, sizeof a);
+        a[0] = 0;
+        r1.file(gProg);
+        Error e2;
+        bool reparsed = parseFile(gProg2, a, (int)strlen(a), e2);
+        EXPECT(reparsed, "golden %s: reparse of '%s': %s", c.name.c_str(), a, e2.msg);
+        if (!reparsed) continue;
+        Renderer r2(b, sizeof b);
+        b[0] = 0;
+        r2.file(gProg2);
+        EXPECT(strcmp(a, b) == 0, "golden %s: render not stable:\n%s%s", c.name.c_str(), a, b);
+    }
+    EXPECT(events > 0, "golden: no events captured");
+    printf("golden: %zu cases, %zu events, max denominator %lld\n", cases.size(), events, maxDen);
+}
+
 int main() {
     testNodeSize();
     testTypesPool();
@@ -314,6 +378,7 @@ int main() {
     testFiles();
     testTypes();
     testRefinement();
+    testGolden();
     printf("%d passed, %d failed\n", gPass, gFail);
     return gFail ? 1 : 0;
 }

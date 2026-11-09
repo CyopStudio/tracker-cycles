@@ -1,0 +1,894 @@
+# Golden events captured from real Tidal by golden/capture.py. Don't edit.
+# tidal-1.10.3, GHC 9.8.2, captured 2026-11-09
+# whole-start whole-stop part-start part-stop key=tag:value ...
+
+== seq_basic 1 s "bd sd hh cp"
+0/1 1/4 0/1 1/4 s=s:bd
+1/4 1/2 1/4 1/2 s=s:sd
+1/2 3/4 1/2 3/4 s=s:hh
+3/4 1/1 3/4 1/1 s=s:cp
+
+== seq_rest 1 s "bd ~ sd ~"
+0/1 1/4 0/1 1/4 s=s:bd
+1/2 3/4 1/2 3/4 s=s:sd
+
+== sub 1 s "bd [sd sd] hh"
+0/1 1/3 0/1 1/3 s=s:bd
+1/3 1/2 1/3 1/2 s=s:sd
+1/2 2/3 1/2 2/3 s=s:sd
+2/3 1/1 2/3 1/1 s=s:hh
+
+== fast_mini 1 s "bd*2 sd"
+0/1 1/4 0/1 1/4 s=s:bd
+1/4 1/2 1/4 1/2 s=s:bd
+1/2 1/1 1/2 1/1 s=s:sd
+
+== fast_mini_frac 1 s "bd*1.5 sd"
+0/1 1/3 0/1 1/3 s=s:bd
+1/3 2/3 1/3 1/2 s=s:bd
+1/2 1/1 1/2 1/1 s=s:sd
+
+== slow_mini 2 s "bd sd/2"
+0/1 1/2 0/1 1/2 s=s:bd
+1/2 3/2 1/2 1/1 s=s:sd
+1/1 3/2 1/1 3/2 s=s:bd
+1/2 3/2 3/2 2/1 s=s:sd
+
+== alt 4 s "bd <sd cp hh>"
+0/1 1/2 0/1 1/2 s=s:bd
+1/2 1/1 1/2 1/1 s=s:sd
+1/1 3/2 1/1 3/2 s=s:bd
+3/2 2/1 3/2 2/1 s=s:cp
+2/1 5/2 2/1 5/2 s=s:bd
+5/2 3/1 5/2 3/1 s=s:hh
+3/1 7/2 3/1 7/2 s=s:bd
+7/2 4/1 7/2 4/1 s=s:sd
+
+== alt_nested 4 s "<bd [sd sd]> hh"
+0/1 1/2 0/1 1/2 s=s:bd
+1/2 1/1 1/2 1/1 s=s:hh
+1/1 5/4 1/1 5/4 s=s:sd
+5/4 3/2 5/4 3/2 s=s:sd
+3/2 2/1 3/2 2/1 s=s:hh
+2/1 5/2 2/1 5/2 s=s:bd
+5/2 3/1 5/2 3/1 s=s:hh
+3/1 13/4 3/1 13/4 s=s:sd
+13/4 7/2 13/4 7/2 s=s:sd
+7/2 4/1 7/2 4/1 s=s:hh
+
+== alt_fast 2 s "<bd sd>*2"
+0/1 1/2 0/1 1/2 s=s:bd
+1/2 1/1 1/2 1/1 s=s:sd
+1/1 3/2 1/1 3/2 s=s:bd
+3/2 2/1 3/2 2/1 s=s:sd
+
+== poly 1 s "{bd sd hh, cp cp}"
+0/1 1/3 0/1 1/3 s=s:bd
+0/1 1/3 0/1 1/3 s=s:cp
+1/3 2/3 1/3 2/3 s=s:cp
+1/3 2/3 1/3 2/3 s=s:sd
+2/3 1/1 2/3 1/1 s=s:cp
+2/3 1/1 2/3 1/1 s=s:hh
+
+== poly_steps 2 s "{bd sd hh}%4"
+0/1 1/4 0/1 1/4 s=s:bd
+1/4 1/2 1/4 1/2 s=s:sd
+1/2 3/4 1/2 3/4 s=s:hh
+3/4 1/1 3/4 1/1 s=s:bd
+1/1 5/4 1/1 5/4 s=s:sd
+5/4 3/2 5/4 3/2 s=s:hh
+3/2 7/4 3/2 7/4 s=s:bd
+7/4 2/1 7/4 2/1 s=s:sd
+
+== poly_nested 1 s "{a {b c}%3}%4"
+0/1 1/4 0/1 1/4 s=s:a
+1/4 1/3 1/4 1/3 s=s:b
+1/3 5/12 1/3 5/12 s=s:c
+5/12 1/2 5/12 1/2 s=s:b
+1/2 3/4 1/2 3/4 s=s:a
+3/4 5/6 3/4 5/6 s=s:c
+5/6 11/12 5/6 11/12 s=s:b
+11/12 1/1 11/12 1/1 s=s:c
+
+== poly_steps_pat 1 s "{a b c}%[4]"
+0/1 1/4 0/1 1/4 s=s:a
+1/4 1/2 1/4 1/2 s=s:b
+1/2 3/4 1/2 3/4 s=s:c
+3/4 1/1 3/4 1/1 s=s:a
+
+== stack_mini 1 s "[bd sd, hh hh hh]"
+0/1 1/3 0/1 1/3 s=s:hh
+0/1 1/2 0/1 1/2 s=s:bd
+1/3 2/3 1/3 2/3 s=s:hh
+1/2 1/1 1/2 1/1 s=s:sd
+2/3 1/1 2/3 1/1 s=s:hh
+
+== euclid_mini 1 s "bd(3,8)"
+0/1 1/8 0/1 1/8 s=s:bd
+3/8 1/2 3/8 1/2 s=s:bd
+3/4 7/8 3/4 7/8 s=s:bd
+
+== euclid_rot 1 s "bd(3,8,2)"
+1/8 1/4 1/8 1/4 s=s:bd
+1/2 5/8 1/2 5/8 s=s:bd
+3/4 7/8 3/4 7/8 s=s:bd
+
+== euclid_pat 2 s "bd(<3 5>,8)"
+0/1 1/8 0/1 1/8 s=s:bd
+3/8 1/2 3/8 1/2 s=s:bd
+3/4 7/8 3/4 7/8 s=s:bd
+1/1 9/8 1/1 9/8 s=s:bd
+5/4 11/8 5/4 11/8 s=s:bd
+11/8 3/2 11/8 3/2 s=s:bd
+13/8 7/4 13/8 7/4 s=s:bd
+7/4 15/8 7/4 15/8 s=s:bd
+
+== euclid_degrade 1 s "bd(3,8)?"
+0/1 1/8 0/1 1/8 s=s:bd
+3/8 1/2 3/8 1/2 s=s:bd
+
+== replicate 1 s "bd!3 sd"
+0/1 1/4 0/1 1/4 s=s:bd
+1/4 1/2 1/4 1/2 s=s:bd
+1/2 3/4 1/2 3/4 s=s:bd
+3/4 1/1 3/4 1/1 s=s:sd
+
+== replicate_bare 1 s "bd ! sd"
+0/1 1/3 0/1 1/3 s=s:bd
+1/3 2/3 1/3 2/3 s=s:bd
+2/3 1/1 2/3 1/1 s=s:sd
+
+== replicate_group 1 s "[bd sd]! hh"
+0/1 1/6 0/1 1/6 s=s:bd
+1/6 1/3 1/6 1/3 s=s:sd
+1/3 1/2 1/3 1/2 s=s:bd
+1/2 2/3 1/2 2/3 s=s:sd
+2/3 1/1 2/3 1/1 s=s:hh
+
+== chain_mods 1 s "bd*2!2"
+0/1 1/4 0/1 1/4 s=s:bd
+1/4 1/2 1/4 1/2 s=s:bd
+1/2 3/4 1/2 3/4 s=s:bd
+3/4 1/1 3/4 1/1 s=s:bd
+
+== weight 1 s "bd@3 sd"
+0/1 3/4 0/1 3/4 s=s:bd
+3/4 1/1 3/4 1/1 s=s:sd
+
+== elongate 1 s "bd _ _ sd"
+0/1 3/4 0/1 3/4 s=s:bd
+3/4 1/1 3/4 1/1 s=s:sd
+
+== elongate_group 1 s "[bd sd] _ hh"
+0/1 1/3 0/1 1/3 s=s:bd
+1/3 2/3 1/3 2/3 s=s:sd
+2/3 1/1 2/3 1/1 s=s:hh
+
+== degrade_mini 4 s "hh*8?"
+0/1 1/8 0/1 1/8 s=s:hh
+1/4 3/8 1/4 3/8 s=s:hh
+3/8 1/2 3/8 1/2 s=s:hh
+1/1 9/8 1/1 9/8 s=s:hh
+9/8 5/4 9/8 5/4 s=s:hh
+11/8 3/2 11/8 3/2 s=s:hh
+13/8 7/4 13/8 7/4 s=s:hh
+7/4 15/8 7/4 15/8 s=s:hh
+17/8 9/4 17/8 9/4 s=s:hh
+19/8 5/2 19/8 5/2 s=s:hh
+5/2 21/8 5/2 21/8 s=s:hh
+11/4 23/8 11/4 23/8 s=s:hh
+23/8 3/1 23/8 3/1 s=s:hh
+3/1 25/8 3/1 25/8 s=s:hh
+25/8 13/4 25/8 13/4 s=s:hh
+7/2 29/8 7/2 29/8 s=s:hh
+15/4 31/8 15/4 31/8 s=s:hh
+31/8 4/1 31/8 4/1 s=s:hh
+
+== degrade_prob 2 s "hh*8?0.3"
+0/1 1/8 0/1 1/8 s=s:hh
+1/8 1/4 1/8 1/4 s=s:hh
+1/4 3/8 1/4 3/8 s=s:hh
+3/8 1/2 3/8 1/2 s=s:hh
+7/8 1/1 7/8 1/1 s=s:hh
+1/1 9/8 1/1 9/8 s=s:hh
+9/8 5/4 9/8 5/4 s=s:hh
+11/8 3/2 11/8 3/2 s=s:hh
+3/2 13/8 3/2 13/8 s=s:hh
+13/8 7/4 13/8 7/4 s=s:hh
+7/4 15/8 7/4 15/8 s=s:hh
+15/8 2/1 15/8 2/1 s=s:hh
+
+== choice 4 s "[bd | sd | hh]"
+0/1 1/1 0/1 1/1 s=s:sd
+1/1 2/1 1/1 2/1 s=s:sd
+2/1 3/1 2/1 3/1 s=s:bd
+3/1 4/1 3/1 4/1 s=s:hh
+
+== dots 1 s "bd sd . hh hh hh"
+0/1 1/4 0/1 1/4 s=s:bd
+1/4 1/2 1/4 1/2 s=s:sd
+1/2 2/3 1/2 2/3 s=s:hh
+2/3 5/6 2/3 5/6 s=s:hh
+5/6 1/1 5/6 1/1 s=s:hh
+
+== sample_index 1 s "drum:1 drum:3"
+0/1 1/2 0/1 1/2 n=f:1.0 s=s:drum
+1/2 1/1 1/2 1/1 n=f:3.0 s=s:drum
+
+== range_mini 1 n "0 .. 3"
+0/1 1/4 0/1 1/4 n=n:0.0
+1/4 1/2 1/4 1/2 n=n:1.0
+1/2 3/4 1/2 3/4 n=n:2.0
+3/4 1/1 3/4 1/1 n=n:3.0
+
+== range_desc 1 n "3 .. 0"
+0/1 1/4 0/1 1/4 n=n:3.0
+1/4 1/2 1/4 1/2 n=n:2.0
+1/2 3/4 1/2 3/4 n=n:1.0
+3/4 1/1 3/4 1/1 n=n:0.0
+
+== range_notes 1 note "c .. e"
+0/1 1/5 0/1 1/5 note=n:0.0
+1/5 2/5 1/5 2/5 note=n:1.0
+2/5 3/5 2/5 3/5 note=n:2.0
+3/5 4/5 3/5 4/5 note=n:3.0
+4/5 1/1 4/5 1/1 note=n:4.0
+
+== range_notes_desc 1 note "e .. c"
+0/1 1/5 0/1 1/5 note=n:4.0
+1/5 2/5 1/5 2/5 note=n:3.0
+2/5 3/5 2/5 3/5 note=n:2.0
+3/5 4/5 3/5 4/5 note=n:1.0
+4/5 1/1 4/5 1/1 note=n:0.0
+
+== notes 1 note "c e g a5 cs4"
+0/1 1/5 0/1 1/5 note=n:0.0
+1/5 2/5 1/5 2/5 note=n:4.0
+2/5 3/5 2/5 3/5 note=n:7.0
+3/5 4/5 3/5 4/5 note=n:9.0
+4/5 1/1 4/5 1/1 note=n:-11.0
+
+== chords 1 n "c'maj e'min7"
+0/1 1/2 0/1 1/2 n=n:0.0
+0/1 1/2 0/1 1/2 n=n:4.0
+0/1 1/2 0/1 1/2 n=n:7.0
+1/2 1/1 1/2 1/1 n=n:11.0
+1/2 1/1 1/2 1/1 n=n:14.0
+1/2 1/1 1/2 1/1 n=n:4.0
+1/2 1/1 1/2 1/1 n=n:7.0
+
+== n_decimal 1 n "0.5 1.25"
+0/1 1/2 0/1 1/2 n=n:0.5
+1/2 1/1 1/2 1/1 n=n:1.25
+
+== n_negative 1 n "-1 -12"
+0/1 1/2 0/1 1/2 n=n:-1.0
+1/2 1/1 1/2 1/1 n=n:-12.0
+
+== fast 1 fast 2 $ s "bd sd"
+0/1 1/4 0/1 1/4 s=s:bd
+1/4 1/2 1/4 1/2 s=s:sd
+1/2 3/4 1/2 3/4 s=s:bd
+3/4 1/1 3/4 1/1 s=s:sd
+
+== fast_pat 2 fast "1 2" $ s "bd sd"
+0/1 1/2 0/1 1/2 s=s:bd
+1/2 3/4 1/2 3/4 s=s:bd
+3/4 1/1 3/4 1/1 s=s:sd
+1/1 3/2 1/1 3/2 s=s:bd
+3/2 7/4 3/2 7/4 s=s:bd
+7/4 2/1 7/4 2/1 s=s:sd
+
+== slow 2 slow 2 $ s "bd sd hh cp"
+0/1 1/2 0/1 1/2 s=s:bd
+1/2 1/1 1/2 1/1 s=s:sd
+1/1 3/2 1/1 3/2 s=s:hh
+3/2 2/1 3/2 2/1 s=s:cp
+
+== hurry 1 hurry 2 $ s "bd sd"
+0/1 1/4 0/1 1/4 s=s:bd speed=f:2.0
+1/4 1/2 1/4 1/2 s=s:sd speed=f:2.0
+1/2 3/4 1/2 3/4 s=s:bd speed=f:2.0
+3/4 1/1 3/4 1/1 s=s:sd speed=f:2.0
+
+== rev 1 rev $ s "bd sd hh"
+0/1 1/3 0/1 1/3 s=s:hh
+1/3 2/3 1/3 2/3 s=s:sd
+2/3 1/1 2/3 1/1 s=s:bd
+
+== rev_sub 1 rev $ s "bd [sd hh]"
+0/1 1/4 0/1 1/4 s=s:hh
+1/4 1/2 1/4 1/2 s=s:sd
+1/2 1/1 1/2 1/1 s=s:bd
+
+== palindrome 2 palindrome $ s "bd sd hh"
+0/1 1/3 0/1 1/3 s=s:bd
+1/3 2/3 1/3 2/3 s=s:sd
+2/3 1/1 2/3 1/1 s=s:hh
+1/1 4/3 1/1 4/3 s=s:hh
+4/3 5/3 4/3 5/3 s=s:sd
+5/3 2/1 5/3 2/1 s=s:bd
+
+== brak 2 brak $ s "bd sd"
+0/1 1/2 0/1 1/2 s=s:bd
+1/2 1/1 1/2 1/1 s=s:sd
+5/4 3/2 5/4 3/2 s=s:bd
+3/2 7/4 3/2 7/4 s=s:sd
+
+== iter 4 iter 4 $ s "bd sd hh cp"
+0/1 1/4 0/1 1/4 s=s:bd
+1/4 1/2 1/4 1/2 s=s:sd
+1/2 3/4 1/2 3/4 s=s:hh
+3/4 1/1 3/4 1/1 s=s:cp
+1/1 5/4 1/1 5/4 s=s:sd
+5/4 3/2 5/4 3/2 s=s:hh
+3/2 7/4 3/2 7/4 s=s:cp
+7/4 2/1 7/4 2/1 s=s:bd
+2/1 9/4 2/1 9/4 s=s:hh
+9/4 5/2 9/4 5/2 s=s:cp
+5/2 11/4 5/2 11/4 s=s:bd
+11/4 3/1 11/4 3/1 s=s:sd
+3/1 13/4 3/1 13/4 s=s:cp
+13/4 7/2 13/4 7/2 s=s:bd
+7/2 15/4 7/2 15/4 s=s:sd
+15/4 4/1 15/4 4/1 s=s:hh
+
+== ply 1 ply 2 $ s "bd sd"
+0/1 1/4 0/1 1/4 s=s:bd
+1/4 1/2 1/4 1/2 s=s:bd
+1/2 3/4 1/2 3/4 s=s:sd
+3/4 1/1 3/4 1/1 s=s:sd
+
+== linger 1 linger 0.25 $ s "bd sd hh cp"
+0/1 1/4 0/1 1/4 s=s:bd
+1/4 1/2 1/4 1/2 s=s:bd
+1/2 3/4 1/2 3/4 s=s:bd
+3/4 1/1 3/4 1/1 s=s:bd
+
+== segment 1 segment 4 $ pan saw
+0/1 1/4 0/1 1/4 pan=f:0.0
+1/4 1/2 1/4 1/2 pan=f:0.25
+1/2 3/4 1/2 3/4 pan=f:0.5
+3/4 1/1 3/4 1/1 pan=f:0.75
+
+== every 4 every 2 (fast 2) $ s "bd sd"
+0/1 1/4 0/1 1/4 s=s:bd
+1/4 1/2 1/4 1/2 s=s:sd
+1/2 3/4 1/2 3/4 s=s:bd
+3/4 1/1 3/4 1/1 s=s:sd
+1/1 3/2 1/1 3/2 s=s:bd
+3/2 2/1 3/2 2/1 s=s:sd
+2/1 9/4 2/1 9/4 s=s:bd
+9/4 5/2 9/4 5/2 s=s:sd
+5/2 11/4 5/2 11/4 s=s:bd
+11/4 3/1 11/4 3/1 s=s:sd
+3/1 7/2 3/1 7/2 s=s:bd
+7/2 4/1 7/2 4/1 s=s:sd
+
+== every_section 4 every 2 (0.25 <~) $ s "bd sd"
+-1/4 1/4 0/1 1/4 s=s:bd
+1/4 3/4 1/4 3/4 s=s:sd
+3/4 5/4 3/4 1/1 s=s:bd
+1/1 3/2 1/1 3/2 s=s:bd
+3/2 2/1 3/2 2/1 s=s:sd
+7/4 9/4 2/1 9/4 s=s:bd
+9/4 11/4 9/4 11/4 s=s:sd
+11/4 13/4 11/4 3/1 s=s:bd
+3/1 7/2 3/1 7/2 s=s:bd
+7/2 4/1 7/2 4/1 s=s:sd
+
+== every_compose 4 every 2 (fast 2 . rev) $ s "bd sd hh"
+0/1 1/6 0/1 1/6 s=s:hh
+1/6 1/3 1/6 1/3 s=s:sd
+1/3 1/2 1/3 1/2 s=s:bd
+1/2 2/3 1/2 2/3 s=s:hh
+2/3 5/6 2/3 5/6 s=s:sd
+5/6 1/1 5/6 1/1 s=s:bd
+1/1 4/3 1/1 4/3 s=s:bd
+4/3 5/3 4/3 5/3 s=s:sd
+5/3 2/1 5/3 2/1 s=s:hh
+2/1 13/6 2/1 13/6 s=s:hh
+13/6 7/3 13/6 7/3 s=s:sd
+7/3 5/2 7/3 5/2 s=s:bd
+5/2 8/3 5/2 8/3 s=s:hh
+8/3 17/6 8/3 17/6 s=s:sd
+17/6 3/1 17/6 3/1 s=s:bd
+3/1 10/3 3/1 10/3 s=s:bd
+10/3 11/3 10/3 11/3 s=s:sd
+11/3 4/1 11/3 4/1 s=s:hh
+
+== whenmod 4 whenmod 4 2 rev $ s "bd sd hh"
+0/1 1/3 0/1 1/3 s=s:bd
+1/3 2/3 1/3 2/3 s=s:sd
+2/3 1/1 2/3 1/1 s=s:hh
+1/1 4/3 1/1 4/3 s=s:bd
+4/3 5/3 4/3 5/3 s=s:sd
+5/3 2/1 5/3 2/1 s=s:hh
+2/1 7/3 2/1 7/3 s=s:hh
+7/3 8/3 7/3 8/3 s=s:sd
+8/3 3/1 8/3 3/1 s=s:bd
+3/1 10/3 3/1 10/3 s=s:hh
+10/3 11/3 10/3 11/3 s=s:sd
+11/3 4/1 11/3 4/1 s=s:bd
+
+== silence 1 silence
+
+== stack 1 stack [s "bd*2", s "hh*3"]
+0/1 1/3 0/1 1/3 s=s:hh
+0/1 1/2 0/1 1/2 s=s:bd
+1/3 2/3 1/3 2/3 s=s:hh
+1/2 1/1 1/2 1/1 s=s:bd
+2/3 1/1 2/3 1/1 s=s:hh
+
+== cat 3 cat [s "bd*2", s "hh*3"]
+0/1 1/2 0/1 1/2 s=s:bd
+1/2 1/1 1/2 1/1 s=s:bd
+1/1 4/3 1/1 4/3 s=s:hh
+4/3 5/3 4/3 5/3 s=s:hh
+5/3 2/1 5/3 2/1 s=s:hh
+2/1 5/2 2/1 5/2 s=s:bd
+5/2 3/1 5/2 3/1 s=s:bd
+
+== fastcat 1 fastcat [s "bd", s "sd hh"]
+0/1 1/2 0/1 1/2 s=s:bd
+1/2 3/4 1/2 3/4 s=s:sd
+3/4 1/1 3/4 1/1 s=s:hh
+
+== slowcat 2 slowcat [s "bd", s "sd"]
+0/1 1/1 0/1 1/1 s=s:bd
+1/1 2/1 1/1 2/1 s=s:sd
+
+== overlay 1 overlay (s "bd") (s "hh*2")
+0/1 1/2 0/1 1/2 s=s:hh
+0/1 1/1 0/1 1/1 s=s:bd
+1/2 1/1 1/2 1/1 s=s:hh
+
+== struct 1 struct "t ~ t t" $ s "bd"
+0/1 1/4 0/1 1/4 s=s:bd
+1/2 3/4 1/2 3/4 s=s:bd
+3/4 1/1 3/4 1/1 s=s:bd
+
+== struct_bool 1 struct "t f t t" $ s "bd"
+0/1 1/4 0/1 1/4 s=s:bd
+1/2 3/4 1/2 3/4 s=s:bd
+3/4 1/1 3/4 1/1 s=s:bd
+
+== mask 1 mask "1 0 1 1" $ s "hh*8"
+0/1 1/8 0/1 1/8 s=s:hh
+1/8 1/4 1/8 1/4 s=s:hh
+1/2 5/8 1/2 5/8 s=s:hh
+5/8 3/4 5/8 3/4 s=s:hh
+3/4 7/8 3/4 7/8 s=s:hh
+7/8 1/1 7/8 1/1 s=s:hh
+
+== euclid 1 euclid 3 8 $ s "bd"
+0/1 1/8 0/1 1/8 s=s:bd
+3/8 1/2 3/8 1/2 s=s:bd
+3/4 7/8 3/4 7/8 s=s:bd
+
+== euclidInv 1 euclidInv 3 8 $ s "bd"
+1/8 1/4 1/8 1/4 s=s:bd
+1/4 3/8 1/4 3/8 s=s:bd
+1/2 5/8 1/2 5/8 s=s:bd
+5/8 3/4 5/8 3/4 s=s:bd
+7/8 1/1 7/8 1/1 s=s:bd
+
+== euclidFull 1 euclidFull 3 8 (s "bd") (s "hh")
+0/1 1/8 0/1 1/8 s=s:bd
+1/8 1/4 1/8 1/4 s=s:hh
+1/4 3/8 1/4 3/8 s=s:hh
+3/8 1/2 3/8 1/2 s=s:bd
+1/2 5/8 1/2 5/8 s=s:hh
+5/8 3/4 5/8 3/4 s=s:hh
+3/4 7/8 3/4 7/8 s=s:bd
+7/8 1/1 7/8 1/1 s=s:hh
+
+== degradeBy 2 degradeBy 0.5 $ s "hh*8"
+0/1 1/8 0/1 1/8 s=s:hh
+1/4 3/8 1/4 3/8 s=s:hh
+3/8 1/2 3/8 1/2 s=s:hh
+1/1 9/8 1/1 9/8 s=s:hh
+9/8 5/4 9/8 5/4 s=s:hh
+11/8 3/2 11/8 3/2 s=s:hh
+13/8 7/4 13/8 7/4 s=s:hh
+7/4 15/8 7/4 15/8 s=s:hh
+
+== sometimesBy 2 sometimesBy 0.5 (# speed 2) $ s "bd*8"
+0/1 1/8 0/1 1/8 s=s:bd
+1/8 1/4 1/8 1/4 s=s:bd speed=f:2.0
+1/4 3/8 1/4 3/8 s=s:bd
+3/8 1/2 3/8 1/2 s=s:bd
+1/2 5/8 1/2 5/8 s=s:bd speed=f:2.0
+5/8 3/4 5/8 3/4 s=s:bd speed=f:2.0
+3/4 7/8 3/4 7/8 s=s:bd speed=f:2.0
+7/8 1/1 7/8 1/1 s=s:bd speed=f:2.0
+1/1 9/8 1/1 9/8 s=s:bd
+9/8 5/4 9/8 5/4 s=s:bd
+5/4 11/8 5/4 11/8 s=s:bd speed=f:2.0
+11/8 3/2 11/8 3/2 s=s:bd
+3/2 13/8 3/2 13/8 s=s:bd speed=f:2.0
+13/8 7/4 13/8 7/4 s=s:bd
+7/4 15/8 7/4 15/8 s=s:bd
+15/8 2/1 15/8 2/1 s=s:bd speed=f:2.0
+
+== sometimes 2 sometimes (# speed 2) $ s "bd*8"
+0/1 1/8 0/1 1/8 s=s:bd
+1/8 1/4 1/8 1/4 s=s:bd speed=f:2.0
+1/4 3/8 1/4 3/8 s=s:bd
+3/8 1/2 3/8 1/2 s=s:bd
+1/2 5/8 1/2 5/8 s=s:bd speed=f:2.0
+5/8 3/4 5/8 3/4 s=s:bd speed=f:2.0
+3/4 7/8 3/4 7/8 s=s:bd speed=f:2.0
+7/8 1/1 7/8 1/1 s=s:bd speed=f:2.0
+1/1 9/8 1/1 9/8 s=s:bd
+9/8 5/4 9/8 5/4 s=s:bd
+5/4 11/8 5/4 11/8 s=s:bd speed=f:2.0
+11/8 3/2 11/8 3/2 s=s:bd
+3/2 13/8 3/2 13/8 s=s:bd speed=f:2.0
+13/8 7/4 13/8 7/4 s=s:bd
+7/4 15/8 7/4 15/8 s=s:bd
+15/8 2/1 15/8 2/1 s=s:bd speed=f:2.0
+
+== often 2 often (# speed 2) $ s "bd*8"
+0/1 1/8 0/1 1/8 s=s:bd speed=f:2.0
+1/8 1/4 1/8 1/4 s=s:bd speed=f:2.0
+1/4 3/8 1/4 3/8 s=s:bd speed=f:2.0
+3/8 1/2 3/8 1/2 s=s:bd speed=f:2.0
+1/2 5/8 1/2 5/8 s=s:bd speed=f:2.0
+5/8 3/4 5/8 3/4 s=s:bd speed=f:2.0
+3/4 7/8 3/4 7/8 s=s:bd speed=f:2.0
+7/8 1/1 7/8 1/1 s=s:bd speed=f:2.0
+1/1 9/8 1/1 9/8 s=s:bd speed=f:2.0
+9/8 5/4 9/8 5/4 s=s:bd speed=f:2.0
+5/4 11/8 5/4 11/8 s=s:bd speed=f:2.0
+11/8 3/2 11/8 3/2 s=s:bd
+3/2 13/8 3/2 13/8 s=s:bd speed=f:2.0
+13/8 7/4 13/8 7/4 s=s:bd speed=f:2.0
+7/4 15/8 7/4 15/8 s=s:bd
+15/8 2/1 15/8 2/1 s=s:bd speed=f:2.0
+
+== rarely 2 rarely (# speed 2) $ s "bd*8"
+0/1 1/8 0/1 1/8 s=s:bd
+1/8 1/4 1/8 1/4 s=s:bd
+1/4 3/8 1/4 3/8 s=s:bd
+3/8 1/2 3/8 1/2 s=s:bd
+1/2 5/8 1/2 5/8 s=s:bd
+5/8 3/4 5/8 3/4 s=s:bd speed=f:2.0
+3/4 7/8 3/4 7/8 s=s:bd speed=f:2.0
+7/8 1/1 7/8 1/1 s=s:bd
+1/1 9/8 1/1 9/8 s=s:bd
+9/8 5/4 9/8 5/4 s=s:bd
+5/4 11/8 5/4 11/8 s=s:bd
+11/8 3/2 11/8 3/2 s=s:bd
+3/2 13/8 3/2 13/8 s=s:bd
+13/8 7/4 13/8 7/4 s=s:bd
+7/4 15/8 7/4 15/8 s=s:bd
+15/8 2/1 15/8 2/1 s=s:bd
+
+== almostNever 2 almostNever (# speed 2) $ s "bd*8"
+0/1 1/8 0/1 1/8 s=s:bd
+1/8 1/4 1/8 1/4 s=s:bd
+1/4 3/8 1/4 3/8 s=s:bd
+3/8 1/2 3/8 1/2 s=s:bd
+1/2 5/8 1/2 5/8 s=s:bd
+5/8 3/4 5/8 3/4 s=s:bd
+3/4 7/8 3/4 7/8 s=s:bd
+7/8 1/1 7/8 1/1 s=s:bd
+1/1 9/8 1/1 9/8 s=s:bd
+9/8 5/4 9/8 5/4 s=s:bd
+5/4 11/8 5/4 11/8 s=s:bd
+11/8 3/2 11/8 3/2 s=s:bd
+3/2 13/8 3/2 13/8 s=s:bd
+13/8 7/4 13/8 7/4 s=s:bd
+7/4 15/8 7/4 15/8 s=s:bd
+15/8 2/1 15/8 2/1 s=s:bd
+
+== almostAlways 2 almostAlways (# speed 2) $ s "bd*8"
+0/1 1/8 0/1 1/8 s=s:bd speed=f:2.0
+1/8 1/4 1/8 1/4 s=s:bd speed=f:2.0
+1/4 3/8 1/4 3/8 s=s:bd speed=f:2.0
+3/8 1/2 3/8 1/2 s=s:bd speed=f:2.0
+1/2 5/8 1/2 5/8 s=s:bd speed=f:2.0
+5/8 3/4 5/8 3/4 s=s:bd speed=f:2.0
+3/4 7/8 3/4 7/8 s=s:bd speed=f:2.0
+7/8 1/1 7/8 1/1 s=s:bd speed=f:2.0
+1/1 9/8 1/1 9/8 s=s:bd speed=f:2.0
+9/8 5/4 9/8 5/4 s=s:bd speed=f:2.0
+5/4 11/8 5/4 11/8 s=s:bd speed=f:2.0
+11/8 3/2 11/8 3/2 s=s:bd speed=f:2.0
+3/2 13/8 3/2 13/8 s=s:bd speed=f:2.0
+13/8 7/4 13/8 7/4 s=s:bd speed=f:2.0
+7/4 15/8 7/4 15/8 s=s:bd speed=f:2.0
+15/8 2/1 15/8 2/1 s=s:bd speed=f:2.0
+
+== someCyclesBy 4 someCyclesBy 0.5 (# speed 2) $ s "bd*2"
+0/1 1/2 0/1 1/2 s=s:bd
+1/2 1/1 1/2 1/1 s=s:bd
+1/1 3/2 1/1 3/2 s=s:bd
+3/2 2/1 3/2 2/1 s=s:bd
+2/1 5/2 2/1 5/2 s=s:bd speed=f:2.0
+5/2 3/1 5/2 3/1 s=s:bd speed=f:2.0
+3/1 7/2 3/1 7/2 s=s:bd
+7/2 4/1 7/2 4/1 s=s:bd
+
+== rand 1 s "bd*4" # pan rand
+0/1 1/4 0/1 1/4 pan=f:0.5 s=s:bd
+1/4 1/2 1/4 1/2 pan=f:0.6295689214020967 s=s:bd
+1/2 3/4 1/2 3/4 pan=f:0.2591378428041935 s=s:bd
+3/4 1/1 3/4 1/1 pan=f:0.20052618719637394 s=s:bd
+
+== irand 1 s "drum*4" # n (irand 8)
+0/1 1/4 0/1 1/4 n=n:4.0 s=s:drum
+1/4 1/2 1/4 1/2 n=n:5.0 s=s:drum
+1/2 3/4 1/2 3/4 n=n:2.0 s=s:drum
+3/4 1/1 3/4 1/1 n=n:1.0 s=s:drum
+
+== sine 1 s "bd*4" # pan sine
+0/1 1/4 0/1 1/4 pan=f:0.5 s=s:bd
+1/4 1/2 1/4 1/2 pan=f:1.0 s=s:bd
+1/2 3/4 1/2 3/4 pan=f:0.5000000000000001 s=s:bd
+3/4 1/1 3/4 1/1 pan=f:0.0 s=s:bd
+
+== cosine 1 s "bd*4" # pan cosine
+0/1 1/4 0/1 1/4 pan=f:0.0 s=s:bd
+1/4 1/2 1/4 1/2 pan=f:0.5 s=s:bd
+1/2 3/4 1/2 3/4 pan=f:1.0 s=s:bd
+3/4 1/1 3/4 1/1 pan=f:0.5000000000000001 s=s:bd
+
+== saw 1 s "bd*4" # pan saw
+0/1 1/4 0/1 1/4 pan=f:0.0 s=s:bd
+1/4 1/2 1/4 1/2 pan=f:0.25 s=s:bd
+1/2 3/4 1/2 3/4 pan=f:0.5 s=s:bd
+3/4 1/1 3/4 1/1 pan=f:0.75 s=s:bd
+
+== tri 1 s "bd*4" # pan tri
+0/1 1/4 0/1 1/4 pan=f:0.0 s=s:bd
+1/4 1/2 1/4 1/2 pan=f:0.5 s=s:bd
+1/2 3/4 1/2 3/4 pan=f:1.0 s=s:bd
+3/4 1/1 3/4 1/1 pan=f:0.5 s=s:bd
+
+== square 1 s "bd*4" # pan square
+0/1 1/4 0/1 1/4 pan=f:0.0 s=s:bd
+1/4 1/2 1/4 1/2 pan=f:0.0 s=s:bd
+1/2 3/4 1/2 3/4 pan=f:1.0 s=s:bd
+3/4 1/1 3/4 1/1 pan=f:1.0 s=s:bd
+
+== range 1 s "bd*4" # pan (range 0.2 0.8 sine)
+0/1 1/4 0/1 1/4 pan=f:0.5 s=s:bd
+1/4 1/2 1/4 1/2 pan=f:0.8 s=s:bd
+1/2 3/4 1/2 3/4 pan=f:0.5000000000000001 s=s:bd
+3/4 1/1 3/4 1/1 pan=f:0.2 s=s:bd
+
+== signal_bare 1 pan sine
+~ ~ 0/1 1/1 pan=f:0.5
+
+== superimpose 1 superimpose (fast 2) $ s "bd sd"
+0/1 1/4 0/1 1/4 s=s:bd
+0/1 1/2 0/1 1/2 s=s:bd
+1/4 1/2 1/4 1/2 s=s:sd
+1/2 3/4 1/2 3/4 s=s:bd
+1/2 1/1 1/2 1/1 s=s:sd
+3/4 1/1 3/4 1/1 s=s:sd
+
+== off 1 off 0.25 (# crush 4) $ s "bd sd"
+-1/4 1/4 0/1 1/4 crush=f:4.0 s=s:sd
+0/1 1/2 0/1 1/2 s=s:bd
+1/4 3/4 1/4 3/4 crush=f:4.0 s=s:bd
+1/2 1/1 1/2 1/1 s=s:sd
+3/4 5/4 3/4 1/1 crush=f:4.0 s=s:sd
+
+== jux 1 jux rev $ s "bd sd hh"
+0/1 1/3 0/1 1/3 pan=f:0.0 s=s:bd
+0/1 1/3 0/1 1/3 pan=f:1.0 s=s:hh
+1/3 2/3 1/3 2/3 pan=f:0.0 s=s:sd
+1/3 2/3 1/3 2/3 pan=f:1.0 s=s:sd
+2/3 1/1 2/3 1/1 pan=f:0.0 s=s:hh
+2/3 1/1 2/3 1/1 pan=f:1.0 s=s:bd
+
+== stut 1 stut 3 0.5 0.125 $ s "bd sd"
+-3/8 1/8 0/1 1/8 gain=f:0.8333333333333333 s=s:sd
+-1/4 1/4 0/1 1/4 gain=f:0.6666666666666666 s=s:sd
+0/1 1/2 0/1 1/2 s=s:bd
+1/8 5/8 1/8 5/8 gain=f:0.8333333333333333 s=s:bd
+1/4 3/4 1/4 3/4 gain=f:0.6666666666666666 s=s:bd
+1/2 1/1 1/2 1/1 s=s:sd
+5/8 9/8 5/8 1/1 gain=f:0.8333333333333333 s=s:sd
+3/4 5/4 3/4 1/1 gain=f:0.6666666666666666 s=s:sd
+
+== echo 1 echo 3 0.2 0.5 $ s "bd sd"
+-1/10 2/5 0/1 1/5 gain=f:0.25 s=s:sd
+-3/10 1/5 0/1 1/5 gain=f:0.5 s=s:sd
+0/1 1/2 0/1 1/2 s=s:bd
+-1/10 2/5 1/5 2/5 gain=f:0.25 s=s:sd
+1/5 7/10 1/5 7/10 gain=f:0.5 s=s:bd
+2/5 9/10 2/5 9/10 gain=f:0.25 s=s:bd
+1/2 1/1 1/2 1/1 s=s:sd
+7/10 6/5 7/10 1/1 gain=f:0.5 s=s:sd
+9/10 7/5 9/10 1/1 gain=f:0.25 s=s:sd
+
+== chunk 4 chunk 4 (fast 2) $ s "bd sd hh cp"
+0/1 1/8 0/1 1/8 s=s:bd
+1/8 1/4 1/8 1/4 s=s:sd
+1/4 1/2 1/4 1/2 s=s:sd
+1/2 3/4 1/2 3/4 s=s:hh
+3/4 1/1 3/4 1/1 s=s:cp
+1/1 5/4 1/1 5/4 s=s:bd
+5/4 11/8 5/4 11/8 s=s:hh
+11/8 3/2 11/8 3/2 s=s:cp
+3/2 7/4 3/2 7/4 s=s:hh
+7/4 2/1 7/4 2/1 s=s:cp
+2/1 9/4 2/1 9/4 s=s:bd
+9/4 5/2 9/4 5/2 s=s:sd
+5/2 21/8 5/2 21/8 s=s:bd
+21/8 11/4 21/8 11/4 s=s:sd
+11/4 3/1 11/4 3/1 s=s:cp
+3/1 13/4 3/1 13/4 s=s:bd
+13/4 7/2 13/4 7/2 s=s:sd
+7/2 15/4 7/2 15/4 s=s:hh
+15/4 31/8 15/4 31/8 s=s:hh
+31/8 4/1 31/8 4/1 s=s:cp
+
+== chop 1 chop 2 $ s "bd sd"
+0/1 1/4 0/1 1/4 begin=f:0.0 end=f:0.5 s=s:bd
+1/4 1/2 1/4 1/2 begin=f:0.5 end=f:1.0 s=s:bd
+1/2 3/4 1/2 3/4 begin=f:0.0 end=f:0.5 s=s:sd
+3/4 1/1 3/4 1/1 begin=f:0.5 end=f:1.0 s=s:sd
+
+== striate 1 striate 2 $ s "bd sd"
+0/1 1/4 0/1 1/4 begin=f:0.0 end=f:0.5 s=s:bd
+1/4 1/2 1/4 1/2 begin=f:0.0 end=f:0.5 s=s:sd
+1/2 3/4 1/2 3/4 begin=f:0.5 end=f:1.0 s=s:bd
+3/4 1/1 3/4 1/1 begin=f:0.5 end=f:1.0 s=s:sd
+
+== loopAt 2 loopAt 2 $ chop 4 $ s "break"
+0/1 1/2 0/1 1/2 begin=f:0.0 end=f:0.25 s=s:break speed=f:0.5 unit=s:c
+1/2 1/1 1/2 1/1 begin=f:0.25 end=f:0.5 s=s:break speed=f:0.5 unit=s:c
+1/1 3/2 1/1 3/2 begin=f:0.5 end=f:0.75 s=s:break speed=f:0.5 unit=s:c
+3/2 2/1 3/2 2/1 begin=f:0.75 end=f:1.0 s=s:break speed=f:0.5 unit=s:c
+
+== splice 1 splice 4 "0 2" $ s "bev"
+0/1 1/2 0/1 1/2 begin=f:0.0 end=f:0.25 s=s:bev speed=f:0.5 unit=s:c
+1/2 1/1 1/2 1/1 begin=f:0.5 end=f:0.75 s=s:bev speed=f:0.5 unit=s:c
+
+== scale 1 n (scale "major" "0 .. 7")
+0/1 1/8 0/1 1/8 n=n:0.0
+1/8 1/4 1/8 1/4 n=n:2.0
+1/4 3/8 1/4 3/8 n=n:4.0
+3/8 1/2 3/8 1/2 n=n:5.0
+1/2 5/8 1/2 5/8 n=n:7.0
+5/8 3/4 5/8 3/4 n=n:9.0
+3/4 7/8 3/4 7/8 n=n:11.0
+7/8 1/1 7/8 1/1 n=n:12.0
+
+== arp 2 n (arp "up" "<c'maj e'min>")
+0/1 1/3 0/1 1/3 n=n:0.0
+1/3 2/3 1/3 2/3 n=n:4.0
+2/3 1/1 2/3 1/1 n=n:7.0
+1/1 4/3 1/1 4/3 n=n:4.0
+4/3 5/3 4/3 5/3 n=n:7.0
+5/3 2/1 5/3 2/1 n=n:11.0
+
+== controls_all 1 s "bd" # gain 0.8 # pan 0.25 # cutoff 1000 # resonance 0.2 # hpf 200 # bandf 500 # delay 0.3 # room 0.4 # crush 4 # shape 0.5 # begin 0.25 # speed 2 # legato 1 # sustain 0.5 # nudge 0.1 # cut 1 # orbit 1
+0/1 1/1 0/1 1/1 bandf=f:500.0 begin=f:0.25 crush=f:4.0 cut=i:1 cutoff=f:1000.0 delay=f:0.3 gain=f:0.8 hcutoff=f:200.0 legato=f:1.0 nudge=f:0.1 orbit=i:1 pan=f:0.25 resonance=f:0.2 room=f:0.4 s=s:bd shape=f:0.5 speed=f:2.0 sustain=f:0.5
+
+== sound_up 1 sound "bd" # up 12
+0/1 1/1 0/1 1/1 note=n:12.0 s=s:bd
+
+== op_hash 1 s "bd*2" # n "1 2 3"
+0/1 1/2 0/1 1/3 n=n:1.0 s=s:bd
+0/1 1/2 1/3 1/2 n=n:2.0 s=s:bd
+1/2 1/1 1/2 2/3 n=n:2.0 s=s:bd
+1/2 1/1 2/3 1/1 n=n:3.0 s=s:bd
+
+== op_plus_both 1 n "0 1" |+| n "10 20 30"
+0/1 1/3 0/1 1/3 n=n:10.0
+1/3 1/2 1/3 1/2 n=n:20.0
+1/2 2/3 1/2 2/3 n=n:21.0
+2/3 1/1 2/3 1/1 n=n:31.0
+
+== op_plus_left 1 n "0 1" |+ n "10 20 30"
+0/1 1/2 0/1 1/3 n=n:10.0
+0/1 1/2 1/3 1/2 n=n:20.0
+1/2 1/1 1/2 2/3 n=n:21.0
+1/2 1/1 2/3 1/1 n=n:31.0
+
+== op_plus_right 1 n "0 1" +| n "10 20 30"
+0/1 1/3 0/1 1/3 n=n:10.0
+1/3 2/3 1/3 1/2 n=n:20.0
+1/3 2/3 1/2 2/3 n=n:21.0
+2/3 1/1 2/3 1/1 n=n:31.0
+
+== op_minus 1 n "10 20" |- n 1
+0/1 1/2 0/1 1/2 n=n:9.0
+1/2 1/1 1/2 1/1 n=n:19.0
+
+== op_minus_both 1 n "10 20" |-| n "1 2 3"
+0/1 1/3 0/1 1/3 n=n:9.0
+1/3 1/2 1/3 1/2 n=n:8.0
+1/2 2/3 1/2 2/3 n=n:18.0
+2/3 1/1 2/3 1/1 n=n:17.0
+
+== op_minus_right 1 n "10 20" -| n "1 2 3"
+0/1 1/3 0/1 1/3 n=n:9.0
+1/3 2/3 1/3 1/2 n=n:8.0
+1/3 2/3 1/2 2/3 n=n:18.0
+2/3 1/1 2/3 1/1 n=n:17.0
+
+== op_mul 1 s "bd*2" # speed 1 |* speed "1 2"
+0/1 1/2 0/1 1/2 s=s:bd speed=f:1.0
+1/2 1/1 1/2 1/1 s=s:bd speed=f:2.0
+
+== op_mul_both 1 speed "1 2" |*| speed "2 3 4"
+0/1 1/3 0/1 1/3 speed=f:2.0
+1/3 1/2 1/3 1/2 speed=f:3.0
+1/2 2/3 1/2 2/3 speed=f:6.0
+2/3 1/1 2/3 1/1 speed=f:8.0
+
+== op_mul_right 1 speed "1 2" *| speed "2 3 4"
+0/1 1/3 0/1 1/3 speed=f:2.0
+1/3 2/3 1/3 1/2 speed=f:3.0
+1/3 2/3 1/2 2/3 speed=f:6.0
+2/3 1/1 2/3 1/1 speed=f:8.0
+
+== op_div 1 s "bd" # speed 2 |/ speed 4
+0/1 1/1 0/1 1/1 s=s:bd speed=f:0.5
+
+== op_div_both 1 speed "4 8" |/| speed "2 4 8"
+0/1 1/3 0/1 1/3 speed=f:2.0
+1/3 1/2 1/3 1/2 speed=f:1.0
+1/2 2/3 1/2 2/3 speed=f:2.0
+2/3 1/1 2/3 1/1 speed=f:1.0
+
+== op_div_right 1 speed "4 8" /| speed "2 4 8"
+0/1 1/3 0/1 1/3 speed=f:2.0
+1/3 2/3 1/3 1/2 speed=f:1.0
+1/3 2/3 1/2 2/3 speed=f:2.0
+2/3 1/1 2/3 1/1 speed=f:1.0
+
+== op_left_vals 1 s "bd sd" # n 1 |< n "5 6 7"
+0/1 1/2 0/1 1/3 n=n:1.0 s=s:bd
+0/1 1/2 1/3 1/2 n=n:1.0 s=s:bd
+1/2 1/1 1/2 2/3 n=n:1.0 s=s:sd
+1/2 1/1 2/3 1/1 n=n:1.0 s=s:sd
+
+== op_right_vals 1 s "bd sd" # n 1 |> n "5 6 7"
+0/1 1/2 0/1 1/3 n=n:5.0 s=s:bd
+0/1 1/2 1/3 1/2 n=n:6.0 s=s:bd
+1/2 1/1 1/2 2/3 n=n:6.0 s=s:sd
+1/2 1/1 2/3 1/1 n=n:7.0 s=s:sd
+
+== op_precedence 1 0.25 <~ s "bd sd" # n 1
+-1/4 1/4 0/1 1/4 n=n:1.0 s=s:bd
+1/4 3/4 1/4 3/4 n=n:1.0 s=s:sd
+3/4 5/4 3/4 1/1 n=n:1.0 s=s:bd
+
+== shift_left 1 0.25 <~ s "bd sd hh cp"
+0/1 1/4 0/1 1/4 s=s:sd
+1/4 1/2 1/4 1/2 s=s:hh
+1/2 3/4 1/2 3/4 s=s:cp
+3/4 1/1 3/4 1/1 s=s:bd
+
+== shift_right 2 "<0 0.25>" ~> s "bd sd"
+0/1 1/2 0/1 1/2 s=s:bd
+1/2 1/1 1/2 1/1 s=s:sd
+3/4 5/4 1/1 5/4 s=s:sd
+5/4 7/4 5/4 7/4 s=s:bd
+7/4 9/4 7/4 2/1 s=s:sd
+
+== arith_plus 2 n ("0 2" + "<12 7>")
+0/1 1/2 0/1 1/2 n=n:12.0
+1/2 1/1 1/2 1/1 n=n:14.0
+1/1 3/2 1/1 3/2 n=n:7.0
+3/2 2/1 3/2 2/1 n=n:9.0
+
+== arith_minus 1 n ("12 7" - 2)
+0/1 1/2 0/1 1/2 n=n:10.0
+1/2 1/1 1/2 1/1 n=n:5.0
+
+== arith_mul 1 n ("1 2" * 3)
+0/1 1/2 0/1 1/2 n=n:3.0
+1/2 1/1 1/2 1/1 n=n:6.0
+
+== arith_div 1 speed ("1 2" / 4)
+0/1 1/2 0/1 1/2 speed=f:0.25
+1/2 1/1 1/2 1/1 speed=f:0.5

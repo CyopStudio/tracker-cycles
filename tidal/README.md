@@ -7,6 +7,7 @@ Plan steps 0–1 (see `../CLAUDE.md` and `../docs/tidal_code_tree.md`).
 | `core/` | Code tree, function library, parser, renderer, type checker. No heap, fixed pools. Will be shared with the firmware. | host + MK66 |
 | `proto/` | Editor prototype (step 1): editor model, 800×480 view drawn with the firmware's own fonts, GHCi backend, optional SDL window. | host |
 | `tests/` | Core tests (`test_core.cpp`) and scripted editor sessions (`proto/*.keys`). | host |
+| `golden/` | Golden cases captured from real Tidal (see below). | host |
 
 ## Build
 
@@ -16,7 +17,30 @@ make            # core, tests, headless prototype
 make test       # core checks
 make smoke      # scripted editor sessions
 make arm        # cross-compile core for the Cortex-M4 and print sizes
+make golden     # recapture golden events from real Tidal (needs GHCi)
 ```
+
+### Golden tests
+
+`golden/cases.txt` lists patterns (`name cycles code`, code is what follows
+`d1 $`). `make golden` runs `golden/capture.py`, which queries each one in
+real Tidal 1.10.3 (`queryArc` over cycles 0..N) and writes
+`golden/expected.txt`: exact rational times (whole and part) and every
+control value with its Tidal type. It also writes `golden/types.txt`, the
+GHCi `:t` of every library entry. Both are committed; rerun after editing
+`cases.txt`.
+
+`make test` checks every case parses, type-checks and renders stably here,
+that `expected.txt` matches `cases.txt`, and that all times fit 32-bit
+rationals. Comparing our events against `expected.txt` comes with the
+query engine (`tests/golden.h` already loads the events).
+
+Things the captures show the engine must do:
+- Control aliases: `hpf` arrives as `hcutoff`.
+- Fragments: `|+`, `+|` etc. split events into parts sharing one whole
+  (`op_plus_left`); match them, or compare onsets only.
+- Floats: compare values with a tolerance (`0.5000000000000001`).
+- Signals with no structure (`pan sine` alone) give events without a whole.
 
 Quickest way to open the window (rebuilds first if anything changed):
 

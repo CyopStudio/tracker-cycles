@@ -77,7 +77,9 @@ to upstream CE.
      playback rate); anything else is an error.
 2. Host-side engine (tidal/ dir), can run in parallel with 1:
    - Desktop test runner + golden tests: event lists captured from real
-     Tidal by a capture script (needs host GHC + Tidal + SuperDirt).
+     Tidal by a capture script (needs host GHC + Tidal; no SuperDirt).
+     Done: tidal/golden/ (119 cases, capture.py, types.txt); next is the
+     query engine that `make test` will compare against expected.txt.
    - Cross-compile with arm-none-eabi-gcc throughout; track flash size.
    - Early on-device timing check: once a few dozen functions work, flash a
      throwaway build that times queries on the MK66 (32-bit rationals at
@@ -161,7 +163,8 @@ to upstream CE.
 - docs/developer_guide.md  architecture, hardware limits, gotchas
 - tidal/     our code (host build, `make -C tidal test smoke arm`):
   core/ shared tree/parser/renderer/checker (no heap, portable),
-  proto/ editor prototype, tests/. See tidal/README.md.
+  proto/ editor prototype, tests/, golden/ (cases + events captured from
+  real Tidal, `make -C tidal golden`). See tidal/README.md.
 
 ## Rules / gotchas
 - Do NOT change flash ORIGIN addresses in linker scripts.
