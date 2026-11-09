@@ -64,6 +64,10 @@ static const LibEntry kLib[] = {
     // ---- samples ------------------------------------------------------------
     FN("chop", "Pat Int -> Pat Control -> Pat Control", Sample, HostOnly, "4"),
     FN("striate", "Pat Int -> Pat Control -> Pat Control", Sample, HostOnly, "4"),
+    // loopAt/splice set speed so the sample fits the cycle / event (unit "c");
+    // the device can only approximate that rate with tune + fine-tune.
+    FN("loopAt", "Pat Time -> Pat Control -> Pat Control", Sample, Approx, "2"),
+    FN("splice", "Pat Int -> Pat Int -> Pat Control -> Pat Control", Sample, Approx, "4 \"0 2\""),
     // ---- harmony ------------------------------------------------------------
     FN("scale", "Frac a => Pat String -> Pat a -> Pat a", Harmony, Full, "\"major\""),
     FN("arp", "Pat String -> Pat a -> Pat a", Harmony, Full, "\"up\""),

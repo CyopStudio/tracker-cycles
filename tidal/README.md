@@ -13,7 +13,7 @@ Plan steps 0–1 (see `../CLAUDE.md` and `../docs/tidal_code_tree.md`).
 ```bash
 cd tidal
 make            # core, tests, headless prototype
-make test       # 236 core checks
+make test       # core checks
 make smoke      # scripted editor sessions
 make arm        # cross-compile core for the Cortex-M4 and print sizes
 ```

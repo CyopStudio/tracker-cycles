@@ -239,6 +239,10 @@ static void testTypes() {
     typeCheck("sometimesBy 0.3 (# speed 2) $ s \"bd*8\"");
     typeCheck("whenmod 8 6 rev $ s \"bd sd\"");
     typeCheck("degradeBy 0.9 $ s \"hh*16\"");
+    typeCheck("loopAt 2 $ chop 4 $ s \"break\"");
+    typeCheck("loopAt \"<1 2>\" $ s \"break\"");
+    typeCheck("splice 8 \"0 2 4 <6 7>\" $ s \"break\"");
+    typeCheck("splice 4 \"0 1.5\" $ s \"break\"", "fractional");
     typeCheck("s \"808 909\"");  // digits in a String pattern become words
     // errors
     typeCheck("fast 2", "ControlPattern");
