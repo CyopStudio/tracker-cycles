@@ -415,6 +415,29 @@ folders listed in the project (e.g. a manifest) on project load.
   - Levers: skip reverb / delay / filters when input is silent and the
     tail has decayed; reverb buffer (32 KB) to internal RAM; SDRAM cache
     (PSCCR) on. Players are the real per-voice cost: 16 voices = +35%.
+  - Audio floor work (2026-11-09, all builds, not yet measured; tick test
+    v6 has a 10 s silent set): the cause was idle players transmitting a
+    zero block every block, so every voice chain, mixer and send ran on
+    silence. Now silence = no block (the AudioStream convention):
+    idle players send 16 zero blocks (~46 ms, filters settle) then
+    nothing (effect_envelope.cpp); mixers treat muted inputs (gain 0,
+    not ramping) as absent (mixer.cpp); the delay skips while its input
+    is absent and isSilent() (line exactly zero, effect_shortDelay.cpp);
+    the reverb runs on silence while IsActive() (tail above ~-76 dBFS)
+    then skips (effect_polyverb.cpp); record queues (export stems,
+    recorder) record an absent block as zeros (record_queue.cpp).
+    Verified by reading every node in the graph: voice chain, mixers,
+    limiter, dynamics, mux, RMS, output, USB out handle no-block input.
+    To check on the device: export / stem lengths, recording, reverb and
+    delay tails, meters.
+    v6 results (2026-11-10, docs/tidal_tick.txt): audio load, v5 -> v6:
+    silence 7 % (floor was ~60 %), 3 light tracks 59 -> 36 %, solo sets
+    59-61 -> 21-40 %, everyday 8 tracks 77 -> 74 %, heavy 80 -> 65 %,
+    8x x*16 78 -> 77 % (every voice busy: little to skip). No drops; idle
+    tick ~730 cycles. Per-slot window times at high load include a whole
+    audio interrupt when one lands mid-query (set 5: d4 / d8 ~2.4 ms vs
+    ~150 us for the rest), so mapping averages there are inflated.
+    Stock features (export, recording, tails, meters) not yet checked.
 
 ## Engine constraints
 - No malloc/new in audio or sequencer real-time paths. Fixed node pools,

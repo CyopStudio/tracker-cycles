@@ -141,6 +141,13 @@ AUDIO_CORE_RAM void AudioEffectShortDelay::update(void)
     audio_block_t* outputRight;
 
     input = receiveReadOnly(0);
+    // Tracker Cycles audio floor: no input and the delay line has been
+    // exactly silent for a whole delay time -> nothing to do (no output =
+    // silence downstream)
+    if (input == nullptr && !noRefresh && isSilent())
+    {
+        return;
+    }
     outputLeft = allocate();
     outputRight = allocate();
 

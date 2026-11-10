@@ -37,6 +37,18 @@ AUDIO_CORE_RAM void AudioMixer<mixerSize>::update(void)
 
     for (int channel = 0; channel < mixerSize; channel++)
     {
+        // Tracker Cycles audio floor: a muted input (gain 0, not ramping)
+        // counts as silence, so a mixer whose inputs are all muted or silent
+        // sends no block and what follows (reverb, delay, ...) can idle
+        if (multiplier[channel] == 0 && previousMultiplier[channel] == 0)
+        {
+            in = receiveReadOnly(channel);
+            if (nullptr != in)
+            {
+                release(in);
+            }
+            continue;
+        }
         if (nullptr == out)
         {
             out = receiveWritable(channel);

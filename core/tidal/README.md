@@ -112,6 +112,15 @@ else wrapped onto the active instruments; `n` / `note` add to C5; `gain`
 x100 = step volume; looped instruments get a noteOff after the event's
 length, one-shots play out. d9..d16 (MIDI) are not mapped yet.
 
+v6 (2026-11-09, PolyendTrac_TidalTick6.ptf): the audio floor work
+(CLAUDE.md, Polyphony section) is in every build; the tick test adds a
+first set of 10 s silence, so its "audio load" line is the idle floor
+(v5's sets for comparison: 3 light tracks 59 %, 8 tracks 77-80 %, solo
+sets 59-61 %). Results (2026-11-10, docs/tidal_tick.txt): silence 7 %,
+light 36 %, solo sets 21-40 %, everyday 74 %, heavy 65 %, 8x x*16 77 %;
+no drops. The silent set's stack line now says "not run yet" (it
+printed a wrapped number: no query had run).
+
 v5 (2026-11-09, PolyendTrac_TidalTick5.ptf):
 - Listening sets one track at a time: 13 sets, 4 timing sets (20 s) then
   set 5's eight tracks each alone (7-11 s, all other tracks hushed first),

@@ -194,6 +194,12 @@ class AudioPlayMemory : public AudioStream
     AUDIO_CORE_FLASH void envelopeSetWavetable(uint8_t mode, uint8_t shape, uint8_t bend, uint8_t sust);
 
     void envelopeUpdate(audio_block_t* block);
+    // Tracker Cycles audio floor: blocks of silence sent since the voice went
+    // idle; after kIdleZeroBlocks it sends nothing, so the voice chain,
+    // mixers and sends downstream skip their work (AudioStream convention:
+    // no block = silence).
+    static constexpr uint8_t kIdleZeroBlocks = 16;  // ~46 ms: filters / crusher settle
+    uint8_t idleZeroBlocks = 0;
     uint8_t envelopeEndRelease();
     void envelopeClearEndReleaseFlag();
 

@@ -1,5 +1,7 @@
 // Device tick test build (see tidal_tick.h and README.md).
 //
+// v6: audio floor work (idle voices, muted sends, silent delay / reverb
+// send no blocks); set 1 = 10 s of silence to measure the floor.
 // v5: listening sets one track at a time (solo, with a hint popup);
 // checker in SDRAM, 32 KB stack reserve (v4 left 1.9 KB of stack).
 // v4: the real control mapping (plan 4c): tidal/core/mapping.* on the main
@@ -75,6 +77,7 @@ struct TestSet {
     const char* hint;  // popup line 2: what to listen for
 };
 const TestSet kSets[] = {
+    {"", 10, true, "silence: audio floor, nothing plays"},
     {"d1 $ s \"bd*4\"\n"
      "d2 $ s \"~ sd\"\n"
      "d3 $ s \"hh*8\" # gain 0.8\n",
@@ -348,7 +351,7 @@ int activeInstruments() {
 
 int header(int n) {
     return n + snprintf(report + n, sizeof report - n,
-                        "Tracker Cycles device tick test v5 (" TC_TICK_VARIANT "), %s\n"
+                        "Tracker Cycles device tick test v6 (" TC_TICK_VARIANT "), %s\n"
                         "%d active instruments; scheduler object %u B (internal RAM), entries %u B, live program "
                         "%u B (SDRAM); engine working set in internal RAM: %s; mono sample slots\n"
                         "cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles\n\n",
@@ -415,9 +418,14 @@ int setReport(int n, uint32_t ms) {
                           (unsigned long)st.slotWindows[i], avg(st.slotUs[i], st.slotWindows[i]),
                           (unsigned long)st.slotUsMax[i]);
     const uintptr_t top = (uintptr_t)&_estack, brk = (uintptr_t)__brkval, minSp = tc::engineMinStack();
-    n += snprintf(report + n, sizeof report - n,
-                  "stack: evaluator deepest %lu B below the top of RAM; heap end %lu B below: %ld B to spare\n",
-                  (unsigned long)(top - minSp), (unsigned long)(top - brk), (long)minSp - (long)brk);
+    if (minSp == UINTPTR_MAX)  // no query has run yet (silent set)
+        n += snprintf(report + n, sizeof report - n,
+                      "stack: evaluator not run yet; heap end %lu B below the top of RAM\n",
+                      (unsigned long)(top - brk));
+    else
+        n += snprintf(report + n, sizeof report - n,
+                      "stack: evaluator deepest %lu B below the top of RAM; heap end %lu B below: %ld B to spare\n",
+                      (unsigned long)(top - minSp), (unsigned long)(top - brk), (long)minSp - (long)brk);
     for (int i = 0; i < tc::kSlots; i++)
         if (const tc::Error* e = sched->error(i)) n += snprintf(report + n, sizeof report - n, "d%d failed: %s\n", i + 1, e->msg);
     return n + snprintf(report + n, sizeof report - n, "\n");

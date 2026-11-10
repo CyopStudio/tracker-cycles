@@ -25,6 +25,8 @@
  */
 
 #include "record_queue.h"
+
+#include <string.h>
 #include "utility/dspinst.h"
 
 AUDIO_CORE_FLASH int AudioRecordQueue::available(void)
@@ -87,12 +89,20 @@ AUDIO_CORE_FLASH void AudioRecordQueue::update(void)
     uint32_t h;
 
     block = receiveReadOnly();
-    if (!block)
-        return;
     if (!enabled)
     {
-        release(block);
+        if (block)
+            release(block);
         return;
+    }
+    if (!block)
+    {
+        // silence upstream sends no block (Tracker Cycles audio floor):
+        // record it as zeros so stems and recordings keep their length
+        block = allocate();
+        if (!block)
+            return;
+        memset(block->data, 0, sizeof block->data);
     }
     h = head + 1;
     if (h >= QUEUE_SIZE)

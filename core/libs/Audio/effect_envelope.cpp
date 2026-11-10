@@ -444,6 +444,14 @@ AUDIO_CORE_RAM void AudioPlayMemory::envelopeUpdate(audio_block_t* block)
 
     if (envelope.state == envelopePhaseIdle)
     {
+        // silent: a few zero blocks so the filter etc. settle, then nothing
+        if (idleZeroBlocks >= kIdleZeroBlocks)
+        {
+            if (block)
+                AudioStream::release(block);
+            return;
+        }
+        idleZeroBlocks++;
         if (!block)
         {
             block = allocate();
@@ -455,6 +463,7 @@ AUDIO_CORE_RAM void AudioPlayMemory::envelopeUpdate(audio_block_t* block)
         AudioStream::release(block);
         return;
     }
+    idleZeroBlocks = 0;
 
     if (!block)
     {
