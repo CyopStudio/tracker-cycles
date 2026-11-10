@@ -79,8 +79,13 @@ the four context quick-buttons (`# <last control>`, `|+ n 12`, ...).
    blocks there, Right into it, Pattern = evaluate (key `e`), Song =
    transitions (key `l`); smoke session 11, sessions 4-6 updated to the
    new keys (same results).
-2. F1-F8 menus and FX1 / FX2 filtered lists (menu code exists; new
-   filters and the mini-notation wraps for F6 / F7).
+2. Done (2026-11-10): Screen 1-8 menus (Action::Struct1-8: `$`
+   functions, `#` controls, `[ ] < > { } ( , ) |` around the step(s) inside
+   "..." with the old one-touch wrap as each menu's first item, `|+ |- |*
+   |/ |< |>` with common controls), FX1 = pattern modifiers (Time /
+   Structure / Random / Layer / Sample functions), FX2 = sound FX controls;
+   smoke session 12; sessions use Shift+Screen and the `functions` /
+   `controls` tokens for the old menus (same results).
 3. Note / Instrument jump-or-create (small).
 4. Mute / solo: scheduler drops a muted slot's notes but keeps its timing;
    both backends (GHCi: `mute` / `solo` / `unmute`), Play + pad.

@@ -146,7 +146,10 @@ hardware can't.
 | Shift + Screen 4 | Undo | | F4 / `z` |
 | Shift + Screen 5–8 inside `"..."` | wrap the step in `[ ]`, `< >`, `{ }%4`, `(3,8)`; on the quotes, the whole sequence (`"[bd sd]"`) | | F5–F8 |
 | Shift + Screen 5–8 on a pattern | `# <last control>`, `\|+ n 12`, `\|* speed 2`, `0.25 <~` | | F5–F8 |
-| Screen 1–8 (unshifted) | the structure menus `$ # [] <> {} () \| \|+` (docs/tidal_ui_v2.md, coming; for now the same as with Shift) | | |
+| Screen 1 `$` | menu: functions applied with `$` (`fast 2 $ …`, `every 4 rev $ …`); from inside `"..."` on the enclosing pattern | | |
+| Screen 2 `#` | menu: `# control` (all) | | |
+| Screen 3–7 inside `"..."` | menus around the step(s): `[ ]` (group, `[x x]`, `[x x x]`, `[x, x]`), `< >` (`<x>`, `<x ~>`, `<x x>`), `{ }` (`{x}%4` …), `( , )` Euclid (`(3,8)`, `(5,8)`, `(3,8,2)`, `(<3 5>,8)`), `\|` random choice (`[x \| ~]` …) | | |
+| Screen 8 `\|+` | menu: `\|+ \|- \|* \|/ \|< \|>` with `n 12`, `note 7`, `speed 2`, `gain 0.8`, `pan 0.5`, `cutoff 1000` | | |
 | Screen 8 | | OK | Enter / F8 |
 | Play | evaluate current block | OK | Space |
 | Shift + Play | hush | | `h` |
@@ -158,8 +161,8 @@ hardware can't.
 | Shift + Copy (Paste) | replace the selection with the copy; a step can be pasted as a pattern (`"bd"`); works on an empty slot | | Ctrl+V |
 | Note | notes menu: note names, chords, numbers inside `"..."`, else `note`/`n`/`scale`/`arp` patterns | | `n` |
 | Instrument | samples menu: names and `name:1..3` inside `"..."`, else `s "name"` | | `s` |
-| FX1 | functions menu: wrap in a function or operator (`fast 2 $ …`, `|+ n 12` …) | | `f` |
-| FX2 | `# control` menu; from inside `"..."` the control goes on the enclosing pattern | | `c` |
+| FX1 | pattern modifiers menu: time, structure, randomness, layering, sample cutting (`fast`, `every`, `jux`, `chop` …) applied with `$` | | `f` |
+| FX2 | sound FX menu: `# cutoff`, `# room`, `# delay`, `# crush`, `# shape`, `# pan`, `# gain`, envelopes; from inside `"..."` on the enclosing pattern | | `c` |
 | Pattern | evaluate current block (as Play) | | `e` |
 | Song | launch menu: `dN $` (now), `jumpMod N 2/4/8/16`, `jumpIn N 1/2/4` (when the next evaluation takes effect) | | `l` |
 | Pads in a numeric pattern | enter a number: −12 top left, 0 at the start of the 2nd row, 34, then `~` (rest) bottom right (for `n`/`note`: semitones, a keyboard from c4). Replaces the value, group (`<1 2>`, `0 .. 7`) or quoted pattern at the cursor, then selects the next step's value, or appends a copy at the end of the sequence to type over; Delete removes that copy and ends entry. On the quotes this writes a pattern from scratch: pads `0 3 5 7`, Delete → `"0 3 5 7"`. A range fills low, then high. The current value's pad is framed | | click |

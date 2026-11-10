@@ -42,7 +42,7 @@ to upstream CE.
     value; Shift+jog bigger step.
   - Shift + Screen 1-4: Replace / Wrap / Unwrap / Undo (menus: Screen 1
     Cancel, Screen 8 and Play = OK). Unshifted Screen 1-8: the v2
-    structure menus (coming; same as Shift for now).
+    structure menus `$ # [] <> {} () | |+` (v2 step 2).
   - Shift + Screen 5-8 depend on context: inside "..." (a step, or the quotes =
     whole sequence) `[ ]` `< >` `{ }%4` `(3,8)`; on a pattern
     `# <last control>` `|+ n 12` `|* speed 2` `0.25 <~` (bare numbers on
@@ -57,8 +57,9 @@ to upstream CE.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
     Backspace = Unwrap.
-  - Note / Instrument / FX1 / FX2: notes, samples, functions, # control
-    menus (filtered, type-checked). Song: launch menu (`dN $`,
+  - Note / Instrument: notes, samples menus; FX1: pattern modifiers
+    (`$` functions: time / structure / random / layer / sample), FX2:
+    sound FX controls (filtered, type-checked; v2 step 2). Song: launch menu (`dN $`,
     `jumpMod N k $`, `jumpIn N k $`; spec 2.1; was Pattern before v2).
   - Pads by context: inside a numeric pattern (Time/Double/Int/Note) or on
     a number argument they enter numbers, -12 top left .. 34, bottom right

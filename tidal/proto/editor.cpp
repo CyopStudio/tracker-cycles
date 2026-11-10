@@ -31,6 +31,10 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"functions", Action::MenuFunctions}, {"controls", Action::MenuControls},
     {"quick1", Action::Quick1},   {"quick2", Action::Quick2},     {"quick3", Action::Quick3},
     {"quick4", Action::Quick4},   {"launch", Action::MenuLaunch},
+    {"struct1", Action::Struct1}, {"struct2", Action::Struct2},   {"struct3", Action::Struct3},
+    {"struct4", Action::Struct4}, {"struct5", Action::Struct5},   {"struct6", Action::Struct6},
+    {"struct7", Action::Struct7}, {"struct8", Action::Struct8},
+    {"modifiers", Action::MenuModifiers}, {"fx", Action::MenuFx},
 };
 
 const char* actionName(Action a) {
@@ -523,6 +527,16 @@ void Editor::act(Action a) {
         case Action::MenuFunctions: openWrap(WrapMode::Functions); break;
         case Action::MenuControls: openWrap(WrapMode::Controls); break;
         case Action::MenuLaunch: openLaunch(); break;
+        case Action::Struct1:
+        case Action::Struct2:
+        case Action::Struct3:
+        case Action::Struct4:
+        case Action::Struct5:
+        case Action::Struct6:
+        case Action::Struct7:
+        case Action::Struct8: openStruct((int)a - (int)Action::Struct1); break;
+        case Action::MenuModifiers: openWrap(WrapMode::Modifiers); break;
+        case Action::MenuFx: openWrap(WrapMode::Fx); break;
         case Action::Quick1: quick(0); break;
         case Action::Quick2: quick(1); break;
         case Action::Quick3: quick(2); break;
@@ -891,6 +905,52 @@ void Editor::quick(int i) {
     if (!messageError_) info(label + (target ? ": jog changes the number" : ""));
 }
 
+// Screen 1-8 (v2, docs/tidal_ui_v2.md): structure menus at the cursor.
+void Editor::openStruct(int i) {
+    switch (i) {
+        case 0: return openWrap(WrapMode::Dollar);
+        case 1: return openWrap(WrapMode::Controls);
+        case 7: return openWrap(WrapMode::Ops);
+        default: return openMini(i - 2);
+    }
+}
+
+// [] <> {} () | around the step(s) at the cursor (inside "..."); the first
+// item of each is what the old one-touch buttons did.
+void Editor::openMini(int k) {
+    if (!cursor_) return error("select a step inside \"...\" first");
+    Kind kind = prog_->at(cursor_).kind;
+    const uint16_t oldCursor = cursor_;
+    if (kind == Kind::Mini) {  // on the quotes: the whole sequence inside them
+        cursor_ = prog_->at(cursor_).first;
+        kind = cursor_ ? prog_->at(cursor_).kind : Kind::None;
+    }
+    if (!isMiniKind(kind)) {
+        cursor_ = oldCursor;
+        return error("inside \"...\" only");
+    }
+    const std::string t = renderNode(*prog_, cursor_);
+    const bool multi = kind == Kind::MSeq && prog_->at(cursor_).first && prog_->at(prog_->at(cursor_).first).next;
+    const std::string step = multi ? "[" + t + "]" : t;  // modifiers bind to one step
+    std::vector<std::string> codes;
+    static const char* const kTitle[5] = {"[ ]", "< >", "{ }", "( , )", "|"};
+    switch (k) {
+        case 0: codes = {"[" + t + "]", "[" + t + " " + t + "]", "[" + t + " " + t + " " + t + "]", "[" + t + ", " + t + "]"}; break;
+        case 1: codes = {"<" + t + ">", "<" + t + " ~>", "<" + t + " " + t + ">"}; break;
+        case 2: codes = {"{" + t + "}%4", "{" + t + " " + t + " " + t + "}%4", "{" + t + ", " + t + " " + t + " " + t + "}"}; break;
+        case 3: codes = {step + "(3,8)", step + "(5,8)", step + "(3,8,2)", step + "(<3 5>,8)"}; break;
+        default: codes = {"[" + t + " | ~]", "[" + t + " | " + t + "]", "[" + t + " | " + t + " | ~]"}; break;
+    }
+    std::vector<MenuItem> items;
+    for (const std::string& code : codes) {
+        uint16_t nn;
+        auto r = tryReplace(code, true, nn);
+        if (r) items.push_back(MenuItem{code, r, nn});
+    }
+    if (items.empty()) cursor_ = oldCursor;
+    openMenu(kTitle[k < 5 ? k : 4], std::move(items));
+}
+
 void Editor::openReplace() {
     std::vector<MenuItem> items;
     auto add = [&](const std::string& label, const std::string& code, bool mini) {
@@ -941,8 +1001,10 @@ void Editor::openReplace() {
 
 void Editor::openWrap(WrapMode mode) {
     if (!cursor_ || prog_->at(cursor_).kind == Kind::Block) return error("select a pattern first");
-    bool controlsOnly = mode == WrapMode::Controls;
-    if (controlsOnly) {
+    bool controlsOnly = mode == WrapMode::Controls || mode == WrapMode::Fx;
+    const bool patternLevel = controlsOnly || mode == WrapMode::Dollar || mode == WrapMode::Modifiers ||
+                              mode == WrapMode::Ops;
+    if (patternLevel) {
         // from inside "..." a control goes on the enclosing pattern
         uint16_t up = cursor_;
         while (up && (isMiniKind(prog_->at(up).kind) || prog_->at(up).kind == Kind::Mini)) up = prog_->parentOf(up);
@@ -983,6 +1045,50 @@ void Editor::openWrap(WrapMode mode) {
             addOp("#", rhs, true, "# " + rhs);
         }
     };
+    // sound FX controls (FX2): filters, reverb / delay sends, drive, crush,
+    // pan, level, envelope
+    static const char* const kFx[] = {"cutoff", "resonance", "hcutoff", "hresonance", "bandf", "lpf", "lpq",
+                                      "hpf",    "hpq",       "bpf",     "room",       "delay", "crush",
+                                      "shape",  "distort",   "pan",     "gain",       "amp",   "attack",
+                                      "release", "att",      "rel"};
+    auto isFx = [&](const char* name) {
+        for (const char* f : kFx)
+            if (!strcmp(f, name)) return true;
+        return false;
+    };
+    if (mode == WrapMode::Fx) {
+        for (int id = 0; id < libCount(); id++) {
+            const LibEntry& e = lib(id);
+            if (e.cat != Cat::Control || !isFx(e.name)) continue;
+            std::string rhs = std::string(e.name) + " " + controlDefault(e.name);
+            addOp("#", rhs, true, "# " + rhs);
+        }
+        return openMenu("FX", std::move(items));
+    }
+    if (mode == WrapMode::Ops) {  // |+ |- |* |/ |< |> with a control
+        for (const char* op : {"|+", "|-", "|*", "|/", "|<", "|>"})
+            for (const char* rhs : {"n 12", "note 7", "speed 2", "gain 0.8", "pan 0.5", "cutoff 1000"})
+                addOp(op, rhs, true, std::string(op) + " " + rhs);
+        return openMenu("operators", std::move(items));
+    }
+    if (mode == WrapMode::Dollar || mode == WrapMode::Modifiers) {
+        // functions applied with $ (Screen 1: all of them; FX1: pattern
+        // modifiers = time, structure, randomness, layering, sample cutting)
+        for (int id = 0; id < libCount(); id++) {
+            const LibEntry& e = lib(id);
+            if (libIsOp(id) || e.cat == Cat::Control) continue;
+            if (mode == WrapMode::Modifiers && !(e.cat == Cat::Time || e.cat == Cat::Structure ||
+                                                 e.cat == Cat::Random || e.cat == Cat::Layer ||
+                                                 e.cat == Cat::Sample))
+                continue;
+            std::string head = e.name;
+            if (e.defaults) head += std::string(" ") + e.defaults;
+            uint16_t nn;
+            auto r = tryWrapApp(head, nn);
+            if (r) items.push_back(MenuItem{head + " $ ...", r, nn});
+        }
+        return openMenu(mode == WrapMode::Dollar ? "$ functions" : "pattern modifiers", std::move(items));
+    }
     if (controlsOnly) addControls();
     if (!controlsOnly) {
         addOp("|+", "n 12", true, "|+ n 12");

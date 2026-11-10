@@ -147,13 +147,30 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
         case Ctl::Copy: return shift ? act(Action::Paste, "Paste") : act(Action::Copy, "Copy");
         case Ctl::Note: return act(Action::MenuNotes, "notes");
         case Ctl::Instr: return act(Action::MenuSamples, "samples");
-        case Ctl::Fx1: return act(Action::MenuFunctions, "functions");
-        case Ctl::Fx2: return act(Action::MenuControls, "# control");
+        case Ctl::Fx1: return act(Action::MenuModifiers, "modifiers");
+        case Ctl::Fx2: return act(Action::MenuFx, "FX");
         case Ctl::Pattern: return act(Action::Evaluate, "Evaluate");
         case Ctl::Song: return act(Action::MenuLaunch, "launch");
-        // Shift + Screen 1-8: Replace / Wrap / Unwrap / Undo + the context
-        // quick-buttons (docs/tidal_ui_v2.md; unshifted: the structure menus,
-        // step 2 - until then the same)
+        // Screen 1-8: the structure menus $ # [] <> {} () | |+; with Shift
+        // the old Replace / Wrap / Unwrap / Undo + context quick-buttons
+        // (docs/tidal_ui_v2.md)
+        case Ctl::Screen0:
+        case Ctl::Screen1:
+        case Ctl::Screen2:
+        case Ctl::Screen3:
+        case Ctl::Screen4:
+        case Ctl::Screen5:
+        case Ctl::Screen6:
+        case Ctl::Screen7:
+            if (!shift) {
+                static const char* const kLabel[8] = {"$", "#", "[ ]", "< >", "{ }", "( )", "|", "|+"};
+                const int q = (int)c - (int)Ctl::Screen0;
+                return act((Action)((int)Action::Struct1 + q), kLabel[q]);
+            }
+            break;
+        default: break;
+    }
+    switch (c) {
         case Ctl::Screen0: return act(Action::Replace, "Replace");
         case Ctl::Screen1: return act(Action::Wrap, "Wrap");
         case Ctl::Screen2: return act(Action::Unwrap, "Unwrap");

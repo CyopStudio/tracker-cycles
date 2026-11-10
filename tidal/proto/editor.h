@@ -22,6 +22,9 @@ enum class Action {
     MenuFunctions, MenuControls,       // filtered wrap menus
     Quick1, Quick2, Quick3, Quick4,    // context buttons: brackets / operators
     MenuLaunch,                        // dN / jumpMod / jumpIn for the block
+    // v2 (docs/tidal_ui_v2.md): Screen 1-8 structure menus, FX1 / FX2 lists
+    Struct1, Struct2, Struct3, Struct4, Struct5, Struct6, Struct7, Struct8,
+    MenuModifiers, MenuFx,
 };
 const char* actionName(Action a);
 bool actionFromName(const std::string& s, Action& out);
@@ -95,7 +98,9 @@ private:
     void navigate(Action a);
     void wheel(int dir, bool fast);
     void openReplace();
-    enum class WrapMode { All, Functions, Controls };
+    enum class WrapMode { All, Functions, Controls, Dollar, Modifiers, Fx, Ops };
+    void openStruct(int i);   // Screen 1-8: $ # [] <> {} () | |+
+    void openMini(int k);     // [] <> {} () | around the step(s)
     void openWrap(WrapMode mode);
     void openNotes();
     void openLaunch();

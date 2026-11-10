@@ -1,6 +1,6 @@
 hw:song hw:jog+ hw:jog+ hw:play hw:play
-hw:shift+pad13 hw:song menu:6 hw:s8 hw:play
-hw:shift+pad2 hw:song hw:s1 hw:play
+hw:shift+pad13 hw:song menu:6 hw:shift+s8 hw:play
+hw:shift+pad2 hw:song hw:shift+s1 hw:play
 hw:shift+pad1 hw:song menu:0 hw:play hw:play
 hw:shift+pad4 hw:song
 print
