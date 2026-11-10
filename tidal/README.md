@@ -136,20 +136,22 @@ hardware can't.
 | Tracker control | Editing | In a menu | Key |
 | :--- | :--- | :--- | :--- |
 | ← → | previous / next sibling | previous / next item | ← → |
-| ↑ ↓ | parent / first child | previous / next item | ↑ ↓ |
+| ↑ ↓ | parent / first child; at a block's top (`dN $`): previous / next block | previous / next item | ↑ ↓ |
+| → at a block's top | into the block's expression | | → |
 | Jog wheel | change value (number, note, sample, function) | move | wheel, `+` `-`, PgUp/PgDn |
 | Shift + jog | bigger step (×10, octave, sample `:n`) | ±8 items | Shift + wheel |
-| Screen 1 | Replace (type-correct choices) | Cancel | F1 / `r` / Esc |
-| Screen 2 | Wrap (`fast 2 $ …`, `# gain 1`, `x*2` …) | | F2 / `w` |
-| Screen 3 | Unwrap (keep the inner pattern) | | F3 / `u` |
-| Screen 4 | Undo | | F4 / `z` |
-| Screen 5–8 inside `"..."` | wrap the step in `[ ]`, `< >`, `{ }%4`, `(3,8)`; on the quotes, the whole sequence (`"[bd sd]"`) | | F5–F8 |
-| Screen 5–8 on a pattern | `# <last control>`, `\|+ n 12`, `\|* speed 2`, `0.25 <~` | | F5–F8 |
+| Shift + Screen 1 | Replace (type-correct choices) | Cancel | F1 / `r` / Esc |
+| Shift + Screen 2 | Wrap (`fast 2 $ …`, `# gain 1`, `x*2` …) | | F2 / `w` |
+| Shift + Screen 3 | Unwrap (keep the inner pattern) | | F3 / `u` |
+| Shift + Screen 4 | Undo | | F4 / `z` |
+| Shift + Screen 5–8 inside `"..."` | wrap the step in `[ ]`, `< >`, `{ }%4`, `(3,8)`; on the quotes, the whole sequence (`"[bd sd]"`) | | F5–F8 |
+| Shift + Screen 5–8 on a pattern | `# <last control>`, `\|+ n 12`, `\|* speed 2`, `0.25 <~` | | F5–F8 |
+| Screen 1–8 (unshifted) | the structure menus `$ # [] <> {} () \| \|+` (docs/tidal_ui_v2.md, coming; for now the same as with Shift) | | |
 | Screen 8 | | OK | Enter / F8 |
 | Play | evaluate current block | OK | Space |
 | Shift + Play | hush | | `h` |
 | Insert | copy step / element, or add a `# control` | | `i` |
-| Shift + Insert (Home) | jump to the top of the block | | Home |
+| Shift + Insert (Home) | jump to the block's top (`dN $` / `jumpMod N k $`) | | Home |
 | Delete | inside `"..."`: a step becomes `~` (timing stays), a `~` is removed, the step pad entry just appended is removed (ends entry); elsewhere: delete (operand, or leave a `??` hole) | | `x` / Del |
 | Shift + Delete (Backspace) | unwrap (same as Screen 3) | | |
 | Copy | copy the selection (whole pattern on a block) | | Ctrl+C |
@@ -158,7 +160,8 @@ hardware can't.
 | Instrument | samples menu: names and `name:1..3` inside `"..."`, else `s "name"` | | `s` |
 | FX1 | functions menu: wrap in a function or operator (`fast 2 $ …`, `|+ n 12` …) | | `f` |
 | FX2 | `# control` menu; from inside `"..."` the control goes on the enclosing pattern | | `c` |
-| Pattern | launch menu: `dN $` (now), `jumpMod N 2/4/8/16`, `jumpIn N 1/2/4` (when the next evaluation takes effect) | | `l` |
+| Pattern | evaluate current block (as Play) | | `e` |
+| Song | launch menu: `dN $` (now), `jumpMod N 2/4/8/16`, `jumpIn N 1/2/4` (when the next evaluation takes effect) | | `l` |
 | Pads in a numeric pattern | enter a number: −12 top left, 0 at the start of the 2nd row, 34, then `~` (rest) bottom right (for `n`/`note`: semitones, a keyboard from c4). Replaces the value, group (`<1 2>`, `0 .. 7`) or quoted pattern at the cursor, then selects the next step's value, or appends a copy at the end of the sequence to type over; Delete removes that copy and ends entry. On the quotes this writes a pattern from scratch: pads `0 3 5 7`, Delete → `"0 3 5 7"`. A range fills low, then high. The current value's pad is framed | | click |
 | Pads in an `s` / `sound` pattern | instrument mode: pad N = instrument slot N (48, like the Tracker's instruments; names on the pads). Same entry as numbers (replace, next step, append, Delete ends); no rest pad, so pad 48 is slot 48. Default slots are Dirt-Samples folders; `--instruments FILE` (one name per line, blank = empty slot) replaces them | | click |
 | Pads elsewhere, or Shift + pad | 1–8 (top row) select d1..d8, 13–20 (2nd row) d9..d16 | | `1`..`8`, Shift+`1`..`8` |

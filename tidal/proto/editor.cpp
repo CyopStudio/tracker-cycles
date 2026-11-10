@@ -459,6 +459,8 @@ void Editor::selectMenu(int i) {
 std::string Editor::cursorInfo() const {
     if (!cursor_) return prog_->block[slot_] ? "" : "empty slot: replace to start a pattern";
     const Node& n = prog_->at(cursor_);
+    if (n.kind == Kind::Block)  // the block's top: Up / Down = other blocks, Right = into it
+        return "d" + std::to_string(slot_ + 1) + " block (Up / Down: blocks, Right: into it)";
     std::string s = kindName(n.kind);
     if (n.kind == Kind::Fn || n.kind == Kind::Op || n.kind == Kind::SectionL || n.kind == Kind::SectionR)
         s += std::string(" ") + lib((int)n.a).name;
@@ -512,8 +514,8 @@ void Editor::act(Action a) {
         case Action::Wrap: openWrap(WrapMode::All); break;
         case Action::Copy: doCopy(); break;
         case Action::Paste: doPaste(); break;
-        case Action::Home:
-            if (exprRoot()) cursor_ = exprRoot();
+        case Action::Home:  // the block's top (dN $ / jumpMod N k $)
+            if (prog_->block[slot_]) cursor_ = prog_->block[slot_];
             info(cursorInfo());
             break;
         case Action::MenuNotes: openNotes(); break;
@@ -588,6 +590,23 @@ void Editor::act(Action a) {
 void Editor::navigate(Action a) {
     const Program& p = *prog_;
     if (!cursor_) return;
+    // at a block's top: Up / Down = the previous / next block, Right = into it
+    if (p.at(cursor_).kind == Kind::Block) {
+        if (a == Action::Up || a == Action::Down) {
+            const int dir = a == Action::Up ? -1 : 1;
+            for (int s = slot_ + dir; s >= 0 && s < kSlots; s += dir)
+                if (p.block[s]) {
+                    slot_ = s;
+                    pending_ = 0;
+                    cursor_ = p.block[s];
+                    break;
+                }
+        } else if (a == Action::Right && p.at(cursor_).first) {
+            cursor_ = p.at(cursor_).first;
+        }
+        info(cursorInfo());
+        return;
+    }
     uint16_t n = 0;
     switch (a) {
         case Action::Down:

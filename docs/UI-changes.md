@@ -1,0 +1,30 @@
+*navigation
+
+There needs to be a cursor for inserting in between numbers in a pattern, and inserting/wrapping nodes
+Shift>Insert should go all the way to the top of the tree for that block
+up and down when at the rrot should move up and down blocks
+
+*Structure
+
+There needs to be possibility for more than one block for the same dN
+Insert>(pad(N)) should be used to add a new block for dN above the current one when at the root
+
+*screen buttons
+
+These launch menus for inserting/wrapping functions
+F1 $
+F2 #
+F3 []
+F4 <>
+F5 {}
+F6 ()
+F7 |
+F8 |+
+
+*other buttons
+Note - jump to n pattern section of that block
+Instrument - jump to s pattern section of that block
+FX1 - menu with all pattern modifiers
+FX2 - menu with all FX modifiers
+Pattern - evaluate block
+Song - menu with all transition functions e.g. jumpMod

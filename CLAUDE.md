@@ -40,21 +40,26 @@ to upstream CE.
 - Mapping (editing / in a menu):
   - Arrows: siblings, parent / first child (menus: move). Jog: change
     value; Shift+jog bigger step.
-  - Screen 1-4: Replace / Wrap / Unwrap / Undo (menus: Screen 1 Cancel,
-    Screen 8 and Play = OK).
-  - Screen 5-8 depend on context: inside "..." (a step, or the quotes =
+  - Shift + Screen 1-4: Replace / Wrap / Unwrap / Undo (menus: Screen 1
+    Cancel, Screen 8 and Play = OK). Unshifted Screen 1-8: the v2
+    structure menus (coming; same as Shift for now).
+  - Shift + Screen 5-8 depend on context: inside "..." (a step, or the quotes =
     whole sequence) `[ ]` `< >` `{ }%4` `(3,8)`; on a pattern
     `# <last control>` `|+ n 12` `|* speed 2` `0.25 <~` (bare numbers on
     plain value patterns). Cursor lands on the new number for the jog.
     No `|-` / `~>`: use negative numbers.
-  - Play = evaluate block, Shift+Play = hush.
+  - Play = evaluate block, Shift+Play = hush. Pattern = evaluate block,
+    Song = launch menu (v2, docs/tidal_ui_v2.md: the full v2 mapping is
+    being built in steps; step 1 done 2026-11-10: Pattern / Song, Shift +
+    Screen 1-8 = the old screen functions, Home = the block's top, Up /
+    Down there = previous / next block, Right = into it).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
     Backspace = Unwrap.
   - Note / Instrument / FX1 / FX2: notes, samples, functions, # control
-    menus (filtered, type-checked). Pattern: launch menu (`dN $`,
-    `jumpMod N k $`, `jumpIn N k $`; spec 2.1).
+    menus (filtered, type-checked). Song: launch menu (`dN $`,
+    `jumpMod N k $`, `jumpIn N k $`; spec 2.1; was Pattern before v2).
   - Pads by context: inside a numeric pattern (Time/Double/Int/Note) or on
     a number argument they enter numbers, -12 top left .. 34, bottom right
     = rest `~` (0 starts row 2; for n/note a chromatic keyboard), replacing

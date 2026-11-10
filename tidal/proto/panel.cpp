@@ -110,7 +110,8 @@ static const char* fixedKey(Ctl c) {
         case Ctl::Instr: return "s";
         case Ctl::Fx1: return "f";
         case Ctl::Fx2: return "c";
-        case Ctl::Pattern: return "l";
+        case Ctl::Pattern: return "e";
+        case Ctl::Song: return "l";
         default: break;
     }
     if (isPad(c)) {
