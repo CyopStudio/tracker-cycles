@@ -350,7 +350,18 @@ folders listed in the project (e.g. a manifest) on project load.
      (main loop): check 0.2-3 ms, heavy 8-slot set 17 ms (SDRAM checker
      fine); parse ~12 ms even for one line, mostly Program::clear() on
      the 70 KB SDRAM program (cheap to fix: reset counts instead of
-     clearing all).
+     clearing all). Fixed (2026-11-10): Program::clear() is O(1) (node
+     high-water mark: alloc hands out fresh nodes past it, parentOf scans
+     only below it, nodeEnd() for scans; host test testClearReuse +
+     mutation). v10 parse times (wall, interrupts included): 5.0 ms for
+     the empty silence set (= the 2 clears per evaluate), 6.5-43 ms for
+     real sets, so ~5 ms per evaluate is the clear and the rest is the
+     parser; tick v11 measures it. v11 (2026-11-10, docs/tidal_tick.txt):
+     parse v10 -> v11: silence 5.0 -> 0.1 ms, light 5.2 -> 0.36, everyday
+     11.7 -> 2.8, heavy 26 -> 11, 8x x*16 23.5 -> 2.9, governed chords 35
+     -> 17, one-line solo sets 6.5-22.6 -> 0.4-2.9 ms; check times and
+     audio loads unchanged, no drops. The clear cost more than the silence
+     set suggested (wall times vary with the interrupt load).
      Step 4 (2026-11-10): polyphony, see "Polyphony" below and
      docs/tidal_voices.md; tick test v7 (PolyendTrac_TidalTick7.ptf,
      core/tidal/README.md).

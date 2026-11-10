@@ -38,13 +38,13 @@ void Error::set(int p, const char* fmt, ...) {
 }
 
 void Program::clear() {
-    memset(nodes_, 0, sizeof nodes_);
-    // free list threaded through `next`, skipping index 0
-    for (int i = 1; i < kMaxNodes - 1; i++) nodes_[i].next = (uint16_t)(i + 1);
-    nodes_[kMaxNodes - 1].next = 0;
-    freeHead_ = 1;
+    // O(1) in the pool: nodes past hwm_ are handed out fresh (alloc zeroes
+    // them), freed ones go on the free list; strings past nstrings_ are
+    // never read
+    nodes_[0] = Node{};
+    freeHead_ = 0;
+    hwm_ = 1;
     live_ = 0;
-    memset(strings_, 0, sizeof strings_);
     nstrings_ = 0;
     memset(block, 0, sizeof block);
     memset(comment, 0, sizeof comment);
@@ -52,9 +52,15 @@ void Program::clear() {
 }
 
 uint16_t Program::alloc(Kind k) {
-    if (!freeHead_) return 0;
-    uint16_t idx = freeHead_;
-    freeHead_ = nodes_[idx].next;
+    uint16_t idx;
+    if (freeHead_) {
+        idx = freeHead_;
+        freeHead_ = nodes_[idx].next;
+    } else if (hwm_ < kMaxNodes) {
+        idx = hwm_++;
+    } else {
+        return 0;
+    }
     nodes_[idx] = Node{};
     nodes_[idx].kind = k;
     live_++;
@@ -96,7 +102,7 @@ int Program::childCount(uint16_t parent) const {
 
 uint16_t Program::parentOf(uint16_t idx) const {
     if (!idx) return 0;
-    for (int i = 1; i < kMaxNodes; i++) {
+    for (int i = 1; i < hwm_; i++) {
         if (nodes_[i].kind == Kind::None) continue;
         for (uint16_t c = nodes_[i].first; c; c = nodes_[c].next)
             if (c == idx) return (uint16_t)i;

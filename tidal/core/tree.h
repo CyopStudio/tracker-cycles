@@ -119,6 +119,9 @@ public:
     Node& at(uint16_t idx) { return nodes_[idx]; }
     const Node& at(uint16_t idx) const { return nodes_[idx]; }
     int liveNodes() const { return live_; }
+    // Every node in use has an index below this (scan [1, nodeEnd()), not
+    // the whole pool: past it are old nodes from before the last clear()).
+    int nodeEnd() const { return hwm_; }
 
     // tree helpers
     void appendChild(uint16_t parent, uint16_t child);
@@ -143,8 +146,12 @@ public:
     uint16_t cpsExpr;  // `setcps <expr>` (0 = none)
 
 private:
+    // Nodes [1, hwm_) have been handed out since clear() (live or on the
+    // free list); nodes from hwm_ on are never read, so clear() needn't
+    // touch the 64 KB pool (device: uncached SDRAM, tick v5 parse ~12 ms).
     Node nodes_[kMaxNodes];
     uint16_t freeHead_;
+    uint16_t hwm_;
     int live_;
     char strings_[kMaxStrings][kMaxStringLen + 1];
     int nstrings_;

@@ -403,7 +403,7 @@ static void testRefinement() {
     EXPECT(checkBlock(gProg, 0, ce), "check: %s", ce.msg);
     // find MNote atoms and their values
     int notes[3], nn = 0, words = 0;
-    for (int i = 1; i < kMaxNodes; i++) {
+    for (int i = 1; i < gProg.nodeEnd(); i++) {
         const Node& n = gProg.at((uint16_t)i);
         if (n.kind == Kind::MNote && nn < 3) notes[nn++] = (int32_t)n.a;
         if (n.kind == Kind::MWord) words++;
@@ -434,6 +434,52 @@ static void testTypesPool() {
         tp.clear();
         EXPECT(tp.instantiate(lib(i).sig) != 0, "library sig of '%s' parses", lib(i).name);
     }
+}
+
+// clear() leaves the old nodes in the pool past its high-water mark: a
+// smaller program parsed after a bigger one must not see them (parentOf
+// scans the pool), and the pool must still fill to kMaxNodes - 1.
+static void testClearReuse() {
+    Error e;
+    const char* big =
+        "d1 $ every 2 (fast 2) $ s \"bd*2 [~ sd] <hh cp> bd\" # n \"0 .. 7\" # pan sine # gain 1.2\n"
+        "d2 $ off 0.125 (|+ n 12) $ n \"0 3 7 10\" # s \"arpy\" # legato 0.5\n";
+    const char* small = "d1 $ s \"bd sd\"\n";
+    gProg.clear();
+    EXPECT(parseFile(gProg, big, (int)strlen(big), e), "big: %s", e.msg);
+    const int bigNodes = gProg.liveNodes();
+    gProg.clear();
+    EXPECT(gProg.liveNodes() == 0 && gProg.stringCount() == 0 && !gProg.block[1], "clear left state");
+    EXPECT(parseFile(gProg, small, (int)strlen(small), e), "small: %s", e.msg);
+    EXPECT(gProg.nodeEnd() == gProg.liveNodes() + 1, "node end %d, live %d", gProg.nodeEnd(), gProg.liveNodes());
+    EXPECT(gProg.parentOf(gProg.at(gProg.block[0]).first) == gProg.block[0], "parent of the block's expr");
+    // a node the old program had as a child of something must not get a stale parent
+    int stale = 0;
+    for (int i = 1; i <= gProg.liveNodes(); i++)
+        if (gProg.at(i).kind != Kind::None && i != gProg.block[0] && !gProg.parentOf((uint16_t)i)) stale++;
+    EXPECT(!stale && bigNodes > gProg.liveNodes(), "stale %d, big %d small %d", stale, bigNodes, gProg.liveNodes());
+    // a stale node past the high-water mark that had the new node as a child
+    gProg.clear();
+    gProg.alloc(Kind::Num);
+    const uint16_t kid = gProg.alloc(Kind::Num), old = gProg.alloc(Kind::App);
+    gProg.appendChild(old, kid);
+    gProg.clear();
+    gProg.alloc(Kind::Num);
+    const uint16_t fresh = gProg.alloc(Kind::Num);
+    EXPECT(fresh == kid && gProg.parentOf(fresh) == 0, "fresh node %u has stale parent %u", fresh,
+           gProg.parentOf(fresh));
+    // fill, free, refill: the pool still has kMaxNodes - 1 nodes after a clear
+    gProg.clear();
+    int n = 0;
+    while (gProg.alloc(Kind::Num)) n++;
+    EXPECT(n == kMaxNodes - 1, "pool holds %d nodes, want %d", n, kMaxNodes - 1);
+    gProg.clear();
+    n = 0;
+    uint16_t a = gProg.alloc(Kind::Num), b = gProg.alloc(Kind::Num);
+    gProg.freeTree(a);
+    while (gProg.alloc(Kind::Num)) n++;
+    EXPECT(n == kMaxNodes - 2 && b, "after a free: %d more nodes, want %d", n, kMaxNodes - 2);
+    gProg.clear();
 }
 
 static void testNodeSize() {
@@ -712,6 +758,7 @@ void testMapping(int& pass, int& fail);
 
 int main() {
     testNodeSize();
+    testClearReuse();
     testTypesPool();
     testRationals();
     testRoundTrips();

@@ -153,6 +153,10 @@ else wrapped onto the active instruments; `n` / `note` add to C5; `gain`
 x100 = step volume; looped instruments get a noteOff after the event's
 length, one-shots play out. d9..d16 (MIDI) are not mapped yet.
 
+v11 (2026-11-10, PolyendTrac_TidalTick11.ptf): v10's sets unchanged;
+Program::clear() no longer zeroes the 70 KB SDRAM program (compare the
+"evaluate: parse" lines with v10: the silence set was 5.0 ms).
+
 v10 (2026-11-10, PolyendTrac_TidalTick10.ptf): load-driven cap (max 16,
 down to 8 as the smoothed audio load goes 70 -> 85 %). 13 sets (~3 min
 50 s): 1-5 as before, 6-8 chords / everyday / heavy with voices 3 on

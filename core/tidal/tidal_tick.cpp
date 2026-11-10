@@ -1,5 +1,7 @@
 // Device tick test build (see tidal_tick.h and README.md).
 //
+// v11: Program::clear() is O(1) (high-water mark; it zeroed the 70 KB
+// SDRAM program on every parse): compare the "evaluate: parse" lines.
 // v10: load-driven cap (max 16, down to 8 as the smoothed audio load goes
 // 70 -> 85 %; over it at a noteOn the oldest fade); sets 6-8 = chords,
 // everyday and heavy with voices 3 on every track, governed, solo.
@@ -398,7 +400,7 @@ int activeInstruments() {
 
 int header(int n) {
     return n + snprintf(report + n, sizeof report - n,
-                        "Tracker Cycles device tick test v10 (" TC_TICK_VARIANT "), %s\n"
+                        "Tracker Cycles device tick test v11 (" TC_TICK_VARIANT "), %s\n"
                         "%d active instruments; scheduler object %u B (internal RAM), entries %u B, live program "
                         "%u B (SDRAM); engine working set in internal RAM: %s; %d sample players per track, cap max %d (load-driven), voices default 1\n"
                         "cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles\n\n",
