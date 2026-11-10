@@ -1,0 +1,20 @@
+msg: gap 1 of 1: pads / Screen 3-7 insert, Delete removes the step before
+msg: + sd  (gap: more pads insert more)
+msg: removed the step before the gap
+menu insert [ ]: [insert [bd bd]] [insert [bd bd bd]] [insert [bd, bd]]
+msg: insert [ ]: insert [bd bd]
+msg: gap 0 of 1: pads / Screen 3-7 insert, Delete removes the step before
+msg: + 2  (gap: more pads insert more)
+msg: Mini : Pat Note
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "hh*8 bd [bd bd]" # gain 0.8 # pan sine
+
+d3 $ n "0 2 0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5

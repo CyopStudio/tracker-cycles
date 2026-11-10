@@ -101,7 +101,13 @@ the four context quick-buttons (`# <last control>`, `|+ n 12`, ...).
    `hw:play+pad3`, `hw:shift+play+pad3`, `hw:play+delete`); muted slots
    blue on the pads and the slot list; Pattern is also OK in menus;
    smoke session 14, sessions evaluate with Pattern.
-5. Gap cursor (editor model + rendering + insert at a gap).
+5. Done (2026-11-10): gap cursor in "..." sequences (Editor gapSeq_ /
+   gapPos_; Left / Right from a step of an MSeq go to the gap before /
+   after it; pads insert and stay in the gap after the new step; Screen
+   3-7 at a gap insert from the neighbouring step; Delete removes the step
+   before; Up leaves; any other action works on the whole sequence; drawn
+   as a bar). Not yet: gaps in Haskell lists (`stack [a, b]`). Smoke
+   session 15; sessions 2 and 8 now step through the gaps (same results).
 6. Several blocks per dN: Program keeps a block list instead of one root
    per slot (core tree, parser, renderer, file format, scheduler
    evaluate, editor, device player); the biggest change, touches

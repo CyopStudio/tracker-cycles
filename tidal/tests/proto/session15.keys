@@ -1,0 +1,4 @@
+hw:shift+pad2 hw:down hw:down hw:down hw:right hw:down hw:right msg hw:pad1 hw:pad2 msg hw:delete msg
+hw:s3 menulist menu:0 ok msg
+hw:shift+pad3 hw:down hw:down hw:down hw:right hw:down hw:left msg hw:pad13 hw:pad15 msg hw:up msg
+print

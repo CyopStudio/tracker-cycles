@@ -43,6 +43,7 @@ static uint32_t stateColor(SlotState s) {
 }
 
 struct BlockLayout {
+    int gapAt = -1;  // gap cursor: a bar before this character
     std::string text;
     std::vector<uint32_t> color;
     std::vector<bool> sel;
@@ -78,7 +79,8 @@ static void paint(const Program& p, uint16_t idx, BlockLayout& L) {
     for (uint16_t ch = n.first; ch; ch = p.at(ch).next) paint(p, ch, L);
 }
 
-static BlockLayout layoutBlock(const Program& p, int slot, uint16_t cursor, int cols) {
+static BlockLayout layoutBlock(const Program& p, int slot, uint16_t cursor, int cols, uint16_t gapSeq = 0,
+                               int gapPos = 0) {
     BlockLayout L;
     char buf[8192];
     memset(gSpans, 0, sizeof gSpans);
@@ -90,7 +92,11 @@ static BlockLayout layoutBlock(const Program& p, int slot, uint16_t cursor, int 
     L.color.assign(n, col::text);
     L.sel.assign(n, false);
     paint(p, p.block[slot], L);
-    if (cursor) {
+    if (gapSeq) {
+        const int count = p.childCount(gapSeq);
+        if (gapPos < count) L.gapAt = gSpans[p.child(gapSeq, gapPos)].start;
+        else if (count) L.gapAt = gSpans[p.child(gapSeq, count - 1)].end;
+    } else if (cursor) {
         const Span& s = gSpans[cursor];
         for (int i = s.start; i < s.end && i < n; i++) L.sel[i] = true;
     }
@@ -176,7 +182,8 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     std::vector<int> heights;
     int curY = 0, y = 0;
     for (int s : slots) {
-        lays.push_back(layoutBlock(p, s, s == ed.slot() ? ed.cursor() : 0, cols));
+        lays.push_back(layoutBlock(p, s, s == ed.slot() ? ed.cursor() : 0, cols,
+                                   s == ed.slot() ? ed.gapSeq() : 0, ed.gapPos()));
         int h = (p.comment[s][0] ? lineH : 0) + lays.back().rows * lineH + 8;
         if (!p.block[s]) h = lineH + 8;
         if (s == ed.slot()) curY = y;
@@ -208,6 +215,7 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
                     int px = cx + L.colx[i] * adv, py = yy + L.row[i] * lineH;
                     if (py < areaTop - lineH || py > areaBottom) continue;
                     if (L.sel[i]) fb.rect(px, py - 1, adv, lineH, col::cursor);
+                    if ((int)i == L.gapAt) fb.rect(px - 2, py - 1, 3, lineH, col::accent);  // gap cursor
                     char ch[2] = {L.text[i], 0};
                     fb.text(px, py, ch, L.sel[i] ? 0xFFFFFF : L.color[i]);
                 }

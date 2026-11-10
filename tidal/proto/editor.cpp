@@ -205,6 +205,7 @@ void Editor::snapshot() {
 }
 
 void Editor::commit(std::unique_ptr<Program> p, uint16_t cursor) {
+    gapSeq_ = 0;
     std::string err;
     if (!recheck(*p, err)) {
         error(err);
@@ -396,6 +397,7 @@ void Editor::enterInstrument(int i) {
 // exprCode for a number argument; empty = not allowed there), then select
 // the next step's value or append a copy to type over (Delete removes it).
 void Editor::enterStep(const std::string& miniCode, const std::string& exprCode, const std::string& label) {
+    if (gapSeq_) return insertAtGap(miniCode, label);
     const uint16_t oldCursor = cursor_;
     if (prog_->at(cursor_).kind == Kind::Mini) cursor_ = prog_->at(cursor_).first;  // whole "..."
     bool mini = isMiniKind(prog_->at(cursor_).kind);
@@ -463,6 +465,11 @@ void Editor::selectMenu(int i) {
 }
 
 std::string Editor::cursorInfo() const {
+    if (gapSeq_) {
+        const int count = prog_->childCount(gapSeq_);
+        return "gap " + std::to_string(gapPos_) + " of " + std::to_string(count) +
+               ": pads / Screen 3-7 insert, Delete removes the step before";
+    }
     if (!cursor_) return prog_->block[slot_] ? "" : "empty slot: replace to start a pattern";
     const Node& n = prog_->at(cursor_);
     if (n.kind == Kind::Block)  // the block's top: Up / Down = other blocks, Right = into it
@@ -478,6 +485,17 @@ std::string Editor::cursorInfo() const {
 // actions
 
 void Editor::act(Action a) {
+    if (gapSeq_ && !menuOpen_) {
+        switch (a) {
+            case Action::Left: case Action::Right: case Action::Up: case Action::Down:
+            case Action::Delete: case Action::Struct1: case Action::Struct2: case Action::Struct3:
+            case Action::Struct4: case Action::Struct5: case Action::Struct6: case Action::Struct7:
+            case Action::Struct8: case Action::MenuModifiers: case Action::MenuFx:
+            case Action::PlayCancel: case Action::Evaluate: case Action::Hush:
+                break;
+            default: leaveGap(); break;  // act on the whole sequence
+        }
+    }
     uint16_t pending = pending_;
     pending_ = 0;  // only the very next Delete may remove an appended step
     if (a == Action::Delete && pending && pending == cursor_) pending_ = pending;
@@ -498,6 +516,7 @@ void Editor::act(Action a) {
                 snapshot();
                 prog_.reset(new Program(*it.result));
                 cursor_ = it.cursor;
+                gapSeq_ = 0;
                 state_[slot_] = SlotState::Edited;
                 menuOpen_ = false;
                 info(menuTitle_ + ": " + it.label);
@@ -611,7 +630,37 @@ void Editor::act(Action a) {
 
 void Editor::navigate(Action a) {
     const Program& p = *prog_;
+    if (gapSeq_) {
+        // on a gap: Right = the step after it, Left = the step before, Up = out
+        const int count = p.childCount(gapSeq_);
+        if (a == Action::Right && gapPos_ < count) {
+            cursor_ = p.child(gapSeq_, gapPos_);
+            gapSeq_ = 0;
+        } else if (a == Action::Left && gapPos_ > 0) {
+            cursor_ = p.child(gapSeq_, gapPos_ - 1);
+            gapSeq_ = 0;
+        } else if (a == Action::Up) {
+            cursor_ = gapSeq_;
+            gapSeq_ = 0;
+            return navigate(Action::Up);
+        }
+        info(cursorInfo());
+        return;
+    }
     if (!cursor_) return;
+    // a step of a "..." sequence: Left / Right go to the gap before / after it
+    if (a == Action::Left || a == Action::Right) {
+        const uint16_t par = p.parentOf(cursor_);
+        if (par && p.at(par).kind == Kind::MSeq) {
+            int idx = 0;
+            for (uint16_t c = p.at(par).first; c && c != cursor_; c = p.at(c).next) idx++;
+            gapSeq_ = par;
+            gapPos_ = a == Action::Left ? idx : idx + 1;
+            cursor_ = par;
+            info(cursorInfo());
+            return;
+        }
+    }
     // at a block's top: Up / Down = the previous / next block, Right = into it
     if (p.at(cursor_).kind == Kind::Block) {
         if (a == Action::Up || a == Action::Down) {
@@ -1013,6 +1062,77 @@ void Editor::jumpControl(bool notes) {
     info(std::string(what) + " pattern: " + (notes ? "pads enter notes" : "pads pick instruments"));
 }
 
+// ---------------------------------------------------------------------------
+// gap cursor (v2 step 5)
+
+void Editor::leaveGap() {
+    if (!gapSeq_) return;
+    cursor_ = gapSeq_;  // the whole sequence
+    gapSeq_ = 0;
+}
+
+std::shared_ptr<Program> Editor::tryInsertAtGap(const std::string& code, uint16_t& newStep) const {
+    auto p = std::make_shared<Program>(*prog_);
+    Error e;
+    uint16_t sq = parseMini(*p, code.c_str(), (int)code.size(), e);
+    if (!sq) return nullptr;
+    Node& seq = p->at(sq);
+    if (!seq.first || p->at(seq.first).next || (seq.flags & kDots)) return nullptr;  // one step only
+    const uint16_t step = seq.first;
+    seq.first = 0;
+    p->freeTree(sq);
+    if (gapPos_ == 0) {
+        p->at(step).next = p->at(gapSeq_).first;
+        p->at(gapSeq_).first = step;
+    } else {
+        const uint16_t prev = p->child(gapSeq_, gapPos_ - 1);
+        if (!prev) return nullptr;
+        p->at(step).next = p->at(prev).next;
+        p->at(prev).next = step;
+    }
+    std::string err;
+    if (!recheck(*p, err)) return nullptr;
+    newStep = step;
+    return p;
+}
+
+// Pads at a gap: insert the step and stay in the gap after it, so several
+// pads insert several steps.
+void Editor::insertAtGap(const std::string& code, const std::string& label) {
+    if (code.empty()) return error(label + " only goes inside \"...\"");
+    const uint16_t seq = gapSeq_;
+    const int pos = gapPos_;
+    uint16_t nn;
+    auto r = tryInsertAtGap(code, nn);
+    if (!r) return error(label + " doesn't fit here");
+    commit(std::unique_ptr<Program>(new Program(*r)), seq);
+    if (messageError_) return;
+    gapSeq_ = seq;
+    gapPos_ = pos + 1;
+    cursor_ = seq;
+    info("+ " + label + "  (gap: more pads insert more)");
+}
+
+// Delete at a gap: remove the step before it (Backspace).
+void Editor::deleteAtGap() {
+    if (gapPos_ == 0) return error("start of the sequence: nothing before the gap");
+    const uint16_t seq = gapSeq_;
+    const int pos = gapPos_;
+    if (prog_->childCount(seq) < 2) return error("the last step: Delete on it makes a rest");
+    auto p = std::unique_ptr<Program>(new Program(*prog_));
+    const uint16_t target = p->child(seq, pos - 1);
+    if (pos - 1 == 0) p->at(seq).first = p->at(target).next;
+    else p->at(p->child(seq, pos - 2)).next = p->at(target).next;
+    p->at(target).next = 0;
+    p->freeTree(target);
+    commit(std::move(p), seq);
+    if (messageError_) return;
+    gapSeq_ = seq;
+    gapPos_ = pos - 1;
+    cursor_ = seq;
+    info("removed the step before the gap");
+}
+
 // Screen 1-8 (v2, docs/tidal_ui_v2.md): structure menus at the cursor.
 void Editor::openStruct(int i) {
     switch (i) {
@@ -1026,6 +1146,28 @@ void Editor::openStruct(int i) {
 // [] <> {} () | around the step(s) at the cursor (inside "..."); the first
 // item of each is what the old one-touch buttons did.
 void Editor::openMini(int k) {
+    if (gapSeq_) {
+        // at a gap: insert, built from the neighbouring step
+        const Program& p = *prog_;
+        const uint16_t nb = gapPos_ > 0 ? p.child(gapSeq_, gapPos_ - 1) : p.child(gapSeq_, 0);
+        const std::string t = nb ? renderNode(p, nb) : "~";
+        std::vector<std::string> codes;
+        switch (k) {
+            case 0: codes = {"[" + t + " " + t + "]", "[" + t + " " + t + " " + t + "]", "[" + t + ", " + t + "]"}; break;
+            case 1: codes = {"<" + t + " ~>", "<" + t + " " + t + ">"}; break;
+            case 2: codes = {"{" + t + " " + t + " " + t + "}%4", "{" + t + ", " + t + " " + t + " " + t + "}"}; break;
+            case 3: codes = {t + "(3,8)", t + "(5,8)", t + "(3,8,2)"}; break;
+            default: codes = {"[" + t + " | ~]", "[" + t + " | " + t + "]"}; break;
+        }
+        std::vector<MenuItem> items;
+        for (const std::string& code : codes) {
+            uint16_t nn;
+            auto r = tryInsertAtGap(code, nn);
+            if (r) items.push_back(MenuItem{"insert " + code, r, nn});
+        }
+        static const char* const kTitle[5] = {"[ ]", "< >", "{ }", "( , )", "|"};
+        return openMenu(std::string("insert ") + kTitle[k < 5 ? k : 4], std::move(items));
+    }
     if (!cursor_) return error("select a step inside \"...\" first");
     Kind kind = prog_->at(cursor_).kind;
     const uint16_t oldCursor = cursor_;
@@ -1221,6 +1363,7 @@ void Editor::openWrap(WrapMode mode) {
 // Delete inside "...": a step becomes a rest (timing stays), a rest is
 // removed, and the step pad entry just appended is removed (ends entry).
 void Editor::doDelete() {
+    if (gapSeq_) return deleteAtGap();
     if (!cursor_) return;
     Kind k = prog_->at(cursor_).kind;
     if (pending_ && pending_ == cursor_) {

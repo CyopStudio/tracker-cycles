@@ -84,6 +84,10 @@ public:
     bool playHeld() const { return playHeld_; }
     void mutePad(int slot);
     bool muted(int s) const { return muted_[s]; }
+    // Gap cursor (v2 step 5): between the steps of a "..." sequence; 0 = on
+    // a node (cursor()). gapPos 0 = before the first step, count = after the last.
+    uint16_t gapSeq() const { return gapSeq_; }
+    int gapPos() const { return gapPos_; }
     bool trackerMode() const { return trackerMode_; }
     std::string cursorInfo() const;
     // Context buttons (Screen 5..8): inside "..." brackets [ ] < > { }%4 (3,8),
@@ -152,6 +156,14 @@ private:
     bool messageError_ = false;
     SlotState state_[tc::kSlots];
     bool muted_[tc::kSlots] = {};
+    uint16_t gapSeq_ = 0;
+    int gapPos_ = 0;
+    void leaveGap();
+    // a copy of the program with the one-step mini `code` inserted at the
+    // gap (nullptr if it doesn't parse / type-check)
+    std::shared_ptr<tc::Program> tryInsertAtGap(const std::string& code, uint16_t& newStep) const;
+    void insertAtGap(const std::string& code, const std::string& label);
+    void deleteAtGap();
     bool playHeld_ = false, playShift_ = false, playUsed_ = false;
     void setMuted(int s, bool on);
     bool trackerMode_ = true;

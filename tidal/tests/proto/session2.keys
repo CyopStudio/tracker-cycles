@@ -1,6 +1,6 @@
 down right right right down down right down
-wheel+ right insert wheel+ wheel++
+wheel+ right right insert wheel+ wheel++
 wrap menu:0 ok
-left wrap menu:5 ok down right wheel+
+left left wrap menu:5 ok down right wheel+
 next down down down right delete
 eval print

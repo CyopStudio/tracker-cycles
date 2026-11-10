@@ -135,7 +135,7 @@ hardware can't.
 
 | Tracker control | Editing | In a menu | Key |
 | :--- | :--- | :--- | :--- |
-| ← → | previous / next sibling | previous / next item | ← → |
+| ← → | previous / next sibling; inside `"..."`: step, gap, step, gap … (the gap is a thin bar: pads insert steps there and stay in the gap, Screen 3–7 insert a bracket / alternation / polymeter / Euclid / choice, Delete removes the step before it, ↑ leaves it) | previous / next item | ← → |
 | ↑ ↓ | parent / first child; at a block's top (`dN $`): previous / next block | previous / next item | ↑ ↓ |
 | → at a block's top | into the block's expression | | → |
 | Jog wheel | change value (number, note, sample, function) | move | wheel, `+` `-`, PgUp/PgDn |
