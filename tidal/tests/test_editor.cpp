@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "controls.h"
 #include "editor.h"
 
 using namespace tc;
@@ -149,4 +150,17 @@ void testEditorModel(int& pass, int& fail) {
     std::string calls;
     for (auto& c : out1.calls) calls += c + ";";
     EXPECT(calls == "cps;eval 1;mute 2;hush;", "output calls: %s", calls.c_str());
+
+    // the control mapping (editor/controls.*), shared with the device
+    Control c;
+    EXPECT(ctlFromId("pad13", c) && c == padCtl(12), "pad13");
+    EXPECT(ctlFromId("s1", c) && c == Control::Screen0, "s1");
+    EXPECT(!ctlFromId("pad49", c) && !ctlFromId("nope", c), "bad ids refused");
+    EXPECT(!strcmp(ctlName(padCtl(47)), "Pad 48") && !strcmp(ctlId(Control::Fx1), "fx1"), "names");
+    Command k = controlCommand(eager, Control::Pattern, false);
+    EXPECT(k.type == Command::Act && k.action == Action::Evaluate && k.label == "Evaluate", "Pattern: %s",
+           k.label.c_str());
+    k = controlCommand(eager, padCtl(1), true);  // Shift + pad 2 = d2
+    EXPECT(k.type == Command::Slot && k.slot == 1 && k.label == "d2", "Shift+pad2: %s", k.label.c_str());
+    EXPECT(press(eager, padCtl(2), true) && eager.slot() == 2, "pressing Shift+pad3 selects d3");
 }

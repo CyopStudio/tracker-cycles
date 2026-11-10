@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "check.h"
-#include "hardware.h"
+#include "controls.h"
 #include "output.h"
 #include "keyboard.h"
 #include "render.h"
@@ -286,7 +286,7 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     const int sy = kH - 26;
     fb.rect(0, sy - 2, kW, 1, col::dim);
     for (int i = 0; i < 8; i++) {
-        Command k = controlCommand(ed, (Ctl)i, false);
+        Command k = controlCommand(ed, (Control)i, false);
         int x = i * 100;
         if (i) fb.rect(x, sy, 1, 26, col::dim);
         if (k.label.empty()) continue;

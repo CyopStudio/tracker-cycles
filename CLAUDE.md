@@ -27,7 +27,7 @@ to upstream CE.
 
 ## Editor controls (prototype, agreed with the user)
 - Every input goes through an Original Tracker control: the button ->
-  editor mapping lives in tidal/proto/hardware.cpp (`controlCommand()`) and
+  editor mapping lives in tidal/editor/controls.cpp (`controlCommand()`) and
   is meant to be reused by the device editor (4d). Keyboard keys either
   press a fixed control or the control that does that job right now; a key
   with no Tracker equivalent does nothing. Full table: tidal/README.md.
@@ -528,8 +528,13 @@ folders listed in the project (e.g. a manifest) on project load.
      device). Host test test_editor.cpp (lazy = eager menus, small undo
      arena, output calls). Largest -Os stack frames now openWrap 5 KB,
      openSamples / quick ~3.8 KB (were openMini 14 KB, gotoSlot 6.4 KB):
-     measure the editor's deepest stack on the device. Next (port order 2):
-     the control mapping without std::string, then the FT812 view.
+     measure the editor's deepest stack on the device.
+     Port order 2 done (2026-11-10): the control mapping is
+     tidal/editor/controls.* (enum `Control`, Str<24> labels, no tables in
+     RAM), shared by the prototype and the device. Next (port order 3): the
+     FT812 code view (glyphs as bitmaps, colour changes only when needed,
+     cursor / gap bar, highlights in their own control), soft keys, menu
+     overlay, keyboard via mtKeyboardManager.
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)

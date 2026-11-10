@@ -9,16 +9,11 @@
 // (interfaceButton0..7 are the screen buttons, 8..32 the function buttons,
 // interfacePot0 the jog wheel, 48 pads).
 #pragma once
-#include <string>
-
 #include "editor.h"
 
-namespace proto {
-using tc::Action;  // the editor model (tidal/editor)
-using tc::Editor;
-using tc::SlotState;
+namespace tc {
 
-enum class Ctl : uint8_t {
+enum class Control : uint8_t {
     Screen0, Screen1, Screen2, Screen3, Screen4, Screen5, Screen6, Screen7,  // btn 0..7
     Params, Perform, File, Config, Master,                                  // btn 8..12
     SmpLoad, SmpPlay, SmpEdit, SmpRec, Song,                                // btn 13..17
@@ -29,17 +24,17 @@ enum class Ctl : uint8_t {
     Pad0,                                                                   // pads 0..47
     Count = Pad0 + 48,
 };
-constexpr int kCtlCount = (int)Ctl::Count;
+constexpr int kCtlCount = (int)Control::Count;
 constexpr int kPadCols = 12, kPadRows = 4;
 
-inline Ctl padCtl(int i) { return (Ctl)((int)Ctl::Pad0 + i); }
-inline bool isPad(Ctl c) { return c >= Ctl::Pad0 && c < Ctl::Count; }
-inline int padIndex(Ctl c) { return (int)c - (int)Ctl::Pad0; }
+inline Control padCtl(int i) { return (Control)((int)Control::Pad0 + i); }
+inline bool isPad(Control c) { return c >= Control::Pad0 && c < Control::Count; }
+inline int padIndex(Control c) { return (int)c - (int)Control::Pad0; }
 
-const char* ctlName(Ctl c);    // panel label, e.g. "Smp Load", "Pad 13"
-const char* ctlId(Ctl c);      // headless token, e.g. "smpload", "pad13"
-const char* ctlFwName(Ctl c);  // firmware enum, e.g. "interfaceButtonSampleLoad"
-bool ctlFromId(const std::string& s, Ctl& out);
+const char* ctlName(Control c);    // panel label, e.g. "Smp Load", "Pad 13"
+const char* ctlId(Control c);      // headless token, e.g. "smpload", "pad13"
+const char* ctlFwName(Control c);  // firmware enum, e.g. "interfaceButtonSampleLoad"
+bool ctlFromId(const char* s, Control& out);
 
 struct Command {
     enum Type { None, Act, Slot, Number, Instrument, Mute, Key } type = None;
@@ -49,25 +44,25 @@ struct Command {
     bool rest = false;  // Type::Number: the rest pad (~)
     int instrument = -1;  // Type::Instrument: slot 0..47
     int key = -1;         // Type::Key: keyboard screen key (keyboard.h)
-    std::string label;  // short, for the panel / screen soft-key bar
+    Str<24> label;  // short, for the panel / screen soft-key bar
 };
 
 // What pressing `c` (with Shift held or not) does right now.
-Command controlCommand(const Editor& ed, Ctl c, bool shift);
-// Pad that selects slot s (d1..d16) with Shift held, or Ctl::Count.
-Ctl slotPad(int s);
+Command controlCommand(const Editor& ed, Control c, bool shift);
+// Pad that selects slot s (d1..d16) with Shift held, or Control::Count.
+Control slotPad(int s);
 // Value a pad enters in number mode: -12 top left, 0 at the second row;
 // the bottom right pad enters a rest instead of 35.
 inline int padNumber(int pad) { return pad - kPadCols; }
 constexpr int kRestPad = kPadCols * kPadRows - 1;
 // Find a control (+ shift) that performs `a` in the current context.
-bool controlFor(const Editor& ed, Action a, Ctl& c, bool& shift);
+bool controlFor(const Editor& ed, Action a, Control& c, bool& shift);
 // Runs the command; returns false if the control does nothing here.
-bool press(Editor& ed, Ctl c, bool shift);
+bool press(Editor& ed, Control c, bool shift);
 // Release of a control that acts on release (Play: the modifier, v2).
-void release(Editor& ed, Ctl c);
+void release(Editor& ed, Control c);
 // Keyboard screen: press the pad(s) that type `c` (Caps on / off around
 // it as needed). False if no key types it.
 bool typeChar(Editor& ed, char c);
 
-}  // namespace proto
+}  // namespace tc

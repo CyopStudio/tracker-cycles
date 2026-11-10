@@ -17,7 +17,7 @@
 //                                 log (backend log, e.g. GHCi replies)
 //                                 hw:CONTROL / hw:shift+CONTROL presses a
 //                                 Tracker control, e.g. hw:s1 hw:jog+
-//                                 hw:shift+play hw:pad3 (ids: hardware.cpp)
+//                                 hw:shift+play hw:pad3 (ids: editor/controls.cpp)
 //     --shot FILE.png             screenshot after the keys ran
 //     --window                    open a window with the mock Tracker panel
 //                                 (needs a build with SDL=1)
@@ -41,7 +41,7 @@
 #include "engine_backend.h"
 #include "editor.h"
 #include "fb.h"
-#include "hardware.h"
+#include "controls.h"
 #include "output.h"
 #include "panel.h"
 #include "view.h"
@@ -90,22 +90,22 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
             // pad pressed while Play is held (hw:play+delete cancels)
             if (id == "play" || id.rfind("play+", 0) == 0) {
                 const bool inMenu = ed.menuOpen();
-                press(ed, Ctl::Play, shift);
+                press(ed, Control::Play, shift);
                 if (!inMenu) {
                     if (id.size() > 5) {
-                        Ctl c2;
-                        if (!ctlFromId(id.substr(5), c2)) {
+                        Control c2;
+                        if (!ctlFromId(id.substr(5).c_str(), c2)) {
                             fprintf(stderr, "unknown control '%s'\n", id.substr(5).c_str());
                             return false;
                         }
                         press(ed, c2, false);
                     }
-                    release(ed, Ctl::Play);
+                    release(ed, Control::Play);
                 }
                 continue;
             }
-            Ctl c;
-            if (!ctlFromId(id, c)) {
+            Control c;
+            if (!ctlFromId(id.c_str(), c)) {
                 fprintf(stderr, "unknown control '%s'\n", id.c_str());
                 return false;
             }

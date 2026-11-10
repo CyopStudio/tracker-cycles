@@ -9,26 +9,24 @@
 
 #include "editor.h"
 #include "fb.h"
-#include "hardware.h"
+#include "controls.h"
 
 namespace proto {
-using tc::Action;  // the editor model (tidal/editor)
-using tc::Editor;
-using tc::SlotState;
+using namespace tc;  // the editor model and controls (tidal/editor)
 
 constexpr int kPanelW = 1290, kPanelH = 880;
 
 struct PanelState {
     bool shift = false;          // Shift held (or latched by a click)
-    Ctl lit = Ctl::Count;        // control to show as pressed
+    Control lit = Control::Count;        // control to show as pressed
     std::string last;            // "key r -> Screen 1 -> Replace"
 };
 
 // Keyboard hint for a control's normal layer, e.g. "Space", "r", "1".
-std::string keyHint(const Editor& ed, Ctl c);
+std::string keyHint(const Editor& ed, Control c);
 // Draws the panel with `screen` (already drawn by drawEditor) inside it.
 void drawPanel(const Editor& ed, const Framebuffer& screen, Framebuffer& out, const PanelState& st);
 // Control under a panel pixel, or false.
-bool panelHit(int x, int y, Ctl& out);
+bool panelHit(int x, int y, Control& out);
 
 }  // namespace proto

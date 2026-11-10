@@ -13,7 +13,8 @@ before the port.
   layer and the file player (core/tidal), the Tidal status screen
   (interface/tidalStatus, module slot 2 = Pattern key).
 - Prototype only: the editor model (tidal/proto/editor.cpp, ~2000 lines),
-  the control mapping (hardware.cpp, meant to be reused), the view
+  the control mapping (hardware.cpp, meant to be reused; now
+  tidal/editor/controls.cpp), the view
   (view.cpp, an 800 x 480 software framebuffer), backends (text to GHCi or
   to our engine).
 - The prototype is written for the host: `std::string` / `std::vector` /
@@ -165,7 +166,13 @@ Decisions:
      KB, openReplace / cursorInfo ~3 KB (openMini was 14 KB): measure the
      deepest point (menu build + check) on the device.
 2. Control mapping table without std::string (shared by prototype and
-   device).
+   device). Done (2026-11-10): tidal/editor/controls.* (was
+   proto/hardware.*; the button enum is `Control`, since tc::Ctl is the
+   engine's control entry): labels are `Str<24>`, pad names formatted on
+   demand (36 B of RAM instead of 769), `ctlFromId(const char*)`; 7.3 KB
+   at -O2 on ARM. `ctlFwName()` names each control's firmware button
+   (interfaceDefs.h); the device module binds those buttons to `press()`.
+   Host checks in tests/test_editor.cpp.
 3. FT812 code-view control (lines, colour runs, cursor, gap bar,
    highlights), soft-key labels, menu overlay; keyboard via
    mtKeyboardManager.

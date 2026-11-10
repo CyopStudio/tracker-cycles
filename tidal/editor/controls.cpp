@@ -1,13 +1,13 @@
-#include "hardware.h"
+#include "controls.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "keyboard.h"
 #include "tree.h"
 
-namespace proto {
-using namespace tc;  // the editor model (tidal/editor)
+namespace tc {
 
 namespace {
 struct CtlInfo {
@@ -35,17 +35,16 @@ const CtlInfo kInfo[] = {
     {"Right", "right", "interfaceButtonRight"},    {"Jog +", "jog+", "interfacePot0 (+)"},
     {"Jog -", "jog-", "interfacePot0 (-)"},
 };
-static_assert(sizeof kInfo / sizeof kInfo[0] == (size_t)Ctl::Pad0, "kInfo must cover every button");
+static_assert(sizeof kInfo / sizeof kInfo[0] == (size_t)Control::Pad0, "kInfo must cover every button");
 
-char gPadName[48][8], gPadId[48][8];
-bool gPadInit = false;
-void initPads() {
-    if (gPadInit) return;
-    for (int i = 0; i < 48; i++) {
-        snprintf(gPadName[i], sizeof gPadName[i], "Pad %d", i + 1);
-        snprintf(gPadId[i], sizeof gPadId[i], "pad%d", i + 1);
-    }
-    gPadInit = true;
+// pad names are formatted on demand (no 48-entry tables in RAM): the
+// result is valid until the next few calls (callers use it at once)
+const char* padText(const char* fmt, int i) {
+    static char buf[4][8];
+    static int next = 0;
+    char* b = buf[next++ & 3];
+    snprintf(b, sizeof buf[0], fmt, i + 1);
+    return b;
 }
 
 Command act(Action a, const char* label) {
@@ -57,22 +56,28 @@ Command act(Action a, const char* label) {
 }
 }  // namespace
 
-const char* ctlName(Ctl c) {
-    if (isPad(c)) return initPads(), gPadName[padIndex(c)];
-    return c < Ctl::Pad0 ? kInfo[(int)c].name : "?";
+const char* ctlName(Control c) {
+    if (isPad(c)) return padText("Pad %d", padIndex(c));
+    return c < Control::Pad0 ? kInfo[(int)c].name : "?";
 }
-const char* ctlId(Ctl c) {
-    if (isPad(c)) return initPads(), gPadId[padIndex(c)];
-    return c < Ctl::Pad0 ? kInfo[(int)c].id : "?";
+const char* ctlId(Control c) {
+    if (isPad(c)) return padText("pad%d", padIndex(c));
+    return c < Control::Pad0 ? kInfo[(int)c].id : "?";
 }
-const char* ctlFwName(Ctl c) {
+const char* ctlFwName(Control c) {
     if (isPad(c)) return "interfacePad";
-    return c < Ctl::Pad0 ? kInfo[(int)c].fw : "?";
+    return c < Control::Pad0 ? kInfo[(int)c].fw : "?";
 }
-bool ctlFromId(const std::string& s, Ctl& out) {
-    for (int i = 0; i < kCtlCount; i++)
-        if (s == ctlId((Ctl)i)) {
-            out = (Ctl)i;
+bool ctlFromId(const char* s, Control& out) {
+    if (!strncmp(s, "pad", 3) && s[3] >= '1' && s[3] <= '9') {
+        const int n = atoi(s + 3);
+        if (n < 1 || n > kPadCols * kPadRows) return false;
+        out = padCtl(n - 1);
+        return true;
+    }
+    for (int i = 0; i < (int)Control::Pad0; i++)
+        if (!strcmp(s, ctlId((Control)i))) {
+            out = (Control)i;
             return true;
         }
     return false;
@@ -84,13 +89,13 @@ bool ctlFromId(const std::string& s, Ctl& out) {
 // always with Shift, the first 8 pads of the top row select d1..d8 (sample
 // tracks) and the first 8 of the second row d9..d16 (MIDI). In an s /
 // sound pattern they are the 48 instrument slots (no rest pad there).
-Ctl slotPad(int s) {
-    if (s < 0 || s >= tc::kSlots) return Ctl::Count;
+Control slotPad(int s) {
+    if (s < 0 || s >= tc::kSlots) return Control::Count;
     int row = s / tc::kSampleSlots, col = s % tc::kSampleSlots;
     return padCtl(row * kPadCols + col);
 }
 
-Command controlCommand(const Editor& ed, Ctl c, bool shift) {
+Command controlCommand(const Editor& ed, Control c, bool shift) {
     const bool menu = ed.menuOpen();
     if (ed.keyboardOpen()) {
         // the Tracker's naming keyboard (keyboard.h): pads are keys, arrows
@@ -102,22 +107,22 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
             k.key = kbd::kPadKey[padIndex(c)];
             const char ch = ed.kbdCaps() ? kbd::kBig[k.key] : kbd::kSmall[k.key];
             k.label = k.key == kbd::kKeyBackspace ? "Bksp" : k.key == kbd::kKeyCaps ? "Caps"
-                    : k.key == kbd::kKeySpace     ? "Space" : std::string(1, ch);
+                    : k.key == kbd::kKeySpace     ? "Space" : Str<24>(&ch, 1);
             return k;
         }
         switch (c) {
-            case Ctl::Left: return act(Action::Left, "key left");
-            case Ctl::Right: return act(Action::Right, "key right");
-            case Ctl::Up: return act(Action::Up, "key up");
-            case Ctl::Down: return act(Action::Down, "key down");
-            case Ctl::JogUp: return act(Action::WheelUp, "cursor >");
-            case Ctl::JogDown: return act(Action::WheelDown, "cursor <");
-            case Ctl::Screen0:
-            case Ctl::Insert: return act(Action::KbdType, "Enter key");
-            case Ctl::Screen1: return act(Action::KbdClear, "Clear");
-            case Ctl::Delete: return act(Action::Delete, "Backspace");
-            case Ctl::Screen6: return act(Action::KbdCancel, "Cancel");
-            case Ctl::Screen7: return act(Action::KbdOk, "OK");
+            case Control::Left: return act(Action::Left, "key left");
+            case Control::Right: return act(Action::Right, "key right");
+            case Control::Up: return act(Action::Up, "key up");
+            case Control::Down: return act(Action::Down, "key down");
+            case Control::JogUp: return act(Action::WheelUp, "cursor >");
+            case Control::JogDown: return act(Action::WheelDown, "cursor <");
+            case Control::Screen0:
+            case Control::Insert: return act(Action::KbdType, "Enter key");
+            case Control::Screen1: return act(Action::KbdClear, "Clear");
+            case Control::Delete: return act(Action::Delete, "Backspace");
+            case Control::Screen6: return act(Action::KbdCancel, "Cancel");
+            case Control::Screen7: return act(Action::KbdOk, "OK");
             default: return {};
         }
     }
@@ -129,12 +134,12 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
                 Command k;
                 k.type = Command::Mute;
                 k.slot = row * tc::kSampleSlots + col;
-                k.label = "mute d" + std::to_string(k.slot + 1);
+                k.label.printf("mute d%d", k.slot + 1);
                 return k;
             }
             return {};
         }
-        if (c == Ctl::Delete) return act(Action::PlayCancel, "cancel");
+        if (c == Control::Delete) return act(Action::PlayCancel, "cancel");
         return {};
     }
     if (isPad(c)) {
@@ -152,14 +157,15 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
             k.type = Command::Number;
             k.rest = i == kRestPad;
             k.number = padNumber(i);
-            k.label = k.rest ? "~" : std::to_string(k.number);
+            if (k.rest) k.label = "~";
+            else k.label.printf("%d", k.number);
             return k;
         }
         if (row < 2 && col < tc::kSampleSlots) {
             Command k;
             k.type = Command::Slot;
             k.slot = row * tc::kSampleSlots + col;
-            k.label = "d" + std::to_string(k.slot + 1);
+            k.label.printf("d%d", k.slot + 1);
             return k;
         }
         return {};
@@ -167,88 +173,88 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
     if (menu) {
         // Menus: jog or arrows move, Play / Screen 8 apply, Screen 1 closes.
         switch (c) {
-            case Ctl::JogUp: return shift ? act(Action::WheelUpFast, "+8 items") : act(Action::WheelUp, "next item");
-            case Ctl::JogDown:
+            case Control::JogUp: return shift ? act(Action::WheelUpFast, "+8 items") : act(Action::WheelUp, "next item");
+            case Control::JogDown:
                 return shift ? act(Action::WheelDownFast, "-8 items") : act(Action::WheelDown, "prev item");
-            case Ctl::Up: return act(Action::Up, "prev item");
-            case Ctl::Left: return act(Action::Left, "prev item");
-            case Ctl::Down: return act(Action::Down, "next item");
-            case Ctl::Right: return act(Action::Right, "next item");
-            case Ctl::Play: return act(Action::Confirm, "OK");
-            case Ctl::Pattern: return act(Action::Confirm, "OK");
-            case Ctl::Screen7: return act(Action::Confirm, "OK");
-            case Ctl::Screen0: return act(Action::Cancel, "Cancel");
+            case Control::Up: return act(Action::Up, "prev item");
+            case Control::Left: return act(Action::Left, "prev item");
+            case Control::Down: return act(Action::Down, "next item");
+            case Control::Right: return act(Action::Right, "next item");
+            case Control::Play: return act(Action::Confirm, "OK");
+            case Control::Pattern: return act(Action::Confirm, "OK");
+            case Control::Screen7: return act(Action::Confirm, "OK");
+            case Control::Screen0: return act(Action::Cancel, "Cancel");
             default: return {};
         }
     }
     switch (c) {
-        case Ctl::Left: return act(Action::Left, "prev sibling");
-        case Ctl::Right: return act(Action::Right, "next sibling");
-        case Ctl::Up: return act(Action::Up, "parent");
-        case Ctl::Down: return act(Action::Down, "first child");
-        case Ctl::JogUp: return shift ? act(Action::WheelUpFast, "value ++") : act(Action::WheelUp, "value +");
-        case Ctl::JogDown: return shift ? act(Action::WheelDownFast, "value --") : act(Action::WheelDown, "value -");
+        case Control::Left: return act(Action::Left, "prev sibling");
+        case Control::Right: return act(Action::Right, "next sibling");
+        case Control::Up: return act(Action::Up, "parent");
+        case Control::Down: return act(Action::Down, "first child");
+        case Control::JogUp: return shift ? act(Action::WheelUpFast, "value ++") : act(Action::WheelUp, "value +");
+        case Control::JogDown: return shift ? act(Action::WheelDownFast, "value --") : act(Action::WheelDown, "value -");
         // Play acts as a modifier (press / release, see press()); the label
         // says what releasing it alone does
-        case Ctl::Play: {
+        case Control::Play: {
             Command k;  // no action: press() / release() handle it
             k.label = shift ? "solo / hush" : "mute / unmute all";
             return k;
         }
-        case Ctl::Insert: return shift ? act(Action::Home, "Home") : act(Action::Insert, "Insert");
-        case Ctl::Delete: return shift ? act(Action::Unwrap, "Unwrap") : act(Action::Delete, "Delete");
-        case Ctl::Copy: return shift ? act(Action::Paste, "Paste") : act(Action::Copy, "Copy");
-        case Ctl::Note: return act(Action::JumpNotes, "n pattern");
-        case Ctl::Instr: return act(Action::JumpSamples, "s pattern");
-        case Ctl::Fx1: return act(Action::MenuModifiers, "modifiers");
-        case Ctl::Fx2: return act(Action::MenuFx, "FX");
-        case Ctl::Pattern: return act(Action::Evaluate, ed.onCps() ? "Send tempo" : "Evaluate");
-        case Ctl::Params: return act(Action::EditComment, "comment");
+        case Control::Insert: return shift ? act(Action::Home, "Home") : act(Action::Insert, "Insert");
+        case Control::Delete: return shift ? act(Action::Unwrap, "Unwrap") : act(Action::Delete, "Delete");
+        case Control::Copy: return shift ? act(Action::Paste, "Paste") : act(Action::Copy, "Copy");
+        case Control::Note: return act(Action::JumpNotes, "n pattern");
+        case Control::Instr: return act(Action::JumpSamples, "s pattern");
+        case Control::Fx1: return act(Action::MenuModifiers, "modifiers");
+        case Control::Fx2: return act(Action::MenuFx, "FX");
+        case Control::Pattern: return act(Action::Evaluate, ed.onCps() ? "Send tempo" : "Evaluate");
+        case Control::Params: return act(Action::EditComment, "comment");
         // Song: launch menu; Shift+Song: setcps (the Tracker's tempo is on
         // its Song screen); Master stays for the master settings
-        case Ctl::Song:
+        case Control::Song:
             if (shift) return act(Action::JumpCps, ed.onCps() ? "back" : "setcps");
             return act(Action::MenuLaunch, "launch");
         // Screen 1-8: the structure menus $ # [] <> {} () | |+; with Shift
         // the old Replace / Wrap / Unwrap / Undo + context quick-buttons
         // (docs/tidal_ui_v2.md)
-        case Ctl::Screen0:
-        case Ctl::Screen1:
-        case Ctl::Screen2:
-        case Ctl::Screen3:
-        case Ctl::Screen4:
-        case Ctl::Screen5:
-        case Ctl::Screen6:
-        case Ctl::Screen7:
+        case Control::Screen0:
+        case Control::Screen1:
+        case Control::Screen2:
+        case Control::Screen3:
+        case Control::Screen4:
+        case Control::Screen5:
+        case Control::Screen6:
+        case Control::Screen7:
             if (!shift) {
                 static const char* const kLabel[8] = {"$", "#", "[ ]", "< >", "{ }", "( )", "|", "|+"};
-                const int q = (int)c - (int)Ctl::Screen0;
+                const int q = (int)c - (int)Control::Screen0;
                 return act((Action)((int)Action::Struct1 + q), kLabel[q]);
             }
             break;
         default: break;
     }
     switch (c) {
-        case Ctl::Screen0: return act(Action::Replace, "Replace");
-        case Ctl::Screen1: return act(Action::Wrap, "Wrap");
-        case Ctl::Screen2: return act(Action::Unwrap, "Unwrap");
-        case Ctl::Screen3: return act(Action::Undo, "Undo");
-        case Ctl::Screen4:
-        case Ctl::Screen5:
-        case Ctl::Screen6:
-        case Ctl::Screen7: {
-            int q = (int)c - (int)Ctl::Screen4;
-            std::string l = ed.quickLabel(q).c_str();
+        case Control::Screen0: return act(Action::Replace, "Replace");
+        case Control::Screen1: return act(Action::Wrap, "Wrap");
+        case Control::Screen2: return act(Action::Unwrap, "Unwrap");
+        case Control::Screen3: return act(Action::Undo, "Undo");
+        case Control::Screen4:
+        case Control::Screen5:
+        case Control::Screen6:
+        case Control::Screen7: {
+            int q = (int)c - (int)Control::Screen4;
+            const Label l = ed.quickLabel(q);
             if (l.empty()) return {};
             return act((Action)((int)Action::Quick1 + q), l.c_str());
         }
-        case Ctl::File: return act(Action::Save, "Save");
-        case Ctl::Config: return act(Action::ToggleTrackerMode, "Trk mode");
+        case Control::File: return act(Action::Save, "Save");
+        case Control::Config: return act(Action::ToggleTrackerMode, "Trk mode");
         default: return {};
     }
 }
 
-bool controlFor(const Editor& ed, Action a, Ctl& c, bool& shift) {
+bool controlFor(const Editor& ed, Action a, Control& c, bool& shift) {
     if (a == Action::NextSlot || a == Action::PrevSlot) {
         int s = (ed.slot() + (a == Action::NextSlot ? 1 : tc::kSlots - 1)) % tc::kSlots;
         c = slotPad(s);
@@ -256,10 +262,10 @@ bool controlFor(const Editor& ed, Action a, Ctl& c, bool& shift) {
         return true;
     }
     for (int sh = 0; sh < 2; sh++)
-        for (int i = 0; i < (int)Ctl::Pad0; i++) {
-            Command k = controlCommand(ed, (Ctl)i, sh);
+        for (int i = 0; i < (int)Control::Pad0; i++) {
+            Command k = controlCommand(ed, (Control)i, sh);
             if (k.type == Command::Act && k.action == a) {
-                c = (Ctl)i;
+                c = (Control)i;
                 shift = sh;
                 return true;
             }
@@ -267,8 +273,8 @@ bool controlFor(const Editor& ed, Action a, Ctl& c, bool& shift) {
     return false;
 }
 
-bool press(Editor& ed, Ctl c, bool shift) {
-    if (c == Ctl::Play && !ed.menuOpen() && !ed.playHeld()) {
+bool press(Editor& ed, Control c, bool shift) {
+    if (c == Control::Play && !ed.menuOpen() && !ed.playHeld()) {
         ed.playDown(shift);
         return true;
     }
@@ -284,8 +290,8 @@ bool press(Editor& ed, Ctl c, bool shift) {
     }
 }
 
-void release(Editor& ed, Ctl c) {
-    if (c == Ctl::Play) ed.playUp();
+void release(Editor& ed, Control c) {
+    if (c == Control::Play) ed.playUp();
 }
 
 bool typeChar(Editor& ed, char ch) {
@@ -301,4 +307,4 @@ bool typeChar(Editor& ed, char ch) {
     return true;
 }
 
-}  // namespace proto
+}  // namespace tc

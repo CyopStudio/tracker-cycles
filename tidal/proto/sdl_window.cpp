@@ -1,5 +1,5 @@
 // SDL2 window for the prototype. Every input goes through a Tracker control
-// (hardware.h): physical keys press a fixed control (arrows, Space = Play,
+// (editor/controls.h): physical keys press a fixed control (arrows, Space = Play,
 // digits = pads ...), shortcut keys (r, w, Enter ...) press whichever
 // control does that job right now. The mock panel (panel.h) shows which.
 // Key hints in panel.cpp must match the tables here.
@@ -8,7 +8,7 @@
 
 #include "editor.h"
 #include "fb.h"
-#include "hardware.h"
+#include "controls.h"
 #include "output.h"
 #include "panel.h"
 #include "view.h"
@@ -20,13 +20,13 @@ namespace {
 
 struct Key {
     bool isCtl = false;
-    Ctl ctl = Ctl::Count;
+    Control ctl = Control::Count;
     Action action = Action::Cancel;
     bool forceShift = false;  // key implies Shift (e.g. Shift+wheel)
 };
 
 bool mapKey(const SDL_KeyboardEvent& k, bool shift, Key& out) {
-    auto ctl = [&](Ctl c) {
+    auto ctl = [&](Control c) {
         out.isCtl = true;
         out.ctl = c;
         return true;
@@ -39,32 +39,32 @@ bool mapKey(const SDL_KeyboardEvent& k, bool shift, Key& out) {
     bool ctrl = k.keysym.mod & KMOD_CTRL;
     SDL_Keycode s = k.keysym.sym;
     if (s >= SDLK_1 && s <= SDLK_8) return ctl(padCtl((shift ? kPadCols : 0) + (s - SDLK_1)));
-    if (s >= SDLK_F1 && s <= SDLK_F8) return ctl((Ctl)((int)Ctl::Screen0 + (s - SDLK_F1)));
+    if (s >= SDLK_F1 && s <= SDLK_F8) return ctl((Control)((int)Control::Screen0 + (s - SDLK_F1)));
     switch (s) {
-        case SDLK_LEFT: return ctl(Ctl::Left);
-        case SDLK_RIGHT: return ctl(Ctl::Right);
-        case SDLK_UP: return ctl(Ctl::Up);
-        case SDLK_DOWN: return ctl(Ctl::Down);
+        case SDLK_LEFT: return ctl(Control::Left);
+        case SDLK_RIGHT: return ctl(Control::Right);
+        case SDLK_UP: return ctl(Control::Up);
+        case SDLK_DOWN: return ctl(Control::Down);
         case SDLK_PAGEUP:
         case SDLK_EQUALS:
         case SDLK_PLUS:
-        case SDLK_KP_PLUS: return ctl(Ctl::JogUp);
+        case SDLK_KP_PLUS: return ctl(Control::JogUp);
         case SDLK_PAGEDOWN:
         case SDLK_MINUS:
-        case SDLK_KP_MINUS: return ctl(Ctl::JogDown);
-        case SDLK_SPACE: return ctl(Ctl::Play);
-        case SDLK_i: return ctl(Ctl::Insert);
+        case SDLK_KP_MINUS: return ctl(Control::JogDown);
+        case SDLK_SPACE: return ctl(Control::Play);
+        case SDLK_i: return ctl(Control::Insert);
         case SDLK_x:
         case SDLK_DELETE:
-        case SDLK_BACKSPACE: return ctl(Ctl::Delete);
-        case SDLK_t: return ctl(Ctl::Config);
-        case SDLK_s: return ctl(ctrl ? Ctl::File : Ctl::Instr);
-        case SDLK_n: return ctl(Ctl::Note);
-        case SDLK_l: return ctl(Ctl::Song);
-        case SDLK_p: return ctl(Ctl::Params);
-        case SDLK_e: return ctl(Ctl::Pattern);
-        case SDLK_f: return ctl(Ctl::Fx1);
-        case SDLK_c: return ctl(ctrl ? Ctl::Copy : Ctl::Fx2);
+        case SDLK_BACKSPACE: return ctl(Control::Delete);
+        case SDLK_t: return ctl(Control::Config);
+        case SDLK_s: return ctl(ctrl ? Control::File : Control::Instr);
+        case SDLK_n: return ctl(Control::Note);
+        case SDLK_l: return ctl(Control::Song);
+        case SDLK_p: return ctl(Control::Params);
+        case SDLK_e: return ctl(Control::Pattern);
+        case SDLK_f: return ctl(Control::Fx1);
+        case SDLK_c: return ctl(ctrl ? Control::Copy : Control::Fx2);
         case SDLK_v: return ctrl ? intent(Action::Paste) : false;
         case SDLK_HOME: return intent(Action::Home);
         case SDLK_r: return intent(Action::Replace);
@@ -88,13 +88,13 @@ std::string keyName(const SDL_KeyboardEvent& k) {
 }
 
 // Press a control, record what happened for the panel's status line.
-void pressCtl(Editor& ed, Ctl c, bool shift, const std::string& via, PanelState& st, Uint32& litUntil) {
+void pressCtl(Editor& ed, Control c, bool shift, const std::string& via, PanelState& st, Uint32& litUntil) {
     Command cmd = controlCommand(ed, c, shift);
     bool did = press(ed, c, shift);
     st.lit = c;
     litUntil = SDL_GetTicks() + 180;
-    st.last = via + " -> " + (shift && c != Ctl::Shift ? "Shift+" : "") + ctlName(c) + "  [" + ctlFwName(c) +
-              "] -> " + (did ? cmd.label : std::string("(nothing here)"));
+    st.last = via + " -> " + (shift && c != Control::Shift ? "Shift+" : "") + ctlName(c) + "  [" + ctlFwName(c) +
+              "] -> " + (did ? std::string(cmd.label.c_str()) : std::string("(nothing here)"));
 }
 
 }  // namespace
@@ -143,7 +143,7 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
                        (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER ||
                         e.key.keysym.sym == SDLK_ESCAPE)) {
                 const bool ok = e.key.keysym.sym != SDLK_ESCAPE;
-                pressCtl(ed, ok ? Ctl::Screen7 : Ctl::Screen6, false, ok ? "key Enter" : "key Esc", st, litUntil);
+                pressCtl(ed, ok ? Control::Screen7 : Control::Screen6, false, ok ? "key Enter" : "key Esc", st, litUntil);
                 dirty = true;
             } else if (e.type == SDL_KEYDOWN) {
                 Key k;
@@ -151,8 +151,8 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
                     running = false;
                 } else if (e.key.keysym.sym == SDLK_h) {  // hush = Shift+Play pressed and released alone
                     if (!e.key.repeat) {
-                        press(ed, Ctl::Play, true);
-                        release(ed, Ctl::Play);
+                        press(ed, Control::Play, true);
+                        release(ed, Control::Play);
                         st.last = "key h -> Shift+Play (alone) -> hush";
                     }
                 } else if (e.key.keysym.sym == SDLK_SPACE && e.key.repeat) {
@@ -165,7 +165,7 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
                         bool sh = isPad(k.ctl) ? true : shift;
                         pressCtl(ed, k.ctl, sh, via, st, litUntil);
                     } else {
-                        Ctl c;
+                        Control c;
                         bool sh;
                         if (controlFor(ed, k.action, c, sh)) {
                             pressCtl(ed, c, sh, via, st, litUntil);
@@ -179,26 +179,26 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
                 dirty = true;
             } else if (e.type == SDL_KEYUP) {
                 if (e.key.keysym.sym == SDLK_SPACE && ed.playHeld()) {  // Play released (v2: acts on release)
-                    release(ed, Ctl::Play);
+                    release(ed, Control::Play);
                     st.last = "key Space released -> Play";
                 }
                 dirty = true;  // Shift display
             } else if (e.type == SDL_MOUSEWHEEL) {
                 int dy = e.wheel.y;
                 for (int n = 0; n < (dy > 0 ? dy : -dy); n++)
-                    pressCtl(ed, dy > 0 ? Ctl::JogUp : Ctl::JogDown, shift, "wheel", st, litUntil);
+                    pressCtl(ed, dy > 0 ? Control::JogUp : Control::JogDown, shift, "wheel", st, litUntil);
                 dirty = true;
             } else if (e.type == SDL_MOUSEBUTTONDOWN && e.button.button == SDL_BUTTON_LEFT && withPanel) {
-                Ctl c;
+                Control c;
                 if (panelHit(e.button.x, e.button.y, c)) {
-                    if (c == Ctl::Shift) {
+                    if (c == Control::Shift) {
                         latched = !latched;
                         st.last = latched ? "click -> Shift latched for the next press" : "click -> Shift released";
-                    } else if (c == Ctl::Play && ed.playHeld() && !ed.menuOpen()) {
-                        release(ed, Ctl::Play);  // second click releases the latched Play
+                    } else if (c == Control::Play && ed.playHeld() && !ed.menuOpen()) {
+                        release(ed, Control::Play);  // second click releases the latched Play
                         st.last = "click -> Play released";
-                    } else if (c == Ctl::Play && !ed.menuOpen()) {
-                        press(ed, Ctl::Play, shift);
+                    } else if (c == Control::Play && !ed.menuOpen()) {
+                        press(ed, Control::Play, shift);
                         st.last = "click -> Play latched: click pads to mute, Play again to release";
                         latched = false;
                     } else {
@@ -211,8 +211,8 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
                 dirty = true;
             }
         }
-        if (st.lit != Ctl::Count && SDL_GetTicks() > litUntil) {
-            st.lit = Ctl::Count;
+        if (st.lit != Control::Count && SDL_GetTicks() > litUntil) {
+            st.lit = Control::Count;
             dirty = true;
         }
         bool shiftNow = (SDL_GetModState() & KMOD_SHIFT) || latched;

@@ -5,8 +5,8 @@ Plan steps 0–1 (see `../CLAUDE.md` and `../docs/tidal_code_tree.md`).
 | Directory | What | Runs on |
 | :--- | :--- | :--- |
 | `core/` | Code tree, function library, parser, renderer, type checker, and the query engine (`engine.*`, `qtime.h`: tree -> events, 32-bit rational time). The scheduler (`scheduler.*`, docs/tidal_scheduler.md): queries ahead into per-slot rings that an audio-interrupt tick() plays. No heap, fixed pools. Will be shared with the firmware. | host + MK66 |
-| `editor/` | The editor model (plan 4d, docs/tidal_device_editor.md): cursor, menus, edits, undo, keyboard screen; no heap (fixed strings / vectors in `fixed.h`), in-place edits with checkpoints, output through `EditorOutput`. The caller provides the Program, Checkpoint and undo arena. | host + MK66 |
-| `proto/` | Editor prototype (step 1): 800×480 view drawn with the firmware's own fonts, the control mapping (`hardware.*`), backends (print / GHCi / our engine) behind `BackendOutput` (`output.*`: Tidal statements, Save, highlight mapping), optional SDL window. | host |
+| `editor/` | The editor model (plan 4d, docs/tidal_device_editor.md): cursor, menus, edits, undo, keyboard screen; no heap (fixed strings / vectors in `fixed.h`), in-place edits with checkpoints, output through `EditorOutput`. The caller provides the Program, Checkpoint and undo arena. `controls.*`: the Tracker control -> editor mapping (`controlCommand()`, `press()`), shared with the device. | host + MK66 |
+| `proto/` | Editor prototype (step 1): 800×480 view drawn with the firmware's own fonts, backends (print / GHCi / our engine) behind `BackendOutput` (`output.*`: Tidal statements, Save, highlight mapping), optional SDL window. | host |
 | `tests/` | Core tests (`test_core.cpp`) and scripted editor sessions (`proto/*.keys`). | host |
 | `golden/` | Golden cases captured from real Tidal (see below). | host |
 
@@ -130,7 +130,7 @@ click Shift to latch it for the next press. The bottom line shows the last
 input, e.g. `key r -> Screen 1 [interfaceButton0] -> Replace`.
 `--no-panel` gives the bare screen.
 
-Every key goes through a Tracker control (`proto/hardware.cpp`, the mapping
+Every key goes through a Tracker control (`editor/controls.cpp`, the mapping
 the device editor will use), so the keyboard can't do anything the
 hardware can't.
 
@@ -210,7 +210,7 @@ stdout), and
 `hw:CONTROL` / `hw:shift+CONTROL` to press a Tracker control (`s1`..`s8`,
 `play`, `insert`, `delete`, `jog+`, `jog-`, `pad1`..`pad48`, `file`,
 `config`, `copy`, `note`, `instr`, `fx1`, `fx2`, ...; see
-`proto/hardware.cpp`). New action tokens: `copy paste home notes samples
+`editor/controls.cpp`). New action tokens: `copy paste home notes samples
 functions controls quick1..quick4 launch cps comment kbdtype kbdok kbdcancel kbdclear`; `type:TEXT` presses the
 keyboard screen's pads for TEXT (`_` = space). `--panel` makes screenshots include the mock panel.
 `tests/proto/session3.keys` to `session9.keys` use only `hw:` tokens;

@@ -45,23 +45,23 @@ struct Rect {
     bool in(int px, int py) const { return px >= x && px < x + w && py >= y && py < y + h; }
 };
 
-static bool ctlRect(Ctl c, Rect& r) {
+static bool ctlRect(Control c, Rect& r) {
     int i = (int)c;
-    if (c <= Ctl::Screen7) {
+    if (c <= Control::Screen7) {
         r = {kSX + i * 100 + (100 - kSbW) / 2, kSbY, kSbW, kSbH};
         return true;
     }
-    if (c >= Ctl::Params && c <= Ctl::Right) {
-        int k = i - (int)Ctl::Params;  // 0..24, five rows of five
+    if (c >= Control::Params && c <= Control::Right) {
+        int k = i - (int)Control::Params;  // 0..24, five rows of five
         static const int rows[5] = {kRowA, kRowB, kRowC, kRowD, kRowE};
         r = {kRX + (k % 5) * kBStep, rows[k / 5], kBW, kBH};
         return true;
     }
-    if (c == Ctl::JogUp) {
+    if (c == Control::JogUp) {
         r = {kJogX - kJogR, kJogY - kJogR, 2 * kJogR, kJogR};
         return true;
     }
-    if (c == Ctl::JogDown) {
+    if (c == Control::JogDown) {
         r = {kJogX - kJogR, kJogY, 2 * kJogR, kJogR};
         return true;
     }
@@ -73,47 +73,47 @@ static bool ctlRect(Ctl c, Rect& r) {
     return false;
 }
 
-bool panelHit(int x, int y, Ctl& out) {
+bool panelHit(int x, int y, Control& out) {
     for (int i = 0; i < kCtlCount; i++) {
         Rect r;
-        if (!ctlRect((Ctl)i, r) || !r.in(x, y)) continue;
-        if ((Ctl)i == Ctl::JogUp || (Ctl)i == Ctl::JogDown) {
+        if (!ctlRect((Control)i, r) || !r.in(x, y)) continue;
+        if ((Control)i == Control::JogUp || (Control)i == Control::JogDown) {
             int dx = x - kJogX, dy = y - kJogY;
             if (dx * dx + dy * dy > kJogR * kJogR) continue;
         }
-        out = (Ctl)i;
+        out = (Control)i;
         return true;
     }
     return false;
 }
 
 // ---- keyboard hints (keep in sync with sdl_window.cpp) ---------------------
-static const char* fixedKey(Ctl c) {
+static const char* fixedKey(Control c) {
     static const char* digits[8] = {"1", "2", "3", "4", "5", "6", "7", "8"};
     static const char* sdigits[8] = {"S+1", "S+2", "S+3", "S+4", "S+5", "S+6", "S+7", "S+8"};
     static const char* fkeys[8] = {"F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8"};
-    if (c <= Ctl::Screen7) return fkeys[(int)c];
+    if (c <= Control::Screen7) return fkeys[(int)c];
     switch (c) {
-        case Ctl::Left: return "Left";
-        case Ctl::Right: return "Right";
-        case Ctl::Up: return "Up";
-        case Ctl::Down: return "Down";
-        case Ctl::JogUp: return "+ / PgUp / wheel";
-        case Ctl::JogDown: return "- / PgDn / wheel";
-        case Ctl::Play: return "Space";
-        case Ctl::Insert: return "i";
-        case Ctl::Delete: return "x / Del";
-        case Ctl::File: return "Ctrl+S";
-        case Ctl::Config: return "t";
-        case Ctl::Shift: return "Shift";
-        case Ctl::Copy: return "Ctrl+C";
-        case Ctl::Note: return "n";
-        case Ctl::Instr: return "s";
-        case Ctl::Fx1: return "f";
-        case Ctl::Fx2: return "c";
-        case Ctl::Pattern: return "e";
-        case Ctl::Song: return "l";
-        case Ctl::Params: return "p";
+        case Control::Left: return "Left";
+        case Control::Right: return "Right";
+        case Control::Up: return "Up";
+        case Control::Down: return "Down";
+        case Control::JogUp: return "+ / PgUp / wheel";
+        case Control::JogDown: return "- / PgDn / wheel";
+        case Control::Play: return "Space";
+        case Control::Insert: return "i";
+        case Control::Delete: return "x / Del";
+        case Control::File: return "Ctrl+S";
+        case Control::Config: return "t";
+        case Control::Shift: return "Shift";
+        case Control::Copy: return "Ctrl+C";
+        case Control::Note: return "n";
+        case Control::Instr: return "s";
+        case Control::Fx1: return "f";
+        case Control::Fx2: return "c";
+        case Control::Pattern: return "e";
+        case Control::Song: return "l";
+        case Control::Params: return "p";
         default: break;
     }
     if (isPad(c)) {
@@ -140,27 +140,27 @@ static const char* actionKey(Action a) {
 }
 
 // Action-bound key shown on `c` only if the key would land on `c`.
-static const char* intentKey(const Editor& ed, Ctl c, bool shift) {
+static const char* intentKey(const Editor& ed, Control c, bool shift) {
     Command k = controlCommand(ed, c, shift);
     if (k.type != Command::Act) return nullptr;
     const char* key = actionKey(k.action);
-    Ctl found;
+    Control found;
     bool fs;
     if (!key || !controlFor(ed, k.action, found, fs) || found != c || fs != shift) return nullptr;
     return key;
 }
 
-std::string keyHint(const Editor& ed, Ctl c) {
+std::string keyHint(const Editor& ed, Control c) {
     std::string s;
     if (const char* f = fixedKey(c)) s = f;
     if (const char* k = intentKey(ed, c, false)) s += (s.empty() ? "" : " / ") + std::string(k);
     return s;
 }
 
-static std::string shiftHint(const Editor& ed, Ctl c) {
+static std::string shiftHint(const Editor& ed, Control c) {
     if (const char* k = intentKey(ed, c, true)) return k;
     const char* f = fixedKey(c);
-    if (f && !isPad(c) && c != Ctl::Shift) return std::string("S+") + f;
+    if (f && !isPad(c) && c != Control::Shift) return std::string("S+") + f;
     return "";
 }
 
@@ -172,18 +172,23 @@ static void centered(Framebuffer& fb, const Rect& r, int y, const std::string& s
     int w = fb.textWidth(s.c_str(), f, n);
     fb.text(r.x + (r.w - w) / 2, y, s.c_str(), c, f, n);
 }
+template <int N>
+static void centered(Framebuffer& fb, const Rect& r, int y, const Str<N>& s, uint32_t c,
+                     FontId f = FontId::Sans12) {
+    centered(fb, r, y, std::string(s.c_str()), c, f);
+}
 
-static void drawButton(Framebuffer& fb, const Editor& ed, Ctl c, const PanelState& st) {
+static void drawButton(Framebuffer& fb, const Editor& ed, Control c, const PanelState& st) {
     Rect r;
     ctlRect(c, r);
-    bool lit = st.lit == c || (c == Ctl::Shift && st.shift);
+    bool lit = st.lit == c || (c == Control::Shift && st.shift);
     fb.rect(r.x, r.y, r.w, r.h, lit ? pc::btnLit : pc::btn);
     fb.frame(r.x, r.y, r.w, r.h, lit ? pc::accent : pc::btnEdge);
     Command n = controlCommand(ed, c, false), s = controlCommand(ed, c, true);
     bool hasShift = s.type != Command::None && (s.action != n.action || s.type != n.type);
-    if (c == Ctl::Shift) n.label = "modifier";
+    if (c == Control::Shift) n.label = "modifier";
     bool showShift = st.shift && hasShift;
-    if (c <= Ctl::Screen7) {
+    if (c <= Control::Screen7) {
         // function label is on the screen's soft-key bar right above
         centered(fb, r, r.y + 4, n.label.empty() ? "-" : n.label, n.label.empty() ? pc::unused : pc::label);
         centered(fb, r, r.y + 21, keyHint(ed, c), pc::key);
@@ -191,11 +196,11 @@ static void drawButton(Framebuffer& fb, const Editor& ed, Ctl c, const PanelStat
     }
     uint32_t tint = 0;
     switch (c) {
-        case Ctl::Note: tint = pc::note; break;
-        case Ctl::Instr: tint = pc::instr; break;
-        case Ctl::Fx1: tint = pc::fx1; break;
-        case Ctl::Fx2: tint = pc::fx2; break;
-        case Ctl::Rec: tint = pc::rec; break;
+        case Control::Note: tint = pc::note; break;
+        case Control::Instr: tint = pc::instr; break;
+        case Control::Fx1: tint = pc::fx1; break;
+        case Control::Fx2: tint = pc::fx2; break;
+        case Control::Rec: tint = pc::rec; break;
         default: break;
     }
     if (tint) fb.rect(r.x + 1, r.y + r.h - 5, r.w - 2, 4, tint);
@@ -204,14 +209,14 @@ static void drawButton(Framebuffer& fb, const Editor& ed, Ctl c, const PanelStat
     centered(fb, r, r.y + 18, n.label.empty() ? "-" : n.label, lc);
     centered(fb, r, r.y + 33, keyHint(ed, c), pc::key);
     if (hasShift) {
-        std::string sh = s.label;  // purple = with Shift
+        std::string sh = s.label.c_str();  // purple = with Shift
         std::string sk = shiftHint(ed, c);
         if (!sk.empty()) sh += " " + sk;
         centered(fb, r, r.y + 48, sh, showShift ? pc::label : pc::shift);
     }
 }
 
-static void drawPad(Framebuffer& fb, const Editor& ed, Ctl c, const PanelState& st) {
+static void drawPad(Framebuffer& fb, const Editor& ed, Control c, const PanelState& st) {
     Rect r;
     ctlRect(c, r);
     Command k = controlCommand(ed, c, st.shift);
@@ -257,13 +262,13 @@ static void drawPad(Framebuffer& fb, const Editor& ed, Ctl c, const PanelState& 
 static void drawJog(Framebuffer& fb, const Editor& ed, const PanelState& st) {
     fb.disc(kJogX, kJogY, kJogR + 4, pc::btnEdge);
     fb.disc(kJogX, kJogY, kJogR, pc::btn);
-    if (st.lit == Ctl::JogUp) fb.rect(kJogX - 60, kJogY - 90, 120, 4, pc::accent);
-    if (st.lit == Ctl::JogDown) fb.rect(kJogX - 60, kJogY + 86, 120, 4, pc::accent);
+    if (st.lit == Control::JogUp) fb.rect(kJogX - 60, kJogY - 90, 120, 4, pc::accent);
+    if (st.lit == Control::JogDown) fb.rect(kJogX - 60, kJogY + 86, 120, 4, pc::accent);
     fb.rect(kJogX - kJogR + 8, kJogY, 2 * kJogR - 16, 1, pc::btnEdge);
     fb.disc(kJogX, kJogY, 22, pc::bezel);
     Rect up = {kJogX - 80, 0, 160, 0}, dn = up;
     for (int k = 0; k < 2; k++) {
-        Ctl c = k ? Ctl::JogDown : Ctl::JogUp;
+        Control c = k ? Control::JogDown : Control::JogUp;
         const Rect& r = k ? dn : up;
         int y0 = k ? kJogY + 30 : kJogY - 80;
         Command n = controlCommand(ed, c, false), s = controlCommand(ed, c, true);
@@ -280,9 +285,9 @@ void drawPanel(const Editor& ed, const Framebuffer& screen, Framebuffer& out, co
     // screen with bezel
     out.rect(kSX - 8, kSY - 8, kW + 16, kH + 16, pc::bezel);
     out.blit(screen, kSX, kSY);
-    for (int i = 0; i < 8; i++) drawButton(out, ed, (Ctl)i, st);
+    for (int i = 0; i < 8; i++) drawButton(out, ed, (Control)i, st);
     drawJog(out, ed, st);
-    for (int i = (int)Ctl::Params; i <= (int)Ctl::Right; i++) drawButton(out, ed, (Ctl)i, st);
+    for (int i = (int)Control::Params; i <= (int)Control::Right; i++) drawButton(out, ed, (Control)i, st);
     for (int i = 0; i < 48; i++) drawPad(out, ed, padCtl(i), st);
 
     // legend between the Play/Rec block and the jog wheel

@@ -3,7 +3,7 @@
 The user's change requests for the editor (prototype now, the device editor
 in plan 4d), with the decisions from the follow-up questions (2026-11-10).
 Everything is implemented in the prototype first (tidal/proto), where the
-mapping lives in `controlCommand()` (hardware.cpp) and is reused on the
+mapping lives in `controlCommand()` (tidal/editor/controls.cpp) and is reused on the
 device.
 
 ## 1. Navigation

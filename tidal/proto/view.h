@@ -3,9 +3,7 @@
 #include "fb.h"
 
 namespace proto {
-using tc::Action;  // the editor model (tidal/editor)
-using tc::Editor;
-using tc::SlotState;
+using namespace tc;  // the editor model and controls (tidal/editor)
 
 // Draw the whole editor screen into the framebuffer.
 void drawEditor(const Editor& ed, Framebuffer& fb);
