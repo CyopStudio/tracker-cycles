@@ -2,11 +2,8 @@
 
 #include "configEditor/configEditor.h"
 #include "instrumentEditor/instrumentEditor.h"
-#include "patternEditor/patternEditor.h"
 #include "sampleEditor/sampleEditor.h"
 #include "samplePlayback/samplePlayback.h"
-#include "sampleRecorder/sampleRecorder.h"
-#include "songEditor/songEditor.h"
 
 #include "Platform.h"
 #include "TrackerImpl.h"
@@ -14,12 +11,9 @@
 #include "util_math.h"
 #include <cmath>
 
-extern cPatternEditor patternEditor;
 
 static cSamplePlayback* SP = &samplePlayback;
-static cSampleRecorder* SR = &sampleRecorder;
 static cSampleEditor* SE = &sampleEditor;
-static cPatternEditor* PTE = &patternEditor;
 static cInstrumentEditor* IE = &instrumentEditor;
 static UartMidi* uartMidi = nullptr;
 static UsbMidi* usbMidi = nullptr;
@@ -27,7 +21,6 @@ static UsbMidi* usbMidi = nullptr;
 extern void playSongFromSelectedPattern();
 extern void playSongFromSelectedPattern_stop();
 
-void peformanceModeOnMidiCC(uint8_t cc_idx, uint8_t cc_value);
 void changeMixerOnMidiCC(uint8_t cc_idx, uint8_t cc_value);
 
 elapsedMillis timerMidiDelay = 0;
@@ -89,183 +82,25 @@ uint8_t isIncomingChannelDesired(uint8_t chan)
 
 void handleJackNoteOn(byte channel, byte pitch, byte velocity)
 {
-    //	Serial.printf("ON\tch: %d, pitch: %d, velo: %d \r\n", channel, pitch,
-    //					velocity);
-    //	MIDI.sendNoteOn(pitch, velocity, channel);
-
-    if (velocity == 0)
-    {
-        handleJackNoteOff(channel, pitch, 0);
-        return;
-    }
-
-    if (mtConfig.midi.notesInMode == notesIn_jack ||
-        mtConfig.midi.notesInMode == notesIn_usb_and_jack)
-    {
-
-        if (isIncomingChannelDesired(channel))
-        {
-
-            int8_t transp = 12 * (mtConfig.midi.middleC - 2);
-            pitch = clamp(pitch + transp, 0, 127);
-
-            if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_sequencer)
-            {
-                sendSelection();
-
-                sequencer.handleNoteOn(
-                  Sequencer::GRID_OUTSIDE_PATTERN, pitch, velocity, pitch + 100);
-
-                patternEditor.refreshPatternFromOutsideModule();
-            }
-            else if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_SamplePlayback)
-            {
-                SP->noteOnHandle(channel, pitch, velocity, pitch + 100);
-            }
-            else if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_SampleEditor)
-            {
-                SE->noteOnHandle(channel, pitch, velocity, pitch + 100);
-            }
-            else if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_SampleRecorder)
-            {
-                SR->noteOnHandle(channel, pitch, velocity, pitch + 100);
-            }
-        }
-    }
+    // Tracker Cycles (plan 4a): MIDI notes in removed (user decision)
+    (void)channel, (void)pitch, (void)velocity;
 }
 void handleUsbNoteOn(byte channel, byte pitch, byte velocity)
 {
-    //	Serial.printf("ON\tch: %d, pitch: %d, velo: %d \r\n", channel, pitch,
-    //					velocity);
-    //	MIDI.sendNoteOn(pitch, velocity, channel);
-
-    if (velocity == 0)
-    {
-        handleUsbNoteOff(channel, pitch, 0);
-        return;
-    }
-
-    if (mtConfig.midi.notesInMode == notesIn_usb ||
-        mtConfig.midi.notesInMode == notesIn_usb_and_jack)
-    {
-        if (isIncomingChannelDesired(channel))
-        {
-            int8_t transp = 12 * (mtConfig.midi.middleC - 2);
-            pitch = clamp(pitch + transp, 0, 127);
-
-            if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_sequencer)
-            {
-                sendSelection();
-
-                sequencer.handleNoteOn(
-                  Sequencer::GRID_OUTSIDE_PATTERN, pitch, velocity, pitch + 100);
-
-                patternEditor.refreshPatternFromOutsideModule();
-            }
-            else if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_SamplePlayback)
-            {
-                SP->noteOnHandle(channel, pitch, velocity, pitch + 100);
-            }
-            else if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_SampleEditor)
-            {
-                SE->noteOnHandle(channel, pitch, velocity, pitch + 100);
-            }
-            else if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_SampleRecorder)
-            {
-                SR->noteOnHandle(channel, pitch, velocity, pitch + 100);
-            }
-        }
-    }
+    // Tracker Cycles (plan 4a): MIDI notes in removed (user decision)
+    (void)channel, (void)pitch, (void)velocity;
 }
 
 void handleJackNoteOff(byte channel, byte pitch, [[maybe_unused]] byte velocity)
 {
-
-    //	Serial.printf("OFF\tch: %d, pitch: %d, velo: %d\r\n", channel, pitch,
-    //					velocity);
-
-    if (mtConfig.midi.notesInMode == notesIn_jack ||
-        mtConfig.midi.notesInMode == notesIn_usb_and_jack)
-    {
-        if (isIncomingChannelDesired(channel))
-        {
-            int8_t transp = 12 * (mtConfig.midi.middleC - 2);
-            pitch = clamp(pitch + transp, 0, 127);
-
-            if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_sequencer)
-            {
-                sendSelection();
-                sequencer.handleNoteOff(Sequencer::GRID_OUTSIDE_PATTERN, pitch, 0, pitch + 100);
-
-                if (isEditMode())
-                {
-                    //					if (isMultiSelectionOnOneLine() &&
-                    // sequencer.noMoreRecOpen())
-                    if (sequencer.noMoreRecOpen())
-                    {
-                        PTE->moveCursorByStepParallel();
-                    }
-                }
-                patternEditor.refreshPatternFromOutsideModule();
-            }
-            else if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_SamplePlayback)
-            {
-                SP->noteOffHandle(channel, pitch, 0, pitch + 100);
-            }
-            else if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_SampleEditor)
-            {
-                SE->noteOffHandle(channel, pitch, 0, pitch + 100);
-            }
-            else if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_SampleRecorder)
-            {
-                SR->noteOffHandle(channel, pitch, 0, pitch + 100);
-            }
-        }
-    }
+    // Tracker Cycles (plan 4a): MIDI notes in removed (user decision)
+    (void)channel, (void)pitch, (void)velocity;
 }
 
 void handleUsbNoteOff(byte channel, byte pitch, [[maybe_unused]] byte velocity)
 {
-
-    //	Serial.printf("OFF\tch: %d, pitch: %d, velo: %d\r\n", channel, pitch,
-    //					velocity);
-
-    if (mtConfig.midi.notesInMode == notesIn_usb ||
-        mtConfig.midi.notesInMode == notesIn_usb_and_jack)
-    {
-        if (isIncomingChannelDesired(channel))
-        {
-            int8_t transp = 12 * (mtConfig.midi.middleC - 2);
-            pitch = clamp(pitch + transp, 0, 127);
-
-            if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_sequencer)
-            {
-                sendSelection();
-                sequencer.handleNoteOff(Sequencer::GRID_OUTSIDE_PATTERN, pitch, 0, pitch + 100);
-
-                if (isEditMode())
-                {
-                    if (sequencer.noMoreRecOpen())
-                    {
-                        PTE->moveCursorByStepParallel();
-                    }
-                }
-                patternEditor.refreshPatternFromOutsideModule();
-            }
-            else if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_SamplePlayback)
-            {
-                SP->noteOffHandle(channel, pitch, 0, pitch + 100);
-            }
-            else if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_SampleEditor)
-            {
-                SE->noteOffHandle(channel, pitch, 0, pitch + 100);
-            }
-            else if (sequencer.getMidiInVoiceMode() == sequencer.midiInVoiceMode_SampleRecorder)
-            {
-                SR->noteOffHandle(channel, pitch, 0, pitch + 100);
-            }
-        }
-    }
+    // Tracker Cycles (plan 4a): MIDI notes in removed (user decision)
+    (void)channel, (void)pitch, (void)velocity;
 }
 
 void handleJackControlChange(byte channel, byte number, byte value)
@@ -276,9 +111,6 @@ void handleJackControlChange(byte channel, byte number, byte value)
 
     if ((channel == mtConfig.midi.ccInChannel) || (mtConfig.midi.ccInChannel == ALL_CC_CHANNELS))
     {
-        if (mtInterface.isPerformanceModeScreenActive())
-            peformanceModeOnMidiCC(number, value);
-
         changeMixerOnMidiCC(number, value);
 
         IE->onControlChangeReceive(number, value);
@@ -293,9 +125,6 @@ void handleUSBControlChange(byte channel, byte number, byte value)
 
     if ((channel == mtConfig.midi.ccInChannel) || (mtConfig.midi.ccInChannel == ALL_CC_CHANNELS))
     {
-        if (mtInterface.isPerformanceModeScreenActive())
-            peformanceModeOnMidiCC(number, value);
-
         changeMixerOnMidiCC(number, value);
 
         IE->onControlChangeReceive(number, value);
@@ -470,47 +299,40 @@ uint16_t lastSongPosition = 0;
 
 void receiveClock()
 {
-    sequencer.handleMidiInClock();
+    // Tracker Cycles (plan 4a): MIDI clock / transport in removed for now
+    // (wanted later: set Tidal's cps from the incoming clock)
 }
 
 void receiveStart()
 {
-    bool songMode = mtInterface.isSongScreenActive();
-    sequencer.handleMidiInStart(false, songMode);
+    // Tracker Cycles (plan 4a): MIDI clock / transport in removed for now
+    // (wanted later: set Tidal's cps from the incoming clock)
 }
 
 void receiveContinue()
 {
-    bool songMode = mtInterface.isSongScreenActive();
-    sequencer.handleMidiInStart(true, songMode);
+    // Tracker Cycles (plan 4a): MIDI clock / transport in removed for now
+    // (wanted later: set Tidal's cps from the incoming clock)
 }
 
 void receiveStop()
 {
-    sequencer.handleMidiInStop();
+    // Tracker Cycles (plan 4a): MIDI clock / transport in removed for now
+    // (wanted later: set Tidal's cps from the incoming clock)
 }
 
 void handleUsbSongPosition(uint16_t beats)
 {
-    //	Serial.printf("song pos: %d beats\n", beats);
-    //	sequencer.forcePosition(beats);
-
-    if (mtConfig.midi.transportIn == clockIn_Usb)
-    {
-        lastSongPosition = beats;
-        sequencer.handleMidiInSongPosition(beats);
-    }
+    // Tracker Cycles (plan 4a): MIDI clock / transport in removed for now
+    // (wanted later: set Tidal's cps from the incoming clock)
+    lastSongPosition = beats;
 }
 
 void handleJackSongPosition(unsigned int beats)
 {
-    //	Serial.printf("song pos: %d beasts\n", beats);
-    //	sequencer.forcePosition(beats);
-    if (mtConfig.midi.transportIn == clockIn_Jack)
-    {
-        lastSongPosition = beats;
-        sequencer.handleMidiInSongPosition(static_cast<uint16_t>(beats));
-    }
+    // Tracker Cycles (plan 4a): MIDI clock / transport in removed for now
+    // (wanted later: set Tidal's cps from the incoming clock)
+    lastSongPosition = (uint16_t)beats;
 }
 
 AUDIO_CORE_RAM void sendCC(uint8_t index, uint8_t value, uint8_t channel, bool toSynth)

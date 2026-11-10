@@ -1,5 +1,7 @@
 // Device tick test build (see tidal_tick.h and README.md).
 //
+// v13: same sets as v12, on the stripped firmware (plan 4a stage 2: no
+// step sequencer / pattern / song editors / performance mode / recorder).
 // v12: the reverb runs at half rate on the Original Tracker
 // (Polyverb/reverb_half.h); sets 13-14 are reverb listening sets.
 // v11: Program::clear() is O(1) (high-water mark; it zeroed the 70 KB
@@ -406,7 +408,7 @@ int activeInstruments() {
 
 int header(int n) {
     return n + snprintf(report + n, sizeof report - n,
-                        "Tracker Cycles device tick test v12 (" TC_TICK_VARIANT "), %s\n"
+                        "Tracker Cycles device tick test v13 (" TC_TICK_VARIANT "), %s\n"
                         "%d active instruments; scheduler object %u B (internal RAM), entries %u B, live program "
                         "%u B (SDRAM); engine working set in internal RAM: %s; %d sample players per track, cap max %d (load-driven), voices default 1\n"
                         "cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles\n\n",

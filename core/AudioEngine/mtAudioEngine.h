@@ -6,7 +6,6 @@
 #include "AudioInput.h"
 #include "AudioOutput.h"
 #include "AudioVoice.h"
-#include "ExportQueues.h"
 #include "MixerAndFxs.h"
 #include "Platform.h"
 #include "SdStream.h"
@@ -53,13 +52,9 @@ class audioEngine
     void connectMixerToOutput(MixerAndFxs<kVoices>* mixerAndFxs, AudioOutput* output);
 #ifdef FEATURE_SYNTH
     void connectSynthToMixer(MixerAndFxs<kVoices>* mixerAndFxs, SynthVoice* synth);
-    void connectSynthToExportQueue(SynthVoice* synth, ExportQueues* exportQueues);
     void connectSynthToOutput(SynthVoice* synth, AudioOutput* output);
 #endif
     void connectSpecialInputsToOutput(AudioOutput* output);
-    void connectVoiceToExportQueue(AudioVoice* voice, ExportQueues* exportQueues, int idx);
-    void connectMixerToExportQueue(MixerAndFxs<kVoices>* mixerAndFxs, ExportQueues* exportQueues);
-    void connectOutputToExportQueue(AudioOutput* output, ExportQueues* exportQueues);
 #ifdef PLATFORM_IMX
     void refreshOutputSourceOutsideTheRecorder();
     void forceUsbGainOutsideTheRecorder();
@@ -189,7 +184,6 @@ class audioEngine
 
     AudioInput* getAudioInput();
     AudioOutput* getAudioOutput();
-    ExportQueues* getExportQueues();
     MixerAndFxs<kVoices>* getMixerAndFx();
     AudioPlaySdWav* getSdPlayer();
 
@@ -246,7 +240,6 @@ class audioEngine
                                       // use something like bitset2d from Play if it grows
     std::optional<uint8_t> lastSynthFxId[kSynthParts][2];
 #endif
-    ExportQueues exportQueues;
     AudioOutput output;
     AudioAnalyzeRMS* delayRms[(int)MixerAndFxChannelType::kChannelCount];
     AudioAnalyzeRMS* polyverbRms[(int)MixerAndFxChannelType::kChannelCount];

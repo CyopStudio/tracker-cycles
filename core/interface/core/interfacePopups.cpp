@@ -13,7 +13,6 @@
 #endif
 
 #include "config.h"
-#include "patternEditor/patternEditor.h"
 #include "string.h"
 #include "util_math.h"
 
@@ -33,7 +32,6 @@ static void functDescriptionButton();
 static void functNoteActionButton(uint8_t button, uint8_t state);
 
 extern uint8_t functInvert();
-extern cPatternEditor patternEditor;
 
 InterfacePopups mtPopups;
 static InterfacePopups* POP = &mtPopups;
@@ -1100,11 +1098,6 @@ void InterfacePopups::refreshStepPopupDescription()
 
         mtPopups.refreshFxDescription();
 
-        if (!(patternEditor.trackerPattern.popupMode & 4))
-        {
-            patternEditor.trackerPattern.popupMode |= 4;
-            display.refreshControl(patternEditor.patternControl);
-        }
     }
     else
     {
@@ -1122,11 +1115,6 @@ void InterfacePopups::refreshStepPopupDescription()
 
         display.setControlHide(textBox);
 
-        if (patternEditor.trackerPattern.popupMode & 4)
-        {
-            patternEditor.trackerPattern.popupMode &= ~(4);
-            display.refreshControl(patternEditor.patternControl);
-        }
     }
 }
 
@@ -1188,16 +1176,6 @@ static void functPadsPopup(uint8_t pad, uint8_t state, int16_t)
             case stepPopupInstr:
             {
                 int8_t noteToPlay = Sequencer::STEP_NOTE_DEFAULT;
-                if (mtInterface.isPatternScreenActive())
-                {
-                    int instrumentToSet =
-                      patternEditor.isSelectionOrCursorInMidiTracks()
-                        ? MIDI_INSTRUMENTS_START_IDX + (pad % kMidiInstrumentsCount)
-                        : pad;
-
-                    sendSelection();
-                    noteToPlay = sequencer.getSelectionFirstNote();
-                }
                 sequencer.handleNoteOn(Sequencer::GRID_OUTSIDE_PATTERN, noteToPlay, -1, pad);
                 break;
             }
@@ -1220,11 +1198,6 @@ static void functPadsPopup(uint8_t pad, uint8_t state, int16_t)
             case stepPopupInstr:
             {
                 int8_t noteToPlay = Sequencer::STEP_NOTE_DEFAULT;
-                if (mtInterface.isPatternScreenActive())
-                {
-                    sendSelection();
-                    noteToPlay = sequencer.getSelectionFirstNote();
-                }
                 sequencer.handleNoteOff(Sequencer::GRID_OUTSIDE_PATTERN, noteToPlay, 0, pad);
                 break;
             }

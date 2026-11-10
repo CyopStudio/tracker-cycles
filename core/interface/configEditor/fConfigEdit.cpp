@@ -17,7 +17,6 @@
 #include "mtPadsBacklight.h"
 #include "mtSequencer.h"
 #include "mtTest.h"
-#include "patternEditor/patternEditor.h"
 
 cConfigEditor configEditor;
 static cConfigEditor* CE = &configEditor;

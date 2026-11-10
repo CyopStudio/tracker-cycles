@@ -76,7 +76,8 @@ void WorkspaceProjectLoad::update()
         }
         case WorkspaceProjectLoadStep::loadPatternFile:
         {
-            newFileManager.loadPatternFromWorkspace(mtProject.values.actualPattern);
+            // Tracker Cycles (plan 4a): no patterns in RAM (the files stay
+            // on the card, copied with the project)
             nextStep = WorkspaceProjectLoadStep::finishStep;
             break;
         }
@@ -161,10 +162,7 @@ void WorkspaceProjectLoad::loadProjectFromWorkspaceFinish()
                newFileManager.getProjectPathfromProjectFile());
     }
 
-    sequencer.switchRamPatternsNow();
     newFileManager.startAudioEngine();
-
-    newFileManager.getPatternsMetadata()->loadPatternsMetadata();
 
 #if FILEMANAGER_HANDLE_SYNTH == 1
     newFileManager.getSynth()->updateToSettings(mtProject.values, true);

@@ -281,6 +281,31 @@ folders listed in the project (e.g. a manifest) on project load.
      modules' slots point at a placeholder module (Interface::modules[]
      and the saved function-key bindings index them). (3) Tidal player +
      status screen + MIDI clock out.
+     Stage 2 done (2026-11-10, not yet run on the device): removed
+     interface/{patternEditor,songEditor,performanceMode,sampleRecorder},
+     Exporter/, source/{Recorder.*, mtSequencer_patternEdit.cpp}, the
+     file manager's pattern / song / undo / export / recording code and
+     AudioEngine/ExportQueues; source/mtSequencer.* is now a slim
+     Sequencer (FX ids and ranges, live notes = the project's last used
+     instrument on the first free sample track, tempo, a transport the
+     Tidal player sets with setTransport()); interface/placeholder/ fills
+     module slots 2 / 4 / 8 / 9 (isPattern/Song/PerformanceScreenActive()
+     are false). Project open / save no longer load / save patterns in RAM,
+     but still copy the project folder, so pattern files on the card stay
+     as they were (stock projects remain reopenable in stock firmware).
+     "Delete unused instruments" treats every instrument as used (it
+     looked at patterns). MIDI notes / clock / transport in are no-ops; CC
+     in still drives the mixer and instrument params. The factory test's
+     input loopback no longer records. Stock flash 857,684 -> 690,784 B
+     (internal RAM 161,948 -> 149,192 B); Tidal tick build 799,248 B
+     (76 %; was 1,013,588 B = 96.7 % before the strip). Still to remove:
+     the player engine's performance-mode code (mtAudioPerformanceMode.cpp
+     and its checks; nothing sets it now).
+     Device (2026-11-10): user: Strip2 "worked as expected". Tick v13 on
+     the stripped firmware (docs/tidal_tick.txt): every set 2-3 points
+     less audio load than v12 (silence 7 -> 5 %: the step sequencer's
+     tick is gone; light 43 -> 40, everyday 62 -> 59, heavy 72 -> 69),
+     no drops; heap 28.5 KB free (v12 13.2 KB), stack 13.3 KB spare.
    - 4b. Scheduler: queries on the main loop a fixed window ahead into a
      fixed-size event queue; the audio ISR only pops due events.
      Design: docs/tidal_scheduler.md (v0.2: per-slot SPSC rings of 32 B
@@ -688,7 +713,10 @@ folders listed in the project (e.g. a manifest) on project load.
 - Line endings: many upstream files are CRLF (some mixed) and the git
   config has core.autocrlf=input, so `git add` turns them into LF (a
   whole-file diff). Edit them byte-exact (Python 'rb'/'wb', or Edit) and
-  stage them with `git -c core.autocrlf=false add`. Already LF since
+  stage them with `git -c core.autocrlf=false add`. Helper (untracked):
+  .tc_tools/tcedit.py (edit / remove_lines / remove_function, keeps
+  each file's line endings). `make clean` deletes build/ entirely: keep
+  nothing else there. Already LF since
   earlier commits: mtAudioNoteOnHandle.cpp, mtAudioSequencer.cpp,
   effect_shortDelay.cpp.
 

@@ -32,9 +32,6 @@ class cProjectEditor : public ModuleBase
     void setDefaultScreenFunct();
 
     //-------------------------------------------------------------
-    void showExportWindow();
-    void setExportWindowFuncts();
-    void showLabelDuringExport();
 
     //-------------------------------------------------------------
     void showModBrowser(bool reloadList = true);
@@ -55,8 +52,6 @@ class cProjectEditor : public ModuleBase
     void cleanupListsData();
 
     //-------------------------------------------------------------
-    void showClockWarning();
-    void setClockWarningScreenFunct();
     //-------------------------------------------------------------
 
     void lightUpPadBoard();
@@ -104,7 +99,6 @@ class cProjectEditor : public ModuleBase
     //-------------------------------------------------------------
     void functShowSaveLastWindow();
     void functShowSaveLastWindowBeforeOpen();
-    void functShowSaveLastWindowBeforeExportToMod();
     void functShowOverwriteWindow();
     void showSaveLastWindow();
 
@@ -157,10 +151,8 @@ class cProjectEditor : public ModuleBase
     void refreshProjectCover(uint16_t delay_ms);
 
     // export
-    void startExport(uint8_t source);
 
     // clock for export setup
-    bool checkClockConfig(uint8_t source);
     uint8_t saveClockConfig;
     uint8_t saveExportSource;
 

@@ -1,3 +1,5 @@
+// Tracker Cycles (plan 4a): pattern files are copied as files; progress weight
+static constexpr uint32_t kPatternFileBytes = 8192;
 #include "ProjectOpen.h"
 
 #include "fileManager.h"
@@ -30,7 +32,7 @@ void ProjectOpen::update()
             // clean flag because project is always updated in this moment
             mtProject.values.projectNotSavedFlag = 0;
             //
-            memoryToCopyTotal += countProjectPatterns() * sizeof(Sequencer::strPattern);
+            memoryToCopyTotal += countProjectPatterns() * kPatternFileBytes;
             nextStep = ProjectOpenStep::saveProjectFile;
             break;
         }
@@ -43,7 +45,7 @@ void ProjectOpen::update()
         case ProjectOpenStep::copyPatternFiles:
         {
             copyPaterns(currentPattern);
-            memoryToCopyDone += sizeof(Sequencer::strPattern);
+            memoryToCopyDone += kPatternFileBytes;
             currentPattern++;
             if (currentPattern > PATTERN_INDEX_MAX)
             {

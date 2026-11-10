@@ -2282,32 +2282,10 @@ static void functDeleteInstrumentConfirm()
 
 void cSampleImporter::initDeleteUnusedInstruments()
 {
-    memset(instrUseMap, 0, sizeof(instrUseMap));
-
-    for (int patternIdx = PATTERN_INDEX_MIN; patternIdx < PATTERN_INDEX_MAX; patternIdx++)
-    {
-        const Sequencer::strPattern* pattern =
-          newFileManager.loadWorkspacePatternToTempBuffer(patternIdx);
-
-        if (pattern == nullptr)
-        {
-            continue;
-        }
-
-        for (int trackIdx = 0; trackIdx < kSampleTracks; trackIdx++)
-        {
-            for (int stepIdx = 0; stepIdx < pattern->track[trackIdx].length; stepIdx++)
-            {
-                const struct Sequencer::strPattern::strTrack::strStep& step =
-                  pattern->track[trackIdx].step[stepIdx];
-
-                if (step.note > Sequencer::STEP_NOTE_EMPTY)
-                {
-                    instrUseMap[step.instrument] = 1;
-                }
-            }
-        }
-    }
+    // Tracker Cycles (plan 4a): "used" came from the patterns, which are
+    // gone; until it comes from the .tidal program (4e), every instrument
+    // counts as used, so nothing is deleted
+    memset(instrUseMap, 1, sizeof(instrUseMap));
 
     stepDelete = true;
 }

@@ -10,7 +10,6 @@
 #include "elapsedMillis.h"
 #include "fileManager.h"
 #include "mtAudioEngine.h"
-#include "mtAudioExport.h"
 #include "mtConfig.h"
 #include "mtHardware.h"
 #include "mtMidi.h"
@@ -127,7 +126,6 @@ void TrackerImpl::init(Platform* platform)
     sequencer.init();
     sequencer.setCrcCalculator(platform->getCrcCalculator());
     padsBacklight.init(500, platform->getLeds());
-    exporter.init(platform->getFileSystem());
     Profiler::getInstance()->init();
     newFileManager.setCrcCalculator(platform->getCrcCalculator());
 
@@ -174,7 +172,6 @@ void TrackerImpl::update()
     display.update();
     engine.updateSdStream();
     padsBacklight.update();
-    exporter.update();
     sliceDetector.update();
     newFileManager.update();
     mtInterface.update();

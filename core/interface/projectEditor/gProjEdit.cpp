@@ -1,6 +1,6 @@
 
+#include <string.h>
 #include "projectEditor/projectEditor.h"
-#include <mtAudioExport.h>
 
 #include "core/interfacePopups.h"
 
@@ -142,7 +142,7 @@ void cProjectEditor::showDefaultScreen()
     display.setControlText(label[2], "");  // Tracker Cycles: no MOD / IT import
     display.setControlText(label[3], "Save");
     display.setControlText(label[4], "Save As");
-    display.setControlText(label[5], "Export");
+    display.setControlText(label[5], "");  // Tracker Cycles: no export
     display.setControlText(label[6], "");
     display.setControlText(label[7], "");
 
@@ -672,83 +672,7 @@ void cProjectEditor::showStopPatternWindow()
     display.synchronizeRefresh();
 }
 
-void cProjectEditor::showExportWindow()
-{
-    titleBar->setTitle("File - Export");
 
-    display.setControlText(label[0], "Export");
-    display.setControlText2(label[0], "Song");
-    display.setControlText(label[1], "Export");
-    display.setControlText2(label[1], "Song Stems");
-    display.setControlText(label[2], "Export");
-    display.setControlText2(label[2], "Pattern");
-    display.setControlText(label[3], "Export");
-    display.setControlText2(label[3], "Patt Stems");
-    display.setControlText(label[4], "");  // Tracker Cycles: no IT export
-    display.setControlText2(label[4], "");
-    display.setControlText(label[5], "Export");
-    display.setControlText2(label[5], "Samples");
-    display.setControlText(label[6], "");
-    display.setControlText(label[7], "Back");
-
-    for (uint8_t i = 0; i < 8; i++)
-    {
-        display.setControlStyle(label[i],
-                                controlStyleCenterX | controlStyleCenterY | controlStyleFont3 |
-                                  controlStyleShow);
-        display.setControlValue(label[i], 1);
-        display.refreshControl(label[i]);
-    }
-
-    display.setControlValue(label[6], 0);
-    display.setControlValue(label[7], 0);
-
-    display.setControlValue(bgLabel, 255);
-    display.refreshControl(bgLabel);
-
-    display.setControlHide(frameControl);
-
-    hideProjectCover();
-
-    mtPopups.hideInfoPopup();
-    display.synchronizeRefresh();
-}
-
-void cProjectEditor::showLabelDuringExport()
-{
-    display.setControlText(label[0], "");
-    display.setControlText2(label[0], "");
-    display.setControlText(label[1], "");
-    display.setControlText2(label[1], "");
-    display.setControlText(label[2], "");
-    display.setControlText2(label[2], "");
-    display.setControlText(label[3], "");
-    display.setControlText2(label[3], "");
-    display.setControlText(label[4], "");
-    display.setControlText2(label[4], "");
-    display.setControlText(label[5], "");
-    display.setControlText2(label[5], "");
-    display.setControlText(label[6], "");
-    display.setControlText(label[7], "Cancel");
-
-    for (uint8_t i = 0; i < 8; i++)
-    {
-        display.setControlStyle(label[i],
-                                controlStyleCenterX | controlStyleCenterY | controlStyleFont3 |
-                                  controlStyleShow);
-        display.setControlValue(label[i], 1);
-        display.refreshControl(label[i]);
-    }
-
-    display.setControlValue(label[7], 0);
-
-    display.setControlValue(bgLabel, 255); // 0b10000000
-    display.refreshControl(bgLabel);
-
-    display.synchronizeRefresh();
-
-    display.processDisplayUpdateImmediate();
-}
 
 void cProjectEditor::hideProjectCover()
 {
@@ -768,36 +692,3 @@ void cProjectEditor::activateLabelsBorder()
     display.refreshControl(frameControl);
 }
 
-void cProjectEditor::showClockWarning()
-{
-    for (uint8_t i = 0; i < 8; i++)
-    {
-        display.setControlValue(label[i], 0);
-        display.setControlText(label[i], "");
-        display.setControlText2(label[i], "");
-
-        display.refreshControl(label[i]);
-        display.setControlShow(label[i]);
-    }
-
-    display.setControlText(label[6], "Cancel");
-    display.setControlText(label[7], "Yes");
-    display.setControlColors(label[6], display.getTheme().highlightedButtonLabelsColors);
-    display.setControlColors(label[7], display.getTheme().highlightedButtonLabelsColors);
-    display.setAddControlStyle(label[6], controlStyleBackground);
-    display.setAddControlStyle(label[7], controlStyleBackground);
-
-    display.refreshControl(label[6]);
-    display.refreshControl(label[6]);
-
-    sprintf(currentInfo,
-            "Start rendering using internal clock source (%.0f BPM)?",
-            mtProject.values.globalTempo);
-    mtPopups.showInfoPopup("External clock source is set.", currentInfo);
-
-    display.setControlValue(bgLabel, 255); // 192
-    display.setControlShow(bgLabel);
-    display.refreshControl(bgLabel);
-
-    display.synchronizeRefresh();
-}

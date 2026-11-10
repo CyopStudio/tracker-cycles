@@ -1,6 +1,6 @@
+#include "mtAudioEngine.h"
 #include "Audio.h"
 #include "FT812.h"
-#include "Recorder.h"
 #include "core/modulesBase.h"
 #include "mtHardware.h"
 #include "mtMidi.h"
@@ -890,21 +890,14 @@ void cTest::runAudioTest()
         }
 
         testTimer = 0;
-        Recorder::Config config;
-        config.destinationBufferAddress = externalRamEffectsBuff;
-        config.destinationBufferSize = EDIT_BUFF_SIZE;
-        config.destinationChannels = 1;
-        config.sourceChannels = 2;
-
-        recorder.setConfig(config);
-        recorder.record();
+        // Tracker Cycles (plan 4a): no recorder; the input loopback
+        // test no longer records (playback in phase 7 is silent)
         testPhase = 2;
     }
     else if (testPhase == 2 || testPhase == 5)
     {
         if (testTimer > 2000)
         {
-            recorder.stop();
             stopPlayingSdFile();
             engine.stopTestSignal();
             testPhase++;
@@ -925,16 +918,6 @@ void cTest::runAudioTest()
         }
 
         testTimer = 0;
-
-        Recorder::Config config;
-        config.destinationBufferAddress = externalRamEffectsBuff + 200000;
-        config.destinationBufferSize = EDIT_BUFF_SIZE;
-        config.destinationChannels = 1;
-        config.sourceChannels = 1;
-
-        recorder.setConfig(config);
-        recorder.record();
-
         testPhase = 5;
     }
     else if (testPhase == 7)

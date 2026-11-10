@@ -24,10 +24,7 @@ bool cFileManager::createNewProjectInWorkspace()
     mtProject.values.actualPattern = 1;
 
     // saveActualPattern(cWorkspacePatternsPath, mtProject.values.actualPattern);
-    sequencer.clearAllPatternSlots(); // czyszczenie sekwencji przed pierwszym zapisem
     changesFlags.pattern[mtProject.values.actualPattern] = 1;
-    savePatternToWorkspace();
-    sequencer.saveToFileDone(); // xxx ?
 
     changesFlags.project = 1;
     saveProjectFileToWorkspace();

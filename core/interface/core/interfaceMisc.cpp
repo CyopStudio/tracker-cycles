@@ -8,7 +8,6 @@
 #include "Platform.h"
 #include "mtSleep.h"
 #include <display.h>
-#include <mtAudioExport.h>
 
 elapsedMillis screenRefreshTimer;
 
@@ -419,13 +418,6 @@ void Interface::processFileManagerPopupProgress(uint8_t status)
         case fmSavingProjectToWorkspace: break;
         case fmSavingProjectToProjects: progress = newFileManager.getProgress(); break;
         case fmLoadingPatternFromWorkspace: break;
-        case fmExportingSoundSong:
-        case fmExportingSoundSongStems:
-        case fmExportingSoundPattern:
-        case fmExportingSoundPatternStems:
-        case fmExportingSoundRenderSelection:
-            progress = clamp<int>(exporter.getProgress(), 0, 100);
-            break;
         case fmExportingProjectSamples: progress = newFileManager.getProgress(); break;
         case fmSavingRecordedSound: progress = newFileManager.getProgress(); break;
         case fmSavingImportingRecordedSound: progress = newFileManager.getProgress(); break;

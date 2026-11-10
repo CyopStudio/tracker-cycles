@@ -25,7 +25,7 @@ void WorkspaceProjectSave::update()
         }
         case WorkspaceProjectSaveStep::savePatternFile:
         {
-            newFileManager.savePatternToWorkspace();
+            // Tracker Cycles (plan 4a): no pattern in RAM to save
             nextStep = WorkspaceProjectSaveStep::saveInstrumentStruct;
             break;
         }
@@ -78,8 +78,6 @@ void WorkspaceProjectSave::update()
         }
         case WorkspaceProjectSaveStep::saveProjectFile:
         {
-            newFileManager.updateActualPatternBitmask();
-
             if (newFileManager.isProjectStructChanged())
             {
                 newFileManager.saveProjectFileToWorkspace();
