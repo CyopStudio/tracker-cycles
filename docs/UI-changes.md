@@ -36,3 +36,15 @@ setcps - shift>insert should go to top level and allow navigation to next blocks
 
 on a single number, {} [] etc should automatically insert ""
 selecting 'often' etc should allow at least 1 of the menus to list the available selections for replacements
+
+*PolyendTrac_TidalEditor1
+
+text is garbled, all uppercase letters, and puntuation and numbers all wrong
+
+menus are drawing under the main code
+
+menus seem responsive
+
+evaluating mute and hush all work
+
+shift-pad works

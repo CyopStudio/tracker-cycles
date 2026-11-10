@@ -539,9 +539,12 @@ folders listed in the project (e.g. a manifest) on project load.
      list, status, menu / keyboard overlay, stock soft keys; every control
      through press()), core/tidal/tidal_editor.* (SDRAM storage, output to
      the player's new evaluate / mute / tempo / file API; loading plays
-     nothing). Flash 864,728 B (82.5 %), RAM +352 B, SDRAM +470 KB. To
-     check on the device: glyph cells (char - first char), pad numbering,
-     display-list total (status line), menus filling in lazily.
+     nothing). Flash 864,728 B (82.5 %), RAM +352 B, SDRAM +470 KB.
+     Editor1 (user): evaluate / mute / hush / Shift+pad / menus work; text
+     garbled (glyph cell = the char code itself with SETFONT2, not minus
+     the first char) and menus under the code (the display draws
+     lower-numbered controls on top: overlay created first). Fixed in
+     PolyendTrac_TidalEditor2.ptf.
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)

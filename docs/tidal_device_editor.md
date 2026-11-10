@@ -193,6 +193,13 @@ Decisions:
    (step 4's first part). Open: pad LEDs, highlights (TC_EVENT_SRC on the
    device), the status screen as a sub-view, display-list totals (the
    status line shows ours).
+   Editor1 on the device (2026-11-10, user): evaluate, mute and hush
+   work, Shift+pad works, menus feel responsive; but the text was garbled
+   (lowercase shown as capitals, digits / punctuation wrong: each glyph 32
+   codes early, so SETFONT2 already maps the cell to the character code:
+   VERTEX2II takes the code itself) and menus drew under the code (the
+   display draws lower-numbered controls last: the overlay is now created
+   first). Both fixed in Editor2.
 4. Module in slot 2, player hand-over, File = save /project.tidal
    (4e: per-project files later).
 5. Device build, then the parked UI TODO (pad modes) if it fits.

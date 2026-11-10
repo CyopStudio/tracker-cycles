@@ -156,7 +156,9 @@ class TcCodeView : public TcControl
                 API_VERTEX_TRANSLATE_X((uint32_t)(want * 16));
                 tx = want;
             }
-            API_VERTEX2II((uint16_t)(x - tx), (uint16_t)y, (uint8_t)f.handle, (uint8_t)(ch - first));
+            // the cell is the character code: SETFONT2 set the handle up for it
+            // (Editor1 drew ch - firstChar: every glyph 32 codes early)
+            API_VERTEX2II((uint16_t)(x - tx), (uint16_t)y, (uint8_t)f.handle, (uint8_t)ch);
         };
         for (int li = from; li < to; li++) {
             const tc::CodeLine& L = s.line[li];
@@ -460,12 +462,14 @@ void cTidalEditorModule::initDisplayControls()
     p2.h = 54;
     bg_ = display.createControl<cBgLabel>(&p2);
 
+    // the display draws lower-numbered controls last (on top): the overlay
+    // is created first so it covers the code (Editor1 drew it underneath)
     strControlProperties p3;
+    p3.style = 0;
+    menu_ = display.createControl<TcMenuView>(&p3);
     p3.style = controlStyleShow;
     code_ = display.createControl<TcCodeView>(&p3);
     side_ = display.createControl<TcSideView>(&p3);
-    p3.style = 0;
-    menu_ = display.createControl<TcMenuView>(&p3);
 }
 
 void cTidalEditorModule::destroyDisplayControls() {}
