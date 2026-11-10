@@ -1,0 +1,28 @@
+msg: Num : Pat Double
+msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Pattern sends it)
+menu tempo: [90 BPM] [100 BPM] [110 BPM] [120 BPM] [128 BPM] [130 BPM] [138 BPM] [140 BPM] [150 BPM] [160 BPM] [170 BPM] [174 BPM] [0.5 cycles / s]
+msg: d1 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Pattern sends it)
+msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Pattern sends it)
+msg: d1 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: Num : Pat Int
+menu [ ] (number -> pattern): ["[4 4]"] ["[4 4 4]"] ["[4, 4]"]
+msg: [ ] (number -> pattern): "[4 4]"
+msg: Fn rev : function
+msg: replace function: fast 2
+msg: replace function: (# room 0.3)
+menu replace function: [(|+ n 12)] [(|+ note 7)] [(|+ speed 2)] [(|+ gain 0.8)] [(|+ pan 0.5)] [(|+ cutoff 1000)] [(|- n 12)] [(|- note 7)] [(|- speed 2)] [(|- gain 0.8)] [(|- pan 0.5)] [(|- cutoff 1000)] [(|* n 12)] [(|* note 7)] [(|* speed 2)] [(|* gain 0.8)] [(|* pan 0.5)] [(|* cutoff 1000)] [(|/ n 12)] [(|/ note 7)] [(|/ speed 2)] [(|/ gain 0.8)] [(|/ pan 0.5)] [(|/ cutoff 1000)] [(|< n 12)] [(|< note 7)] [(|< speed 2)] [(|< gain 0.8)] [(|< pan 0.5)] [(|< cutoff 1000)] [(|> n 12)] [(|> note 7)] [(|> speed 2)] [(|> gain 0.8)] [(|> pan 0.5)] [(|> cutoff 1000)]
+> setcps (121/60/5)
+> d2 $ often (# room 0.3) $ s "hh*8" # gain 0.8 # pan sine
+setcps (121/60/5)
+
+-- kick and snare
+d1 $ every "[4 4]" (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ often (# room 0.3) $ s "hh*8" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5

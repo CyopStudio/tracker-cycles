@@ -84,7 +84,11 @@ to upstream CE.
   - File = save, Config = tracker mode. Shift+Song = `setcps` (the
     Tracker's tempo lives on its Song screen; created as `138/60/4` =
     Tidal's default 0.575 if missing; cursor on the BPM, jog / Replace with
-    tempo numbers, Pattern sends it, Shift+Song or a slot pad goes back).
+    tempo numbers, Pattern sends it, Shift+Song or a slot pad goes back;
+    Left / Right walk its numbers, Up = the setcps line, which sits above
+    the first block for Up / Down; Shift+Insert = the line). Screen 3-7 on
+    a plain number make it a pattern ("[2 2]" ...); on a function argument
+    (often's `rev`) Screen 1 / 2 / 8, FX1, FX2 list replacements.
     Master is kept for the master settings. Params = the block's comment on the stock naming keyboard
     (mtKeyboardManager's layout, tidal/proto/keyboard.h: pads are keys,
     arrows + Screen 1 / Insert type the lit key, Delete = Backspace, jog
@@ -493,7 +497,14 @@ folders listed in the project (e.g. a manifest) on project load.
      2026-11-10): one Program edited in place, undo = block text ring,
      no heap, evaluate straight into the scheduler, editor in module
      slot 2 owning the player's Program. Editor timing build
-     (-DTIDAL_EDITOR_BENCH, PolyendTrac_TidalEdBench1.ptf, not yet run):
+     (-DTIDAL_EDITOR_BENCH, PolyendTrac_TidalEdBench1.ptf; results
+     2026-11-10, docs/tidal_editor_bench.txt, design v0.2 section 4b:
+     whole Program copy 8.5 ms -> edit in place; in-place jog 0.5-2.3 ms,
+     undo by text <= 5.6 ms, Replace menu < 30 ms, $ / mini menus on a
+     heavy block 110-160 ms (per-item check) -> check menu items over
+     several passes; one CMD_TEXT per colour run ~24-29 B -> draw glyphs
+     as bitmaps; any redraw = one display frame (16-19 ms), 3.5-5.7 ms
+     CPU):
      edits / menus by trial three ways + FT812 code-screen redraw; host
      `make -C tidal edbench`: everything in microseconds (menus 50-400
      us) - the device numbers decide. FT812 note: a control has 8 KB of

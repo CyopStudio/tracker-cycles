@@ -1,4 +1,4 @@
-# Device editor (plan 4d), design draft v0.1
+# Device editor (plan 4d), design draft v0.2
 
 The prototype editor (tidal/proto) on the Original Tracker: same tree, same
 controls (docs/tidal_ui_v2.md, tidal/README.md), drawn on the FT812 and
@@ -83,6 +83,53 @@ Fonts: Roboto Mono 14 / 17 (Light, Regular, Bold) are already in flash
 | Redraw of a full code screen | refresh latency until the frame is swapped, DL bytes, main-loop time in display.update() | < ~33 ms: highlights at 30 fps; else redraw highlights only (a separate small control) |
 | DL bytes of a code screen with per-token colours | bytes appended | must leave room for soft keys / header within 8 KB |
 | All of the above with a heavy project playing | run 2 | the main loop gets ~15 % then |
+
+## 4b. Results (editor bench v1, 2026-11-10, docs/tidal_editor_bench.txt)
+
+Run 1 silent, run 2 with /project.tidal playing (audio ~32 %; run 2 is
+1.2-1.4x slower). Light / everyday / heavy block (19 / 37 / 98 nodes) in
+an 8-block file.
+
+| Operation | Light | Everyday | Heavy |
+| :--- | ---: | ---: | ---: |
+| whole-Program copy (73,844 B, SDRAM) | 8.5-8.8 ms | | |
+| parse the 8-block file | 4.5-5.1 ms | 4.0-5.0 ms | 5.2-5.7 ms |
+| check the block | 0.16 ms | 0.8-1.3 ms | 2.3-2.6 ms |
+| render (with spans) | 0.05 ms | 0.13 ms | 0.4-0.7 ms |
+| undo by text (render + parse + check) | 0.8 ms | 1.9-2.5 ms | 5.3-5.6 ms |
+| jog edit, in place | 0.5 ms | 0.8-1.3 ms | 1.9-2.3 ms |
+| jog edit, whole copy | 8.7-9.5 ms | 6.6-8.7 ms | 7.7-8.1 ms |
+| Replace menu (109 items), in place | 23-30 ms | 24-29 ms | 22-26 ms |
+| `$` menu (51), in place | 22-29 ms | 54-65 ms | 110-129 ms |
+| mini step menu (62), in place | 20-27 ms | 59-71 ms | 134-156 ms |
+| the same menus, whole copy per item | 0.32-0.96 s | 0.35-0.81 s | 0.36-0.66 s |
+| block copy per item | ~1.1-1.5x in place | | |
+
+Display (test control, Roboto Mono 8 px advance): any refresh takes one
+frame, 16-19 ms from refreshControl() to the swap, whatever its size (the
+248-byte highlights-only control too); CPU spent in display.update() 3.5-5.7
+ms per refresh. Display-list bytes: one CMD_TEXT per colour run costs ~24-29
+B per run + 4 B per glyph: colour-coded code ran into the 6.5 KB guard after
+6 lines (157 runs, 353 glyphs, 5.2 KB); 16 lines in one colour per line =
+3.5 KB (770 glyphs, 16 runs).
+
+Decisions:
+1. Edit in place (whole copies are 8.5 ms each). Block copies buy nothing.
+2. Undo by block text: confirmed (<= 5.6 ms).
+3. Menus: in place. Replace menus are fine (< 30 ms). `$` / mini-step menus
+   on heavy blocks take 110-160 ms, all of it the per-item block check:
+   show the menu at once and type-check its items over the next main-loop
+   passes (a few ms each, greyed until checked), or pre-filter by the
+   candidate's result type before the full check. Mini-step menus passed
+   62 / 62: atom-for-atom swaps can skip the check (check on apply).
+4. Drawing: no CMD_TEXT per colour run. Draw glyphs as bitmaps (BEGIN
+   BITMAPS + BITMAP_HANDLE once, VERTEX2II per glyph with
+   VERTEX_TRANSLATE_X past x 511, COLOR only when it changes): ~4 B per
+   glyph + 4 B per colour change, 16 coloured lines ~5 KB. Keep the code
+   view's display list under ~6 KB so the header / soft keys fit in 8 KB.
+5. Highlights: their own small control (248 B for 12 rectangles), refreshed
+   at most ~15-20 times / s (3.5 ms of main-loop CPU each, ~7-10 %); the
+   frame latency (one display frame) is fine for following the music.
 
 ## 5. Port order (after the timing build)
 

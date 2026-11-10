@@ -173,7 +173,7 @@ hardware can't.
 | Pads elsewhere, or Shift + pad | 1–8 (top row) select d1..d8, 13–20 (2nd row) d9..d16: dN's playing block, else its first; the same pad again cycles through dN's blocks | | `1`..`8`, Shift+`1`..`8` |
 | | next / previous slot pad | | Tab / Shift+Tab |
 | File | save | | Ctrl+S |
-| Shift + Song | `setcps` (the Tracker's tempo is on its Song screen; Master stays for the master settings): the cursor goes to its first number (the BPM in `setcps (120/60/4)`; a file without one gets `setcps (138/60/4)`, Tidal's default 0.575); jog changes it, Replace offers tempo numbers, Pattern sends it (the setcps bar turns green; amber = edited, not sent), Undo works; Shift+Song again or a slot pad goes back | | Shift+`l` |
+| Shift + Song | `setcps` (the Tracker's tempo is on its Song screen; Master stays for the master settings): the cursor goes to its first number (the BPM in `setcps (120/60/4)`; a file without one gets `setcps (138/60/4)`, Tidal's default 0.575); jog changes it, Replace offers tempo numbers, Pattern sends it (the setcps bar turns green; amber = edited, not sent), Undo works; Shift+Song again or a slot pad goes back. Left / Right walk its numbers (120, 60, 4), Up = the setcps line (jog there = the BPM, Replace = whole tempos `130/60/4` ...), Down from the line = the first block, Up from the first block's top = the setcps line, Shift+Insert = the line | | Shift+`l` |
 | Params | edit the comment line above the block on the keyboard screen (the Tracker's naming keyboard: pads are its 42 keys, arrows move the lit key, Screen 1 / Insert type it, Delete = Backspace, jog moves the text cursor, Screen 2 clears, Screen 7 cancels, Screen 8 OK; empty removes the line; only the last comment line is edited) | | `p`; then typing, Enter = OK, Esc = Cancel |
 | Config | tracker mode on/off | | `t` |
 | (none) | quit | | Ctrl+Q |
@@ -240,6 +240,14 @@ error).
   Delete there removes the block and selects dN's other one. A new dN
   (Replace on an empty slot) goes in slot order. Loading plays nothing.
   `session16.keys` covers it.
+- **Structure keys on a plain number** (`fast 2`, `every 4`): Screen 3-7
+  turn it into a pattern: `"[2 2]"`, `"<2 2>"`, `"{2 2 2}%4"`, `"2(3,8)"`,
+  `"[2 | ~]"` (type-checked, so only where a pattern fits).
+- **Function arguments** (`often rev`, `every 4 (fast 2)`, sections): on a
+  function value the menus that would wrap it list replacements instead:
+  Screen 1 / FX1 functions (`fast 2`, `rev`, `(0.25 <~)` ...), Screen 2 /
+  FX2 `(# control ...)` sections, Screen 8 `(|+ n 12)` ... `session20.keys`
+  covers these and the setcps navigation.
 - **Haskell lists**: the `$` menu (Screen 1), FX1 and Wrap end with
   `stack [x, x]`, `cat [x, x]`, `fastcat [x, x]` (the copy is selected to
   edit); list gaps as in the table above; `session18.keys` covers them.

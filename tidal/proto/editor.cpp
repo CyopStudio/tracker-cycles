@@ -528,6 +528,7 @@ void Editor::gotoSlot(int s) {
 }
 
 void Editor::selectBlock(uint16_t b) {
+    cps_ = false;
     const int s = prog_->blockSlot(b);
     prog_->block[s] = b;
     slot_ = s;
@@ -575,6 +576,8 @@ std::string Editor::cursorInfo() const {
                ": pads / Screen 3-7 insert, Delete removes the step before";
     }
     if (!cursor_) return prog_->block[slot_] ? "" : "empty slot: replace to start a pattern";
+    if (cps_ && cursor_ == prog_->cpsExpr && prog_->at(cursor_).kind != Kind::Num)
+        return "setcps (Right: its numbers, Down: the blocks, jog: the BPM, Pattern sends it)";
     const Node& n = prog_->at(cursor_);
     if (n.kind == Kind::Block) {  // the block's top: Up / Down = other blocks, Right = into it
         int k = 0, count = 0;
@@ -608,7 +611,7 @@ void Editor::act(Action a) {
             case Action::Replace: case Action::Undo: case Action::Evaluate: case Action::Hush:
             case Action::Save: case Action::Copy: case Action::Paste: case Action::JumpCps:
             case Action::ToggleTrackerMode: case Action::PlayCancel: case Action::Confirm: case Action::Cancel:
-            case Action::NextSlot: case Action::PrevSlot:
+            case Action::NextSlot: case Action::PrevSlot: case Action::Home:
                 break;
             default: return error("on setcps: jog / Replace change it, Pattern sends it; Shift+Song or a slot pad goes back");
         }
@@ -679,8 +682,9 @@ void Editor::act(Action a) {
         case Action::Wrap: openWrap(WrapMode::All); break;
         case Action::Copy: doCopy(); break;
         case Action::Paste: doPaste(); break;
-        case Action::Home:  // the block's top (dN $ / jumpMod N k $)
-            if (prog_->block[slot_]) cursor_ = prog_->block[slot_];
+        case Action::Home:  // the block's top (dN $ / jumpMod N k $); on setcps its line
+            if (cps_) cursor_ = prog_->cpsExpr;
+            else if (prog_->block[slot_]) cursor_ = prog_->block[slot_];
             info(cursorInfo());
             break;
         case Action::MenuNotes: openNotes(); break;
@@ -784,8 +788,39 @@ void Editor::act(Action a) {
     }
 }
 
+// numbers of the setcps expression, in order (Left / Right walk them)
+static void cpsNumbers(const Program& p, uint16_t n, std::vector<uint16_t>& out) {
+    if (!n) return;
+    if (p.at(n).kind == Kind::Num) out.push_back(n);
+    for (uint16_t c = p.at(n).first; c; c = p.at(c).next) cpsNumbers(p, c, out);
+}
+
 void Editor::navigate(Action a) {
     const Program& p = *prog_;
+    if (cps_) {
+        // setcps: its top (the line) <-> its numbers; Down from the top = the
+        // first block, Up from a number = the top
+        const uint16_t root = p.cpsExpr;
+        std::vector<uint16_t> nums;
+        cpsNumbers(p, root, nums);
+        int at = -1;
+        for (int i = 0; i < (int)nums.size(); i++)
+            if (nums[i] == cursor_) at = i;
+        if (cursor_ == root && !(nums.size() == 1 && nums[0] == root)) at = -1;
+        const bool top = cursor_ == root;
+        if (top && a == Action::Down) {
+            if (p.blockCount()) selectBlock(p.blockAt(0));
+        } else if (top && a == Action::Right) {
+            if (!nums.empty()) cursor_ = nums[0];
+        } else if (!top && a == Action::Up) {
+            cursor_ = root;
+        } else if (!top && (a == Action::Left || a == Action::Right)) {
+            const int k = at + (a == Action::Right ? 1 : -1);
+            if (at >= 0 && k >= 0 && k < (int)nums.size()) cursor_ = nums[k];
+        }
+        info(cursorInfo());
+        return;
+    }
     if (gapSeq_) {
         // on a gap: Right = the step after it, Left = the step before, Up = out
         const int count = p.childCount(gapSeq_);
@@ -821,7 +856,14 @@ void Editor::navigate(Action a) {
     if (p.at(cursor_).kind == Kind::Block) {
         if (a == Action::Up || a == Action::Down) {
             const int i = p.blockIndex(cursor_) + (a == Action::Up ? -1 : 1);
-            if (i >= 0 && i < p.blockCount()) selectBlock(p.blockAt(i));
+            if (i >= 0 && i < p.blockCount()) {
+                selectBlock(p.blockAt(i));
+            } else if (i < 0 && p.cpsExpr) {  // above the first block: the setcps line
+                cps_ = true;
+                gapSeq_ = 0;
+                pending_ = 0;
+                cursor_ = p.cpsExpr;
+            }
         } else if (a == Action::Right && p.at(cursor_).first) {
             cursor_ = p.at(cursor_).first;
         }
@@ -852,8 +894,19 @@ void Editor::navigate(Action a) {
     info(cursorInfo());
 }
 
+static uint16_t firstNumber(const Program& p, uint16_t n);
+
 void Editor::wheel(int dir, bool fast) {
     if (!cursor_) return;
+    if (cps_ && cursor_ == prog_->cpsExpr && prog_->at(cursor_).kind != Kind::Num) {
+        const uint16_t top = cursor_, num = firstNumber(*prog_, top);
+        if (!num) return;
+        cursor_ = num;
+        wheel(dir, fast);
+        cursor_ = prog_->cpsExpr;  // stays on the line
+        (void)top;
+        return info(cursorInfo());
+    }
     Node& n = prog_->at(cursor_);
     auto p = std::unique_ptr<Program>(new Program(*prog_));
     Node& m = p->at(cursor_);
@@ -1378,6 +1431,28 @@ void Editor::openMini(int k) {
         cursor_ = prog_->at(cursor_).first;
         kind = cursor_ ? prog_->at(cursor_).kind : Kind::None;
     }
+    if (kind == Kind::Num) {
+        // a plain number argument (`fast 2`): make it a pattern, "[2 2]" ...
+        std::string t = renderNode(*prog_, cursor_);
+        if (t.size() > 2 && t.front() == '(' && t.back() == ')') t = t.substr(1, t.size() - 2);  // (-1)
+        if (t.find('/') != std::string::npos) return error("a fraction can't go inside \"...\"; jog it first");
+        std::vector<std::string> codes;
+        switch (k) {
+            case 0: codes = {"[" + t + " " + t + "]", "[" + t + " " + t + " " + t + "]", "[" + t + ", " + t + "]"}; break;
+            case 1: codes = {"<" + t + " " + t + ">", "<" + t + " ~>"}; break;
+            case 2: codes = {"{" + t + " " + t + " " + t + "}%4", "{" + t + ", " + t + " " + t + " " + t + "}"}; break;
+            case 3: codes = {t + "(3,8)", t + "(5,8)", t + "(3,8,2)"}; break;
+            default: codes = {"[" + t + " | ~]", "[" + t + " | " + t + "]"}; break;
+        }
+        std::vector<MenuItem> items;
+        for (const std::string& code : codes) {
+            uint16_t nn;
+            auto r = tryReplace("\"" + code + "\"", false, nn);
+            if (r) items.push_back(MenuItem{"\"" + code + "\"", r, nn});
+        }
+        static const char* const kNumTitle[5] = {"[ ]", "< >", "{ }", "( , )", "|"};
+        return openMenu(std::string(kNumTitle[k < 5 ? k : 4]) + " (number -> pattern)", std::move(items));
+    }
     if (!isMiniKind(kind)) {
         cursor_ = oldCursor;
         return error("inside \"...\" only");
@@ -1410,6 +1485,12 @@ void Editor::openReplace() {
         addReplaceItems(items, label, code, mini);
     };
     if (cps_) {  // setcps: numbers only (silence would type-check but set no tempo)
+        if (cursor_ == prog_->cpsExpr && prog_->at(cursor_).kind != Kind::Num) {  // the line: whole tempos
+            for (const char* v : {"90", "100", "110", "120", "128", "130", "138", "140", "150", "160", "170", "174"})
+                add(std::string(v) + " BPM", std::string(v) + "/60/4", false);
+            add("0.5 cycles / s", "0.5", false);
+            return openMenu("tempo", std::move(items));
+        }
         for (const char* v : {"90", "100", "110", "120", "128", "130", "138", "140", "150", "160", "170", "174",
                               "60", "4", "3", "0.5", "1"})
             add(v, v, false);
@@ -1516,6 +1597,34 @@ void Editor::openWrap(WrapMode mode) {
             if (!strcmp(f, name)) return true;
         return false;
     };
+    // A function value (often's `rev`, every's `(fast 2)`, a section): the
+    // menus that would wrap it offer what can replace it instead.
+    if (prog_->at(cursor_).type == kTyFn && mode != WrapMode::All) {
+        auto add = [&](const std::string& code) { addReplaceItems(items, code, code, false); };
+        if (mode == WrapMode::Dollar || mode == WrapMode::Modifiers || mode == WrapMode::Functions) {
+            for (int id = 0; id < libCount(); id++) {
+                const LibEntry& e = lib(id);
+                if (libIsOp(id) || e.cat == Cat::Control) continue;
+                if (mode == WrapMode::Modifiers && !(e.cat == Cat::Time || e.cat == Cat::Structure ||
+                                                     e.cat == Cat::Random || e.cat == Cat::Layer ||
+                                                     e.cat == Cat::Sample))
+                    continue;
+                add(e.defaults ? std::string(e.name) + " " + e.defaults : std::string(e.name));
+            }
+            for (const char* s : {"(0.25 <~)", "(0.25 ~>)", "(|+ n 12)", "(|* speed 2)", "(# speed 2)"}) add(s);
+        } else if (mode == WrapMode::Ops) {
+            for (const char* op : {"|+", "|-", "|*", "|/", "|<", "|>"})
+                for (const char* rhs : {"n 12", "note 7", "speed 2", "gain 0.8", "pan 0.5", "cutoff 1000"})
+                    add(std::string("(") + op + " " + rhs + ")");
+        } else {  // # controls (all, or FX2's sound FX)
+            for (int id = 0; id < libCount(); id++) {
+                const LibEntry& e = lib(id);
+                if (e.cat != Cat::Control || (mode == WrapMode::Fx && !isFx(e.name))) continue;
+                add(std::string("(# ") + e.name + " " + controlDefault(e.name) + ")");
+            }
+        }
+        return openMenu("replace function", std::move(items));
+    }
     if (mode == WrapMode::Fx) {
         for (int id = 0; id < libCount(); id++) {
             const LibEntry& e = lib(id);

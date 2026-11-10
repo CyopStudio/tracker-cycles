@@ -16,7 +16,6 @@ msg
 hw:down
 msg
 hw:up
-hw:up
 msg
 hw:shift+pad3
 hw:shift+insert
