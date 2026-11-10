@@ -153,6 +153,11 @@ else wrapped onto the active instruments; `n` / `note` add to C5; `gain`
 x100 = step volume; looped instruments get a noteOff after the event's
 length, one-shots play out. d9..d16 (MIDI) are not mapped yet.
 
+v12 (2026-11-10, PolyendTrac_TidalTick12.ptf): the half-rate reverb
+(Polyverb/reverb_half.h). 15 sets: v11's, plus 13-14 reverb listening
+(d4 arpy run with room 0.5; d6 one clap every 4 cycles, room 0.9, tail
+rings out). Compare the audio load lines with v11.
+
 v11 (2026-11-10, PolyendTrac_TidalTick11.ptf): v10's sets unchanged;
 Program::clear() no longer zeroes the 70 KB SDRAM program (compare the
 "evaluate: parse" lines with v10: the silence set was 5.0 ms).

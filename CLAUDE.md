@@ -571,6 +571,25 @@ folders listed in the project (e.g. a manifest) on project load.
     sample even all internal: signed % per access, int16 <-> float,
     ssat). Cheapest win: half rate in SDRAM, -6.7 points, no internal
     RAM (needs a listening check); then trade internal RAM per the table.
+    Half-rate reverb done (2026-11-10, all MK66 builds):
+    core/libs/Audio/Polyverb/reverb_half.h (ReverbHalf, same API as
+    Reverb; effect_polyverb.h picks it unless PLATFORM_IMX): input
+    decimated by pair average, all lines halved (8192-sample buffers,
+    the existing 32 KB ones are now half used), damping one-poles get
+    k' = 1 - (1 - k)^2 (same decay per second), LFO 2x per sample, wet
+    upsampled linearly, dry / wet mix at the full rate as before. Host
+    comparison with the stock Reverb (noise burst, time 0.7 / 0.95, damp
+    coefficient 0.2 / 0.8): decay within ~0.5 dB, level within 0-2 dB,
+    1-3 dB darker with light damping (nothing above 11 kHz), goes
+    inactive at the same time. Tick v12 (PolyendTrac_TidalTick12.ptf)
+    adds reverb listening sets 13-14; compare loads with v11.
+    v12 results (2026-11-10, docs/tidal_tick.txt): user: "still sounds
+    great". Audio load v11 -> v12 (avg / max): light 50 / 64 -> 43 / 57,
+    everyday 70 / 88 -> 62 / 80, heavy 79 / 93 -> 72 / 85, 8x x*16
+    77 / 91 -> 70 / 83, chords solo 51 / 74 -> 43 / 63; governed sets
+    -3..-5 avg (the governor lets more voices through), sets without
+    reverb unchanged; no drops. MIDI set 21 -> 27 % only because it now
+    follows the room 0.9 set (tail still ringing).
 
 ## Engine constraints
 - No malloc/new in audio or sequencer real-time paths. Fixed node pools,

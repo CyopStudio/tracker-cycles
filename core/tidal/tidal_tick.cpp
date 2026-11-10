@@ -1,5 +1,7 @@
 // Device tick test build (see tidal_tick.h and README.md).
 //
+// v12: the reverb runs at half rate on the Original Tracker
+// (Polyverb/reverb_half.h); sets 13-14 are reverb listening sets.
 // v11: Program::clear() is O(1) (high-water mark; it zeroed the 70 KB
 // SDRAM program on every parse): compare the "evaluate: parse" lines.
 // v10: load-driven cap (max 16, down to 8 as the smoothed audio load goes
@@ -171,6 +173,10 @@ const TestSet kSets[] = {
      "poly d3: echoes ring over each other"},
     {"d4 $ n \"<c'maj e'min>\" # s \"arpy\" # legato 2 # voices \"<1 3>\"\n", 10, true,
      "voices d4: one note (voices 1), then a whole chord (voices 3)"},
+    // listening: the half-rate reverb (v12)
+    {"d4 $ n \"0 .. 7\" # s \"arpy\" # room 0.5 # legato 0.5\n", 10, true,
+     "reverb d4: rising run with reverb (half-rate reverb)"},
+    {"d6 $ s \"<cp ~ ~ ~>\" # room 0.9\n", 14, true, "reverb d6: one clap every 4 cycles, tail rings out"},
     // listening: MIDI (copy docs/tidal_tick_midi.tidal to the card to run this alone)
     {"d1 $ s \"bd*4\"\n"
      "d9 $ n \"0 4 7 12\" # velocity \"0.5 1\" # legato 0.5\n"
@@ -400,7 +406,7 @@ int activeInstruments() {
 
 int header(int n) {
     return n + snprintf(report + n, sizeof report - n,
-                        "Tracker Cycles device tick test v11 (" TC_TICK_VARIANT "), %s\n"
+                        "Tracker Cycles device tick test v12 (" TC_TICK_VARIANT "), %s\n"
                         "%d active instruments; scheduler object %u B (internal RAM), entries %u B, live program "
                         "%u B (SDRAM); engine working set in internal RAM: %s; %d sample players per track, cap max %d (load-driven), voices default 1\n"
                         "cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles\n\n",
