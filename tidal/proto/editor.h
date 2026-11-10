@@ -154,6 +154,8 @@ private:
     // code (expression or mini-notation). Returns null if it doesn't check.
     std::shared_ptr<tc::Program> tryReplace(const std::string& code, bool mini, uint16_t& newNode) const;
     std::shared_ptr<tc::Program> tryWrapApp(const std::string& head, uint16_t& newNode) const;
+    // x -> `fn [x, x]` (stack / cat / fastcat), cursor on the copy
+    std::shared_ptr<tc::Program> tryWrapList(const char* fn, uint16_t& newNode) const;
     std::shared_ptr<tc::Program> tryWrapOp(const char* op, const std::string& rhs, bool xOnLeft,
                                            uint16_t& newNode) const;
     std::string renderNode(const tc::Program& p, uint16_t n) const;
@@ -190,6 +192,11 @@ private:
     std::shared_ptr<tc::Program> tryInsertAtGap(const std::string& code, uint16_t& newStep) const;
     void insertAtGap(const std::string& code, const std::string& label);
     void deleteAtGap();
+    // gaps in a Haskell list (`stack [a, b]`): elements, not steps
+    bool listGap() const;
+    bool linkAtGap(tc::Program& p, uint16_t node) const;  // put node into the gap
+    std::shared_ptr<tc::Program> tryInsertListAt(const std::string& code, uint16_t& newEl) const;
+    void insertListCopy();
     bool playHeld_ = false, playShift_ = false, playUsed_ = false;
     void setMuted(int s, bool on);
     bool trackerMode_ = true;

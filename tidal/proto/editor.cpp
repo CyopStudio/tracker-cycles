@@ -252,6 +252,31 @@ std::shared_ptr<Program> Editor::tryReplace(const std::string& code, bool mini, 
     return p;
 }
 
+std::shared_ptr<Program> Editor::tryWrapList(const char* fn, uint16_t& newNode) const {
+    if (!cursor_ || prog_->at(cursor_).kind == Kind::Block) return nullptr;
+    auto p = std::make_shared<Program>(*prog_);
+    const std::string code = std::string(fn) + " [silence, silence]";
+    Error e;
+    const uint16_t app = parseExpr(*p, code.c_str(), (int)code.size(), e);
+    if (!app) return nullptr;
+    uint16_t list = 0;
+    for (uint16_t c = p->at(app).first; c; c = p->at(c).next)
+        if (p->at(c).kind == Kind::List) list = c;
+    if (!list) return nullptr;
+    const uint16_t s1 = p->at(list).first, s2 = p->at(s1).next;
+    const uint16_t copy = p->copyTree(*p, cursor_);
+    if (!copy) return nullptr;
+    p->replace(cursor_, app);  // fn [..] takes x's place
+    p->replace(s1, cursor_);   // x is the first element
+    p->freeTree(s1);
+    p->replace(s2, copy);      // its copy the second
+    p->freeTree(s2);
+    std::string err;
+    if (!recheck(*p, err)) return nullptr;
+    newNode = copy;
+    return p;
+}
+
 std::shared_ptr<Program> Editor::tryWrapApp(const std::string& head, uint16_t& newNode) const {
     auto p = std::make_shared<Program>(*prog_);
     Error e;
@@ -525,6 +550,11 @@ void Editor::selectMenu(int i) {
 }
 
 std::string Editor::cursorInfo() const {
+    if (gapSeq_ && listGap()) {
+        const int count = prog_->childCount(gapSeq_);
+        return "list gap " + std::to_string(gapPos_) + " of " + std::to_string(count) +
+               ": Insert copies an element in, Paste / Replace insert, Delete removes the one before";
+    }
     if (gapSeq_) {
         const int count = prog_->childCount(gapSeq_);
         return "gap " + std::to_string(gapPos_) + " of " + std::to_string(count) +
@@ -556,7 +586,19 @@ std::string Editor::cursorInfo() const {
 
 void Editor::act(Action a) {
     if (a != Action::Insert) newBlockArmed_ = false;  // only the very next slot pad
-    if (gapSeq_ && !menuOpen_) {
+    if (gapSeq_ && !menuOpen_ && listGap()) {
+        switch (a) {
+            case Action::Left: case Action::Right: case Action::Up: case Action::Down:
+            case Action::Delete: case Action::Insert: case Action::Paste: case Action::Replace:
+            case Action::PlayCancel: case Action::Evaluate: case Action::Hush:
+                break;
+            case Action::Wrap: case Action::Struct1: case Action::Struct2: case Action::Struct3:
+            case Action::Struct4: case Action::Struct5: case Action::Struct6: case Action::Struct7:
+            case Action::Struct8: case Action::MenuModifiers: case Action::MenuFx:
+                return error("at a list gap: Insert / Paste / Replace add an element, Delete removes the one before");
+            default: leaveGap(); break;  // act on the whole list
+        }
+    } else if (gapSeq_ && !menuOpen_) {
         switch (a) {
             case Action::Left: case Action::Right: case Action::Up: case Action::Down:
             case Action::Delete: case Action::Struct1: case Action::Struct2: case Action::Struct3:
@@ -640,6 +682,10 @@ void Editor::act(Action a) {
         case Action::Quick3: quick(2); break;
         case Action::Quick4: quick(3); break;
         case Action::Insert: {
+            if (gapSeq_) {
+                insertListCopy();
+                break;
+            }
             if (!cursor_) break;
             if (prog_->at(cursor_).kind == Kind::Block) {
                 newBlockArmed_ = true;
@@ -727,7 +773,7 @@ void Editor::navigate(Action a) {
     // a step of a "..." sequence: Left / Right go to the gap before / after it
     if (a == Action::Left || a == Action::Right) {
         const uint16_t par = p.parentOf(cursor_);
-        if (par && p.at(par).kind == Kind::MSeq) {
+        if (par && (p.at(par).kind == Kind::MSeq || p.at(par).kind == Kind::List)) {
             int idx = 0;
             for (uint16_t c = p.at(par).first; c && c != cursor_; c = p.at(c).next) idx++;
             gapSeq_ = par;
@@ -876,7 +922,7 @@ void Editor::ensureBlock() {
 void Editor::addReplaceItems(std::vector<MenuItem>& items, const std::string& label, const std::string& code,
                              bool mini) const {
     uint16_t nn;
-    auto r = tryReplace(code, mini, nn);
+    auto r = listGap() ? tryInsertListAt(mini ? "\"" + code + "\"" : code, nn) : tryReplace(code, mini, nn);
     if (r) items.push_back(MenuItem{label, r, nn});
 }
 
@@ -933,6 +979,15 @@ void Editor::doCopy() {
 // a pattern is expected (as "step"). Type-checked like every other edit.
 void Editor::doPaste() {
     if (clip_.empty()) return error("clipboard is empty (Copy first)");
+    if (listGap()) {
+        uint16_t nn;
+        auto r = tryInsertListAt(clipMini_ ? "\"" + clip_ + "\"" : clip_, nn);
+        if (!r) return error("can't paste " + clip_ + " into this list");
+        gapSeq_ = 0;
+        commit(std::unique_ptr<Program>(new Program(*r)), nn);
+        if (!messageError_) info("pasted " + clip_ + " into the list");
+        return;
+    }
     std::unique_ptr<Program> before(new Program(*prog_));
     uint16_t beforeCursor = cursor_;
     ensureBlock();
@@ -1159,19 +1214,53 @@ std::shared_ptr<Program> Editor::tryInsertAtGap(const std::string& code, uint16_
     const uint16_t step = seq.first;
     seq.first = 0;
     p->freeTree(sq);
-    if (gapPos_ == 0) {
-        p->at(step).next = p->at(gapSeq_).first;
-        p->at(gapSeq_).first = step;
-    } else {
-        const uint16_t prev = p->child(gapSeq_, gapPos_ - 1);
-        if (!prev) return nullptr;
-        p->at(step).next = p->at(prev).next;
-        p->at(prev).next = step;
-    }
+    if (!linkAtGap(*p, step)) return nullptr;
     std::string err;
     if (!recheck(*p, err)) return nullptr;
     newStep = step;
     return p;
+}
+
+bool Editor::listGap() const { return gapSeq_ && prog_->at(gapSeq_).kind == Kind::List; }
+
+bool Editor::linkAtGap(Program& p, uint16_t node) const {
+    if (gapPos_ == 0) {
+        p.at(node).next = p.at(gapSeq_).first;
+        p.at(gapSeq_).first = node;
+        return true;
+    }
+    const uint16_t prev = p.child(gapSeq_, gapPos_ - 1);
+    if (!prev) return false;
+    p.at(node).next = p.at(prev).next;
+    p.at(prev).next = node;
+    return true;
+}
+
+// A list gap: `code` (an expression) as a new element there, type-checked.
+std::shared_ptr<Program> Editor::tryInsertListAt(const std::string& code, uint16_t& newEl) const {
+    auto p = std::make_shared<Program>(*prog_);
+    Error e;
+    uint16_t x = parseExpr(*p, code.c_str(), (int)code.size(), e);
+    if (!x || !linkAtGap(*p, x)) return nullptr;
+    std::string err;
+    if (!recheck(*p, err)) return nullptr;
+    newEl = x;
+    return p;
+}
+
+// Insert at a list gap: a copy of the element before it (else the first),
+// cursor on the copy.
+void Editor::insertListCopy() {
+    if (!listGap()) return;
+    const uint16_t src = gapPos_ > 0 ? prog_->child(gapSeq_, gapPos_ - 1) : prog_->child(gapSeq_, 0);
+    if (!src) return error("empty list");
+    auto p = std::unique_ptr<Program>(new Program(*prog_));
+    const uint16_t c = p->copyTree(*p, src);
+    if (!c) return error("out of nodes");
+    if (!linkAtGap(*p, c)) return error("can't insert here");
+    gapSeq_ = 0;
+    commit(std::move(p), c);
+    if (!messageError_) info("inserted a copy into the list");
 }
 
 // Pads at a gap: insert the step and stay in the gap after it, so several
@@ -1193,10 +1282,12 @@ void Editor::insertAtGap(const std::string& code, const std::string& label) {
 
 // Delete at a gap: remove the step before it (Backspace).
 void Editor::deleteAtGap() {
-    if (gapPos_ == 0) return error("start of the sequence: nothing before the gap");
+    if (gapPos_ == 0) return error(listGap() ? "start of the list: nothing before the gap"
+                                             : "start of the sequence: nothing before the gap");
     const uint16_t seq = gapSeq_;
     const int pos = gapPos_;
-    if (prog_->childCount(seq) < 2) return error("the last step: Delete on it makes a rest");
+    if (prog_->childCount(seq) < 2)
+        return error(listGap() ? "the last element: a list keeps one" : "the last step: Delete on it makes a rest");
     auto p = std::unique_ptr<Program>(new Program(*prog_));
     const uint16_t target = p->child(seq, pos - 1);
     if (pos - 1 == 0) p->at(seq).first = p->at(target).next;
@@ -1208,7 +1299,7 @@ void Editor::deleteAtGap() {
     gapSeq_ = seq;
     gapPos_ = pos - 1;
     cursor_ = seq;
-    info("removed the step before the gap");
+    info(listGap() ? "removed the element before the gap" : "removed the step before the gap");
 }
 
 // Screen 1-8 (v2, docs/tidal_ui_v2.md): structure menus at the cursor.
@@ -1325,7 +1416,7 @@ void Editor::openReplace() {
             add(code, code, false);
         }
     }
-    openMenu("replace", std::move(items));
+    openMenu(listGap() ? "insert" : "replace", std::move(items));
 }
 
 void Editor::openWrap(WrapMode mode) {
@@ -1400,6 +1491,14 @@ void Editor::openWrap(WrapMode mode) {
                 addOp(op, rhs, true, std::string(op) + " " + rhs);
         return openMenu("operators", std::move(items));
     }
+    // Haskell lists: x -> stack [x, x] ... (the copy is selected to edit)
+    auto addLists = [&]() {
+        for (const char* fn : {"stack", "cat", "fastcat"}) {
+            uint16_t nn;
+            auto r = tryWrapList(fn, nn);
+            if (r) items.push_back(MenuItem{std::string(fn) + " [x, x]", r, nn});
+        }
+    };
     if (mode == WrapMode::Dollar || mode == WrapMode::Modifiers) {
         // functions applied with $ (Screen 1: all of them; FX1: pattern
         // modifiers = time, structure, randomness, layering, sample cutting)
@@ -1416,6 +1515,7 @@ void Editor::openWrap(WrapMode mode) {
             auto r = tryWrapApp(head, nn);
             if (r) items.push_back(MenuItem{head + " $ ...", r, nn});
         }
+        addLists();  // last, so the menu's other items keep their places
         return openMenu(mode == WrapMode::Dollar ? "$ functions" : "pattern modifiers", std::move(items));
     }
     if (controlsOnly) addControls();
@@ -1435,6 +1535,7 @@ void Editor::openWrap(WrapMode mode) {
             if (r) items.push_back(MenuItem{head + " $ ...", r, nn});
         }
         if (mode == WrapMode::All) addControls();
+        if (mode == WrapMode::All) addLists();
     }
     openMenu(controlsOnly ? "add control" : mode == WrapMode::Functions ? "functions" : "wrap", std::move(items));
 }

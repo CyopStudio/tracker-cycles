@@ -135,7 +135,7 @@ hardware can't.
 
 | Tracker control | Editing | In a menu | Key |
 | :--- | :--- | :--- | :--- |
-| ← → | previous / next sibling; inside `"..."`: step, gap, step, gap … (the gap is a thin bar: pads insert steps there and stay in the gap, Screen 3–7 insert a bracket / alternation / polymeter / Euclid / choice, Delete removes the step before it, ↑ leaves it) | previous / next item | ← → |
+| ← → | previous / next sibling; inside `"..."`: step, gap, step, gap … (the gap is a thin bar: pads insert steps there and stay in the gap, Screen 3–7 insert a bracket / alternation / polymeter / Euclid / choice, Delete removes the step before it, ↑ leaves it); inside a Haskell list (`stack [a, b]`, `cat`, `fastcat`, `slowcat`): element, gap, element … (Insert puts a copy of the element before the gap there, Shift+Copy pastes the clipboard there, Shift+Screen 1 opens the Replace list as an "insert" menu, Delete removes the element before the gap (a list keeps one); the new element is selected) | previous / next item | ← → |
 | ↑ ↓ | parent / first child; at a block's top (`dN $`): previous / next block | previous / next item | ↑ ↓ |
 | → at a block's top | into the block's expression | | → |
 | Jog wheel | change value (number, note, sample, function) | move | wheel, `+` `-`, PgUp/PgDn |
@@ -237,6 +237,9 @@ error).
   Delete there removes the block and selects dN's other one. A new dN
   (Replace on an empty slot) goes in slot order. Loading plays nothing.
   `session16.keys` covers it.
+- **Haskell lists**: the `$` menu (Screen 1), FX1 and Wrap end with
+  `stack [x, x]`, `cat [x, x]`, `fastcat [x, x]` (the copy is selected to
+  edit); list gaps as in the table above; `session18.keys` covers them.
 - **Per-event highlighting** (like Pulsar; engine backend only): while
   an event sounds, the mini-notation steps that made it are lit (orange)
   in the slot's playing block: words, numbers, notes, chords, booleans,

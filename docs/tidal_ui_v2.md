@@ -106,8 +106,13 @@ the four context quick-buttons (`# <last control>`, `|+ n 12`, ...).
    after it; pads insert and stay in the gap after the new step; Screen
    3-7 at a gap insert from the neighbouring step; Delete removes the step
    before; Up leaves; any other action works on the whole sequence; drawn
-   as a bar). Not yet: gaps in Haskell lists (`stack [a, b]`). Smoke
-   session 15; sessions 2 and 8 now step through the gaps (same results).
+   as a bar). Smoke session 15; sessions 2 and 8 now step through the
+   gaps (same results). Haskell lists (2026-11-10): Left / Right from an
+   element of `stack` / `cat` / `fastcat` / `slowcat [...]` reach its gaps
+   too (Insert = a copy of the element before, Paste, Replace = insert
+   menu, Delete = the element before, a list keeps one; menus that wrap
+   give an error there); the `$` / FX1 / Wrap menus end with
+   `stack / cat / fastcat [x, x]`; smoke session 18.
 6. Done (2026-11-10): several blocks per dN. Program keeps a block list
    in file order (kMaxBlocks 32, a comment each; block[slot] = the
    selected one, the parser selects the last, as Tidal running the whole

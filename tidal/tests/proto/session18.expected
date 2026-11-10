@@ -1,0 +1,42 @@
+msg: pattern modifiers: stack [x, x]
+msg: list gap 2 of 2: Insert copies an element in, Paste / Replace insert, Delete removes the one before
+msg: inserted a copy into the list
+msg: list gap 2 of 3: Insert copies an element in, Paste / Replace insert, Delete removes the one before
+msg: insert: s "bd sd"
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ stack [s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine, s "bd sd", s "hh*8" # gain 0.8 # pan sine]
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5
+msg: list gap 3 of 4: Insert copies an element in, Paste / Replace insert, Delete removes the one before
+msg: removed the element before the gap
+msg: ERROR at a list gap: Insert / Paste / Replace add an element, Delete removes the one before
+msg: removed the element before the gap
+msg: removed the element before the gap
+msg: ERROR start of the list: nothing before the gap
+msg: list gap 1 of 1: Insert copies an element in, Paste / Replace insert, Delete removes the one before
+msg: ERROR the last element: a list keeps one
+msg: list gap 0 of 1: Insert copies an element in, Paste / Replace insert, Delete removes the one before
+msg: pasted s "hh*8" # gain 0.8 # pan sine into the list
+msg: List : list
+> setcps (120/60/4)
+> d2 $ stack [s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine]
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ stack [s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine]
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5

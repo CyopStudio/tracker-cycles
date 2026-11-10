@@ -40,7 +40,9 @@ to upstream CE.
 - Mapping (editing / in a menu):
   - Arrows: siblings, parent / first child (menus: move). Inside "...",
     Left / Right alternate step, gap, step (v2 step 5 gap cursor: pads
-    insert, Screen 3-7 insert, Delete = Backspace, Up leaves). Jog: change
+    insert, Screen 3-7 insert, Delete = Backspace, Up leaves; the same in
+    Haskell lists `stack [a, b]`: Insert / Paste / Replace insert an
+    element, Delete removes the one before). Jog: change
     value; Shift+jog bigger step.
   - Shift + Screen 1-4: Replace / Wrap / Unwrap / Undo (menus: Screen 1
     Cancel, Screen 8 and Play = OK). Unshifted Screen 1-8: the v2
