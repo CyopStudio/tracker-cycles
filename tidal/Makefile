@@ -25,6 +25,9 @@ FONT_SRC  := $(FW_LIBS)/fonts/RobotoMono-Regular_14_L4.cpp \
 FONT_OBJ  := $(patsubst $(FW_LIBS)/%.cpp,$(BUILD)/fw/%.o,$(FONT_SRC))
 PROTO_SRC := $(filter-out proto/sdl_window.cpp,$(wildcard proto/*.cpp))
 PROTO_OBJ := $(PROTO_SRC:%.cpp=$(BUILD)/%.o)
+# the editor model (plan 4d): portable, no heap, also built by `make arm`
+EDITOR_SRC := $(wildcard editor/*.cpp)
+EDITOR_OBJ := $(EDITOR_SRC:%.cpp=$(BUILD)/%.o)
 PROTO_LIBS := -pthread
 
 ifeq ($(SDL),1)
@@ -66,10 +69,10 @@ edbench: $(BUILD)/edbench
 $(BUILD)/edbench: $(CORE_OBJ) $(BUILD)/tests/edbench.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-$(BUILD)/run_tests: $(CORE_OBJ) $(TEST_OBJ)
+$(BUILD)/run_tests: $(CORE_OBJ) $(EDITOR_OBJ) $(TEST_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-$(BUILD)/tidal_proto: $(CORE_OBJ) $(PROTO_OBJ) $(FONT_OBJ)
+$(BUILD)/tidal_proto: $(CORE_OBJ) $(EDITOR_OBJ) $(PROTO_OBJ) $(FONT_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(PROTO_LIBS)
 
 $(BUILD)/core/%.o: core/%.cpp
@@ -78,11 +81,15 @@ $(BUILD)/core/%.o: core/%.cpp
 
 $(BUILD)/tests/%.o: tests/%.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) -Icore -MMD -MP -c -o $@ $<
+	$(CXX) $(CXXFLAGS) -Icore -Ieditor -MMD -MP -c -o $@ $<
 
 $(BUILD)/proto/%.o: proto/%.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(CXXFLAGS_SDL) -Icore -I$(FW_LIBS) -MMD -MP -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(CXXFLAGS_SDL) -Icore -Ieditor -I$(FW_LIBS) -MMD -MP -c -o $@ $<
+
+$(BUILD)/editor/%.o: editor/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -Icore -Ieditor -MMD -MP -c -o $@ $<
 
 $(BUILD)/fw/%.o: $(FW_LIBS)/%.cpp
 	@mkdir -p $(dir $@)
@@ -95,6 +102,7 @@ ARM_FLAGS := -std=gnu++17 -O2 -mcpu=cortex-m4 -mfpu=fpv4-sp-d16 -mfloat-abi=hard
 arm:
 	@mkdir -p $(BUILD)/arm
 	@for f in $(CORE_SRC); do $(ARM_CXX) $(ARM_FLAGS) -c -o $(BUILD)/arm/$$(basename $$f .cpp).o $$f || exit 1; done
+	@for f in $(EDITOR_SRC); do $(ARM_CXX) $(ARM_FLAGS) -Icore -Ieditor -c -o $(BUILD)/arm/$$(basename $$f .cpp).o $$f || exit 1; done
 	arm-none-eabi-size -t $(BUILD)/arm/*.o
 
 clean:

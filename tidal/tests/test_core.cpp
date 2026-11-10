@@ -982,6 +982,8 @@ static void testCheckpoint() {
     }
 }
 
+void testEditorModel(int& pass, int& fail);  // test_editor.cpp
+
 int main() {
     testNodeSize();
     testClearReuse();
@@ -997,6 +999,7 @@ int main() {
     testEventSrc();
     testScheduler(gPass, gFail);
     testMapping(gPass, gFail);
+    testEditorModel(gPass, gFail);
     printf("%d passed, %d failed\n", gPass, gFail);
     return gFail ? 1 : 0;
 }

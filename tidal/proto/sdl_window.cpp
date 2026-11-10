@@ -9,10 +9,12 @@
 #include "editor.h"
 #include "fb.h"
 #include "hardware.h"
+#include "output.h"
 #include "panel.h"
 #include "view.h"
 
 namespace proto {
+using namespace tc;  // the editor model (tidal/editor)
 
 namespace {
 
@@ -218,10 +220,10 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
             st.shift = shiftNow;
             dirty = true;
         }
-        if (ed.backend()) {
-            size_t before = ed.backend()->log.size();
-            ed.backend()->poll();
-            if (ed.backend()->log.size() != before) dirty = true;
+        if (appBackend()) {
+            size_t before = appBackend()->log.size();
+            appBackend()->poll();
+            if (appBackend()->log.size() != before) dirty = true;
         }
         if (ed.pollHighlights(steadySeconds())) dirty = true;
         if (dirty) {

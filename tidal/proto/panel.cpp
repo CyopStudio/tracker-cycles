@@ -5,6 +5,7 @@
 #include "tree.h"
 
 namespace proto {
+using namespace tc;  // the editor model (tidal/editor)
 
 namespace pc {
 constexpr uint32_t body = 0x0E0F12;

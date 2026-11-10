@@ -149,11 +149,21 @@ Decisions:
      endEdit; undo pops packed checkpoints. No whole-Program copies left.
      Smoke sessions 1-20 unchanged; session 21 makes ~15 kinds of edits
      and undoes them all back to the original file.
-   - 1b next: fixed buffers instead of std::string / std::vector / unique_ptr
-     in the model (menu items, labels, message, clipboard, undo ring,
-     evaluated statements), menus checked over several passes.
-   - 1c: move the model out of tidal/proto into a portable directory built
-     by `make arm` too; the prototype keeps view / SDL / backends.
+   - 1b + 1c done (2026-11-10): tidal/editor/ (namespace tc), built by
+     `make arm` (35.6 KB -Os, 51 KB -O2; no heap symbols). Fixed strings /
+     vectors (editor/fixed.h; overflowing codes are flagged and dropped,
+     never parsed truncated), caller storage (Program, Checkpoint, undo
+     arena: steps packed back to back, the oldest dropped when full),
+     EditorOutput replaces the text backend (the prototype's BackendOutput
+     in proto/output.* renders the same statements, so the smoke sessions
+     are unchanged; File I/O, `--save` and the headless `lit` report moved
+     there too). Menus: builders only collect EditSpecs; openMenu checks
+     them all (prototype) or, with setLazyMenus(true), checkMenu(n) checks
+     n per main-loop pass and drops misfits (an unchecked item can still
+     be applied: doSpec checks it). Host test tests/test_editor.cpp.
+     Stack (-Os, -fstack-usage): openWrap 5 KB, openSamples / quick ~3.8
+     KB, openReplace / cursorInfo ~3 KB (openMini was 14 KB): measure the
+     deepest point (menu build + check) on the device.
 2. Control mapping table without std::string (shared by prototype and
    device).
 3. FT812 code-view control (lines, colour runs, cursor, gap bar,

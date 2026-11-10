@@ -515,8 +515,21 @@ folders listed in the project (e.g. a manifest) on project load.
      (tidal/core/tree.*, alloc journal, comments saved when the block list
      changes), menu items are EditSpecs tried in place, undo = packed
      checkpoints (comment edits their own step); smoke session 21 undoes
-     ~15 kinds of edits back to the original file. Next 1b: no std
-     containers in the model; 1c: model out of tidal/proto.
+     ~15 kinds of edits back to the original file.
+     Steps 1b + 1c done (2026-11-10): the model is tidal/editor/ (namespace
+     tc, `make arm` builds it: 35.6 KB at -Os / 51 KB at -O2, no heap, only
+     core + libc string / printf symbols): fixed strings / vectors
+     (editor/fixed.h: Text 512, Label 128, FixVec), caller storage (Program,
+     Checkpoint, undo arena ring), EditorOutput (evaluate / silence / hush /
+     mute / unmuteAll / setCps / save / litSteps) with the prototype's
+     BackendOutput (proto/output.*) keeping the Tidal statement text, file
+     I/O and highlight mapping; menus collect EditSpecs and are checked in
+     openMenu, or lazily over passes (setLazyMenus + checkMenu(n), the
+     device). Host test test_editor.cpp (lazy = eager menus, small undo
+     arena, output calls). Largest -Os stack frames now openWrap 5 KB,
+     openSamples / quick ~3.8 KB (were openMini 14 KB, gotoSlot 6.4 KB):
+     measure the editor's deepest stack on the device. Next (port order 2):
+     the control mapping without std::string, then the FT812 view.
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)
@@ -788,7 +801,8 @@ folders listed in the project (e.g. a manifest) on project load.
   reverb bench (-DREVERB_BENCH).
 - tidal/     our code (host build, `make -C tidal test smoke arm`):
   core/ shared tree/parser/renderer/checker (no heap, portable),
-  proto/ editor prototype, tests/, golden/ (cases + events captured from
+  editor/ the editor model (no heap, portable, the device editor's logic),
+  proto/ editor prototype (view, controls, backends), tests/, golden/ (cases + events captured from
   real Tidal, `make -C tidal golden`). See tidal/README.md.
 
 ## Rules / gotchas

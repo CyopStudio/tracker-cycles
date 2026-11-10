@@ -1,14 +1,48 @@
-// Structured editor model for the prototype. Operates on the shared code
-// tree (tidal/core); everything typed, every edit re-checked.
+// Structured editor model (plan 4d): the prototype's editor, portable and
+// without heap so the device editor runs the same code. Operates on the
+// shared code tree (tidal/core); everything typed, every edit re-checked.
+// The caller provides the big storage (Program, Checkpoint, undo arena: put
+// them in SDRAM on the device) and an EditorOutput (where evaluated blocks,
+// mutes, tempo and saves go).
 #pragma once
-#include <memory>
-#include <string>
-#include <vector>
+#include <stdint.h>
 
-#include "backend.h"
+#include "fixed.h"
 #include "tree.h"
 
-namespace proto {
+namespace tc {
+
+// Where the editor's results go: the prototype sends Tidal statements to a
+// backend (text), the device calls the scheduler directly.
+class EditorOutput {
+public:
+    virtual ~EditorOutput() {}
+    // The slot's selected block (type-checked, Tracker-checked) is to play;
+    // false + msg to refuse.
+    virtual bool evaluate(const Program& p, int slot, Label& msg) = 0;
+    virtual void silence(int slot) = 0;
+    virtual void hush() = 0;
+    virtual void mute(int slot, bool on) = 0;
+    virtual void unmuteAll() = 0;
+    virtual void setCps(const Program& p) = 0;  // p.cpsExpr, checked
+    // Save the program (File); msg says where or what went wrong.
+    virtual bool save(const Program& p, Label& msg) = 0;
+    // Steps of evaluated blocks sounding since the last call (node ids of the
+    // Program that was evaluated); returns how many were written.
+    struct Lit {
+        int slot;
+        uint16_t node;
+        double on, off;  // seconds, the output's clock
+    };
+    virtual int litSteps(Lit* out, int cap) {
+        (void)out, (void)cap;
+        return 0;
+    }
+};
+
+constexpr int kInstrumentSlots = 48;
+constexpr int kMenuMax = 160;
+using NodeList = FixVec<uint16_t, 512>;
 
 enum class Action {
     Left, Right, Up, Down,             // navigate siblings / parent / child
@@ -32,7 +66,7 @@ enum class Action {
     KbdType, KbdOk, KbdCancel, KbdClear,  // keyboard screen (Screen 1 / 8 / 7 / 2)
 };
 const char* actionName(Action a);
-bool actionFromName(const std::string& s, Action& out);
+bool actionFromName(const char* s, Action& out);
 
 enum class SlotState { Empty, Edited, Playing, Error };
 
@@ -59,26 +93,36 @@ struct EditSpec {
     int pos = 0;
     int launch = 0;
     uint32_t cycles = 0;
-    std::string code;
-    std::string op;
+    Text code;
+    Str<4> op;
 };
 
 struct MenuItem {
-    std::string label;
-    EditSpec spec;    // what choosing it does
-    uint16_t cursor;  // the cursor afterwards (node ids repeat, see EditSpec)
+    Label label;
+    EditSpec spec;          // what choosing it does
+    uint16_t cursor = 0;    // the cursor afterwards (node ids repeat, see EditSpec)
+    bool checked = false;   // tried and type-checked (unchecked items may still go)
 };
+using MenuList = FixVec<MenuItem, kMenuMax>;
 
 class Editor {
 public:
-    Editor();
-    bool load(const std::string& path, std::string& err);
-    bool loadText(const std::string& text, std::string& err);
-    bool save(const std::string& path, std::string& err);
-    std::string fileText() const;
+    // Storage: the Program and the Checkpoint (~74 + ~41 KB) and an undo
+    // arena (bytes; a few KB per step). All must outlive the editor.
+    Editor(Program& prog, Checkpoint& cp, uint8_t* undoArena, int undoBytes);
+    bool loadText(const char* text, int len, Label& err);
+    int fileText(char* buf, int cap) const;  // the .tidal file; returns its length
+    void setOutput(EditorOutput* o) { out_ = o; }
 
     void act(Action a);
     void selectMenu(int i);   // jump to a menu entry (scripted use)
+    // Menus are built by trial: every item is applied, type-checked and
+    // rolled back. Lazy (the device): openMenu() shows the menu at once and
+    // checkMenu() checks up to n more items per main-loop pass, dropping the
+    // ones that don't fit; returns how many are still unchecked. Otherwise
+    // (the prototype) all items are checked when the menu opens.
+    void setLazyMenus(bool on) { lazyMenus_ = on; }
+    int checkMenu(int n);
     void gotoSlot(int s);     // select d(s+1) (Shift + pad on the Tracker)
     // Pad number entry: active anywhere in a numeric pattern (Time / Double /
     // Int / Note: a step, a group, the quotes) or on a number argument.
@@ -93,17 +137,19 @@ public:
     bool padInstruments() const;
     int cursorInstrument() const;  // slot of the sample at the cursor, or -1
     void enterInstrument(int slot);
-    const std::vector<std::string>& instruments() const { return samples_; }
+    // instrument slot names (48, "" = empty), for pads and menus
+    const char* instrument(int i) const { return i >= 0 && i < kInstrumentSlots ? samples_[i] : ""; }
+    void setInstrument(int i, const char* name);
 
     // state for the view
-    const tc::Program& prog() const { return *prog_; }
+    const Program& prog() const { return *prog_; }
     int slot() const { return slot_; }
     uint16_t cursor() const { return cursor_; }
     bool menuOpen() const { return menuOpen_; }
-    const std::string& menuTitle() const { return menuTitle_; }
-    const std::vector<MenuItem>& menu() const { return menu_; }
+    const Label& menuTitle() const { return menuTitle_; }
+    const MenuList& menu() const { return menu_; }
     int menuSel() const { return menuSel_; }
-    const std::string& message() const { return message_; }
+    const Label& message() const { return message_; }
     bool messageIsError() const { return messageError_; }
     SlotState slotState(int s) const { return state_[s]; }
     // Play is a modifier (v2, docs/tidal_ui_v2.md): pads pressed while it is
@@ -128,10 +174,10 @@ public:
         double on, off;  // steadySeconds()
     };
     bool pollHighlights(double now);
-    const std::vector<LitStep>& litSteps() const { return lit_; }
-    // Headless: each slot's playing block with every step lit since the
-    // last call marked as [[step]] (smoke tests); "" if none.
-    std::string litReport();
+    const FixVec<LitStep, 256>& litSteps() const { return lit_; }
+    // every step lit since the last clearLitSeen() (headless reports)
+    const FixVec<LitStep, 1024>& litSeen() const { return litSeen_; }
+    void clearLitSeen() { litSeen_.clear(); }
     int gapPos() const { return gapPos_; }
     // `setcps` (Shift+Song): the cursor is in its expression; jog / Replace
     // edit it, Pattern sends it, Shift+Song or a slot pad goes back.
@@ -140,27 +186,21 @@ public:
     // Keyboard screen (the Tracker's naming keyboard, keyboard.h): editing
     // the last comment line above the current block.
     bool keyboardOpen() const { return kbdOpen_; }
-    const std::string& kbdText() const { return kbdText_; }
+    const Label& kbdText() const { return kbdText_; }
     int kbdPos() const { return kbdPos_; }     // text cursor
     int kbdSel() const { return kbdSel_; }     // highlighted key
     bool kbdCaps() const { return kbdCaps_; }
-    const std::string& kbdTitle() const { return kbdTitle_; }
+    const Label& kbdTitle() const { return kbdTitle_; }
     void kbdKey(int key);                      // a key's pad pressed
     bool trackerMode() const { return trackerMode_; }
-    std::string cursorInfo() const;
+    Label cursorInfo() const;
     // Context buttons (Screen 5..8): inside "..." brackets [ ] < > { }%4 (3,8),
     // on a pattern # <last control>, |+, |*, <~. Empty label: nothing here.
-    std::string quickLabel(int i) const;
-    std::string evalText(int slot, std::string* err = nullptr) const;  // what gets sent
-
-    void setBackend(Backend* b) { backend_ = b; }
-    Backend* backend() const { return backend_; }
-    void setSamples(const std::vector<std::string>& s) { samples_ = s; }
-    std::string path;
+    Label quickLabel(int i) const;
 
 private:
-    void info(const std::string& m) { message_ = m; messageError_ = false; }
-    void error(const std::string& m) { message_ = m; messageError_ = true; }
+    void info(const Label& m) { message_ = m; messageError_ = false; }
+    void error(const Label& m) { message_ = m; messageError_ = true; }
     // In-place edits: beginEdit() opens a checkpoint around the current block
     // and setcps; the edit then changes *prog_ directly; endEdit() type-checks
     // and keeps it as one undo step (a packed checkpoint), or rolls it back
@@ -172,7 +212,7 @@ private:
     bool trySpec(const EditSpec& s, uint16_t& nn);   // apply, check, roll back
     bool openSpec(const EditSpec& s, uint16_t& nn);  // apply, check, leave open (endEdit later)
     bool doSpec(const EditSpec& s, uint16_t& nn);    // apply, check, keep
-    bool recheck(tc::Program& p, std::string& err) const;
+    bool recheck(Program& p, Text& err) const;
     bool trackerBefore_ = true;  // Tracker mode held before the open edit
     uint16_t exprRoot() const;
     void enterSlot(int s);
@@ -187,64 +227,66 @@ private:
     void openWrap(WrapMode mode);
     void openNotes();
     void openLaunch();
-    std::string launchHead(int slot) const;
     void openSamples();
-    void addReplaceItems(std::vector<MenuItem>& items, const std::string& label, const std::string& code,
+    void addReplaceItems(MenuList& items, const Label& label, const Text& code,
                          bool mini);
     void ensureBlock();
     void doCopy();
     void quick(int i);
     void doPaste();
     void doDelete();
-    void enterStep(const std::string& miniCode, const std::string& exprCode, const std::string& label);
+    void enterStep(const Text& miniCode, const Text& exprCode, const Label& label);
     void deleteNode();  // remove / hole the cursor node (Delete outside "...")
     void doUnwrap();
     void evaluate();
-    void openMenu(const std::string& title, std::vector<MenuItem> items);
+    MenuList& menuBuild();  // clears the menu storage for a new menu; items are only collected
+    bool openMenu(const Label& title);  // checks (or starts checking) and opens; false if empty
+    bool buildOnly_ = false;            // while building: try* fill the spec without trying it
+    bool lazyMenus_ = false;
+    int menuNext_ = 0;                  // first item not checked yet
     void wheelFn(int dir);
 
     // candidate helpers: build a copy with the cursor node replaced by parsed
     // code (expression or mini-notation). Returns null if it doesn't check.
     // (filling `spec` with the edit when it fits)
-    bool tryReplace(const std::string& code, bool mini, uint16_t& newNode, EditSpec* spec = nullptr);
-    bool tryWrapApp(const std::string& head, uint16_t& newNode, EditSpec* spec = nullptr);
+    bool tryReplace(const Text& code, bool mini, uint16_t& newNode, EditSpec* spec = nullptr);
+    bool tryWrapApp(const Text& head, uint16_t& newNode, EditSpec* spec = nullptr);
     // x -> `fn [x, x]` (stack / cat / fastcat), cursor on the copy
     bool tryWrapList(const char* fn, uint16_t& newNode, EditSpec* spec = nullptr);
-    bool tryWrapOp(const char* op, const std::string& rhs, bool xOnLeft, uint16_t& newNode,
+    bool tryWrapOp(const char* op, const Text& rhs, bool xOnLeft, uint16_t& newNode,
                    EditSpec* spec = nullptr);
-    std::string renderNode(const tc::Program& p, uint16_t n) const;
-    bool isTransparent(const tc::Program& p, uint16_t n) const;
+    Text renderNode(const Program& p, uint16_t n) const;
+    bool isTransparent(const Program& p, uint16_t n) const;
 
-    std::unique_ptr<tc::Program> prog_;
-    std::unique_ptr<tc::Checkpoint> cp_;         // the open edit's checkpoint
+    Program* prog_;
+    Checkpoint* cp_;  // the open edit's checkpoint
     // undo steps, newest last: 'C' + a packed checkpoint, or 'M' + block
     // index (4 B) + the comment before (comments aren't in checkpoints)
-    std::vector<std::vector<uint8_t>> undo_;
+    // a ring in the caller's arena: each step = 4-byte length + bytes
+    uint8_t* undoArena_;
+    int undoCap_, undoHead_ = 0, undoBytes_ = 0, undoCount_ = 0;
+    uint8_t* reserveUndo(uint8_t tag, int payload);  // room for a new step (null: too big)
+    bool popUndo(uint8_t& tag, const uint8_t*& data, int& len);
     int slot_ = 0;
     uint16_t cursor_ = 0;
     bool menuOpen_ = false;
-    std::string menuTitle_;
-    std::vector<MenuItem> menu_;
+    Label menuTitle_;
+    MenuList menu_;
     int menuSel_ = 0;
-    std::string message_;
+    Label message_;
     bool messageError_ = false;
-    SlotState state_[tc::kSlots];
-    bool muted_[tc::kSlots] = {};
-    uint16_t playing_[tc::kSlots] = {};
-    struct Evaluated {
-        uint32_t stmt;                 // stmtHash of what was sent
-        std::vector<uint16_t> atoms;   // its steps, atomOrder() of the block's expression
-    };
-    std::vector<Evaluated> evaluated_[tc::kSlots];  // newest last, a few kept
-    std::vector<LitStep> lit_;
+    SlotState state_[kSlots];
+    bool muted_[kSlots] = {};
+    uint16_t playing_[kSlots] = {};
+    FixVec<LitStep, 256> lit_;
     bool cps_ = false;
     void jumpCps();
     bool kbdOpen_ = false, kbdCaps_ = false;
-    std::string kbdText_, kbdTitle_;
+    Label kbdText_, kbdTitle_;
     int kbdPos_ = 0, kbdSel_ = 0, kbdBlock_ = -1, kbdMax_ = 0;
     void openCommentKeyboard();
     void kbdAction(Action a);
-    std::vector<LitStep> litSeen_;
+    FixVec<LitStep, 1024> litSeen_;
     bool newBlockArmed_ = false;  // Insert at a block's top: the next slot pad adds a block
     void selectBlock(uint16_t b);  // make b its slot's selected block, cursor on its top
     void newBlockAbove(int slot);
@@ -253,24 +295,24 @@ private:
     void leaveGap();
     // a copy of the program with the one-step mini `code` inserted at the
     // gap (nullptr if it doesn't parse / type-check)
-    bool tryInsertAtGap(const std::string& code, uint16_t& newStep, EditSpec* spec = nullptr);
-    void insertAtGap(const std::string& code, const std::string& label);
+    bool tryInsertAtGap(const Text& code, uint16_t& newStep, EditSpec* spec = nullptr);
+    void insertAtGap(const Text& code, const Label& label);
     void deleteAtGap();
     // gaps in a Haskell list (`stack [a, b]`): elements, not steps
     bool listGap() const;
-    bool linkAtGap(tc::Program& p, uint16_t node, uint16_t seq, int pos) const;  // put node into a gap
-    bool tryInsertListAt(const std::string& code, uint16_t& newEl, EditSpec* spec = nullptr);
+    bool linkAtGap(Program& p, uint16_t node, uint16_t seq, int pos) const;  // put node into a gap
+    bool tryInsertListAt(const Text& code, uint16_t& newEl, EditSpec* spec = nullptr);
     void insertListCopy();
     bool playHeld_ = false, playShift_ = false, playUsed_ = false;
     void setMuted(int s, bool on);
     bool trackerMode_ = true;
-    Backend* backend_ = nullptr;
-    std::vector<std::string> samples_;
-    std::string lastCps_;  // last setcps sent to the backend
-    std::string clip_;     // copied code (rendered text)
+    EditorOutput* out_ = nullptr;
+    char samples_[kInstrumentSlots][16];
+    Text lastCps_;  // the setcps expression last sent (rendered)
+    Text clip_;     // copied code (rendered text)
     bool clipMini_ = false;  // clip_ is mini-notation (a step inside "...")
-    std::string lastControl_ = "gain 1";  // for the # context button
+    Label lastControl_ = "gain 1";  // for the # context button
     uint16_t pending_ = 0;  // step appended by pad entry; Delete removes it
 };
 
-}  // namespace proto
+}  // namespace tc

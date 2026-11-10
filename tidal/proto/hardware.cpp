@@ -7,6 +7,7 @@
 #include "tree.h"
 
 namespace proto {
+using namespace tc;  // the editor model (tidal/editor)
 
 namespace {
 struct CtlInfo {
@@ -143,8 +144,7 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
             Command k;
             k.type = Command::Instrument;
             k.instrument = i;
-            const auto& ins = ed.instruments();
-            k.label = i < (int)ins.size() ? ins[i] : "";
+            k.label = ed.instrument(i);
             return k;
         }
         if (!shift && ed.padNumeric()) {
@@ -238,7 +238,7 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
         case Ctl::Screen6:
         case Ctl::Screen7: {
             int q = (int)c - (int)Ctl::Screen4;
-            std::string l = ed.quickLabel(q);
+            std::string l = ed.quickLabel(q).c_str();
             if (l.empty()) return {};
             return act((Action)((int)Action::Quick1 + q), l.c_str());
         }

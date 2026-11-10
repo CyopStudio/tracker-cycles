@@ -42,10 +42,13 @@
 #include "editor.h"
 #include "fb.h"
 #include "hardware.h"
+#include "output.h"
 #include "panel.h"
 #include "view.h"
 
 namespace proto {
+using tc::Action;
+using tc::Editor;
 int runWindow(Editor& ed, Framebuffer& fb, int scale, bool withPanel);  // sdl_window.cpp
 }
 
@@ -110,7 +113,7 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
         } else if (tok.rfind("wait:", 0) == 0) {
             int ms = atoi(tok.c_str() + 5);
             for (int t = 0; t < ms; t += 50) {
-                if (ed.backend()) ed.backend()->poll();
+                if (appBackend()) appBackend()->poll();
                 ed.pollHighlights(steadySeconds());
                 usleep(50000);
             }
@@ -119,12 +122,14 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
                 if (!typeChar(ed, ch == '_' ? ' ' : ch)) fprintf(stderr, "no key types '%c'\n", ch);
         } else if (tok == "lit") {  // steps lit since the last `lit` (engine backend; smoke tests)
             ed.pollHighlights(steadySeconds());
-            fputs(ed.litReport().c_str(), stdout);
+            fputs(litReport(ed).c_str(), stdout);
         } else if (tok == "log") {
-            if (ed.backend())
-                for (const auto& l : ed.backend()->log) printf("| %s\n", l.c_str());
+            if (appBackend())
+                for (const auto& l : appBackend()->log) printf("| %s\n", l.c_str());
         } else if (tok == "print") {
-            fputs(ed.fileText().c_str(), stdout);
+            static char text[65536];
+            ed.fileText(text, sizeof text);
+            fputs(text, stdout);
         } else if (tok == "menulist") {  // the open menu's items, on stdout (smoke tests)
             if (!ed.menuOpen()) {
                 printf("menu: (closed)\n");
@@ -137,13 +142,13 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
             printf("msg: %s%s\n", ed.messageIsError() ? "ERROR " : "", ed.message().c_str());
         } else {
             Action a;
-            if (!actionFromName(tok, a)) {
+            if (!tc::actionFromName(tok.c_str(), a)) {
                 fprintf(stderr, "unknown key token '%s'\n", tok.c_str());
                 return false;
             }
             ed.act(a);
         }
-        if (ed.backend()) ed.backend()->poll();
+        if (appBackend()) appBackend()->poll();
         fprintf(stderr, "%-10s | %s%s\n", tok.c_str(), ed.messageIsError() ? "ERROR " : "",
                 ed.message().c_str());
     }
@@ -205,8 +210,14 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    Editor ed;
-    ed.setBackend(backend.get());
+    // the editor's storage (the device puts these in SDRAM)
+    static tc::Program prog;
+    static tc::Checkpoint checkpoint;
+    static uint8_t undoArena[256 * 1024];
+    static Editor ed(prog, checkpoint, undoArena, (int)sizeof undoArena);
+    setAppBackend(backend.get());
+    static BackendOutput out(backend.get());
+    ed.setOutput(&out);
     if (backend)
         for (const auto& st : sends) backend->send(st);
     if (!instruments.empty()) {
@@ -224,19 +235,18 @@ int main(int argc, char** argv) {
             names.push_back(s);
         }
         fclose(f);
-        ed.setSamples(names);
+        for (int i = 0; i < tc::kInstrumentSlots; i++) ed.setInstrument(i, i < (int)names.size() ? names[i].c_str() : "");
     }
     if (!trackerMode) ed.act(Action::ToggleTrackerMode);
     if (!file.empty()) {
         std::string err;
         if (access(file.c_str(), F_OK) == 0) {
-            if (!ed.load(file, err)) {
+            if (!loadFile(ed, file, err)) {
                 fprintf(stderr, "%s:%s\n", file.c_str(), err.c_str());
                 return 1;
             }
-        } else {
-            ed.path = file;  // new file, saved on `save`
         }
+        out.path = file;  // saved on `save` (a new file too)
     }
 
     std::unique_ptr<Framebuffer> fb(new Framebuffer);

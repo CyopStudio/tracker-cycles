@@ -8,7 +8,7 @@
 #pragma once
 #include <stdint.h>
 
-namespace proto {
+namespace tc {
 namespace kbd {
 
 constexpr int kKeys = 42;
@@ -58,4 +58,4 @@ inline int keyFor(char c, bool& caps) {
 }
 
 }  // namespace kbd
-}  // namespace proto
+}  // namespace tc

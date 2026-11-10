@@ -12,6 +12,9 @@
 #include "hardware.h"
 
 namespace proto {
+using tc::Action;  // the editor model (tidal/editor)
+using tc::Editor;
+using tc::SlotState;
 
 constexpr int kPanelW = 1290, kPanelH = 880;
 

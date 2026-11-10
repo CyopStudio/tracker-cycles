@@ -14,6 +14,9 @@
 #include "editor.h"
 
 namespace proto {
+using tc::Action;  // the editor model (tidal/editor)
+using tc::Editor;
+using tc::SlotState;
 
 enum class Ctl : uint8_t {
     Screen0, Screen1, Screen2, Screen3, Screen4, Screen5, Screen6, Screen7,  // btn 0..7

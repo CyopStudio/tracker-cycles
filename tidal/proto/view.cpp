@@ -7,12 +7,14 @@
 
 #include "check.h"
 #include "hardware.h"
+#include "output.h"
 #include "keyboard.h"
 #include "render.h"
 
 using namespace tc;
 
 namespace proto {
+using namespace tc;  // the editor model (tidal/editor)
 
 namespace col {
 constexpr uint32_t bg = 0x16181C;
@@ -152,8 +154,8 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     fb.text(10, 3, "TRACKER CYCLES", col::accent, FontId::MonoBold17);
     std::string right;
     if (ed.trackerMode()) right += "tracker mode   ";
-    if (ed.backend()) {
-        right += std::string(ed.backend()->name()) + (ed.backend()->alive() ? " ok" : " not running");
+    if (appBackend()) {
+        right += std::string(appBackend()->name()) + (appBackend()->alive() ? " ok" : " not running");
     } else {
         right += "no backend";
     }
@@ -271,8 +273,8 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     fb.rect(0, 380, kW, kH - 380, col::panel);
     fb.text(10, 383, ed.cursorInfo().c_str(), col::dim, FontId::Sans12);
     fb.text(10, 399, ed.message().c_str(), ed.messageIsError() ? col::err : col::text, FontId::Sans12);
-    if (ed.backend() && !ed.backend()->log.empty()) {
-        const auto& log = ed.backend()->log;
+    if (appBackend() && !appBackend()->log.empty()) {
+        const auto& log = appBackend()->log;
         size_t n = log.size() < 2 ? log.size() : 2;
         for (size_t i = 0; i < n; i++) {
             const std::string& l = log[log.size() - n + i];
@@ -299,7 +301,7 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
         const int mx = 420, my = 40, mw = 370, rows = 15, rh = 22;
         fb.rect(mx, my, mw, rows * rh + 34, 0x101216);
         fb.frame(mx, my, mw, rows * rh + 34, col::accent);
-        std::string title = ed.menuTitle() + "  (" + std::to_string(ed.menuSel() + 1) + "/" +
+        std::string title = std::string(ed.menuTitle().c_str()) + "  (" + std::to_string(ed.menuSel() + 1) + "/" +
                             std::to_string(m.size()) + ")";
         fb.text(mx + 10, my + 6, title.c_str(), col::accent, FontId::Sans12);
         int first = ed.menuSel() - rows / 2;
@@ -323,7 +325,7 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
         fb.text(kx + 12, ky + 8, ed.kbdTitle().c_str(), col::accent, FontId::Sans12);
         const int fy = ky + 32;
         fb.rect(kx + 12, fy, kw - 24, lineH + 10, col::panel);
-        std::string shown = "-- " + ed.kbdText();
+        std::string shown = std::string("-- ") + ed.kbdText().c_str();
         for (size_t i = 0; i < shown.size(); i++) {  // per character, like the code area
             char ch[2] = {shown[i], 0};
             fb.text(kx + 20 + (int)i * adv, fy + 5, ch, i < 3 ? col::dim : col::text);

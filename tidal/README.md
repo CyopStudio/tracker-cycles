@@ -5,7 +5,8 @@ Plan steps 0–1 (see `../CLAUDE.md` and `../docs/tidal_code_tree.md`).
 | Directory | What | Runs on |
 | :--- | :--- | :--- |
 | `core/` | Code tree, function library, parser, renderer, type checker, and the query engine (`engine.*`, `qtime.h`: tree -> events, 32-bit rational time). The scheduler (`scheduler.*`, docs/tidal_scheduler.md): queries ahead into per-slot rings that an audio-interrupt tick() plays. No heap, fixed pools. Will be shared with the firmware. | host + MK66 |
-| `proto/` | Editor prototype (step 1): editor model, 800×480 view drawn with the firmware's own fonts, GHCi backend, optional SDL window. | host |
+| `editor/` | The editor model (plan 4d, docs/tidal_device_editor.md): cursor, menus, edits, undo, keyboard screen; no heap (fixed strings / vectors in `fixed.h`), in-place edits with checkpoints, output through `EditorOutput`. The caller provides the Program, Checkpoint and undo arena. | host + MK66 |
+| `proto/` | Editor prototype (step 1): 800×480 view drawn with the firmware's own fonts, the control mapping (`hardware.*`), backends (print / GHCi / our engine) behind `BackendOutput` (`output.*`: Tidal statements, Save, highlight mapping), optional SDL window. | host |
 | `tests/` | Core tests (`test_core.cpp`) and scripted editor sessions (`proto/*.keys`). | host |
 | `golden/` | Golden cases captured from real Tidal (see below). | host |
 
@@ -16,7 +17,7 @@ cd tidal
 make            # core, tests, headless prototype
 make test       # core checks
 make smoke      # scripted editor sessions
-make arm        # cross-compile core for the Cortex-M4 and print sizes
+make arm        # cross-compile core + editor for the Cortex-M4 and print sizes
 make golden     # recapture golden events from real Tidal (needs GHCi)
 make bench      # engine: events, arena peak and time per query, heavy patterns
 ```
