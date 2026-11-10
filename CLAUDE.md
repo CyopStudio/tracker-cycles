@@ -421,6 +421,23 @@ folders listed in the project (e.g. a manifest) on project load.
   (player 0) skips the cap check (likely; some project samples may be
   streamed). Chord sets are 1-6 blocks late by design: 24 starts in one
   block vs the 4-starts-per-block cap.
+  v9 (built 2026-11-10, PolyendTrac_TidalTick9.ptf, not yet run): both
+  fixed (scheduler supersedes when the k-th later start due in the block
+  has voices <= k, host test + mutation; streamed path cuts the oldest
+  at the cap); default cap 14 (user's ask); sets 6-8 chords at caps 12 /
+  14 / 16, sets 9-10 everyday with voices 3 at caps 12 / 14. Keep 14 if
+  set 10 stays under ~85 % avg with no overrun, else 12 or a load-driven
+  cap.
+  v9 results (2026-11-10, docs/tidal_tick.txt): heavy set fixed (430
+  capped, none 2+ blocks late; baseline 434 / 0); default-voices sets at
+  baseline; no drops anywhere. Chords (voices 3) cap 12 / 14 / 16: 73 /
+  72 / 77 % avg (max 109 / 95 / 99). Everyday with voices 3 on all 8
+  tracks: cap 12 86 % (max 109, 17 ms main-loop gap), cap 14 92 % (max
+  112, 29 ms gap): 14 fails the < 85 % / no-overrun test in this worst
+  case. "14 sounding at cap 12" in set 9 (v8 and v9) is a test artifact,
+  not a bug: set 9 is not solo, so set 8's (cap 16) ringing chords carry
+  over; the v8 guess (streamed path) was wrong, the streamed-path cap is
+  kept anyway. Next: decide fixed 12 vs a load-driven cap.
   The notes below are the plan before that decision.
 - Before: 8 sample voices, one per track (voice index == track index).
 - Target: 2 voices per sample channel (16 total), alternating, so a cut

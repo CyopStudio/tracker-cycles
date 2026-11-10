@@ -60,6 +60,7 @@ bool mapEvent(const Program& p, int slot, const Event& e, float lenSamples, Entr
             if (c.tag == 's' && c.str < kEngineStr) s = p.str(c.str);
             else if (!strcmp(name, "n") || !strcmp(name, "note")) n = c.f;
             else if (!strcmp(name, "legato")) legato = c.f;
+            else if (!strcmp(name, "voices")) out.voices = (uint8_t)c.f;
         }
     out.kind = EntryKind::Note;
     out.chan = (uint8_t)slot;
@@ -587,6 +588,28 @@ void testPlayers() {
     SEXPECT(want.size() < ref.size() * 3 / 4, "test pattern too sparse (%zu of %zu)", want.size(), ref.size());
     SEXPECT(gS.stats().superseded >= ref.size() - want.size(), "superseded %u, want >= %zu", gS.stats().superseded,
             ref.size() - want.size());
+
+    // each start's own voices: 1 -> only the last per block, 2 -> last 2
+    for (int v : {1, 2}) {
+        reset();
+        gS.setSlotPlayers(3);
+        std::string code = "d1 $ s \"bd*1536\" # voices " + std::to_string(v) + "\n";
+        if (!load(code.c_str())) return;
+        evalSlot(0);
+        run((uint32_t)(refSample(Q{4, 1}) / kBlockSamples), 5);
+        std::vector<Onset> r2;
+        refOnsets(0, Q{1, 1}, Q{4, 1}, r2);
+        std::sort(r2.begin(), r2.end());
+        std::vector<Onset> w2;
+        for (size_t i = 0; i < r2.size(); i++) {
+            int later = 0;
+            for (size_t j = i + 1; j < r2.size() && r2[j].sample / kBlockSamples == r2[i].sample / kBlockSamples; j++)
+                later++;
+            if (later < v && r2[i].sample < refSample(endC) - 1) w2.push_back(r2[i]);
+        }
+        std::vector<Onset> g2 = played(0, refSample(endC) - 1);
+        sameOnsets(g2, w2, v == 1 ? "3 players, voices 1" : "3 players, voices 2");
+    }
 
     // overlapping notes: every noteOff, with its own note's tag, once
     for (int players : {3, 1}) {

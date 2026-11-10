@@ -1,5 +1,10 @@
 // Device tick test build (see tidal_tick.h and README.md).
 //
+// v9: the scheduler supersedes by each start's own `voices` (v8 let 3
+// starts per block through for voices-1 tracks: heavy set late), the
+// streamed-instrument path respects the cap (v8: 14 sounding at cap 12),
+// default cap 14; sets 6-8 caps 12 / 14 / 16, sets 9-10 everyday with
+// voices 3 at caps 12 / 14.
 // v8: `voices` (default 1: each note cuts the last), cap fix (just-started
 // players count as sounding), steals fade out (5 ms) instead of stopping;
 // sets 6-8 measure the load at caps 8 / 12 / 16, set 9 everyday with
@@ -121,17 +126,7 @@ const TestSet kSets[] = {
      "d7 $ s \"lt*16\"\n"
      "d8 $ s \"mt*16\"\n",
      20, false, "timing: all 8 tracks together"},
-    // timing: polyphony at caps 8 / 12 / 16 (load vs cap)
-    {"setcps 0.575\n"
-     "d1 $ n \"<c'maj e'min>*2\" # s \"arpy\" # legato 3 # voices 3\n"
-     "d2 $ n \"<a'min f'maj>*2\" # s \"bass\" # legato 3 # voices 3\n"
-     "d3 $ n \"<e'min c'maj>*2\" # s \"pluck\" # legato 3 # voices 3\n"
-     "d4 $ n \"<g'maj d'min>*2\" # s \"casio\" # legato 3 # voices 3\n"
-     "d5 $ n \"<c'maj7 a'min7>*2\" # s \"jvbass\" # legato 3 # voices 3\n"
-     "d6 $ n \"<f'maj g'maj>*2\" # s \"bev\" # legato 3 # voices 3\n"
-     "d7 $ n \"<d'min e'min>*2\" # s \"bass1\" # legato 3 # voices 3\n"
-     "d8 $ n \"<a'min c'maj>*2\" # s \"bass2\" # legato 3 # voices 3\n",
-     20, false, "timing: cap 8, 8 tracks of ringing chords (voices 3)", 8},
+    // timing: polyphony at caps 12 / 14 / 16 (load vs cap)
     {"setcps 0.575\n"
      "d1 $ n \"<c'maj e'min>*2\" # s \"arpy\" # legato 3 # voices 3\n"
      "d2 $ n \"<a'min f'maj>*2\" # s \"bass\" # legato 3 # voices 3\n"
@@ -151,6 +146,16 @@ const TestSet kSets[] = {
      "d6 $ n \"<f'maj g'maj>*2\" # s \"bev\" # legato 3 # voices 3\n"
      "d7 $ n \"<d'min e'min>*2\" # s \"bass1\" # legato 3 # voices 3\n"
      "d8 $ n \"<a'min c'maj>*2\" # s \"bass2\" # legato 3 # voices 3\n",
+     20, false, "timing: cap 14, 8 tracks of ringing chords (voices 3)", 14},
+    {"setcps 0.575\n"
+     "d1 $ n \"<c'maj e'min>*2\" # s \"arpy\" # legato 3 # voices 3\n"
+     "d2 $ n \"<a'min f'maj>*2\" # s \"bass\" # legato 3 # voices 3\n"
+     "d3 $ n \"<e'min c'maj>*2\" # s \"pluck\" # legato 3 # voices 3\n"
+     "d4 $ n \"<g'maj d'min>*2\" # s \"casio\" # legato 3 # voices 3\n"
+     "d5 $ n \"<c'maj7 a'min7>*2\" # s \"jvbass\" # legato 3 # voices 3\n"
+     "d6 $ n \"<f'maj g'maj>*2\" # s \"bev\" # legato 3 # voices 3\n"
+     "d7 $ n \"<d'min e'min>*2\" # s \"bass1\" # legato 3 # voices 3\n"
+     "d8 $ n \"<a'min c'maj>*2\" # s \"bass2\" # legato 3 # voices 3\n",
      20, false, "timing: cap 16, 8 tracks of ringing chords (voices 3)", 16},
     {"d1 $ s \"bd*2 [~ bd] bd\" # voices 3\n"
      "d2 $ s \"~ sd\" # n \"<0 1>\" # voices 3\n"
@@ -161,6 +166,15 @@ const TestSet kSets[] = {
      "d7 $ sometimes (# speed 2) $ s \"drum*4\" # voices 3\n"
      "d8 $ s \"<lt mt ht>*3\" # voices 3\n",
      20, false, "timing: cap 12, everyday with voices 3 on every track", 12},
+    {"d1 $ s \"bd*2 [~ bd] bd\" # voices 3\n"
+     "d2 $ s \"~ sd\" # n \"<0 1>\" # voices 3\n"
+     "d3 $ every 2 (fast 2) $ s \"hh*8\" # voices 3\n"
+     "d4 $ n \"0 .. 7\" # s \"arpy\" # voices 3\n"
+     "d5 $ off 0.125 (|+ n 12) $ n \"0 3 7\" # s \"bass\" # voices 3\n"
+     "d6 $ s \"cp*2\" # pan sine # voices 3\n"
+     "d7 $ sometimes (# speed 2) $ s \"drum*4\" # voices 3\n"
+     "d8 $ s \"<lt mt ht>*3\" # voices 3\n",
+     20, false, "timing: cap 14, everyday with voices 3 on every track", 14},
     // listening: polyphony
     {"d4 $ n \"<c'maj e'min a'min f'maj>\" # s \"arpy\" # legato 2 # voices 3\n", 10, true,
      "poly d4: whole 3-note chords, each rings into the next"},
@@ -399,7 +413,7 @@ int activeInstruments() {
 
 int header(int n) {
     return n + snprintf(report + n, sizeof report - n,
-                        "Tracker Cycles device tick test v8 (" TC_TICK_VARIANT "), %s\n"
+                        "Tracker Cycles device tick test v9 (" TC_TICK_VARIANT "), %s\n"
                         "%d active instruments; scheduler object %u B (internal RAM), entries %u B, live program "
                         "%u B (SDRAM); engine working set in internal RAM: %s; %d sample players per track, default cap %d, voices default 1\n"
                         "cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles\n\n",

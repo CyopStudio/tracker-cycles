@@ -35,7 +35,7 @@ class DeviceVoice : public tc::Voice {
 public:
     static constexpr int kTracks = 8;
     static constexpr int kPlayers = 3;
-    static constexpr int kCap = 16;  // default cap
+    static constexpr int kCap = 14;  // default cap (tick v8: 12 -> 65 %, 16 -> 77 % on 8 ringing tracks)
     void setCap(int c) { cap_ = c < 1 ? 1 : c > kTracks * kPlayers ? kTracks * kPlayers : c; }
     int cap() const { return cap_; }
 

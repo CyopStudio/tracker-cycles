@@ -126,9 +126,10 @@ public:
     void setLateLimit(uint32_t blocks) { lateBlocks_ = blocks; }
     void setNoteStartCap(int n) { cap_ = n; }
     // Sample slots play at most n notes at a time (the device: n players
-    // per track, docs/tidal_voices.md). When more than n of a slot's starts
-    // are due in the same block, only the last n are audible, so the
-    // earlier ones are skipped (counted in `superseded`, not by the cap).
+    // per track, docs/tidal_voices.md), and a start keeps at most its
+    // Entry::voices - 1 others ringing (0 = n). Starts due in the same
+    // block that a later one would cut at once are skipped (counted in
+    // `superseded`, not by the cap): with voices 1 only the last plays.
     // n = 1: one note at a time, and a new note also cancels the slot's
     // pending noteOffs (as does n = 0, the default: no skipping). n >= 2:
     // noteOffs stay pending, each goes back with its noteOn's tag.

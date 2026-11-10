@@ -439,15 +439,18 @@ void Scheduler::tick(Voice& v) {
                 h++;
                 continue;
             }
-            // at most players_ notes at a time: players_ later starts due now
-            // would cut this one anyway
+            // a later start due now that keeps fewer than k others ringing
+            // (its own `voices`, at most players_) would cut this one anyway:
+            // the k-th start after it cuts it if k >= that start's voices
             if (sample && players_ > 0) {
-                int later = 0;
-                for (uint32_t j = h + 1; j != t && later < players_; j++) {
-                    if ((int32_t)(b - r.e[j & (kRingSize - 1)].block) < 0) break;
-                    later++;
+                bool cut = false;
+                for (int k = 1; h + k != t && k <= players_ && !cut; k++) {
+                    const Entry& later = r.e[(h + k) & (kRingSize - 1)];
+                    if ((int32_t)(b - later.block) < 0) break;
+                    const int v = later.voices && later.voices < players_ ? later.voices : players_;
+                    cut = k >= v;
                 }
-                if (later >= players_) {
+                if (cut) {
                     stats_.superseded++;
                     h++;
                     continue;

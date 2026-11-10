@@ -99,16 +99,22 @@ int DeviceVoice::pickPlayer(int slot, uint8_t instr, int voices, uint32_t now) {
     if (voices > kPlayers) voices = kPlayers;
 
     if (mtProject.sampleMemory[instr].isStreamed) {  // one stream per track: player 0
-        int others = 0;
+        int others = 0, cuts = 0;
         for (int j = nb - 1; j >= 0; j--) {  // newest first: keep voices - 1 others
             if (busy[j] == 0) continue;
             if (others < voices - 1) others++;
             else {
                 cut(slot, busy[j]);
                 vstats.voicesCuts++;
+                cuts++;
             }
         }
-        if (this->sounding(slot, 0, now)) vstats.trackSteals++;
+        if (this->sounding(slot, 0, now)) {
+            vstats.trackSteals++;  // retrigger: no new voice
+        } else if (sounding - cuts >= cap_ && oldT >= 0 && !cutting_[oldT][oldK]) {
+            cut(oldT, oldK);  // a new voice at the cap: free the oldest anywhere (v8 skipped this)
+            vstats.globalSteals++;
+        }
         return 0;
     }
     // `voices`: at most voices - 1 others keep ringing

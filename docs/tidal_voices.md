@@ -143,6 +143,18 @@ v6 on the same project). AudioPlayMemory::update now switches such a
 player's envelope to idle (16 zero blocks, then nothing), and
 `tidalAllOff` releases every player.
 
+## v9 fixes
+
+- Scheduler: a start due in a block is skipped if the k-th later start
+  due in the same block has `voices` <= k (it would cut it at once);
+  v8 used 3 for every note, so voices-1 tracks passed up to 3 starts per
+  block, each counted by the 4-starts-per-block cap (heavy set: 1759
+  capped, 942 notes 2+ blocks late vs 434 / 0 in v6).
+- DeviceVoice: a streamed instrument's new note at the cap fades the
+  oldest sounding player out (v8 reached 14 sounding at cap 12).
+- Default cap 14. Tick v9: chords at caps 12 / 14 / 16, everyday with
+  voices 3 at caps 12 / 14 (15 sets).
+
 ## Test (tick v8)
 
 18 -> 14 sets: 1 silence; 2-5 the timing sets with default voices 1

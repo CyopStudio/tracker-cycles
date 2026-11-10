@@ -153,6 +153,11 @@ else wrapped onto the active instruments; `n` / `note` add to C5; `gain`
 x100 = step volume; looped instruments get a noteOff after the event's
 length, one-shots play out. d9..d16 (MIDI) are not mapped yet.
 
+v9 (2026-11-10, PolyendTrac_TidalTick9.ptf): supersede by each start's
+`voices`, cap on the streamed path, default cap 14. 15 sets (~4 min 10 s):
+as v8, but sets 6-8 = chords at caps 12 / 14 / 16 and sets 9-10 =
+everyday with voices 3 at caps 12 / 14. Flash 1,011,292 B (96.4 %).
+
 v8 (2026-11-10, PolyendTrac_TidalTick8.ptf): `voices` (docs/tidal_voices.md
 v0.2: default 1 = each note cuts the last), the cap fix, steals fade out
 in 5 ms. 14 sets (~3 min 50 s): 1 silence, 2-5 timing with default voices
