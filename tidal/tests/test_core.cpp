@@ -828,9 +828,164 @@ static void testEventSrc() {
 #endif
 }
 
+// In-place edits with rollback (device editor): random edits on a block,
+// rolled back, must leave the Program exactly as it was; redoing an edit
+// gives the same node ids; a full journal makes alloc fail, not corrupt.
+static Checkpoint gCp;
+static uint32_t gRnd = 12345;
+static uint32_t rnd() { return gRnd = gRnd * 1103515245u + 12345u, (gRnd >> 16) & 0x7fff; }
+
+static void collect(const Program& p, uint16_t n, std::vector<uint16_t>& out) {
+    out.push_back(n);
+    for (uint16_t c = p.at(n).first; c; c = p.at(c).next) collect(p, c, out);
+}
+
+// one random edit inside the subtree at root (not the root itself)
+static void randomEdit(Program& p, uint16_t root) {
+    std::vector<uint16_t> nodes;
+    collect(p, root, nodes);
+    if (nodes.size() < 2) return;
+    const uint16_t t = nodes[1 + rnd() % (nodes.size() - 1)];
+    Error e;
+    static const char* const kCode[] = {"fast 2 $ s \"bd sd\"", "1", "rev", "\"<0 3>\"", "n \"0 .. 7\" # s \"zz\""};
+    switch (rnd() % 4) {
+        case 0: {  // replace with parsed code
+            const char* c = kCode[rnd() % 5];
+            uint16_t n = parseExpr(p, c, (int)strlen(c), e);
+            if (!n) return;
+            p.replace(t, n);
+            p.freeTree(t);
+            break;
+        }
+        case 1: {  // wrap in an App
+            uint16_t app = p.alloc(Kind::App);
+            uint16_t f = app ? p.alloc(Kind::Fn) : 0;
+            if (!f) return;
+            p.appendChild(app, f);
+            p.replace(t, app);
+            p.appendChild(app, t);
+            break;
+        }
+        case 2:  // poke fields
+            p.at(t).a ^= 5;
+            p.at(t).flags ^= 1;
+            break;
+        default: {  // new string + duplicate subtree as a sibling
+            p.intern("zzz9", 4);
+            uint16_t c = p.copyTree(p, t);
+            if (!c) return;
+            p.at(c).next = p.at(t).next;
+            p.at(t).next = c;
+            break;
+        }
+    }
+}
+
+static void testCheckpoint() {
+    const char* file =
+        "setcps (120/60/4)\n\n"
+        "-- one\n"
+        "d1 $ every 4 (fast 2) $ s \"bd*2 [~ sd] bd sd\" # gain 1\n\n"
+        "-- two\n"
+        "d2 $ n \"0 .. 7\" # s \"arpy\" # speed \"<1 2>\"\n\n"
+        "-- three\n"
+        "d3 $ s \"hh*8\"\n";
+    Error e;
+    EXPECT(parseFile(gProg, file, (int)strlen(file), e), "checkpoint file: %s", e.msg);
+    // free a subtree first so the free list is in play
+    {
+        uint16_t b = gProg.block[2], x = gProg.at(b).first;
+        uint16_t n = parseExpr(gProg, "s \"cp\"", 6, e);
+        gProg.replace(x, n);
+        gProg.freeTree(x);
+    }
+    gProg2 = gProg;
+    int bad = 0;
+    for (int round = 0; round < 300; round++) {
+        const uint16_t roots[2] = {gProg.block[0], gProg.cpsExpr};
+        const int nroots = round % 3 == 0 ? 2 : 1;
+        if (!gProg.beginCheckpoint(gCp, roots, nroots)) {
+            bad++;
+            continue;
+        }
+        const int edits = 1 + (int)(rnd() % 6);
+        for (int k = 0; k < edits; k++) randomEdit(gProg, roots[k % nroots == 1 && nroots == 2 ? 1 : 0]);
+        if (round % 7 == 0) {  // remove the block from the list too
+            int i = gProg.blockIndex(gProg.block[0]);
+            if (i >= 0) gProg.removeBlockAt(i);
+        }
+        gProg.rollback(gCp);
+        if (!gProg.sameAs(gProg2)) bad++;
+    }
+    EXPECT(bad == 0, "checkpoint: %d of 300 rollbacks differ", bad);
+    // redo gives the same ids
+    {
+        const uint16_t root = gProg.block[0];
+        gProg.beginCheckpoint(gCp, &root, 1);
+        uint16_t a1 = parseExpr(gProg, "rev $ s \"bd\"", 12, e);
+        gProg.rollback(gCp);
+        gProg.beginCheckpoint(gCp, &root, 1);
+        uint16_t a2 = parseExpr(gProg, "rev $ s \"bd\"", 12, e);
+        gProg.rollback(gCp);
+        EXPECT(a1 && a1 == a2, "checkpoint: redo ids %d vs %d", a1, a2);
+        EXPECT(gProg.sameAs(gProg2), "checkpoint: after redo test");
+    }
+    // journal full: alloc fails, rollback still exact
+    {
+        const uint16_t root = gProg.block[0];
+        gProg.beginCheckpoint(gCp, &root, 1);
+        int got = 0;
+        while (gProg.alloc(Kind::Num)) got++;
+        EXPECT(got == kCheckpointNodes, "checkpoint: %d allocs before the journal is full", got);
+        gProg.rollback(gCp);
+        EXPECT(gProg.sameAs(gProg2), "checkpoint: rollback after a full journal");
+    }
+    // undo stack: edits each packed after commit, rolled back newest first
+    {
+        std::vector<std::vector<uint8_t>> steps;
+        static Program mid;
+        for (int k = 0; k < 12; k++) {
+            const uint16_t roots[2] = {gProg.block[k % 2], gProg.cpsExpr};
+            EXPECT(gProg.beginCheckpoint(gCp, roots, 2), "undo stack: begin %d", k);
+            randomEdit(gProg, roots[0]);
+            randomEdit(gProg, roots[1]);
+            if (k == 5) {  // a new block on top
+                uint16_t b = gProg.alloc(Kind::Block);
+                gProg.at(b).a = 4;
+                gProg.insertBlock(gProg.blockCount(), b);
+                gProg.block[4] = b;
+            }
+            gProg.commitCheckpoint();
+            std::vector<uint8_t> step((size_t)checkpointPackedSize(gCp));
+            packCheckpoint(gCp, step.data());
+            steps.push_back(step);
+            if (k == 5) mid = gProg;
+        }
+        for (int k = (int)steps.size() - 1; k >= 0; k--) {
+            unpackCheckpoint(steps[k].data(), gCp);
+            gProg.rollback(gCp);
+            if (k == 6) EXPECT(gProg.sameAs(mid), "undo stack: back at step 6");
+        }
+        EXPECT(gProg.sameAs(gProg2), "undo stack: back at the start");
+        size_t total = 0;
+        for (auto& st : steps) total += st.size();
+        EXPECT(total / steps.size() < 4096, "undo stack: %zu B per step", total / steps.size());
+    }
+    // a commit keeps the edit; sameAs notices
+    {
+        const uint16_t root = gProg.block[0];
+        gProg.beginCheckpoint(gCp, &root, 1);
+        randomEdit(gProg, root);
+        gProg.at(gProg.at(root).first).a ^= 1;
+        gProg.commitCheckpoint();
+        EXPECT(!gProg.checkpointOpen() && !gProg.sameAs(gProg2), "checkpoint: commit keeps the edit");
+    }
+}
+
 int main() {
     testNodeSize();
     testClearReuse();
+    testCheckpoint();
     testTypesPool();
     testRationals();
     testRoundTrips();

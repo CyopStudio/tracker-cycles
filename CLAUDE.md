@@ -510,6 +510,13 @@ folders listed in the project (e.g. a manifest) on project load.
      us) - the device numbers decide. FT812 note: a control has 8 KB of
      RAM_G and the whole frame's appended display lists must stay under
      8172 B; CMD_TEXT costs 4 B per glyph.
+     Port step 1a done (2026-11-10, design 5.1a): the prototype edits in
+     place: Program::beginCheckpoint / rollback / commitCheckpoint
+     (tidal/core/tree.*, alloc journal, comments saved when the block list
+     changes), menu items are EditSpecs tried in place, undo = packed
+     checkpoints (comment edits their own step); smoke session 21 undoes
+     ~15 kinds of edits back to the original file. Next 1b: no std
+     containers in the model; 1c: model out of tidal/proto.
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)

@@ -108,6 +108,27 @@ struct Error {
     void set(int p, const char* fmt, ...);
 };
 
+// ---- Checkpoint: in-place edits with rollback (device editor) ---------------
+// An editor edit touches only the subtree(s) it starts from (the block or the
+// setcps expression), nodes it allocates, the free list, the string count
+// and the block list. A Checkpoint saves those subtrees' nodes and the
+// Program's header; while it is open, alloc() journals each node's previous
+// contents. rollback() restores everything, free list included, so redoing
+// the same edit gives the same node ids. Comments are not covered. Fixed
+// size (~37 KB): put it where the Program is (SDRAM on the device).
+constexpr int kCheckpointNodes = 1024;  // saved subtree nodes, and journaled allocs
+struct CheckpointData {
+    uint16_t savedIdx[kCheckpointNodes];
+    uint16_t journalIdx[kCheckpointNodes];
+    int nsaved, njournal;
+    uint16_t freeHead, hwm;
+    int live, nstrings, nblocks;
+    uint16_t blocks[kMaxBlocks];
+    uint16_t block[kSlots];
+    uint16_t cpsExpr;
+    bool commentsSaved;  // the block list changed: comments (which move with it) saved too
+};
+
 // ---- Program --------------------------------------------------------------
 class Program {
 public:
@@ -135,6 +156,17 @@ public:
     // old's siblings). Does not free `old`.
     void replace(uint16_t old, uint16_t repl);
     uint16_t copyTree(const Program& src, uint16_t idx);  // 0 on overflow
+
+    // In-place edits with rollback (see CheckpointData). begin() saves the
+    // subtrees at roots[0..n) (0 entries skipped) and the header; false if
+    // they don't fit (nothing is open then). While open, alloc() fails
+    // (returns 0) once the journal is full, so a rollback is always exact.
+    bool beginCheckpoint(struct Checkpoint& cp, const uint16_t* roots, int n);
+    void rollback(struct Checkpoint& cp);  // restore and close
+    void commitCheckpoint() { cp_ = nullptr; }  // keep the edits and close
+    bool checkpointOpen() const { return cp_ != nullptr; }
+    // Same contents as `o` in everything a Program exposes (tests)
+    bool sameAs(const Program& o) const;
 
     // strings
     int intern(const char* s, int len);   // -1 if table full or too long
@@ -170,7 +202,23 @@ private:
     uint16_t blocks_[kMaxBlocks];
     char blockComment_[kMaxBlocks][kMaxCommentLen + 1];
     int nblocks_;
+    struct Checkpoint* cp_;  // open checkpoint, or null
+    bool saveSubtree(struct Checkpoint& cp, uint16_t idx);
+    void saveComments();  // before the block list changes under an open checkpoint
 };
+
+struct Checkpoint {
+    CheckpointData d;
+    Node saved[kCheckpointNodes];
+    Node journal[kCheckpointNodes];
+    char comments[kMaxBlocks][kMaxCommentLen + 1];  // if d.commentsSaved
+};
+
+// A closed checkpoint packed into its used part (an undo step: rolling the
+// steps back newest first is exact). Packed size: header + 18 B per node.
+int checkpointPackedSize(const Checkpoint& cp);
+void packCheckpoint(const Checkpoint& cp, uint8_t* dst);
+void unpackCheckpoint(const uint8_t* src, Checkpoint& cp);
 
 // Rational helpers stored in Num / MNum nodes
 inline Rational nodeRational(const Node& n) {

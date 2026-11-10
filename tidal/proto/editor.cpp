@@ -76,7 +76,7 @@ static const char* controlDefault(const char* name) {
     return "1";
 }
 
-Editor::Editor() : prog_(new Program) {
+Editor::Editor() : prog_(new Program), cp_(new Checkpoint) {
     for (auto& s : state_) s = SlotState::Empty;
     // 48 instrument slots, one per pad (the Tracker has 48 sample
     // instruments). Default: Dirt-Samples folders, so SuperDirt plays them;
@@ -201,9 +201,9 @@ bool Editor::recheck(Program& p, std::string& err) const {
     // Tracker mode: refuse edits (and so menu items) that bring in something
     // the device can't play; a block that already has such a thing (loaded
     // from a file) stays editable, evaluate() reports it.
-    if (trackerMode_) {
-        Error now, before;
-        if (!trackerCheck(p, slot_, now) && trackerCheck(*prog_, slot_, before)) {
+    if (trackerMode_ && trackerBefore_) {
+        Error now;
+        if (!trackerCheck(p, slot_, now)) {
             err = now.msg;
             return false;
         }
@@ -211,130 +211,217 @@ bool Editor::recheck(Program& p, std::string& err) const {
     return true;
 }
 
-void Editor::snapshot() {
-    undo_.emplace_back(new Program(*prog_));
-    if (undo_.size() > 64) undo_.erase(undo_.begin());
+// ---------------------------------------------------------------------------
+// in-place edits
+
+bool Editor::beginEdit() {
+    if (prog_->checkpointOpen()) prog_->rollback(*cp_);  // never nest
+    Error e;
+    trackerBefore_ = !trackerMode_ || cps_ || trackerCheck(*prog_, slot_, e);
+    const uint16_t roots[2] = {prog_->block[slot_], prog_->cpsExpr};
+    if (!prog_->beginCheckpoint(*cp_, roots, 2)) {
+        error("block too large to edit");
+        return false;
+    }
+    return true;
 }
 
-void Editor::commit(std::unique_ptr<Program> p, uint16_t cursor) {
+void Editor::abortEdit() {
+    if (prog_->checkpointOpen()) prog_->rollback(*cp_);
+}
+
+bool Editor::endEdit(uint16_t cursor, bool check) {
     gapSeq_ = 0;
     std::string err;
-    if (!recheck(*p, err)) {
+    if (check && !recheck(*prog_, err)) {
+        abortEdit();
         error(err);
-        return;
+        return false;
     }
-    snapshot();
-    prog_ = std::move(p);
+    prog_->commitCheckpoint();
+    std::vector<uint8_t> step(1 + (size_t)checkpointPackedSize(*cp_));
+    step[0] = 'C';
+    packCheckpoint(*cp_, step.data() + 1);
+    undo_.push_back(std::move(step));
+    if (undo_.size() > 64) undo_.erase(undo_.begin());
     cursor_ = cursor;
-    messageError_ = false;  // callers test it after commit; an earlier error must not stick
-    if (cps_) return;  // setcps: no slot state
+    messageError_ = false;  // callers test it after an edit; an earlier error must not stick
+    if (cps_) return true;  // setcps: no slot state
     if (state_[slot_] != SlotState::Empty || prog_->block[slot_]) state_[slot_] = SlotState::Edited;
+    return true;
 }
 
-std::shared_ptr<Program> Editor::tryReplace(const std::string& code, bool mini, uint16_t& newNode) const {
-    auto p = std::make_shared<Program>(*prog_);
+uint16_t Editor::applySpec(const EditSpec& s) {
+    Program& P = *prog_;
     Error e;
-    uint16_t n = mini ? parseMini(*p, code.c_str(), (int)code.size(), e)
-                      : parseExpr(*p, code.c_str(), (int)code.size(), e);
-    if (!n) return nullptr;
-    if (mini && p->at(cursor_).kind != Kind::MSeq) {
-        // replacing a single step: unwrap the parsed one-step sequence
-        Node& sq = p->at(n);
-        if (!sq.first || p->at(sq.first).next || (sq.flags & kDots)) return nullptr;
-        uint16_t step = sq.first;
-        sq.first = 0;
-        p->freeTree(n);
-        n = step;
-    }
-    Node& cur = p->at(cursor_);
-    if (cur.kind == Kind::Block) {
-        if (cur.first) {
-            uint16_t old = cur.first;
-            p->replace(old, n);
-            p->freeTree(old);
-        } else {
-            p->appendChild(cursor_, n);
+    const uint16_t t = s.target;
+    switch (s.kind) {
+        case EditKind::Replace: {
+            uint16_t n = s.mini ? parseMini(P, s.code.c_str(), (int)s.code.size(), e)
+                                : parseExpr(P, s.code.c_str(), (int)s.code.size(), e);
+            if (!n) return 0;
+            if (s.mini && P.at(t).kind != Kind::MSeq) {
+                // replacing a single step: unwrap the parsed one-step sequence
+                Node& sq = P.at(n);
+                if (!sq.first || P.at(sq.first).next || (sq.flags & kDots)) return 0;
+                uint16_t step = sq.first;
+                sq.first = 0;
+                P.freeTree(n);
+                n = step;
+            }
+            Node& cur = P.at(t);
+            if (cur.kind == Kind::Block) {
+                if (cur.first) {
+                    uint16_t old = cur.first;
+                    P.replace(old, n);
+                    P.freeTree(old);
+                } else {
+                    P.appendChild(t, n);
+                }
+            } else {
+                P.replace(t, n);
+                P.freeTree(t);
+            }
+            return n;
         }
-    } else {
-        p->replace(cursor_, n);
-        p->freeTree(cursor_);
+        case EditKind::WrapList: {
+            if (!t || P.at(t).kind == Kind::Block) return 0;
+            const std::string code = s.code + " [silence, silence]";
+            const uint16_t app = parseExpr(P, code.c_str(), (int)code.size(), e);
+            if (!app) return 0;
+            uint16_t list = 0;
+            for (uint16_t c = P.at(app).first; c; c = P.at(c).next)
+                if (P.at(c).kind == Kind::List) list = c;
+            if (!list) return 0;
+            const uint16_t s1 = P.at(list).first, s2 = P.at(s1).next;
+            const uint16_t copy = P.copyTree(P, t);
+            if (!copy) return 0;
+            P.replace(t, app);  // fn [..] takes x's place
+            P.replace(s1, t);   // x is the first element
+            P.freeTree(s1);
+            P.replace(s2, copy);  // its copy the second
+            P.freeTree(s2);
+            return copy;
+        }
+        case EditKind::WrapApp: {
+            uint16_t h = parseExpr(P, s.code.c_str(), (int)s.code.size(), e);
+            if (!h) return 0;
+            uint16_t app;
+            if (P.at(h).kind == Kind::App && !(P.at(h).flags & kDollar)) {
+                app = h;
+            } else {
+                app = P.alloc(Kind::App);
+                if (!app) return 0;
+                P.appendChild(app, h);
+            }
+            if (exprPrec(P, t) < 11) P.at(app).flags |= kDollar;
+            P.replace(t, app);
+            P.appendChild(app, t);
+            return app;
+        }
+        case EditKind::WrapOp: {
+            const int id = libFind(s.op.c_str(), (int)s.op.size());
+            if (id < 0) return 0;
+            uint16_t r = parseExpr(P, s.code.c_str(), (int)s.code.size(), e);
+            if (!r) return 0;
+            uint16_t o = P.alloc(Kind::Op);
+            if (!o) return 0;
+            P.at(o).a = (uint32_t)id;
+            P.replace(t, o);
+            if (s.left) {
+                P.appendChild(o, t);
+                P.appendChild(o, r);
+            } else {
+                P.appendChild(o, r);
+                P.appendChild(o, t);
+            }
+            return o;
+        }
+        case EditKind::InsertGap: {
+            uint16_t sq = parseMini(P, s.code.c_str(), (int)s.code.size(), e);
+            if (!sq) return 0;
+            Node& seq = P.at(sq);
+            if (!seq.first || P.at(seq.first).next || (seq.flags & kDots)) return 0;  // one step only
+            const uint16_t step = seq.first;
+            seq.first = 0;
+            P.freeTree(sq);
+            return linkAtGap(P, step, s.seq, s.pos) ? step : 0;
+        }
+        case EditKind::InsertList: {
+            uint16_t x = parseExpr(P, s.code.c_str(), (int)s.code.size(), e);
+            return x && linkAtGap(P, x, s.seq, s.pos) ? x : 0;
+        }
+        case EditKind::Launch:
+            setBlockLaunch(P.at(t), (Launch)s.launch, s.cycles);
+            return t;
     }
-    std::string err;
-    if (!recheck(*p, err)) return nullptr;
-    newNode = n;
-    return p;
+    return 0;
 }
 
-std::shared_ptr<Program> Editor::tryWrapList(const char* fn, uint16_t& newNode) const {
-    if (!cursor_ || prog_->at(cursor_).kind == Kind::Block) return nullptr;
-    auto p = std::make_shared<Program>(*prog_);
-    const std::string code = std::string(fn) + " [silence, silence]";
-    Error e;
-    const uint16_t app = parseExpr(*p, code.c_str(), (int)code.size(), e);
-    if (!app) return nullptr;
-    uint16_t list = 0;
-    for (uint16_t c = p->at(app).first; c; c = p->at(c).next)
-        if (p->at(c).kind == Kind::List) list = c;
-    if (!list) return nullptr;
-    const uint16_t s1 = p->at(list).first, s2 = p->at(s1).next;
-    const uint16_t copy = p->copyTree(*p, cursor_);
-    if (!copy) return nullptr;
-    p->replace(cursor_, app);  // fn [..] takes x's place
-    p->replace(s1, cursor_);   // x is the first element
-    p->freeTree(s1);
-    p->replace(s2, copy);      // its copy the second
-    p->freeTree(s2);
+bool Editor::trySpec(const EditSpec& s, uint16_t& nn) {
+    if (!beginEdit()) return false;
+    const uint16_t n = applySpec(s);
     std::string err;
-    if (!recheck(*p, err)) return nullptr;
-    newNode = copy;
-    return p;
+    const bool ok = n && recheck(*prog_, err);
+    abortEdit();
+    if (ok) nn = n;
+    return ok;
 }
 
-std::shared_ptr<Program> Editor::tryWrapApp(const std::string& head, uint16_t& newNode) const {
-    auto p = std::make_shared<Program>(*prog_);
-    Error e;
-    uint16_t h = parseExpr(*p, head.c_str(), (int)head.size(), e);
-    if (!h) return nullptr;
-    uint16_t app;
-    if (p->at(h).kind == Kind::App && !(p->at(h).flags & kDollar)) {
-        app = h;
-    } else {
-        app = p->alloc(Kind::App);
-        if (!app) return nullptr;
-        p->appendChild(app, h);
-    }
-    if (exprPrec(*p, cursor_) < 11) p->at(app).flags |= kDollar;
-    p->replace(cursor_, app);
-    p->appendChild(app, cursor_);
+bool Editor::openSpec(const EditSpec& s, uint16_t& nn) {
+    if (!beginEdit()) return false;
+    const uint16_t n = applySpec(s);
     std::string err;
-    if (!recheck(*p, err)) return nullptr;
-    newNode = app;
-    return p;
+    if (!n || !recheck(*prog_, err)) {
+        abortEdit();
+        return false;
+    }
+    nn = n;
+    return true;
 }
 
-std::shared_ptr<Program> Editor::tryWrapOp(const char* op, const std::string& rhs, bool xOnLeft,
-                                           uint16_t& newNode) const {
-    int id = libFind(op, (int)strlen(op));
-    if (id < 0) return nullptr;
-    auto p = std::make_shared<Program>(*prog_);
-    Error e;
-    uint16_t r = parseExpr(*p, rhs.c_str(), (int)rhs.size(), e);
-    if (!r) return nullptr;
-    uint16_t o = p->alloc(Kind::Op);
-    if (!o) return nullptr;
-    p->at(o).a = (uint32_t)id;
-    p->replace(cursor_, o);
-    if (xOnLeft) {
-        p->appendChild(o, cursor_);
-        p->appendChild(o, r);
-    } else {
-        p->appendChild(o, r);
-        p->appendChild(o, cursor_);
-    }
-    std::string err;
-    if (!recheck(*p, err)) return nullptr;
-    newNode = o;
-    return p;
+bool Editor::doSpec(const EditSpec& s, uint16_t& nn) {
+    if (!openSpec(s, nn)) return false;
+    return endEdit(nn);
+}
+
+static EditSpec spec(EditKind k, uint16_t target, const std::string& code) {
+    EditSpec s;
+    s.kind = k;
+    s.target = target;
+    s.code = code;
+    return s;
+}
+
+bool Editor::tryReplace(const std::string& code, bool mini, uint16_t& newNode, EditSpec* out) {
+    EditSpec s = spec(EditKind::Replace, cursor_, code);
+    s.mini = mini;
+    if (!trySpec(s, newNode)) return false;
+    if (out) *out = s;
+    return true;
+}
+
+bool Editor::tryWrapList(const char* fn, uint16_t& newNode, EditSpec* out) {
+    EditSpec s = spec(EditKind::WrapList, cursor_, fn);
+    if (!trySpec(s, newNode)) return false;
+    if (out) *out = s;
+    return true;
+}
+
+bool Editor::tryWrapApp(const std::string& head, uint16_t& newNode, EditSpec* out) {
+    EditSpec s = spec(EditKind::WrapApp, cursor_, head);
+    if (!trySpec(s, newNode)) return false;
+    if (out) *out = s;
+    return true;
+}
+
+bool Editor::tryWrapOp(const char* op, const std::string& rhs, bool xOnLeft, uint16_t& newNode, EditSpec* out) {
+    EditSpec s = spec(EditKind::WrapOp, cursor_, rhs);
+    s.op = op;
+    s.left = xOnLeft;
+    if (!trySpec(s, newNode)) return false;
+    if (out) *out = s;
+    return true;
 }
 
 void Editor::openMenu(const std::string& title, std::vector<MenuItem> items) {
@@ -445,11 +532,13 @@ void Editor::enterStep(const std::string& miniCode, const std::string& exprCode,
         return error(label + " only goes inside \"...\"");
     }
     uint16_t nn;
-    auto r = tryReplace(code, mini, nn);
-    if (!r) {
+    EditSpec sp = spec(EditKind::Replace, cursor_, code);
+    sp.mini = mini;
+    if (!openSpec(sp, nn)) {
         cursor_ = oldCursor;
         return error(label + " doesn't fit here");
     }
+    Program* r = prog_.get();  // the edit is open: the follow-up below is part of it
     uint16_t cur = nn, appended = 0;
     if (mini) {
         // replacing a whole sequence leaves a one-step sequence: use its step
@@ -482,8 +571,7 @@ void Editor::enterStep(const std::string& miniCode, const std::string& exprCode,
             }
         }
     }
-    commit(std::unique_ptr<Program>(new Program(*r)), cur);
-    if (messageError_) {
+    if (!endEdit(cur)) {
         cursor_ = oldCursor;
         return;
     }
@@ -540,22 +628,21 @@ void Editor::selectBlock(uint16_t b) {
 // Insert, then slot pad N at a block's top: a new block for dN (silence)
 // above the current block; the cursor on `silence`, ready for Replace.
 void Editor::newBlockAbove(int slot) {
-    auto p = std::unique_ptr<Program>(new Program(*prog_));
+    if (!beginEdit()) return;
+    Program* p = prog_.get();
     const uint16_t cur = prog_->block[slot_];
     int pos = cur ? p->blockIndex(cur) : -1;
     if (pos < 0) pos = p->blockCount();
     uint16_t b = p->alloc(Kind::Block);
     Error e;
     uint16_t x = b ? parseExpr(*p, "silence", 7, e) : 0;
-    if (!b || !x) return error("program full");
+    if (!b || !x) return abortEdit(), error("program full");
     p->at(b).a = (uint32_t)slot;
     p->appendChild(b, x);
-    if (!p->insertBlock(pos, b)) return error("too many blocks (max " + std::to_string(kMaxBlocks) + ")");
+    if (!p->insertBlock(pos, b)) return abortEdit(), error("too many blocks (max " + std::to_string(kMaxBlocks) + ")");
     p->block[slot] = b;
-    snapshot();
-    prog_ = std::move(p);
-    slot_ = slot;
-    cursor_ = x;
+    slot_ = slot;  // the check runs on the new block
+    if (!endEdit(x)) return;
     if (state_[slot] == SlotState::Empty) state_[slot] = SlotState::Edited;
     info("new block for d" + std::to_string(slot + 1) + ": Replace the silence to start");
 }
@@ -656,12 +743,12 @@ void Editor::act(Action a) {
             case Action::Evaluate: {
                 MenuItem& it = menu_[menuSel_];
                 if (it.label.rfind("# ", 0) == 0) lastControl_ = it.label.substr(2);
-                snapshot();
-                prog_.reset(new Program(*it.result));
+                menuOpen_ = false;
+                uint16_t nn = 0;
+                if (!doSpec(it.spec, nn)) return error("can't apply " + it.label);
                 cursor_ = it.cursor;
                 gapSeq_ = 0;
                 state_[slot_] = SlotState::Edited;
-                menuOpen_ = false;
                 info(menuTitle_ + ": " + it.label);
                 return;
             }
@@ -727,16 +814,17 @@ void Editor::act(Action a) {
             Kind pk = par ? prog_->at(par).kind : Kind::None;
             if (pk == Kind::MSeq || pk == Kind::List) {
                 // duplicate this step / element after itself
-                auto p = std::unique_ptr<Program>(new Program(*prog_));
+                if (!beginEdit()) break;
+                Program* p = prog_.get();
                 uint16_t c = p->copyTree(*p, cursor_);
                 if (!c) {
+                    abortEdit();
                     error("out of nodes");
                     break;
                 }
                 p->at(c).next = p->at(cursor_).next;
                 p->at(cursor_).next = c;
-                commit(std::move(p), c);
-                if (!messageError_) info("inserted a copy");
+                if (endEdit(c)) info("inserted a copy");
             } else {
                 openWrap(WrapMode::Controls);
             }
@@ -748,7 +836,17 @@ void Editor::act(Action a) {
             if (undo_.empty()) {
                 error("nothing to undo");
             } else {
-                prog_ = std::move(undo_.back());
+                abortEdit();
+                const std::vector<uint8_t>& st = undo_.back();
+                if (st[0] == 'M') {  // a comment
+                    int idx;
+                    memcpy(&idx, st.data() + 1, sizeof idx);
+                    if (idx >= 0 && idx < prog_->blockCount())
+                        snprintf(prog_->blockComment(idx), kMaxCommentLen + 1, "%s", (const char*)st.data() + 5);
+                } else {
+                    unpackCheckpoint(st.data() + 1, *cp_);
+                    prog_->rollback(*cp_);
+                }
                 undo_.pop_back();
                 if (cps_ && prog_->cpsExpr) {  // stay on setcps
                     cursor_ = prog_->cpsExpr;
@@ -907,9 +1005,11 @@ void Editor::wheel(int dir, bool fast) {
         (void)top;
         return info(cursorInfo());
     }
+    if (prog_->at(cursor_).kind == Kind::Fn) return wheelFn(dir);
+    if (!beginEdit()) return;
+    Program* p = prog_.get();
     Node& n = prog_->at(cursor_);
-    auto p = std::unique_ptr<Program>(new Program(*prog_));
-    Node& m = p->at(cursor_);
+    Node& m = n;  // in place
     switch (n.kind) {
         case Kind::Num:
         case Kind::MNum: {
@@ -945,20 +1045,16 @@ void Editor::wheel(int dir, bool fast) {
                     k = ((k + dir) % ns + ns) % ns;
                     if (!samples_[k].empty()) break;
                 }
-                if (samples_[k].empty()) return error("no instruments");
+                if (samples_[k].empty()) return abortEdit(), error("no instruments");
                 int id = p->intern(samples_[k].c_str(), (int)samples_[k].size());
-                if (id < 0) return error("too many words");
+                if (id < 0) return abortEdit(), error("too many words");
                 m.a = (uint32_t)id;
             }
             break;
         }
-        case Kind::Fn: wheelFn(dir); return;
-        default: error("the wheel changes numbers, notes, samples and functions"); return;
+        default: abortEdit(); error("the wheel changes numbers, notes, samples and functions"); return;
     }
-    std::string err;
-    if (!recheck(*p, err)) return error(err);
-    snapshot();
-    prog_ = std::move(p);
+    if (!endEdit(cursor_)) return;
     state_[slot_] = SlotState::Edited;
     info(renderNode(*prog_, cursor_));
 }
@@ -973,44 +1069,47 @@ void Editor::wheelFn(int dir) {
             ok.push_back(id);
             continue;
         }
-        Program* p = new Program(*prog_);
-        p->at(cursor_).a = (uint32_t)id;
+        if (!beginEdit()) return;
+        prog_->at(cursor_).a = (uint32_t)id;
         std::string err;
-        if (recheck(*p, err)) ok.push_back(id);
-        delete p;
+        if (recheck(*prog_, err)) ok.push_back(id);
+        abortEdit();
     }
     int at = 0;
     for (int i = 0; i < (int)ok.size(); i++)
         if (ok[i] == cur) at = i;
     int next = ok[(at + dir + (int)ok.size()) % (int)ok.size()];
     if (next == cur) return info("no other function fits here");
-    auto p = std::unique_ptr<Program>(new Program(*prog_));
-    p->at(cursor_).a = (uint32_t)next;
-    commit(std::move(p), cursor_);
-    if (!messageError_) info(lib(next).name);
+    if (!beginEdit()) return;
+    prog_->at(cursor_).a = (uint32_t)next;
+    if (endEdit(cursor_)) info(lib(next).name);
 }
 
 // Empty slot: create its (empty) block and put the cursor on it.
 void Editor::ensureBlock() {
     if (cursor_) return;
-    auto p = std::unique_ptr<Program>(new Program(*prog_));
+    Program* p = prog_.get();  // part of the edit that follows (or of nothing: an empty block)
     uint16_t b = p->alloc(Kind::Block);
     p->at(b).a = (uint32_t)slot_;
     // a new dN goes in slot order: after the last block of a lower or equal dN
     int pos = 0;
     for (int i = 0; i < p->blockCount(); i++)
         if (p->blockSlot(p->blockAt(i)) <= slot_) pos = i + 1;
-    if (!b || !p->insertBlock(pos, b)) return error("too many blocks (max " + std::to_string(kMaxBlocks) + ")");
+    if (!b || !p->insertBlock(pos, b)) {
+        if (b) p->freeTree(b);
+        return error("too many blocks (max " + std::to_string(kMaxBlocks) + ")");
+    }
     p->block[slot_] = b;
-    prog_ = std::move(p);
     cursor_ = b;
 }
 
 void Editor::addReplaceItems(std::vector<MenuItem>& items, const std::string& label, const std::string& code,
-                             bool mini) const {
+                             bool mini) {
     uint16_t nn;
-    auto r = listGap() ? tryInsertListAt(mini ? "\"" + code + "\"" : code, nn) : tryReplace(code, mini, nn);
-    if (r) items.push_back(MenuItem{label, r, nn});
+    EditSpec sp;
+    const bool ok = listGap() ? tryInsertListAt(mini ? "\"" + code + "\"" : code, nn, &sp)
+                              : tryReplace(code, mini, nn, &sp);
+    if (ok) items.push_back(MenuItem{label, sp, nn});
 }
 
 // Note button: pitches. Inside "..." single steps, otherwise note patterns.
@@ -1068,29 +1167,34 @@ void Editor::doPaste() {
     if (clip_.empty()) return error("clipboard is empty (Copy first)");
     if (listGap()) {
         uint16_t nn;
-        auto r = tryInsertListAt(clipMini_ ? "\"" + clip_ + "\"" : clip_, nn);
-        if (!r) return error("can't paste " + clip_ + " into this list");
+        EditSpec sp;
+        if (!tryInsertListAt(clipMini_ ? "\"" + clip_ + "\"" : clip_, nn, &sp))
+            return error("can't paste " + clip_ + " into this list");
         gapSeq_ = 0;
-        commit(std::unique_ptr<Program>(new Program(*r)), nn);
-        if (!messageError_) info("pasted " + clip_ + " into the list");
+        if (doSpec(sp, nn)) info("pasted " + clip_ + " into the list");
         return;
     }
-    std::unique_ptr<Program> before(new Program(*prog_));
     uint16_t beforeCursor = cursor_;
+    const bool hadBlock = prog_->block[slot_] != 0;
     ensureBlock();
     if (!cursor_) return;
     bool targetMini = isMiniKind(prog_->at(cursor_).kind);
     uint16_t nn;
-    std::shared_ptr<Program> r;
-    if (targetMini == clipMini_) r = tryReplace(clip_, clipMini_, nn);
-    else if (clipMini_) r = tryReplace("\"" + clip_ + "\"", false, nn);
-    if (!r) {
-        prog_ = std::move(before);  // ensureBlock may have added an empty block
+    EditSpec sp;
+    bool ok = false;
+    if (targetMini == clipMini_) ok = tryReplace(clip_, clipMini_, nn, &sp);
+    else if (clipMini_) ok = tryReplace("\"" + clip_ + "\"", false, nn, &sp);
+    if (!ok) {
+        if (!hadBlock) {  // ensureBlock added an empty block: take it out again
+            const uint16_t b = prog_->block[slot_];
+            prog_->removeBlockAt(prog_->blockIndex(b));
+            prog_->freeTree(b);
+            prog_->block[slot_] = 0;
+        }
         cursor_ = beforeCursor;
         return error("can't paste " + clip_ + " here");
     }
-    commit(std::unique_ptr<Program>(new Program(*r)), nn);
-    if (!messageError_) info("pasted " + clip_);
+    if (doSpec(sp, nn)) info("pasted " + clip_);
 }
 
 // ---------------------------------------------------------------------------
@@ -1135,7 +1239,8 @@ void Editor::quick(int i) {
     if (label.empty()) return error("select a pattern first");
     Kind k = prog_->at(cursor_).kind;
     uint16_t nn = 0, target = 0;
-    std::shared_ptr<Program> r;
+    EditSpec sp;
+    bool ok = false;
     const uint16_t oldCursor = cursor_;
     if (k == Kind::Mini) {
         // on the quotes: wrap the whole sequence inside them
@@ -1153,8 +1258,11 @@ void Editor::quick(int i) {
         static const char* pre[4] = {"[", "<", "{", ""};
         static const char* post[4] = {"]", ">", "}%4", "(3,8)"};
         std::string code = std::string(pre[i]) + (i == 3 ? step : t) + post[i];
-        r = tryReplace(code, true, nn);
-        if (r) {
+        sp = spec(EditKind::Replace, cursor_, code);
+        sp.mini = true;
+        ok = openSpec(sp, nn);
+        if (ok) {
+            const Program* r = prog_.get();  // the open edit
             uint16_t n = nn;
             while (r->at(n).kind == Kind::MSeq && r->at(n).first && !r->at(r->at(n).first).next) n = r->at(n).first;
             if (r->at(n).kind == Kind::MPoly) target = firstNumber(*r, lastChild(*r, n));
@@ -1170,16 +1278,21 @@ void Editor::quick(int i) {
             {"<~", "0.25", nullptr, false},
         };
         auto& o = ops[i];
-        r = tryWrapOp(o.op, o.rhs, o.left, nn);
-        if (!r && o.bare) r = tryWrapOp(o.op, o.bare, o.left, nn);  // plain value patterns
-        if (r) target = firstNumber(*r, o.left ? childAt(*r, nn, 1) : childAt(*r, nn, 0));
+        sp = spec(EditKind::WrapOp, cursor_, o.rhs);
+        sp.op = o.op;
+        sp.left = o.left;
+        ok = openSpec(sp, nn);
+        if (!ok && o.bare) {  // plain value patterns
+            sp.code = o.bare;
+            ok = openSpec(sp, nn);
+        }
+        if (ok) target = firstNumber(*prog_, o.left ? childAt(*prog_, nn, 1) : childAt(*prog_, nn, 0));
     }
-    if (!r) {
+    if (!ok) {
         cursor_ = oldCursor;
         return error(label + " doesn't fit here");
     }
-    commit(std::unique_ptr<Program>(new Program(*r)), target ? target : nn);
-    if (!messageError_) info(label + (target ? ": jog changes the number" : ""));
+    if (endEdit(target ? target : nn)) info(label + (target ? ": jog changes the number" : ""));
 }
 
 // ---------------------------------------------------------------------------
@@ -1265,13 +1378,12 @@ void Editor::jumpControl(bool notes) {
         const uint16_t old = cursor_;
         cursor_ = exprRoot();
         uint16_t nn;
-        auto r = tryWrapOp("#", notes ? "n \"0\"" : "s \"bd\"", true, nn);
-        if (!r) {
+        EditSpec sp;
+        if (!tryWrapOp("#", notes ? "n \"0\"" : "s \"bd\"", true, nn, &sp)) {
             cursor_ = old;
             return error(std::string("can't add # ") + what + " to this block");
         }
-        commit(std::unique_ptr<Program>(new Program(*r)), nn);
-        if (messageError_) return;
+        if (!doSpec(sp, nn)) return;
         mini = notes ? findControlMini(*prog_, prog_->block[slot_], "n", "note")
                      : findControlMini(*prog_, prog_->block[slot_], "s", "sound");
         if (!mini) return;
@@ -1291,32 +1403,25 @@ void Editor::leaveGap() {
     gapSeq_ = 0;
 }
 
-std::shared_ptr<Program> Editor::tryInsertAtGap(const std::string& code, uint16_t& newStep) const {
-    auto p = std::make_shared<Program>(*prog_);
-    Error e;
-    uint16_t sq = parseMini(*p, code.c_str(), (int)code.size(), e);
-    if (!sq) return nullptr;
-    Node& seq = p->at(sq);
-    if (!seq.first || p->at(seq.first).next || (seq.flags & kDots)) return nullptr;  // one step only
-    const uint16_t step = seq.first;
-    seq.first = 0;
-    p->freeTree(sq);
-    if (!linkAtGap(*p, step)) return nullptr;
-    std::string err;
-    if (!recheck(*p, err)) return nullptr;
-    newStep = step;
-    return p;
+bool Editor::tryInsertAtGap(const std::string& code, uint16_t& newStep, EditSpec* out) {
+    EditSpec s = spec(EditKind::InsertGap, 0, code);
+    s.seq = gapSeq_;
+    s.pos = gapPos_;
+    if (!trySpec(s, newStep)) return false;
+    if (out) *out = s;
+    return true;
 }
 
 bool Editor::listGap() const { return gapSeq_ && prog_->at(gapSeq_).kind == Kind::List; }
 
-bool Editor::linkAtGap(Program& p, uint16_t node) const {
-    if (gapPos_ == 0) {
-        p.at(node).next = p.at(gapSeq_).first;
-        p.at(gapSeq_).first = node;
+bool Editor::linkAtGap(Program& p, uint16_t node, uint16_t seq, int pos) const {
+    if (!seq) return false;
+    if (pos == 0) {
+        p.at(node).next = p.at(seq).first;
+        p.at(seq).first = node;
         return true;
     }
-    const uint16_t prev = p.child(gapSeq_, gapPos_ - 1);
+    const uint16_t prev = p.child(seq, pos - 1);
     if (!prev) return false;
     p.at(node).next = p.at(prev).next;
     p.at(prev).next = node;
@@ -1324,15 +1429,13 @@ bool Editor::linkAtGap(Program& p, uint16_t node) const {
 }
 
 // A list gap: `code` (an expression) as a new element there, type-checked.
-std::shared_ptr<Program> Editor::tryInsertListAt(const std::string& code, uint16_t& newEl) const {
-    auto p = std::make_shared<Program>(*prog_);
-    Error e;
-    uint16_t x = parseExpr(*p, code.c_str(), (int)code.size(), e);
-    if (!x || !linkAtGap(*p, x)) return nullptr;
-    std::string err;
-    if (!recheck(*p, err)) return nullptr;
-    newEl = x;
-    return p;
+bool Editor::tryInsertListAt(const std::string& code, uint16_t& newEl, EditSpec* out) {
+    EditSpec s = spec(EditKind::InsertList, 0, code);
+    s.seq = gapSeq_;
+    s.pos = gapPos_;
+    if (!trySpec(s, newEl)) return false;
+    if (out) *out = s;
+    return true;
 }
 
 // Insert at a list gap: a copy of the element before it (else the first),
@@ -1341,13 +1444,13 @@ void Editor::insertListCopy() {
     if (!listGap()) return;
     const uint16_t src = gapPos_ > 0 ? prog_->child(gapSeq_, gapPos_ - 1) : prog_->child(gapSeq_, 0);
     if (!src) return error("empty list");
-    auto p = std::unique_ptr<Program>(new Program(*prog_));
+    if (!beginEdit()) return;
+    Program* p = prog_.get();
     const uint16_t c = p->copyTree(*p, src);
-    if (!c) return error("out of nodes");
-    if (!linkAtGap(*p, c)) return error("can't insert here");
+    if (!c) return abortEdit(), error("out of nodes");
+    if (!linkAtGap(*p, c, gapSeq_, gapPos_)) return abortEdit(), error("can't insert here");
     gapSeq_ = 0;
-    commit(std::move(p), c);
-    if (!messageError_) info("inserted a copy into the list");
+    if (endEdit(c)) info("inserted a copy into the list");
 }
 
 // Pads at a gap: insert the step and stay in the gap after it, so several
@@ -1357,10 +1460,9 @@ void Editor::insertAtGap(const std::string& code, const std::string& label) {
     const uint16_t seq = gapSeq_;
     const int pos = gapPos_;
     uint16_t nn;
-    auto r = tryInsertAtGap(code, nn);
-    if (!r) return error(label + " doesn't fit here");
-    commit(std::unique_ptr<Program>(new Program(*r)), seq);
-    if (messageError_) return;
+    EditSpec sp;
+    if (!tryInsertAtGap(code, nn, &sp)) return error(label + " doesn't fit here");
+    if (!doSpec(sp, nn)) return;
     gapSeq_ = seq;
     gapPos_ = pos + 1;
     cursor_ = seq;
@@ -1373,20 +1475,21 @@ void Editor::deleteAtGap() {
                                              : "start of the sequence: nothing before the gap");
     const uint16_t seq = gapSeq_;
     const int pos = gapPos_;
+    const bool list = listGap();
     if (prog_->childCount(seq) < 2)
-        return error(listGap() ? "the last element: a list keeps one" : "the last step: Delete on it makes a rest");
-    auto p = std::unique_ptr<Program>(new Program(*prog_));
+        return error(list ? "the last element: a list keeps one" : "the last step: Delete on it makes a rest");
+    if (!beginEdit()) return;
+    Program* p = prog_.get();
     const uint16_t target = p->child(seq, pos - 1);
     if (pos - 1 == 0) p->at(seq).first = p->at(target).next;
     else p->at(p->child(seq, pos - 2)).next = p->at(target).next;
     p->at(target).next = 0;
     p->freeTree(target);
-    commit(std::move(p), seq);
-    if (messageError_) return;
+    if (!endEdit(seq)) return;
     gapSeq_ = seq;
     gapPos_ = pos - 1;
     cursor_ = seq;
-    info(listGap() ? "removed the element before the gap" : "removed the step before the gap");
+    info(list ? "removed the element before the gap" : "removed the step before the gap");
 }
 
 // Screen 1-8 (v2, docs/tidal_ui_v2.md): structure menus at the cursor.
@@ -1418,8 +1521,8 @@ void Editor::openMini(int k) {
         std::vector<MenuItem> items;
         for (const std::string& code : codes) {
             uint16_t nn;
-            auto r = tryInsertAtGap(code, nn);
-            if (r) items.push_back(MenuItem{"insert " + code, r, nn});
+            EditSpec sp;
+            if (tryInsertAtGap(code, nn, &sp)) items.push_back(MenuItem{"insert " + code, sp, nn});
         }
         static const char* const kTitle[5] = {"[ ]", "< >", "{ }", "( , )", "|"};
         return openMenu(std::string("insert ") + kTitle[k < 5 ? k : 4], std::move(items));
@@ -1447,8 +1550,8 @@ void Editor::openMini(int k) {
         std::vector<MenuItem> items;
         for (const std::string& code : codes) {
             uint16_t nn;
-            auto r = tryReplace("\"" + code + "\"", false, nn);
-            if (r) items.push_back(MenuItem{"\"" + code + "\"", r, nn});
+            EditSpec sp;
+            if (tryReplace("\"" + code + "\"", false, nn, &sp)) items.push_back(MenuItem{"\"" + code + "\"", sp, nn});
         }
         static const char* const kNumTitle[5] = {"[ ]", "< >", "{ }", "( , )", "|"};
         return openMenu(std::string(kNumTitle[k < 5 ? k : 4]) + " (number -> pattern)", std::move(items));
@@ -1472,8 +1575,8 @@ void Editor::openMini(int k) {
     std::vector<MenuItem> items;
     for (const std::string& code : codes) {
         uint16_t nn;
-        auto r = tryReplace(code, true, nn);
-        if (r) items.push_back(MenuItem{code, r, nn});
+        EditSpec sp;
+        if (tryReplace(code, true, nn, &sp)) items.push_back(MenuItem{code, sp, nn});
     }
     if (items.empty()) cursor_ = oldCursor;
     openMenu(kTitle[k < 5 ? k : 4], std::move(items));
@@ -1563,8 +1666,8 @@ void Editor::openWrap(WrapMode mode) {
         std::string t = renderNode(*prog_, cursor_);
         auto add = [&](const std::string& label, const std::string& code) {
             uint16_t nn;
-            auto r = tryReplace(code, true, nn);
-            if (r) items.push_back(MenuItem{label, r, nn});
+            EditSpec sp;
+            if (tryReplace(code, true, nn, &sp)) items.push_back(MenuItem{label, sp, nn});
         };
         for (const char* suf : {"*2", "/2", "!2", "@2", "?", "(3,8)", "*<2 3>", " _"})
             add(t + suf, t + suf);
@@ -1575,8 +1678,8 @@ void Editor::openWrap(WrapMode mode) {
     }
     auto addOp = [&](const char* op, const std::string& rhs, bool left, const std::string& label) {
         uint16_t nn;
-        auto r = tryWrapOp(op, rhs, left, nn);
-        if (r) items.push_back(MenuItem{label, r, nn});
+        EditSpec sp;
+        if (tryWrapOp(op, rhs, left, nn, &sp)) items.push_back(MenuItem{label, sp, nn});
     };
     auto addControls = [&]() {
         for (int id = 0; id < libCount(); id++) {
@@ -1644,8 +1747,8 @@ void Editor::openWrap(WrapMode mode) {
     auto addLists = [&]() {
         for (const char* fn : {"stack", "cat", "fastcat"}) {
             uint16_t nn;
-            auto r = tryWrapList(fn, nn);
-            if (r) items.push_back(MenuItem{std::string(fn) + " [x, x]", r, nn});
+            EditSpec sp;
+            if (tryWrapList(fn, nn, &sp)) items.push_back(MenuItem{std::string(fn) + " [x, x]", sp, nn});
         }
     };
     if (mode == WrapMode::Dollar || mode == WrapMode::Modifiers) {
@@ -1661,8 +1764,8 @@ void Editor::openWrap(WrapMode mode) {
             std::string head = e.name;
             if (e.defaults) head += std::string(" ") + e.defaults;
             uint16_t nn;
-            auto r = tryWrapApp(head, nn);
-            if (r) items.push_back(MenuItem{head + " $ ...", r, nn});
+            EditSpec sp;
+            if (tryWrapApp(head, nn, &sp)) items.push_back(MenuItem{head + " $ ...", sp, nn});
         }
         addLists();  // last, so the menu's other items keep their places
         return openMenu(mode == WrapMode::Dollar ? "$ functions" : "pattern modifiers", std::move(items));
@@ -1680,8 +1783,8 @@ void Editor::openWrap(WrapMode mode) {
             std::string head = e.name;
             if (e.defaults) head += std::string(" ") + e.defaults;
             uint16_t nn;
-            auto r = tryWrapApp(head, nn);
-            if (r) items.push_back(MenuItem{head + " $ ...", r, nn});
+            EditSpec sp;
+            if (tryWrapApp(head, nn, &sp)) items.push_back(MenuItem{head + " $ ...", sp, nn});
         }
         if (mode == WrapMode::All) addControls();
         if (mode == WrapMode::All) addLists();
@@ -1715,10 +1818,9 @@ void Editor::doDelete() {
             return error("already a rest");
         }
         uint16_t nn;
-        auto r = tryReplace("~", true, nn);
-        if (r) {
-            commit(std::unique_ptr<Program>(new Program(*r)), nn);
-            if (!messageError_) info("rest (Delete again removes the step)");
+        EditSpec sp;
+        if (tryReplace("~", true, nn, &sp)) {
+            if (doSpec(sp, nn)) info("rest (Delete again removes the step)");
             return;
         }
     }
@@ -1732,16 +1834,15 @@ void Editor::deleteNode() {
     if (!par) {
         // the block itself: clear the slot
         if (cur.at(cursor_).kind == Kind::Block || cursor_ == exprRoot()) {
-            auto p = std::unique_ptr<Program>(new Program(*prog_));
+            if (!beginEdit()) return;
+            Program* p = prog_.get();
             uint16_t b = p->block[slot_];
             p->removeBlockAt(p->blockIndex(b));
             p->freeTree(b);
             p->block[slot_] = 0;
             for (int i = 0; i < p->blockCount() && !p->block[slot_]; i++)  // another block of dN
                 if (p->blockSlot(p->blockAt(i)) == slot_) p->block[slot_] = p->blockAt(i);
-            snapshot();
-            prog_ = std::move(p);
-            cursor_ = prog_->block[slot_];
+            endEdit(prog_->block[slot_], false);  // no check: the other block is as it was
             const bool wasPlaying = playing_[slot_] == b;
             if (wasPlaying) playing_[slot_] = 0;
             if (backend_ && wasPlaying && state_[slot_] == SlotState::Playing)
@@ -1753,7 +1854,8 @@ void Editor::deleteNode() {
         return;
     }
     Kind pk = cur.at(par).kind;
-    auto p = std::unique_ptr<Program>(new Program(*prog_));
+    if (!beginEdit()) return;
+    Program* p = prog_.get();
     uint16_t newCursor = par;
     if ((pk == Kind::MSeq || pk == Kind::List) && p->childCount(par) > 1) {
         uint16_t next = p->at(cursor_).next;
@@ -1791,8 +1893,7 @@ void Editor::deleteNode() {
         newCursor = h;
     }
     while (isTransparent(*p, newCursor)) newCursor = p->at(newCursor).first;
-    commit(std::move(p), newCursor);
-    if (!messageError_) info("deleted");
+    if (endEdit(newCursor)) info("deleted");
 }
 
 void Editor::doUnwrap() {
@@ -1822,7 +1923,8 @@ void Editor::doUnwrap() {
     }
     for (uint16_t keep : tries) {
         if (!keep) continue;
-        auto p = std::unique_ptr<Program>(new Program(*prog_));
+        if (!beginEdit()) return;
+        Program* p = prog_.get();
         // detach `keep` from its parent, then put it where the cursor is
         uint16_t kp = p->parentOf(keep);
         uint16_t prev = p->prevSibling(keep);
@@ -1832,11 +1934,13 @@ void Editor::doUnwrap() {
         p->replace(cursor_, keep);
         p->freeTree(cursor_);
         std::string err;
-        if (!recheck(*p, err)) continue;
+        if (!recheck(*p, err)) {
+            abortEdit();
+            continue;
+        }
         uint16_t c = keep;
         while (isTransparent(*p, c)) c = p->at(c).first;
-        commit(std::move(p), c);
-        if (!messageError_) info("unwrapped");
+        if (endEdit(c)) info("unwrapped");
         return;
     }
     error("can't unwrap this");
@@ -1874,10 +1978,13 @@ void Editor::openLaunch() {
     int sel = 0;
     const Node& cur = prog_->at(b);
     for (auto& o : opts) {
-        auto p = std::make_shared<Program>(*prog_);
-        setBlockLaunch(p->at(b), o.l, o.k);
+        EditSpec sp;
+        sp.kind = EditKind::Launch;
+        sp.target = b;
+        sp.launch = (int)o.l;
+        sp.cycles = o.k;
         if (o.l == blockLaunch(cur) && (o.l == Launch::Now || o.k == cur.b)) sel = (int)items.size();
-        items.push_back(MenuItem{o.label, p, cursor_});
+        items.push_back(MenuItem{o.label, sp, cursor_});
     }
     openMenu("launch", std::move(items));
     menuSel_ = sel;
@@ -2041,15 +2148,14 @@ void Editor::jumpCps() {
     if (!prog_->cpsExpr) {
         // Tidal 1.10.3's default tempo is 0.575 cycles / s = 138 BPM at 4
         // beats per cycle, so adding it changes nothing until edited
-        auto p = std::unique_ptr<Program>(new Program(*prog_));
+        if (!beginEdit()) return;
         Error e;
         const char* code = "138/60/4";
-        uint16_t x = parseExpr(*p, code, (int)strlen(code), e);
-        if (!x) return error("program full");
-        p->cpsExpr = x;
-        if (!checkCps(*p, e)) return error(e.msg);
-        snapshot();
-        prog_ = std::move(p);
+        uint16_t x = parseExpr(*prog_, code, (int)strlen(code), e);
+        if (!x) return abortEdit(), error("program full");
+        prog_->cpsExpr = x;
+        cps_ = true;  // the check is the setcps one
+        if (!endEdit(x)) return void(cps_ = false);
         char buf[256];
         Renderer r(buf, sizeof buf);
         buf[0] = 0;
@@ -2142,10 +2248,15 @@ void Editor::kbdAction(Action a) {
             while (!out.empty() && out.back() == '\n') out.pop_back();
             if (out == all) return info("comment unchanged");
             if ((int)out.size() > kMaxCommentLen) return error("comment too long");
-            auto p = std::unique_ptr<Program>(new Program(*prog_));
-            memcpy(p->blockComment(kbdBlock_), out.c_str(), out.size() + 1);
-            snapshot();
-            prog_ = std::move(p);
+            {  // undo step: the comment before
+                std::vector<uint8_t> st(5 + all.size() + 1);
+                st[0] = 'M';
+                memcpy(st.data() + 1, &kbdBlock_, sizeof kbdBlock_);
+                memcpy(st.data() + 5, all.c_str(), all.size() + 1);
+                undo_.push_back(std::move(st));
+                if (undo_.size() > 64) undo_.erase(undo_.begin());
+            }
+            memcpy(prog_->blockComment(kbdBlock_), out.c_str(), out.size() + 1);
             return info(text.empty() ? "comment removed" : "comment: " + text);
         }
         default: return;  // nothing else while the keyboard is up

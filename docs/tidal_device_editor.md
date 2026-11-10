@@ -40,11 +40,15 @@ Fonts: Roboto Mono 14 / 17 (Light, Regular, Bold) are already in flash
    (raw storage + placement new). Edits change it in place (alloc /
    freeTree / replace, as the prototype's helpers already do); no copy per
    edit.
-2. **Undo = block text.** Before an edit, the edited block (or setcps /
-   a comment) is rendered to text and pushed on a ring in SDRAM (e.g. 32
-   entries x 2 KB = 64 KB); undo re-parses that block in place. A block
-   renders to well under 2 KB (kMaxBlockNodes 512). Cost: one render per
-   edit, one parse per undo (both measured below).
+2. **Undo = packed checkpoints** (changed in the port, 2026-11-10; the
+   first draft said block text). Every edit runs inside a
+   `Program::beginCheckpoint` (tidal/core/tree.h): the block's and setcps's
+   nodes and the header are saved, alloc() journals what it overwrites,
+   and the comment table is saved if the block list changes. Committed
+   checkpoints, packed to their used part (header + 18 B per node), are the
+   undo steps: rolling them back newest first is exact, keeps node ids
+   (playing block, highlights) and covers new / deleted blocks and setcps.
+   Comment edits are their own small undo step. A typical step is ~1-3 KB.
 3. **No heap in the editor.** Fixed buffers: menu items (label + code text
    in a static table or a small arena), message line, render buffer
    (8 KB) and spans (kMaxNodes x 4 B = 16 KB), both in SDRAM. Labels in
@@ -136,6 +140,20 @@ Decisions:
 1. Editor model in tidal/core-style C++ (no heap): tree edit helpers,
    cursor / gap / menus, undo ring; host tests reuse the prototype's smoke
    sessions (same key tokens) against the new model.
+   - 1a done (2026-11-10): the prototype edits in place. Program
+     checkpoints (host test testCheckpoint: 300 random edit sequences
+     rolled back exactly, an undo stack of 12 packed steps, journal-full
+     alloc failure; mutations caught); menu items are `EditSpec`s (Replace,
+     WrapApp, WrapList, WrapOp, InsertGap, InsertList, Launch) tried in
+     place and re-applied when chosen; direct edits use beginEdit /
+     endEdit; undo pops packed checkpoints. No whole-Program copies left.
+     Smoke sessions 1-20 unchanged; session 21 makes ~15 kinds of edits
+     and undoes them all back to the original file.
+   - 1b next: fixed buffers instead of std::string / std::vector / unique_ptr
+     in the model (menu items, labels, message, clipboard, undo ring,
+     evaluated statements), menus checked over several passes.
+   - 1c: move the model out of tidal/proto into a portable directory built
+     by `make arm` too; the prototype keeps view / SDL / backends.
 2. Control mapping table without std::string (shared by prototype and
    device).
 3. FT812 code-view control (lines, colour runs, cursor, gap bar,

@@ -49,10 +49,12 @@ void Program::clear() {
     nblocks_ = 0;
     memset(block, 0, sizeof block);
     cpsExpr = 0;
+    cp_ = nullptr;
 }
 
 uint16_t Program::alloc(Kind k) {
     uint16_t idx;
+    if (cp_ && cp_->d.njournal >= kCheckpointNodes) return 0;  // the rollback must stay exact
     if (freeHead_) {
         idx = freeHead_;
         freeHead_ = nodes_[idx].next;
@@ -61,10 +63,118 @@ uint16_t Program::alloc(Kind k) {
     } else {
         return 0;
     }
+    if (cp_) {  // journal the previous contents (free-list link included)
+        cp_->d.journalIdx[cp_->d.njournal] = idx;
+        cp_->journal[cp_->d.njournal++] = nodes_[idx];
+    }
     nodes_[idx] = Node{};
     nodes_[idx].kind = k;
     live_++;
     return idx;
+}
+
+bool Program::saveSubtree(Checkpoint& cp, uint16_t idx) {
+    if (!idx) return true;
+    if (cp.d.nsaved >= kCheckpointNodes) return false;
+    cp.d.savedIdx[cp.d.nsaved] = idx;
+    cp.saved[cp.d.nsaved++] = nodes_[idx];
+    for (uint16_t c = nodes_[idx].first; c; c = nodes_[c].next)
+        if (!saveSubtree(cp, c)) return false;
+    return true;
+}
+
+bool Program::beginCheckpoint(Checkpoint& cp, const uint16_t* roots, int n) {
+    cp_ = nullptr;
+    cp.d.nsaved = cp.d.njournal = 0;
+    for (int i = 0; i < n; i++)
+        if (!saveSubtree(cp, roots[i])) return false;
+    cp.d.freeHead = freeHead_;
+    cp.d.hwm = hwm_;
+    cp.d.live = live_;
+    cp.d.nstrings = nstrings_;
+    cp.d.nblocks = nblocks_;
+    memcpy(cp.d.blocks, blocks_, sizeof blocks_);
+    memcpy(cp.d.block, block, sizeof block);
+    cp.d.cpsExpr = cpsExpr;
+    cp.d.commentsSaved = false;
+    cp_ = &cp;
+    return true;
+}
+
+void Program::saveComments() {
+    if (!cp_ || cp_->d.commentsSaved) return;
+    memcpy(cp_->comments, blockComment_, sizeof blockComment_);
+    cp_->d.commentsSaved = true;
+}
+
+void Program::rollback(Checkpoint& cp) {
+    // allocated nodes first, newest first (a node freed and taken again
+    // ends with its oldest contents), then the saved subtrees
+    for (int i = cp.d.njournal - 1; i >= 0; i--) nodes_[cp.d.journalIdx[i]] = cp.journal[i];
+    for (int i = 0; i < cp.d.nsaved; i++) nodes_[cp.d.savedIdx[i]] = cp.saved[i];
+    freeHead_ = cp.d.freeHead;
+    hwm_ = cp.d.hwm;
+    live_ = cp.d.live;
+    nstrings_ = cp.d.nstrings;
+    nblocks_ = cp.d.nblocks;
+    memcpy(blocks_, cp.d.blocks, sizeof blocks_);
+    memcpy(block, cp.d.block, sizeof block);
+    cpsExpr = cp.d.cpsExpr;
+    if (cp.d.commentsSaved) memcpy(blockComment_, cp.comments, sizeof blockComment_);
+    cp.d.nsaved = cp.d.njournal = 0;
+    cp_ = nullptr;
+}
+
+int checkpointPackedSize(const Checkpoint& cp) {
+    return (int)sizeof(CheckpointData) - 2 * (int)sizeof(uint16_t) * kCheckpointNodes +
+           (cp.d.nsaved + cp.d.njournal) * (int)(sizeof(uint16_t) + sizeof(Node)) +
+           (cp.d.commentsSaved ? (int)sizeof cp.comments : 0);
+}
+
+void packCheckpoint(const Checkpoint& cp, uint8_t* dst) {
+    // header fields after the two index arrays, then indices and nodes
+    const size_t idxBytes = 2 * sizeof(uint16_t) * kCheckpointNodes;
+    const size_t head = sizeof(CheckpointData) - idxBytes;
+    memcpy(dst, reinterpret_cast<const uint8_t*>(&cp.d) + idxBytes, head);
+    dst += head;
+    memcpy(dst, cp.d.savedIdx, sizeof(uint16_t) * cp.d.nsaved);
+    dst += sizeof(uint16_t) * cp.d.nsaved;
+    memcpy(dst, cp.d.journalIdx, sizeof(uint16_t) * cp.d.njournal);
+    dst += sizeof(uint16_t) * cp.d.njournal;
+    memcpy(dst, cp.saved, sizeof(Node) * cp.d.nsaved);
+    dst += sizeof(Node) * cp.d.nsaved;
+    memcpy(dst, cp.journal, sizeof(Node) * cp.d.njournal);
+    dst += sizeof(Node) * cp.d.njournal;
+    if (cp.d.commentsSaved) memcpy(dst, cp.comments, sizeof cp.comments);
+}
+
+void unpackCheckpoint(const uint8_t* src, Checkpoint& cp) {
+    const size_t idxBytes = 2 * sizeof(uint16_t) * kCheckpointNodes;
+    const size_t head = sizeof(CheckpointData) - idxBytes;
+    memcpy(reinterpret_cast<uint8_t*>(&cp.d) + idxBytes, src, head);
+    src += head;
+    memcpy(cp.d.savedIdx, src, sizeof(uint16_t) * cp.d.nsaved);
+    src += sizeof(uint16_t) * cp.d.nsaved;
+    memcpy(cp.d.journalIdx, src, sizeof(uint16_t) * cp.d.njournal);
+    src += sizeof(uint16_t) * cp.d.njournal;
+    memcpy(cp.saved, src, sizeof(Node) * cp.d.nsaved);
+    src += sizeof(Node) * cp.d.nsaved;
+    memcpy(cp.journal, src, sizeof(Node) * cp.d.njournal);
+    src += sizeof(Node) * cp.d.njournal;
+    if (cp.d.commentsSaved) memcpy(cp.comments, src, sizeof cp.comments);
+}
+
+bool Program::sameAs(const Program& o) const {
+    if (freeHead_ != o.freeHead_ || hwm_ != o.hwm_ || live_ != o.live_ || nstrings_ != o.nstrings_ ||
+        nblocks_ != o.nblocks_ || cpsExpr != o.cpsExpr)
+        return false;
+    if (memcmp(nodes_, o.nodes_, sizeof(Node) * hwm_) != 0) return false;
+    for (int i = 0; i < nstrings_; i++)
+        if (strcmp(strings_[i], o.strings_[i]) != 0) return false;
+    if (memcmp(blocks_, o.blocks_, sizeof(uint16_t) * nblocks_) != 0) return false;
+    for (int i = 0; i < nblocks_; i++)
+        if (strcmp(blockComment_[i], o.blockComment_[i]) != 0) return false;
+    return memcmp(block, o.block, sizeof block) == 0;
 }
 
 void Program::freeTree(uint16_t idx) {
@@ -136,6 +246,7 @@ int Program::blockIndex(uint16_t b) const {
 
 bool Program::insertBlock(int pos, uint16_t b) {
     if (nblocks_ >= kMaxBlocks || pos < 0 || pos > nblocks_) return false;
+    saveComments();
     for (int i = nblocks_; i > pos; i--) {
         blocks_[i] = blocks_[i - 1];
         memcpy(blockComment_[i], blockComment_[i - 1], sizeof blockComment_[i]);
@@ -148,6 +259,7 @@ bool Program::insertBlock(int pos, uint16_t b) {
 
 void Program::removeBlockAt(int pos) {
     if (pos < 0 || pos >= nblocks_) return;
+    saveComments();
     for (int i = pos; i + 1 < nblocks_; i++) {
         blocks_[i] = blocks_[i + 1];
         memcpy(blockComment_[i], blockComment_[i + 1], sizeof blockComment_[i]);

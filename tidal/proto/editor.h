@@ -36,10 +36,37 @@ bool actionFromName(const std::string& s, Action& out);
 
 enum class SlotState { Empty, Edited, Playing, Error };
 
+// One edit, as data: what a menu item does when it is applied. The editor
+// edits its Program in place (docs/tidal_device_editor.md 4b): a menu item is
+// tried (applied, type-checked, rolled back) when the menu is built and
+// applied again when chosen; the rollback restores the free list, so the
+// second time gives the same node ids.
+enum class EditKind : uint8_t {
+    Replace,     // target := code (mini: mini-notation)
+    WrapApp,     // target := code $ target (code = function head)
+    WrapList,    // target := code [target, copy]
+    WrapOp,      // target := target op code (left) / code op target
+    InsertGap,   // a one-step mini code into the "..." gap (seq, pos)
+    InsertList,  // an expression into the list gap (seq, pos)
+    Launch,      // block target: launch mode / cycles
+};
+struct EditSpec {
+    EditKind kind = EditKind::Replace;
+    bool mini = false;
+    bool left = false;
+    uint16_t target = 0;
+    uint16_t seq = 0;
+    int pos = 0;
+    int launch = 0;
+    uint32_t cycles = 0;
+    std::string code;
+    std::string op;
+};
+
 struct MenuItem {
     std::string label;
-    std::shared_ptr<tc::Program> result;  // program after applying this item
-    uint16_t cursor;                      // cursor in `result`
+    EditSpec spec;    // what choosing it does
+    uint16_t cursor;  // the cursor afterwards (node ids repeat, see EditSpec)
 };
 
 class Editor {
@@ -134,9 +161,19 @@ public:
 private:
     void info(const std::string& m) { message_ = m; messageError_ = false; }
     void error(const std::string& m) { message_ = m; messageError_ = true; }
-    void snapshot();
-    void commit(std::unique_ptr<tc::Program> p, uint16_t cursor);  // checks, sets state
+    // In-place edits: beginEdit() opens a checkpoint around the current block
+    // and setcps; the edit then changes *prog_ directly; endEdit() type-checks
+    // and keeps it as one undo step (a packed checkpoint), or rolls it back
+    // and reports the error. abortEdit() rolls back silently.
+    bool beginEdit();
+    bool endEdit(uint16_t cursor, bool check = true);
+    void abortEdit();
+    uint16_t applySpec(const EditSpec& s);           // inside an open edit; 0 = doesn't apply
+    bool trySpec(const EditSpec& s, uint16_t& nn);   // apply, check, roll back
+    bool openSpec(const EditSpec& s, uint16_t& nn);  // apply, check, leave open (endEdit later)
+    bool doSpec(const EditSpec& s, uint16_t& nn);    // apply, check, keep
     bool recheck(tc::Program& p, std::string& err) const;
+    bool trackerBefore_ = true;  // Tracker mode held before the open edit
     uint16_t exprRoot() const;
     void enterSlot(int s);
 
@@ -153,7 +190,7 @@ private:
     std::string launchHead(int slot) const;
     void openSamples();
     void addReplaceItems(std::vector<MenuItem>& items, const std::string& label, const std::string& code,
-                         bool mini) const;
+                         bool mini);
     void ensureBlock();
     void doCopy();
     void quick(int i);
@@ -168,17 +205,21 @@ private:
 
     // candidate helpers: build a copy with the cursor node replaced by parsed
     // code (expression or mini-notation). Returns null if it doesn't check.
-    std::shared_ptr<tc::Program> tryReplace(const std::string& code, bool mini, uint16_t& newNode) const;
-    std::shared_ptr<tc::Program> tryWrapApp(const std::string& head, uint16_t& newNode) const;
+    // (filling `spec` with the edit when it fits)
+    bool tryReplace(const std::string& code, bool mini, uint16_t& newNode, EditSpec* spec = nullptr);
+    bool tryWrapApp(const std::string& head, uint16_t& newNode, EditSpec* spec = nullptr);
     // x -> `fn [x, x]` (stack / cat / fastcat), cursor on the copy
-    std::shared_ptr<tc::Program> tryWrapList(const char* fn, uint16_t& newNode) const;
-    std::shared_ptr<tc::Program> tryWrapOp(const char* op, const std::string& rhs, bool xOnLeft,
-                                           uint16_t& newNode) const;
+    bool tryWrapList(const char* fn, uint16_t& newNode, EditSpec* spec = nullptr);
+    bool tryWrapOp(const char* op, const std::string& rhs, bool xOnLeft, uint16_t& newNode,
+                   EditSpec* spec = nullptr);
     std::string renderNode(const tc::Program& p, uint16_t n) const;
     bool isTransparent(const tc::Program& p, uint16_t n) const;
 
     std::unique_ptr<tc::Program> prog_;
-    std::vector<std::unique_ptr<tc::Program>> undo_;
+    std::unique_ptr<tc::Checkpoint> cp_;         // the open edit's checkpoint
+    // undo steps, newest last: 'C' + a packed checkpoint, or 'M' + block
+    // index (4 B) + the comment before (comments aren't in checkpoints)
+    std::vector<std::vector<uint8_t>> undo_;
     int slot_ = 0;
     uint16_t cursor_ = 0;
     bool menuOpen_ = false;
@@ -212,13 +253,13 @@ private:
     void leaveGap();
     // a copy of the program with the one-step mini `code` inserted at the
     // gap (nullptr if it doesn't parse / type-check)
-    std::shared_ptr<tc::Program> tryInsertAtGap(const std::string& code, uint16_t& newStep) const;
+    bool tryInsertAtGap(const std::string& code, uint16_t& newStep, EditSpec* spec = nullptr);
     void insertAtGap(const std::string& code, const std::string& label);
     void deleteAtGap();
     // gaps in a Haskell list (`stack [a, b]`): elements, not steps
     bool listGap() const;
-    bool linkAtGap(tc::Program& p, uint16_t node) const;  // put node into the gap
-    std::shared_ptr<tc::Program> tryInsertListAt(const std::string& code, uint16_t& newEl) const;
+    bool linkAtGap(tc::Program& p, uint16_t node, uint16_t seq, int pos) const;  // put node into a gap
+    bool tryInsertListAt(const std::string& code, uint16_t& newEl, EditSpec* spec = nullptr);
     void insertListCopy();
     bool playHeld_ = false, playShift_ = false, playUsed_ = false;
     void setMuted(int s, bool on);
