@@ -258,6 +258,29 @@ folders listed in the project (e.g. a manifest) on project load.
    - 4a. Strip firmware: pattern editor, song mode, step sequencer, legacy
      import/export; stub their callers. Independent, can start any time;
      riskiest firmware change (the sequencer has many callers).
+     Decided (2026-11-10, user): remove for real (Tidal-only fork, no
+     build flag); a Tidal file player in the normal build plays
+     /project.tidal until the device editor (4d); the pattern editor's
+     module slot shows a Tidal status screen; also remove performance
+     mode and the C++ demangler (keep sample editor, random names, image
+     viewer); projects open / save instruments, samples and settings only
+     (patterns / song skipped: saving over a stock project drops them);
+     of the sequencer's MIDI side only clock OUT survives (driven by
+     Tidal's cps, stage 3); MIDI notes in, clock in and the metronome go.
+     Wanted later if possible (user): MIDI clock IN (follow external
+     gear: set Tidal's cps from the incoming clock, align cycles to it).
+     Stages: (1) done 2026-11-10: demangler (verbose terminate handler ->
+     abort, platforms/mk66/source/tcTerminate.cpp: must be a platform
+     object, core is an archive and libstdc++'s own would win) -32.3 KB;
+     MOD / IT import + IT export (3 files, project-screen buttons
+     unhooked, no-op stubs) -15.3 KB; stock flash 905,244 -> 857,684 B.
+     (2) sequencer, pattern / song editors, performance mode, recorder,
+     audio export (they reference each other): a slim Sequencer keeps
+     the services others use (live pad notes handleNoteOn/Off /
+     stopManualNotes, tempo, FX value tables, transport stubs); removed
+     modules' slots point at a placeholder module (Interface::modules[]
+     and the saved function-key bindings index them). (3) Tidal player +
+     status screen + MIDI clock out.
    - 4b. Scheduler: queries on the main loop a fixed window ahead into a
      fixed-size event queue; the audio ISR only pops due events.
      Design: docs/tidal_scheduler.md (v0.2: per-slot SPSC rings of 32 B
@@ -662,6 +685,12 @@ folders listed in the project (e.g. a manifest) on project load.
   for `.init_array` (core/tidal/README.md).
 - Don't format floats (%f) from interrupt context (newlib heap allocation).
 - Don't shift `Interface::modules[]` indices (hard-coded by UI navigation).
+- Line endings: many upstream files are CRLF (some mixed) and the git
+  config has core.autocrlf=input, so `git add` turns them into LF (a
+  whole-file diff). Edit them byte-exact (Python 'rb'/'wb', or Edit) and
+  stage them with `git -c core.autocrlf=false add`. Already LF since
+  earlier commits: mtAudioNoteOnHandle.cpp, mtAudioSequencer.cpp,
+  effect_shortDelay.cpp.
 
 ## Git
 - main mirrors upstream (ff-only), develop branches off main (exists on

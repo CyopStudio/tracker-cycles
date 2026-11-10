@@ -90,8 +90,6 @@ void cFileManager::update()
 
         case fmImportSampleFromSampleEditor: sampleMemorySave.update(); break;
 
-        case fmImportModFile: updateImportModFile(); break;
-        case fmExportModFile: updateExportModFile(); break;
 
         case fmReloadSamples: sampleMemoryReload.update(); break;
 
@@ -245,37 +243,12 @@ bool cFileManager::importSampleToProject(char* filePath, char* fileName, uint8_t
                                                                : FileManagerOperation::kLeft);
 }
 
-bool cFileManager::importModAfterLoadNewProject(char* path, char* name)
-{
-    // pobranie nazwy otwieranego projektu tu
-    strcpy(impFileData.path, path);
-    strcat(impFileData.path, "/");
-    strcat(impFileData.path, name);
-
-    strcpy(impFileData.filename, name);
-
-    char modName[PROJECT_NAME_SIZE + 1]{ 0 };
-
-    for (uint8_t a = 0; a < sizeof(modName); a++)
-    {
-        if (impFileData.filename[a] != '.')
-        {
-            modName[a] = impFileData.filename[a];
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    // PROJECT_NAME_SIZE
-    strncpy(currentProjectName, modName, PROJECT_NAME_SIZE);
-    currentProjectName[PROJECT_NAME_SIZE - 1] = 0;
-
-    importModFileAfterNewProject = 1;
-
-    return true;
-}
+// Tracker Cycles (plan 4a): MOD / IT import and IT export are removed; the
+// project screen's remaining calls get these no-ops until 4e replaces it.
+bool cFileManager::importModAfterLoadNewProject(char*, char*) { return false; }
+float cFileManager::importMod_getProgress() { return 0.0f; }
+uint8_t cFileManager::exportItFile_getProgress() { return 0; }
+uint8_t cFileManager::exportItFile() { return 0; }
 
 bool cFileManager::saveRecordedSound(char* dirPath,
                                      char* fileName,

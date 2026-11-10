@@ -264,7 +264,7 @@ void cProjectEditor::setDefaultScreenFunct()
 
     ip->setButtonObj(interfaceButton0, buttonPress, functNewProject);
     ip->setButtonObj(interfaceButton1, buttonPress, functOpenProject);
-    ip->setButtonObj(interfaceButton2, buttonPress, functImportMod);
+    // Tracker Cycles (plan 4a): MOD / IT import removed
     ip->setButtonObj(interfaceButton3, buttonPress, functSaveProject);
     ip->setButtonObj(interfaceButton4, buttonPress, functSaveAsProject);
     ip->setButtonObj(interfaceButton5, buttonPress, functExport);
@@ -292,7 +292,7 @@ void cProjectEditor::setExportWindowFuncts()
     PE->ip->setButtonObj(interfaceButton1, buttonPress, functExportSongStems);
     PE->ip->setButtonObj(interfaceButton2, buttonPress, functExportPattern);
     PE->ip->setButtonObj(interfaceButton3, buttonPress, functExportPatternStems);
-    PE->ip->setButtonObj(interfaceButton4, buttonPress, functExportToMOD);
+    // Tracker Cycles (plan 4a): IT export removed
     PE->ip->setButtonObj(interfaceButton5, buttonPress, functExportSamples);
 
     PE->ip->setButtonObj(interfaceButton7, buttonPress, functExportGoBack);

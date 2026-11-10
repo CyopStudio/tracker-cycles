@@ -180,18 +180,8 @@ void WorkspaceProjectLoad::loadProjectFromWorkspaceFinish()
 
     newFileManager.loadProjectValues();
 
-    if (newFileManager.needImportModFileAfterNewProject())
-    {
-        newFileManager.clearImportModFileAfterNewProject();
-        newFileManager.setStatus(fmImportingMod);
-        newFileManager.setCurrentOperation(fmImportModFile);
-        newFileManager.resetCurrentOperationStep();
-    }
-    else
-    {
-        newFileManager.setStatus(fmLoadEnd);
-        newFileManager.setCurrentOperation(fmNoOperation);
-    }
+    newFileManager.setStatus(fmLoadEnd);
+    newFileManager.setCurrentOperation(fmNoOperation);
 }
 
 //=================================================================================================

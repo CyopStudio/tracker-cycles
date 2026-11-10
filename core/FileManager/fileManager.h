@@ -394,8 +394,6 @@ class cFileManager
     bool loadProjectFileFormFileStruct(strMtProject* project, strProjectFile* pFile);
     bool writeProjectFileToFileStruct(strMtProject* project, strProjectFile* pFile);
 
-    bool needImportModFileAfterNewProject() { return importModFileAfterNewProject; }
-    void clearImportModFileAfterNewProject() { importModFileAfterNewProject = false; }
 
     void savePatternToWorkspace();
 
@@ -501,8 +499,6 @@ class cFileManager
     void calcTotalMemoryToTransfer();
 
     // glowne update / workspace ------------------------------------
-    void updateImportModFile();
-    void updateExportModFile();
     void updateBrowseSamples();
     void updateBrowseFirmwares();
     void updateBrowseGames();
@@ -646,7 +642,6 @@ class cFileManager
 
     /// IMPORT .MOD .IT etc
 
-    enImportModMode checkImportFileType();
 
     bool importModFileAfterNewProject = 0;
 
@@ -662,71 +657,23 @@ class cFileManager
 
     /// IMPORT .MOD
 
-    void importModFile_Init();
-    void importModFile_GetInstrumentData();
-    void importModFile_SaveInstrument();
 
-    void importModFile_SongInit();
-    void importModFile_Patterns();
-    void importModFile_ImportWave();
-    void importModFile_WriteWave();
-    void importModFile_Finish();
-    void importModFile_Error();
 
     int8_t periodToNote(uint16_t period);
-    void printNote(uint8_t note);
 
     /// IMPORT MOD KONIEC
 
     // import IT
-    void importItFile_Init();
-    void importItFile_ProcessHeader();
-    void importItFile_ProcessSong();
-    void importItFile_ProcessOffsets();
 
-    void importItFile_ProcessInstruments();
-    void importItFile_LoadSamples();
-    void importItFile_ProcessPatterns();
-    void importItFile_ProcessPattern(uint32_t patternOffset, uint16_t length, uint16_t rows);
-    void importItFile_WriteWaves();
-    void importItFile_Finish();
 
-    void importItFile_setPattern(uint8_t index, uint8_t length);
-    void importItFile_setStep(uint8_t step,
-                              uint8_t track,
-                              uint8_t note,
-                              int16_t volume,
-                              uint8_t instrument,
-                              uint8_t fx,
-                              uint8_t fxVal);
-    void importItFile_savePattern();
-    void importItFile_initPatternBuffer(uint32_t pattLength, uint32_t patternOffset);
 
-    uint8_t importItFile_getNextPatternByte();
 
-    float importItFile_getProgress();
 
-    uint32_t getInstrumentOffset(uint8_t index);
-    uint32_t getSampleOffset(uint8_t index);
-    uint32_t getPatternOffset(uint8_t index);
-    uint32_t getFileVariable(uint32_t subFileOffset, uint32_t offset, uint8_t varSize);
 
     // import IT koniec
 
     // EXPORT MOD
-    void exportItFile_Init();
-    void exportItFile_InitHeader();
-    void exportItFile_ProcessInstruments();
-    void exportItFile_ProcessSamples();
-    void exportItFile_ProcessWaves();
-    void exportItFile_ProcessPatterns();
-    void exportItFile_Finish();
-    void exportItFile_Error();
 
-    void exportItFile_storeInstrumentOffset();
-    void exportItFile_storeSampleOffset();
-    void exportItFile_storePatternOffset();
-    void exportItFile_storeWaveOffset();
 
     //  draw sample waweform
     void drawSampleWaveformInit();
