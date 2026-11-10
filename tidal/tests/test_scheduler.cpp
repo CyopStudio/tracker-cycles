@@ -638,6 +638,41 @@ void testPlayers() {
     }
 }
 
+// Mute: a muted slot's notes don't play but its timing goes on (after
+// unmuting, notes are exactly where the reference has them); others play.
+void testMute() {
+    reset();
+    if (!load("d1 $ s \"bd*4\"\nd2 $ s \"hh*8\"\n")) return;
+    evalSlot(0);
+    evalSlot(1);
+    const uint32_t c2 = (uint32_t)(refSample(Q{2, 1}) / kBlockSamples);
+    const uint32_t c3 = (uint32_t)(refSample(Q{3, 1}) / kBlockSamples);
+    run(c2, 5);
+    gS.setMuted(0, true);
+    SEXPECT(gS.muted(0) && !gS.muted(1), "mute flags");
+    run(c3, 5);
+    gS.setMuted(0, false);
+    run((uint32_t)(refSample(Q{5, 1}) / kBlockSamples), 5);
+    std::vector<Onset> want, got, ref;
+    refOnsets(0, Q{1, 1}, Q{5, 1}, ref);
+    for (const Onset& o : ref) {
+        const int64_t blk = o.sample / kBlockSamples;
+        if (o.slot == 0 && blk >= c2 && blk < c3) continue;  // muted cycle(s)
+        if (o.sample < refSample(Q{5, 1}) - 1) want.push_back(o);
+    }
+    std::vector<Onset> d2ref;
+    refOnsets(1, Q{1, 1}, Q{5, 1}, d2ref);
+    for (const Onset& o : d2ref)
+        if (o.sample < refSample(Q{5, 1}) - 1) want.push_back(o);
+    std::sort(want.begin(), want.end());
+    got = played(0, refSample(Q{5, 1}) - 1);
+    std::sort(got.begin(), got.end());
+    sameOnsets(got, want, "d1 muted for a cycle, d2 throughout");
+    SEXPECT(gS.stats().muted >= 3, "muted starts counted: %u", gS.stats().muted);
+    gS.unmuteAll();
+    SEXPECT(!gS.muted(0) && !gS.muted(1), "unmuteAll");
+}
+
 void testHushAndErrors() {
     reset();
     if (!load("d1 $ s \"bd*8\"\nd9 $ n \"0 3\" # s \"midi\" # legato 2\n")) return;
@@ -693,6 +728,7 @@ void testScheduler(int& pass, int& fail) {
     testDense();
     testMono();
     testPlayers();
+    testMute();
     testIdleUpdates();
     testHushAndErrors();
     printf("scheduler: %s\n", fail == f0 ? "ok" : "FAILED");

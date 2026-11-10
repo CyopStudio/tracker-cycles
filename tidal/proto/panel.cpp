@@ -222,6 +222,7 @@ static void drawPad(Framebuffer& fb, const Editor& ed, Ctl c, const PanelState& 
             case SlotState::Error: fill = pc::padError; break;
             default: fill = pc::padEmpty; break;
         }
+        if (ed.muted(k.slot)) fill = 0x2E3F6B;  // muted (v2: Play + pad)
         cur = k.slot == ed.slot();
     } else if (k.type == Command::Number) {
         // rows alternate shades like octaves; 0 (second row start) stands out

@@ -21,6 +21,10 @@ let voices = pI "voices"
       | otherwise = pat
     p i = streamReplace tidal (fromIntegral i) . tcRoute i
     hush = streamHush tidal
+    -- mute / solo (editor v2: Play + pad): the pattern keeps running silently
+    mute i = streamMute tidal (fromIntegral (i :: Int))
+    unmute i = streamUnmute tidal (fromIntegral (i :: Int))
+    unmuteAll = streamUnmuteAll tidal
     once = streamOnce tidal
     setcps = once . cps
     d1 = p 1

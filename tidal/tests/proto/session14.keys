@@ -1,0 +1,6 @@
+hw:shift+pad1 hw:pattern hw:shift+pad2 hw:pattern
+hw:play+pad1 msg hw:play+pad1 msg
+hw:play+pad2 hw:play msg
+hw:shift+play+pad3 msg hw:shift+play+pad3 msg
+hw:play+delete msg
+hw:shift+play msg

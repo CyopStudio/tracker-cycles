@@ -129,6 +129,14 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
                 Key k;
                 if (e.key.keysym.sym == SDLK_q && (e.key.keysym.mod & KMOD_CTRL)) {
                     running = false;
+                } else if (e.key.keysym.sym == SDLK_h) {  // hush = Shift+Play pressed and released alone
+                    if (!e.key.repeat) {
+                        press(ed, Ctl::Play, true);
+                        release(ed, Ctl::Play);
+                        st.last = "key h -> Shift+Play (alone) -> hush";
+                    }
+                } else if (e.key.keysym.sym == SDLK_SPACE && e.key.repeat) {
+                    // Play is held: key repeat must not press it again
                 } else if (mapKey(e.key, kbShift, k)) {
                     std::string via = "key " + keyName(e.key);
                     if (k.isCtl) {
@@ -150,6 +158,10 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
                 }
                 dirty = true;
             } else if (e.type == SDL_KEYUP) {
+                if (e.key.keysym.sym == SDLK_SPACE) {  // Play released (v2: acts on release)
+                    release(ed, Ctl::Play);
+                    st.last = "key Space released -> Play";
+                }
                 dirty = true;  // Shift display
             } else if (e.type == SDL_MOUSEWHEEL) {
                 int dy = e.wheel.y;
@@ -162,6 +174,13 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
                     if (c == Ctl::Shift) {
                         latched = !latched;
                         st.last = latched ? "click -> Shift latched for the next press" : "click -> Shift released";
+                    } else if (c == Ctl::Play && ed.playHeld() && !ed.menuOpen()) {
+                        release(ed, Ctl::Play);  // second click releases the latched Play
+                        st.last = "click -> Play released";
+                    } else if (c == Ctl::Play && !ed.menuOpen()) {
+                        press(ed, Ctl::Play, shift);
+                        st.last = "click -> Play latched: click pads to mute, Play again to release";
+                        latched = false;
                     } else {
                         pressCtl(ed, c, shift, "click", st, litUntil);
                         latched = false;

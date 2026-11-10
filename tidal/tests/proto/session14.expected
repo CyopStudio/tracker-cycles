@@ -1,0 +1,31 @@
+> setcps (120/60/4)
+> d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+> d2 $ s "hh*8" # gain 0.8 # pan sine
+> mute 1
+msg: d1 muted
+> unmute 1
+msg: d1 unmuted
+> mute 2
+> unmuteAll
+msg: unmuted all
+> mute 1
+> mute 2
+> mute 4
+> mute 5
+> mute 6
+> mute 7
+> mute 8
+> mute 9
+> mute 10
+> mute 11
+> mute 12
+> mute 13
+> mute 14
+> mute 15
+> mute 16
+msg: d3 solo
+> unmuteAll
+msg: d3 unsoloed: all unmuted
+msg: cancelled
+> hush
+msg: hush

@@ -156,7 +156,7 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
         if (s == ed.slot()) fb.rect(0, y - 2, 64, rowH, col::current);
         char name[8];
         snprintf(name, sizeof name, "d%d", s + 1);
-        fb.rect(8, y + 6, 6, 6, stateColor(ed.slotState(s)));
+        fb.rect(8, y + 6, 6, 6, ed.muted(s) ? 0x5A7FD0 : stateColor(ed.slotState(s)));  // blue = muted
         fb.text(20, y, name, s == ed.slot() ? col::text : col::dim);
         if (s == kSampleSlots - 1) fb.rect(4, y + rowH - 2, 56, 1, col::dim);
     }

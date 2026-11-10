@@ -39,7 +39,7 @@ const char* ctlFwName(Ctl c);  // firmware enum, e.g. "interfaceButtonSampleLoad
 bool ctlFromId(const std::string& s, Ctl& out);
 
 struct Command {
-    enum Type { None, Act, Slot, Number, Instrument } type = None;
+    enum Type { None, Act, Slot, Number, Instrument, Mute } type = None;
     Action action = Action::Cancel;
     int slot = -1;
     int number = 0;  // Type::Number: value a pad enters
@@ -60,5 +60,7 @@ constexpr int kRestPad = kPadCols * kPadRows - 1;
 bool controlFor(const Editor& ed, Action a, Ctl& c, bool& shift);
 // Runs the command; returns false if the control does nothing here.
 bool press(Editor& ed, Ctl c, bool shift);
+// Release of a control that acts on release (Play: the modifier, v2).
+void release(Editor& ed, Ctl c);
 
 }  // namespace proto

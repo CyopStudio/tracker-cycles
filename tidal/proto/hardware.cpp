@@ -90,6 +90,22 @@ Ctl slotPad(int s) {
 
 Command controlCommand(const Editor& ed, Ctl c, bool shift) {
     const bool menu = ed.menuOpen();
+    if (ed.playHeld()) {
+        // Play held (v2): slot pads mute / unmute (Shift+Play: solo), Delete cancels
+        if (isPad(c)) {
+            int i = padIndex(c), row = i / kPadCols, col = i % kPadCols;
+            if (row < 2 && col < tc::kSampleSlots) {
+                Command k;
+                k.type = Command::Mute;
+                k.slot = row * tc::kSampleSlots + col;
+                k.label = "mute d" + std::to_string(k.slot + 1);
+                return k;
+            }
+            return {};
+        }
+        if (c == Ctl::Delete) return act(Action::PlayCancel, "cancel");
+        return {};
+    }
     if (isPad(c)) {
         int i = padIndex(c), row = i / kPadCols, col = i % kPadCols;
         if (!shift && ed.padInstruments()) {
@@ -129,6 +145,7 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
             case Ctl::Down: return act(Action::Down, "next item");
             case Ctl::Right: return act(Action::Right, "next item");
             case Ctl::Play: return act(Action::Confirm, "OK");
+            case Ctl::Pattern: return act(Action::Confirm, "OK");
             case Ctl::Screen7: return act(Action::Confirm, "OK");
             case Ctl::Screen0: return act(Action::Cancel, "Cancel");
             default: return {};
@@ -141,7 +158,13 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
         case Ctl::Down: return act(Action::Down, "first child");
         case Ctl::JogUp: return shift ? act(Action::WheelUpFast, "value ++") : act(Action::WheelUp, "value +");
         case Ctl::JogDown: return shift ? act(Action::WheelDownFast, "value --") : act(Action::WheelDown, "value -");
-        case Ctl::Play: return shift ? act(Action::Hush, "Hush") : act(Action::Evaluate, "Evaluate");
+        // Play acts as a modifier (press / release, see press()); the label
+        // says what releasing it alone does
+        case Ctl::Play: {
+            Command k;  // no action: press() / release() handle it
+            k.label = shift ? "solo / hush" : "mute / unmute all";
+            return k;
+        }
         case Ctl::Insert: return shift ? act(Action::Home, "Home") : act(Action::Insert, "Insert");
         case Ctl::Delete: return shift ? act(Action::Unwrap, "Unwrap") : act(Action::Delete, "Delete");
         case Ctl::Copy: return shift ? act(Action::Paste, "Paste") : act(Action::Copy, "Copy");
@@ -210,14 +233,23 @@ bool controlFor(const Editor& ed, Action a, Ctl& c, bool& shift) {
 }
 
 bool press(Editor& ed, Ctl c, bool shift) {
+    if (c == Ctl::Play && !ed.menuOpen() && !ed.playHeld()) {
+        ed.playDown(shift);
+        return true;
+    }
     Command k = controlCommand(ed, c, shift);
     switch (k.type) {
         case Command::Act: ed.act(k.action); return true;
         case Command::Slot: ed.gotoSlot(k.slot); return true;
         case Command::Number: ed.enterNumber(k.number, k.rest); return true;
         case Command::Instrument: ed.enterInstrument(k.instrument); return true;
+        case Command::Mute: ed.mutePad(k.slot); return true;
         default: return false;
     }
+}
+
+void release(Editor& ed, Ctl c) {
+    if (c == Ctl::Play) ed.playUp();
 }
 
 }  // namespace proto

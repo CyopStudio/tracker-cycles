@@ -26,6 +26,7 @@ enum class Action {
     Struct1, Struct2, Struct3, Struct4, Struct5, Struct6, Struct7, Struct8,
     MenuModifiers, MenuFx,
     JumpNotes, JumpSamples,            // Note / Instrument: the block's n / s pattern
+    PlayCancel,                        // Delete while Play is held
 };
 const char* actionName(Action a);
 bool actionFromName(const std::string& s, Action& out);
@@ -75,6 +76,14 @@ public:
     const std::string& message() const { return message_; }
     bool messageIsError() const { return messageError_; }
     SlotState slotState(int s) const { return state_[s]; }
+    // Play is a modifier (v2, docs/tidal_ui_v2.md): pads pressed while it is
+    // held mute / unmute their dN (Shift+Play: solo); released with no pad
+    // pressed: unmute all (Shift+Play: hush); Delete while held cancels.
+    void playDown(bool shift);
+    void playUp();
+    bool playHeld() const { return playHeld_; }
+    void mutePad(int slot);
+    bool muted(int s) const { return muted_[s]; }
     bool trackerMode() const { return trackerMode_; }
     std::string cursorInfo() const;
     // Context buttons (Screen 5..8): inside "..." brackets [ ] < > { }%4 (3,8),
@@ -142,6 +151,9 @@ private:
     std::string message_;
     bool messageError_ = false;
     SlotState state_[tc::kSlots];
+    bool muted_[tc::kSlots] = {};
+    bool playHeld_ = false, playShift_ = false, playUsed_ = false;
+    void setMuted(int s, bool on);
     bool trackerMode_ = true;
     Backend* backend_ = nullptr;
     std::vector<std::string> samples_;

@@ -302,6 +302,17 @@ void EngineBackend::send(const std::string& stmt) {
         m.sched.hush();
         return;
     }
+    // mute N / unmute N / unmuteAll (as in boot.ghci; editor v2 Play + pad)
+    if (s == "unmuteAll") {
+        m.sched.unmuteAll();
+        return;
+    }
+    if (s.rfind("mute ", 0) == 0 || s.rfind("unmute ", 0) == 0) {
+        const bool on = s[0] == 'm';
+        const int n = atoi(s.c_str() + (on ? 5 : 7));
+        if (n >= 1 && n <= kSlots) m.sched.setMuted(n - 1, on);
+        return;
+    }
     Error e, ce;
     m.edit.clear();
     std::string text = s + "\n";

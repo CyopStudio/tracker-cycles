@@ -82,6 +82,25 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
             std::string id = tok.substr(3);
             bool shift = id.rfind("shift+", 0) == 0;
             if (shift) id = id.substr(6);
+            // Play acts on press / release (v2): hw:play / hw:shift+play =
+            // pressed and released alone; hw:play+pad3 / hw:shift+play+pad3 =
+            // pad pressed while Play is held (hw:play+delete cancels)
+            if (id == "play" || id.rfind("play+", 0) == 0) {
+                const bool inMenu = ed.menuOpen();
+                press(ed, Ctl::Play, shift);
+                if (!inMenu) {
+                    if (id.size() > 5) {
+                        Ctl c2;
+                        if (!ctlFromId(id.substr(5), c2)) {
+                            fprintf(stderr, "unknown control '%s'\n", id.substr(5).c_str());
+                            return false;
+                        }
+                        press(ed, c2, false);
+                    }
+                    release(ed, Ctl::Play);
+                }
+                continue;
+            }
             Ctl c;
             if (!ctlFromId(id, c)) {
                 fprintf(stderr, "unknown control '%s'\n", id.c_str());

@@ -89,6 +89,7 @@ struct SchedulerStats {
     uint32_t queries;     // queries run
     uint32_t splits;      // windows halved (too many events / ring space)
     uint32_t superseded;  // mono slots: due starts skipped for a later due one
+    uint32_t muted;       // due starts of muted slots (not played)
     uint32_t idleUpdates; // update() calls that returned at once (nothing due yet)
     // per slot, when update() gets a clock: time in query windows (query,
     // mapping, sort; retries included), windows queued, longest window
@@ -134,6 +135,14 @@ public:
     // pending noteOffs (as does n = 0, the default: no skipping). n >= 2:
     // noteOffs stay pending, each goes back with its noteOn's tag.
     void setSlotPlayers(int n) { players_ = n; }
+    // Mute (Tidal's mute / solo, editor v2 Play + pad): a muted slot keeps
+    // being queried and keeps its timing, but its notes don't play.
+    void setMuted(int slot, bool on) {
+        const uint16_t b = (uint16_t)(1u << slot);
+        muted_ = (uint16_t)(on ? (muted_ | b) : (muted_ & ~b));
+    }
+    bool muted(int slot) const { return (muted_ >> slot) & 1; }
+    void unmuteAll() { muted_ = 0; }
     void setMonoSlots(bool on) { players_ = on ? 1 : 0; }
 
     // ---- main loop ----------------------------------------------------------
@@ -225,6 +234,7 @@ private:
     uint32_t lateBlocks_;
     int cap_;
     int players_;
+    volatile uint16_t muted_;  // slot bits; written on the main loop, read by tick()
     bool idleValid_;       // update() may return at once before idleUntil_
     uint32_t idleUntil_;   // block
 

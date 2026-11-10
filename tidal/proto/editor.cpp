@@ -36,6 +36,7 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"struct7", Action::Struct7}, {"struct8", Action::Struct8},
     {"modifiers", Action::MenuModifiers}, {"fx", Action::MenuFx},
     {"jumpn", Action::JumpNotes}, {"jumps", Action::JumpSamples},
+    {"playcancel", Action::PlayCancel},
 };
 
 const char* actionName(Action a) {
@@ -537,6 +538,10 @@ void Editor::act(Action a) {
         case Action::Struct7:
         case Action::Struct8: openStruct((int)a - (int)Action::Struct1); break;
         case Action::MenuModifiers: openWrap(WrapMode::Modifiers); break;
+        case Action::PlayCancel:
+            playUsed_ = true;  // releasing Play does nothing now
+            info("cancelled");
+            break;
         case Action::JumpNotes: jumpControl(true); break;
         case Action::JumpSamples: jumpControl(false); break;
         case Action::MenuFx: openWrap(WrapMode::Fx); break;
@@ -906,6 +911,61 @@ void Editor::quick(int i) {
     }
     commit(std::unique_ptr<Program>(new Program(*r)), target ? target : nn);
     if (!messageError_) info(label + (target ? ": jog changes the number" : ""));
+}
+
+// ---------------------------------------------------------------------------
+// mute / solo (Play as a modifier)
+
+void Editor::setMuted(int s, bool on) {
+    if (muted_[s] == on) return;
+    muted_[s] = on;
+    if (backend_) backend_->send(std::string(on ? "mute " : "unmute ") + std::to_string(s + 1));
+}
+
+void Editor::playDown(bool shift) {
+    playHeld_ = true;
+    playShift_ = shift;
+    playUsed_ = false;
+    info(shift ? "Shift+Play: pad = solo, release = hush, Delete = cancel"
+               : "Play: pad = mute / unmute, release = unmute all, Delete = cancel");
+}
+
+void Editor::playUp() {
+    if (!playHeld_) return;
+    playHeld_ = false;
+    if (playUsed_) return;
+    if (playShift_) {
+        act(Action::Hush);
+        return;
+    }
+    bool any = false;
+    for (int s = 0; s < kSlots; s++) any |= muted_[s];
+    for (int s = 0; s < kSlots; s++) muted_[s] = false;
+    if (backend_) backend_->send("unmuteAll");
+    info(any ? "unmuted all" : "nothing was muted");
+}
+
+void Editor::mutePad(int slot) {
+    if (!playHeld_ || slot < 0 || slot >= kSlots) return;
+    playUsed_ = true;
+    const std::string d = "d" + std::to_string(slot + 1);
+    if (!playShift_) {
+        setMuted(slot, !muted_[slot]);
+        info(d + (muted_[slot] ? " muted" : " unmuted"));
+        return;
+    }
+    // solo: everything else muted; soloing the soloed slot again unmutes all
+    bool soloed = !muted_[slot];
+    for (int s = 0; s < kSlots && soloed; s++)
+        if (s != slot && !muted_[s]) soloed = false;
+    if (soloed) {
+        for (int s = 0; s < kSlots; s++) muted_[s] = false;
+        if (backend_) backend_->send("unmuteAll");
+        info(d + " unsoloed: all unmuted");
+        return;
+    }
+    for (int s = 0; s < kSlots; s++) setMuted(s, s != slot);
+    info(d + " solo");
 }
 
 // The quoted pattern of the first `name "..."` (or `alt "..."`) in the tree

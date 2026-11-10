@@ -52,6 +52,7 @@ void Scheduler::init(Program* live, Event* buf, int cap, Mapper* mapper, Entry* 
     hooks_ = hooks;
     cap_ = 4;
     players_ = 0;
+    muted_ = 0;
     idleValid_ = false;
     idleUntil_ = 0;
     tmp_ = storage + kSlots * kRingSize;
@@ -455,6 +456,11 @@ void Scheduler::tick(Voice& v) {
                     h++;
                     continue;
                 }
+            }
+            if (muted_ & (1u << i)) {  // muted: consumed on time, not played
+                stats_.muted++;
+                h++;
+                continue;
             }
             if (sample && cap_ > 0 && starts >= cap_) {
                 stats_.capped++;

@@ -48,8 +48,11 @@ to upstream CE.
     `# <last control>` `|+ n 12` `|* speed 2` `0.25 <~` (bare numbers on
     plain value patterns). Cursor lands on the new number for the jog.
     No `|-` / `~>`: use negative numbers.
-  - Play = evaluate block, Shift+Play = hush. Pattern = evaluate block,
-    Song = launch menu (v2, docs/tidal_ui_v2.md: the full v2 mapping is
+  - Pattern = evaluate block. Play is a modifier (v2 step 4): Play + pad
+    N = mute / unmute dN, Shift+Play + pad N = solo, Play alone = unmute
+    all, Shift+Play alone = hush, Delete while held = cancel (statements
+    `mute N` / `unmute N` / `unmuteAll`: boot.ghci, engine backend ->
+    Scheduler::setMuted). Song = launch menu (v2, docs/tidal_ui_v2.md: the full v2 mapping is
     being built in steps; step 1 done 2026-11-10: Pattern / Song, Shift +
     Screen 1-8 = the old screen functions, Home = the block's top, Up /
     Down there = previous / next block, Right = into it).

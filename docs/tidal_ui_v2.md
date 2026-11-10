@@ -91,8 +91,16 @@ the four context quick-buttons (`# <last control>`, `|+ n 12`, ...).
    cursor on its first step; missing: `# n "0"` / `# s "bd"` added to the
    block's whole pattern; no `s` on MIDI blocks); the old notes / samples
    menus stay as the `notes` / `samples` actions (no key); smoke session 13.
-4. Mute / solo: scheduler drops a muted slot's notes but keeps its timing;
-   both backends (GHCi: `mute` / `solo` / `unmute`), Play + pad.
+4. Done (2026-11-10): Scheduler::setMuted / muted / unmuteAll (a muted
+   slot's due starts are consumed on time and not played, stats.muted;
+   host test testMute + mutation); the editor sends `mute N` / `unmute N`
+   / `unmuteAll` (boot.ghci: streamMute / streamUnmute /
+   streamUnmuteAll; engine backend: the scheduler's flags); solo = mute
+   every other slot, soloing it again = unmute all; Play acts on press /
+   release (Space down / up, panel click latches, headless
+   `hw:play+pad3`, `hw:shift+play+pad3`, `hw:play+delete`); muted slots
+   blue on the pads and the slot list; Pattern is also OK in menus;
+   smoke session 14, sessions evaluate with Pattern.
 5. Gap cursor (editor model + rendering + insert at a gap).
 6. Several blocks per dN: Program keeps a block list instead of one root
    per slot (core tree, parser, renderer, file format, scheduler
