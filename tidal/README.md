@@ -159,8 +159,8 @@ hardware can't.
 | Shift + Delete (Backspace) | unwrap (same as Screen 3) | | |
 | Copy | copy the selection (whole pattern on a block) | | Ctrl+C |
 | Shift + Copy (Paste) | replace the selection with the copy; a step can be pasted as a pattern (`"bd"`); works on an empty slot | | Ctrl+V |
-| Note | notes menu: note names, chords, numbers inside `"..."`, else `note`/`n`/`scale`/`arp` patterns | | `n` |
-| Instrument | samples menu: names and `name:1..3` inside `"..."`, else `s "name"` | | `s` |
+| Note | jump to the block's `n` / `note` pattern, first step (adds `# n "0"` if there is none): pads then enter notes | | `n` |
+| Instrument | jump to the block's `s` / `sound` pattern, first step (adds `# s "bd"` if there is none): pads then pick instruments; not on MIDI blocks | | `s` |
 | FX1 | pattern modifiers menu: time, structure, randomness, layering, sample cutting (`fast`, `every`, `jux`, `chop` …) applied with `$` | | `f` |
 | FX2 | sound FX menu: `# cutoff`, `# room`, `# delay`, `# crush`, `# shape`, `# pan`, `# gain`, envelopes; from inside `"..."` on the enclosing pattern | | `c` |
 | Pattern | evaluate current block (as Play) | | `e` |

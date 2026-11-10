@@ -57,7 +57,8 @@ to upstream CE.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
     Backspace = Unwrap.
-  - Note / Instrument: notes, samples menus; FX1: pattern modifiers
+  - Note / Instrument: jump to the block's n / s pattern (added as
+    `# n "0"` / `# s "bd"` if missing; v2 step 3); FX1: pattern modifiers
     (`$` functions: time / structure / random / layer / sample), FX2:
     sound FX controls (filtered, type-checked; v2 step 2). Song: launch menu (`dN $`,
     `jumpMod N k $`, `jumpIn N k $`; spec 2.1; was Pattern before v2).

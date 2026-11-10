@@ -145,8 +145,8 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
         case Ctl::Insert: return shift ? act(Action::Home, "Home") : act(Action::Insert, "Insert");
         case Ctl::Delete: return shift ? act(Action::Unwrap, "Unwrap") : act(Action::Delete, "Delete");
         case Ctl::Copy: return shift ? act(Action::Paste, "Paste") : act(Action::Copy, "Copy");
-        case Ctl::Note: return act(Action::MenuNotes, "notes");
-        case Ctl::Instr: return act(Action::MenuSamples, "samples");
+        case Ctl::Note: return act(Action::JumpNotes, "n pattern");
+        case Ctl::Instr: return act(Action::JumpSamples, "s pattern");
         case Ctl::Fx1: return act(Action::MenuModifiers, "modifiers");
         case Ctl::Fx2: return act(Action::MenuFx, "FX");
         case Ctl::Pattern: return act(Action::Evaluate, "Evaluate");

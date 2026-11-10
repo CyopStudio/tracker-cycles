@@ -35,6 +35,7 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"struct4", Action::Struct4}, {"struct5", Action::Struct5},   {"struct6", Action::Struct6},
     {"struct7", Action::Struct7}, {"struct8", Action::Struct8},
     {"modifiers", Action::MenuModifiers}, {"fx", Action::MenuFx},
+    {"jumpn", Action::JumpNotes}, {"jumps", Action::JumpSamples},
 };
 
 const char* actionName(Action a) {
@@ -536,6 +537,8 @@ void Editor::act(Action a) {
         case Action::Struct7:
         case Action::Struct8: openStruct((int)a - (int)Action::Struct1); break;
         case Action::MenuModifiers: openWrap(WrapMode::Modifiers); break;
+        case Action::JumpNotes: jumpControl(true); break;
+        case Action::JumpSamples: jumpControl(false); break;
         case Action::MenuFx: openWrap(WrapMode::Fx); break;
         case Action::Quick1: quick(0); break;
         case Action::Quick2: quick(1); break;
@@ -903,6 +906,51 @@ void Editor::quick(int i) {
     }
     commit(std::unique_ptr<Program>(new Program(*r)), target ? target : nn);
     if (!messageError_) info(label + (target ? ": jog changes the number" : ""));
+}
+
+// The quoted pattern of the first `name "..."` (or `alt "..."`) in the tree
+// under `n`, preorder; 0 if none.
+static uint16_t findControlMini(const Program& p, uint16_t n, const char* name, const char* alt) {
+    if (!n) return 0;
+    const Node& x = p.at(n);
+    if (x.kind == Kind::App && x.first && p.at(x.first).kind == Kind::Fn) {
+        const char* fn = lib((int)p.at(x.first).a).name;
+        uint16_t arg = p.at(x.first).next;
+        if ((!strcmp(fn, name) || !strcmp(fn, alt)) && arg && p.at(arg).kind == Kind::Mini) return arg;
+    }
+    for (uint16_t c = x.first; c; c = p.at(c).next)
+        if (uint16_t f = findControlMini(p, c, name, alt)) return f;
+    return 0;
+}
+
+// Note / Instrument (v2): the cursor goes to the first step of the block's
+// n / note (or s / sound) pattern; a block without one gets `# n "0"` /
+// `# s "bd"` on its whole pattern first.
+void Editor::jumpControl(bool notes) {
+    const char* what = notes ? "n" : "s";
+    if (!notes && slot_ >= kSampleSlots) return error("MIDI blocks (d9-d16) have no s pattern");
+    uint16_t b = prog_->block[slot_];
+    if (!b || !exprRoot()) return error("empty slot: replace to start a pattern");
+    uint16_t mini = notes ? findControlMini(*prog_, b, "n", "note") : findControlMini(*prog_, b, "s", "sound");
+    if (!mini) {
+        const uint16_t old = cursor_;
+        cursor_ = exprRoot();
+        uint16_t nn;
+        auto r = tryWrapOp("#", notes ? "n \"0\"" : "s \"bd\"", true, nn);
+        if (!r) {
+            cursor_ = old;
+            return error(std::string("can't add # ") + what + " to this block");
+        }
+        commit(std::unique_ptr<Program>(new Program(*r)), nn);
+        if (messageError_) return;
+        mini = notes ? findControlMini(*prog_, prog_->block[slot_], "n", "note")
+                     : findControlMini(*prog_, prog_->block[slot_], "s", "sound");
+        if (!mini) return;
+    }
+    uint16_t step = prog_->at(mini).first;
+    while (step && prog_->at(step).kind == Kind::MSeq && prog_->at(step).first) step = prog_->at(step).first;
+    cursor_ = step ? valueOf(*prog_, step) : mini;
+    info(std::string(what) + " pattern: " + (notes ? "pads enter notes" : "pads pick instruments"));
 }
 
 // Screen 1-8 (v2, docs/tidal_ui_v2.md): structure menus at the cursor.

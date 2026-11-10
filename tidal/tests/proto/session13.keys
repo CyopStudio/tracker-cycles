@@ -1,0 +1,4 @@
+hw:shift+pad1 hw:instr msg hw:pad5
+hw:note msg hw:pad20
+hw:shift+pad3 hw:note msg hw:instr msg
+hw:shift+pad13 hw:instr msg hw:note msg print

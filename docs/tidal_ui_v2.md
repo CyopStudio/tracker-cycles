@@ -86,7 +86,11 @@ the four context quick-buttons (`# <last control>`, `|+ n 12`, ...).
    Structure / Random / Layer / Sample functions), FX2 = sound FX controls;
    smoke session 12; sessions use Shift+Screen and the `functions` /
    `controls` tokens for the old menus (same results).
-3. Note / Instrument jump-or-create (small).
+3. Done (2026-11-10): Note / Instrument = Action::JumpNotes /
+   JumpSamples (first `n` / `note` or `s` / `sound` "..." in the block,
+   cursor on its first step; missing: `# n "0"` / `# s "bd"` added to the
+   block's whole pattern; no `s` on MIDI blocks); the old notes / samples
+   menus stay as the `notes` / `samples` actions (no key); smoke session 13.
 4. Mute / solo: scheduler drops a muted slot's notes but keeps its timing;
    both backends (GHCi: `mute` / `solo` / `unmute`), Play + pad.
 5. Gap cursor (editor model + rendering + insert at a gap).
