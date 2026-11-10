@@ -293,6 +293,19 @@ AUDIO_CORE_RAM void playerEngine::tidalStop(uint8_t player)
     pm->stop();
 }
 
+AUDIO_CORE_RAM void playerEngine::tidalCut(uint8_t player)
+{
+    if (player >= kTidalPlayers)
+        return;
+    AudioPlayMemory* const pm = audioVoice.getPlayer(player);
+    if (!pm->isPlaying())
+        return;
+    // a short release instead of stop(): no click; the player's next note
+    // sets its release from the instrument again
+    pm->envelopeRelease(5.0f);
+    pm->envelopeNoteOff();
+}
+
 AUDIO_CORE_RAM bool playerEngine::tidalPlaying(uint8_t player)
 {
     return player < kTidalPlayers && audioVoice.getPlayer(player)->isPlaying();
@@ -300,8 +313,8 @@ AUDIO_CORE_RAM bool playerEngine::tidalPlaying(uint8_t player)
 
 void playerEngine::tidalAllOff()
 {
-    for (uint8_t k = 0; k < kTidalPlayers; k++)
-        if (k != tidalCur && audioVoice.getPlayer(k)->isPlaying())
+    for (uint8_t k = 0; k < kTidalPlayers; k++)  // finished one-shots too: their envelope may still sustain
+        if (k != tidalCur)
             audioVoice.getPlayer(k)->envelopeNoteOff();
     noteOff();
 }

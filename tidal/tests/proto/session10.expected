@@ -1,5 +1,5 @@
 menu add control: [# n "0 .. 3"] [# note "c e g"] [# up 12] [# gain 1] [# legato 1] [# sustain 0.5] [# nudge 0.1] [# amp 0.4] [# velocity 0.8] [# midichan 1] [# ccn 74] [# ccv "0 64 127"] [# midibend 0]
-menu add control: [# s "bd sd"] [# sound "bd sd"] [# n "0 .. 3"] [# note "c e g"] [# up 12] [# gain 1] [# pan sine] [# cutoff 1000] [# resonance 0.2] [# hpf 200] [# bandf 1000] [# delay 0.3] [# room 0.3] [# crush 4] [# shape 0.3] [# begin 0.25] [# speed 2] [# legato 1] [# sustain 0.5] [# nudge 0.1] [# cut 1] [# end 0.75] [# amp 0.4] [# velocity 0.8] [# attack 0.01] [# release 0.2] [# hresonance 0.2] [# distort 0.3] [# lpf 1000] [# lpq 0.2] [# hpq 0.2] [# bpf 1000] [# att 0.01] [# rel 0.2]
+menu add control: [# s "bd sd"] [# sound "bd sd"] [# n "0 .. 3"] [# note "c e g"] [# up 12] [# gain 1] [# pan sine] [# cutoff 1000] [# resonance 0.2] [# hpf 200] [# bandf 1000] [# delay 0.3] [# room 0.3] [# crush 4] [# shape 0.3] [# begin 0.25] [# speed 2] [# legato 1] [# sustain 0.5] [# nudge 0.1] [# cut 1] [# end 0.75] [# amp 0.4] [# velocity 0.8] [# attack 0.01] [# release 0.2] [# hresonance 0.2] [# distort 0.3] [# lpf 1000] [# lpq 0.2] [# hpq 0.2] [# bpf 1000] [# att 0.01] [# rel 0.2] [# voices 3]
 msg: ERROR tracker mode: 'cutoff' has no effect on MIDI slots (d9-d16)
 > setcps (120/60/4)
 > d9 $ (n "c'maj e'min" # legato 0.5) |< s "midi" |< midichan 0

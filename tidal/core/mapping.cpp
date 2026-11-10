@@ -80,7 +80,7 @@ const CtlRule kCtlRules[] = {
     {"end", kSample, nullptr},      {"speed", kSample, nullptr},    {"attack", kSample, nullptr},
     {"att", kSample, nullptr},      {"release", kSample, nullptr},  {"rel", kSample, nullptr},
     {"cut", kSample, nullptr},      {"midichan", kMidi, nullptr},   {"ccn", kMidi, nullptr},
-    {"ccv", kMidi, nullptr},        {"midibend", kMidi, nullptr},
+    {"ccv", kMidi, nullptr},        {"midibend", kMidi, nullptr},   {"voices", kSample, nullptr},
     {"orbit", kNowhere, "isn't available on the Tracker (one effects bus)"},
     {"unit", kNowhere, "isn't available on the Tracker (no cycle-relative speed)"},
 };
@@ -159,6 +159,7 @@ void TrackerMapper::init(const TrackerHost* host, float sampleRate) {
     kLegato_ = controlKey("legato");
     kSustain_ = controlKey("sustain");
     kMidichan_ = controlKey("midichan");
+    kVoices_ = controlKey("voices");
     kCcn_ = controlKey("ccn");
     kCcv_ = controlKey("ccv");
     kBend_ = controlKey("midibend");
@@ -221,6 +222,7 @@ bool TrackerMapper::map(const Program& p, int slot, const Event& e, float, float
     bool hasRes = false, hasHres = false, hasPan = false, hasDrive = false, hasCrush = false, hasRoom = false,
          hasDelay = false, hasBegin = false, hasEnd = false, hasAttack = false, hasRelease = false,
          hasLegato = false, hasSustain = false, hasChan = false, hasCcn = false, hasCcv = false, hasBend = false;
+    float voices = 1;
     float res = 0, hres = 0, pan = 0.5f, drive = 0, crush = 16, room = 0, delay = 0, begin = 0, end = 1, attack = 0,
           release = 0, legato = 1, sustain = 0, chan = 0, ccn = 0, ccv = 0, bend = 0;
     for (int i = 0; i < e.nctl; i++) {
@@ -281,6 +283,8 @@ bool TrackerMapper::map(const Program& p, int slot, const Event& e, float, float
             ccv = v, hasCcv = true;
         } else if (k == kBend_) {
             bend = v, hasBend = true;
+        } else if (k == kVoices_) {
+            voices = v;
         }
     }
     const float ratio = (amp / kDefaultAmp) * powf(clampf(gain, 0.0f, 2.0f), 4.0f) * velocity;
@@ -288,6 +292,7 @@ bool TrackerMapper::map(const Program& p, int slot, const Event& e, float, float
     ModList m;
     memset(&m, 0, sizeof m);
     out.kind = EntryKind::Note;
+    out.voices = (uint8_t)clampi((int)lroundf(voices), 1, kMaxVoices);
 
     if (slot >= kSampleSlots) {  // ---- MIDI
         out.chan = (uint8_t)(hasChan ? clampi((int)lroundf(chan), 0, 15) : (slot - kSampleSlots) % 16);

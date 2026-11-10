@@ -1,5 +1,5 @@
 # :t of every core/library.cpp entry in real Tidal (golden/capture.py).
-# tidal-1.10.3, GHC 9.8.2, captured 2026-11-09
+# tidal-1.10.3, GHC 9.8.2, captured 2026-11-10
 
 silence :: Pattern a
 fast :: Pattern Time -> Pattern a -> Pattern a
@@ -92,6 +92,7 @@ hpq :: Pattern Double -> ControlPattern
 bpf :: Pattern Double -> ControlPattern
 att :: Pattern Double -> ControlPattern
 rel :: Pattern Double -> ControlPattern
+voices :: Pattern Int -> ControlPattern
 # :: Unionable b => Pattern b -> Pattern b -> Pattern b
 |+| :: (Applicative a, Num b) => a b -> a b -> a b
 |+ :: Num a => Pattern a -> Pattern a -> Pattern a

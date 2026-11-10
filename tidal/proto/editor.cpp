@@ -59,7 +59,7 @@ static const char* controlDefault(const char* name) {
         {"velocity", "0.8"},    {"attack", "0.01"},     {"release", "0.2"},  {"hresonance", "0.2"},
         {"distort", "0.3"},     {"midichan", "1"},      {"ccn", "74"},       {"ccv", "\"0 64 127\""},
         {"midibend", "0"},      {"lpf", "1000"},        {"lpq", "0.2"},      {"hpq", "0.2"},
-        {"bpf", "1000"},        {"att", "0.01"},        {"rel", "0.2"},
+        {"bpf", "1000"},        {"att", "0.01"},        {"rel", "0.2"},     {"voices", "3"},
     };
     for (auto& x : t)
         if (strcmp(x.n, name) == 0) return x.d;

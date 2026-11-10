@@ -293,7 +293,8 @@ class playerEngine
                         const uint16_t* modVal,
                         uint8_t nmods);
     void tidalNoteOff(uint8_t player);  // release that player's note
-    void tidalStop(uint8_t player);     // stop it now (voice stolen)
+    void tidalStop(uint8_t player);     // stop it now
+    void tidalCut(uint8_t player);      // fade it out in a few ms (voice stolen / `voices` limit)
     bool tidalPlaying(uint8_t player);  // sounding (release tail included)
     void tidalAllOff();
     // the stock noteOn paths call this: back to player 0, instrument volume

@@ -249,6 +249,21 @@ void testLengths() {
     MEXPECT(o.e.dur == (uint32_t)(kFs * 0.1f), "sustain 0.1 s: %u", o.e.dur);
 }
 
+// `voices` (Tracker Cycles' own control): default 1, clamped to 1-3
+void testVoices() {
+    gMap.init(&gHost, kFs);
+    Out o = one(0, "s \"bd\"");
+    MEXPECT(o.ok && o.e.voices == 1, "default voices %u, want 1", o.e.voices);
+    o = one(0, "s \"bd\" # voices 3");
+    MEXPECT(o.e.voices == 3, "voices 3: %u", o.e.voices);
+    o = one(0, "s \"bd\" # voices 7");
+    MEXPECT(o.e.voices == 3, "voices 7 clamps to 3: %u", o.e.voices);
+    o = one(0, "s \"bd\" # voices 0");
+    MEXPECT(o.e.voices == 1, "voices 0 clamps to 1: %u", o.e.voices);
+    std::vector<Out> v = mapCode(0, "n \"0 1\" # s \"arpy\" # voices \"2 3\"");
+    MEXPECT(v.size() == 2 && v[0].e.voices == 2 && v[1].e.voices == 3, "patterned voices");
+}
+
 void testOverflow() {
     gMap.init(&gHost, kFs);
     Out o = one(0, "s \"bd\" # note 0.3 # cutoff 500 # resonance 0.2 # pan 0.1 # begin 0.1 # end 0.9 "
@@ -368,6 +383,8 @@ void testTrackerCheck() {
         {8, "n \"0\" |* speed 2", "tracker mode: 'speed' has no effect on MIDI slots (d9-d16)"},
         {9, "s \"bd\"", "tracker mode: 's' has no effect on MIDI slots (d9-d16)"},
         {0, "s \"bd\" # midichan 2", "tracker mode: 'midichan' only works on MIDI slots (d9-d16)"},
+        {2, "n \"c'maj\" # s \"arpy\" # voices 3", nullptr},
+        {8, "n \"0\" # voices 3", "tracker mode: 'voices' has no effect on MIDI slots (d9-d16)"},
         {0, "s \"bd\" # orbit 1", "tracker mode: 'orbit' isn't available on the Tracker (one effects bus)"},
         {3, "s \"bd\" # unit \"c\"", "tracker mode: 'unit' isn't available on the Tracker (no cycle-relative speed)"},
         {0, "chop 4 $ s \"break\"", "tracker mode: 'chop' isn't available on the Tracker"},
@@ -410,6 +427,7 @@ void testMapping(int& pass, int& fail) {
     testPitchAndVolume();
     testEffects();
     testLengths();
+    testVoices();
     testOverflow();
     testMidi();
     testThroughScheduler();

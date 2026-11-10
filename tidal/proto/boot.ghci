@@ -9,8 +9,17 @@ import Sound.Tidal.Context
 
 tidal <- startTidal (superdirtTarget {oAddress = "127.0.0.1", oPort = 57120, oLatency = 0.1}) defaultConfig
 
+-- Tracker Cycles' own control (docs/tidal_voices.md): how many notes a
+-- sample track (d1-d8) lets ring, default 1. SuperDirt ignores it, so a
+-- note with 1 voice gets its track's own cut group (unless it has a cut):
+-- each such note cuts the previous one, as on the Tracker.
 :{
-let p = streamReplace tidal
+let voices = pI "voices"
+    tcRoute :: Int -> ControlPattern -> ControlPattern
+    tcRoute i pat
+      | i <= 8 = fix (|< cut (pure i)) (voices 1) (pat |< voices 1)
+      | otherwise = pat
+    p i = streamReplace tidal (fromIntegral i) . tcRoute i
     hush = streamHush tidal
     once = streamOnce tidal
     setcps = once . cps
@@ -33,6 +42,6 @@ let p = streamReplace tidal
     -- transitions, as in Tidal's BootTidal.hs: jumpMod 1 4 $ ... switches d1
     -- at the next multiple of 4 cycles, jumpIn 1 2 $ ... two cycles after
     -- the next cycle start
-    jumpMod i t = transition tidal True (Sound.Tidal.Context.jumpMod t) i
-    jumpIn i t = transition tidal True (Sound.Tidal.Context.jumpIn t) i
+    jumpMod i t = transition tidal True (Sound.Tidal.Context.jumpMod t) (fromIntegral i) . tcRoute i
+    jumpIn i t = transition tidal True (Sound.Tidal.Context.jumpIn t) (fromIntegral i) . tcRoute i
 :}

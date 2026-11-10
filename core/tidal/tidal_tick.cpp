@@ -1,5 +1,9 @@
 // Device tick test build (see tidal_tick.h and README.md).
 //
+// v8: `voices` (default 1: each note cuts the last), cap fix (just-started
+// players count as sounding), steals fade out (5 ms) instead of stopping;
+// sets 6-8 measure the load at caps 8 / 12 / 16, set 9 everyday with
+// voices 3; the 8 single-control listening sets are dropped (v5-v7).
 // v7: polyphony (docs/tidal_voices.md): 3 sample players per track into the
 // track's chain, at most 16 sounding; set 6 overfills the cap (8 tracks of
 // ringing chords), sets 15-17 are polyphony listening sets.
@@ -79,9 +83,11 @@ struct TestSet {
     uint16_t seconds;
     bool solo;
     const char* hint;  // popup line 2: what to listen for
+    uint8_t cap = 0;   // polyphony cap for this set (0 = DeviceVoice::kCap)
 };
 const TestSet kSets[] = {
     {"", 10, true, "silence: audio floor, nothing plays"},
+    // timing, default voices 1 (each note cuts the last, as v6)
     {"d1 $ s \"bd*4\"\n"
      "d2 $ s \"~ sd\"\n"
      "d3 $ s \"hh*8\" # gain 0.8\n",
@@ -115,34 +121,55 @@ const TestSet kSets[] = {
      "d7 $ s \"lt*16\"\n"
      "d8 $ s \"mt*16\"\n",
      20, false, "timing: all 8 tracks together"},
+    // timing: polyphony at caps 8 / 12 / 16 (load vs cap)
     {"setcps 0.575\n"
-     "d1 $ n \"<c'maj e'min>*2\" # s \"arpy\" # legato 3\n"
-     "d2 $ n \"<a'min f'maj>*2\" # s \"bass\" # legato 3\n"
-     "d3 $ n \"<e'min c'maj>*2\" # s \"pluck\" # legato 3\n"
-     "d4 $ n \"<g'maj d'min>*2\" # s \"casio\" # legato 3\n"
-     "d5 $ n \"<c'maj7 a'min7>*2\" # s \"jvbass\" # legato 3\n"
-     "d6 $ n \"<f'maj g'maj>*2\" # s \"bev\" # legato 3\n"
-     "d7 $ n \"<d'min e'min>*2\" # s \"bass1\" # legato 3\n"
-     "d8 $ n \"<a'min c'maj>*2\" # s \"bass2\" # legato 3\n",
-     20, false, "timing: polyphony cap, 8 tracks of ringing chords"},
-    // listening: one sample control per set, alone
-    {"d1 $ s \"bd*4\" # pan \"0 1\"\n", 7, true, "d1 kick: hard left / hard right"},
-    {"d2 $ s \"hh*8\" # cutoff (range 300 8000 $ slow 4 sine) # resonance 0.3\n", 11, true,
-     "d2 hats: filter dull -> bright -> dull"},
-    {"d3 $ s \"sd*2\" # crush \"<16 8 6 4>\"\n", 11, true, "d3 snare: crunchier every cycle"},
-    {"d4 $ n \"0 .. 7\" # s \"arpy\" # room 0.5 # legato 0.5\n", 8, true, "d4 arpy: rising run, short, reverb"},
-    {"d5 $ s \"bd\" # speed \"<1 2 -1 0.5>\" # gain 1.1\n", 11, true,
-     "d5 kick: normal, octave up, reverse, down"},
-    {"d6 $ s \"cp*2\" # begin \"<0 0.25 0.5>\" # hpf 400\n", 9, true, "d6 clap: thin, starts later each cycle"},
-    {"d7 $ s \"<lt mt ht>*2\" # shape 0.6 # delay 0.4\n", 8, true, "d7 toms: distorted, with echoes"},
-    {"d8 $ s \"drum*4\" # gain \"1 0.7 0.85 0.7\" # attack \"<0 0.05>\" # release 0.1\n", 9, true,
-     "d8: accent on 1; every other cycle fades in"},
-    // listening: polyphony (3 players per track)
-    {"d4 $ n \"<c'maj e'min a'min f'maj>\" # s \"arpy\" # legato 2\n", 10, true,
+     "d1 $ n \"<c'maj e'min>*2\" # s \"arpy\" # legato 3 # voices 3\n"
+     "d2 $ n \"<a'min f'maj>*2\" # s \"bass\" # legato 3 # voices 3\n"
+     "d3 $ n \"<e'min c'maj>*2\" # s \"pluck\" # legato 3 # voices 3\n"
+     "d4 $ n \"<g'maj d'min>*2\" # s \"casio\" # legato 3 # voices 3\n"
+     "d5 $ n \"<c'maj7 a'min7>*2\" # s \"jvbass\" # legato 3 # voices 3\n"
+     "d6 $ n \"<f'maj g'maj>*2\" # s \"bev\" # legato 3 # voices 3\n"
+     "d7 $ n \"<d'min e'min>*2\" # s \"bass1\" # legato 3 # voices 3\n"
+     "d8 $ n \"<a'min c'maj>*2\" # s \"bass2\" # legato 3 # voices 3\n",
+     20, false, "timing: cap 8, 8 tracks of ringing chords (voices 3)", 8},
+    {"setcps 0.575\n"
+     "d1 $ n \"<c'maj e'min>*2\" # s \"arpy\" # legato 3 # voices 3\n"
+     "d2 $ n \"<a'min f'maj>*2\" # s \"bass\" # legato 3 # voices 3\n"
+     "d3 $ n \"<e'min c'maj>*2\" # s \"pluck\" # legato 3 # voices 3\n"
+     "d4 $ n \"<g'maj d'min>*2\" # s \"casio\" # legato 3 # voices 3\n"
+     "d5 $ n \"<c'maj7 a'min7>*2\" # s \"jvbass\" # legato 3 # voices 3\n"
+     "d6 $ n \"<f'maj g'maj>*2\" # s \"bev\" # legato 3 # voices 3\n"
+     "d7 $ n \"<d'min e'min>*2\" # s \"bass1\" # legato 3 # voices 3\n"
+     "d8 $ n \"<a'min c'maj>*2\" # s \"bass2\" # legato 3 # voices 3\n",
+     20, false, "timing: cap 12, 8 tracks of ringing chords (voices 3)", 12},
+    {"setcps 0.575\n"
+     "d1 $ n \"<c'maj e'min>*2\" # s \"arpy\" # legato 3 # voices 3\n"
+     "d2 $ n \"<a'min f'maj>*2\" # s \"bass\" # legato 3 # voices 3\n"
+     "d3 $ n \"<e'min c'maj>*2\" # s \"pluck\" # legato 3 # voices 3\n"
+     "d4 $ n \"<g'maj d'min>*2\" # s \"casio\" # legato 3 # voices 3\n"
+     "d5 $ n \"<c'maj7 a'min7>*2\" # s \"jvbass\" # legato 3 # voices 3\n"
+     "d6 $ n \"<f'maj g'maj>*2\" # s \"bev\" # legato 3 # voices 3\n"
+     "d7 $ n \"<d'min e'min>*2\" # s \"bass1\" # legato 3 # voices 3\n"
+     "d8 $ n \"<a'min c'maj>*2\" # s \"bass2\" # legato 3 # voices 3\n",
+     20, false, "timing: cap 16, 8 tracks of ringing chords (voices 3)", 16},
+    {"d1 $ s \"bd*2 [~ bd] bd\" # voices 3\n"
+     "d2 $ s \"~ sd\" # n \"<0 1>\" # voices 3\n"
+     "d3 $ every 2 (fast 2) $ s \"hh*8\" # voices 3\n"
+     "d4 $ n \"0 .. 7\" # s \"arpy\" # voices 3\n"
+     "d5 $ off 0.125 (|+ n 12) $ n \"0 3 7\" # s \"bass\" # voices 3\n"
+     "d6 $ s \"cp*2\" # pan sine # voices 3\n"
+     "d7 $ sometimes (# speed 2) $ s \"drum*4\" # voices 3\n"
+     "d8 $ s \"<lt mt ht>*3\" # voices 3\n",
+     20, false, "timing: cap 12, everyday with voices 3 on every track", 12},
+    // listening: polyphony
+    {"d4 $ n \"<c'maj e'min a'min f'maj>\" # s \"arpy\" # legato 2 # voices 3\n", 10, true,
      "poly d4: whole 3-note chords, each rings into the next"},
-    {"d5 $ n \"0 3 7 10\" # s \"bass\" # legato 2\n", 10, true, "poly d5: bass notes overlap, tails under the next"},
-    {"d3 $ echo 3 0.2 0.6 $ n \"<0 7>\" # s \"pluck\" # legato 1\n", 10, true,
+    {"d5 $ n \"0 3 7 10\" # s \"bass\" # legato 2 # voices 3\n", 10, true,
+     "poly d5: bass notes overlap, tails under the next"},
+    {"d3 $ echo 3 0.2 0.6 $ n \"<0 7>\" # s \"pluck\" # legato 1 # voices 3\n", 10, true,
      "poly d3: echoes ring over each other"},
+    {"d4 $ n \"<c'maj e'min>\" # s \"arpy\" # legato 2 # voices \"<1 3>\"\n", 10, true,
+     "voices d4: one note (voices 1), then a whole chord (voices 3)"},
     // listening: MIDI (copy docs/tidal_tick_midi.tidal to the card to run this alone)
     {"d1 $ s \"bd*4\"\n"
      "d9 $ n \"0 4 7 12\" # velocity \"0.5 1\" # legato 0.5\n"
@@ -372,9 +399,9 @@ int activeInstruments() {
 
 int header(int n) {
     return n + snprintf(report + n, sizeof report - n,
-                        "Tracker Cycles device tick test v7 (" TC_TICK_VARIANT "), %s\n"
+                        "Tracker Cycles device tick test v8 (" TC_TICK_VARIANT "), %s\n"
                         "%d active instruments; scheduler object %u B (internal RAM), entries %u B, live program "
-                        "%u B (SDRAM); engine working set in internal RAM: %s; %d sample players per track, at most %d sounding\n"
+                        "%u B (SDRAM); engine working set in internal RAM: %s; %d sample players per track, default cap %d, voices default 1\n"
                         "cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles\n\n",
                         gUserSet ? kUserSet : "built-in sets",
                         activeInstruments(), (unsigned)sizeof(tc::Scheduler), (unsigned)sizeof storageRaw,
@@ -430,10 +457,11 @@ int setReport(int n, uint32_t ms) {
     {
         n += snprintf(report + n, sizeof report - n,
                       "players: most sounding at a noteOn %lu (cap %d), avg %lu.%lu; retriggered own track's oldest "
-                      "%lu, stopped another track's (cap) %lu; stale noteOffs %lu; audio blocks most in use %u of 70\n",
-                      (unsigned long)vs.maxSounding, DeviceVoice::kCap, avg(vs.soundingSum, vs.picks),
+                      "%lu, faded by voices %lu, faded for the cap %lu; stale noteOffs %lu; audio blocks most in use "
+                      "%u of 70\n",
+                      (unsigned long)vs.maxSounding, voice.cap(), avg(vs.soundingSum, vs.picks),
                       avg((uint64_t)vs.soundingSum * 10, vs.picks) % 10, (unsigned long)vs.trackSteals,
-                      (unsigned long)vs.globalSteals, (unsigned long)vs.staleOffs, (unsigned)AudioMemoryUsageMax());
+                      (unsigned long)vs.voicesCuts, (unsigned long)vs.globalSteals, (unsigned long)vs.staleOffs, (unsigned)AudioMemoryUsageMax());
     }
     for (int i = 0; i < tc::kSlots; i++) {
         const tc::MapWarnings& w = mapper.warnings(i);
@@ -484,6 +512,7 @@ void beginSet(int set, int n) {
     n += snprintf(report + n, sizeof report - n, "== set %d of %d (%s, %lu s%s)\n%s", set + 1, gSetCount,
                   setHint(set), (unsigned long)(setMs(set) / 1000), setSolo(set) ? ", solo" : "", setText(set));
     if (report[n - 1] != '\n') n += snprintf(report + n, sizeof report - n, "\n");
+    voice.setCap(!gUserSet && kSets[set].cap ? kSets[set].cap : DeviceVoice::kCap);
     n = loadSet(set, n);
     n += snprintf(report + n, sizeof report - n, "--\n");
     save(n);

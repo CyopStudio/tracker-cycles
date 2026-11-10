@@ -34,6 +34,8 @@ import Sound.Tidal.Context
 import qualified Data.Map.Strict as GMap
 import Data.List (sortOn)
 import Data.Ratio (numerator, denominator)
+-- Tracker Cycles' own control (not in Tidal; core/library.cpp, docs/tidal_voices.md)
+let voices = pI "voices"
 :{
 gR :: Rational -> String
 gR r = show (numerator r) ++ "/" ++ show (denominator r)

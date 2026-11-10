@@ -124,7 +124,7 @@ struct EngineBackend::Impl : Mapper, Voice {
         if (!e.isMap) return false;
         const float fs = (float)kFsNum / (float)kFsDen;
         const float cps = fs / samplesPerCycle;
-        Arg args[kMaxCtl + 4];
+        Arg args[kMaxCtl + 6];
         int na = 0;
         auto add = [&](const char* key, char tag) -> Arg& {
             Arg& a = args[na++];
@@ -146,12 +146,24 @@ struct EngineBackend::Impl : Mapper, Voice {
             else if (c.tag == 'i') add(key, 'i').i = (int32_t)lroundf(c.f);
             else add(key, 'f').f = c.f;
         }
+        if (slot < kSampleSlots) {  // `voices` routing, as boot.ghci's tcRoute
+            int voicesAt = -1, cutAt = -1;
+            for (int j = 0; j < na; j++) {
+                if (!strcmp(args[j].key, "voices")) voicesAt = j;
+                if (!strcmp(args[j].key, "cut")) cutAt = j;
+            }
+            if (voicesAt < 0) {
+                add("voices", 'i').i = 1;
+                voicesAt = na - 1;
+            }
+            if (args[voicesAt].i == 1 && cutAt < 0) add("cut", 'i').i = slot + 1;
+        }
         std::sort(args, args + na, [](const Arg& a, const Arg& b) { return strcmp(a.key, b.key) < 0; });
         int k = nStaged[slot]++;
         Msg& m = staging[slot][k];
         OscWriter w{m.b, kMsgMax};
         w.str("/dirt/play");
-        char tags[2 * (kMaxCtl + 4) + 2] = ",";
+        char tags[2 * (kMaxCtl + 6) + 2] = ",";
         for (int j = 0; j < na; j++) {
             size_t l = strlen(tags);
             tags[l] = 's';

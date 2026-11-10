@@ -73,6 +73,7 @@ static const ControlDef kControls[] = {
     // Tracker mapping (docs/tidal_control_mapping.md)
     {"amp", 'f'},     {"velocity", 'f'}, {"attack", 'f'},  {"release", 'f'}, {"hresonance", 'f'},
     {"distort", 'f'}, {"midichan", 'f'}, {"ccn", 'f'},     {"ccv", 'f'},     {"midibend", 'f'},
+    {"voices", 'i'},
 };
 int controlCount() { return (int)(sizeof kControls / sizeof kControls[0]); }
 const ControlDef& controlDef(int key) { return kControls[key]; }

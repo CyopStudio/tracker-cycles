@@ -49,50 +49,100 @@ uint8_t DeviceHost::volumeStep(int i, float ratio) const {
 static_assert(DeviceVoice::kPlayers == playerEngine::kTidalPlayers, "players per track");
 static_assert(DeviceVoice::kTracks == audioEngine::kVoices, "tracks");
 
-int DeviceVoice::pickPlayer(int slot, uint8_t instr) {
-    if (mtProject.sampleMemory[instr].isStreamed) {  // one stream per track: player 0
-        if (instrumentPlayer[slot].tidalPlaying(0)) vstats.trackSteals++;
-        return 0;
-    }
+bool DeviceVoice::sounding(int t, int k, uint32_t now) const {
+    if (cutting_[t][k]) return false;  // fading out (5 ms): already given up
+    if (instrumentPlayer[t].tidalPlaying((uint8_t)k)) return true;
+    return started_[t][k] && now - startBlock_[t][k] < 2;  // just started, may not report it yet
+}
+
+void DeviceVoice::cut(int t, int k) {
+    instrumentPlayer[t].tidalCut((uint8_t)k);
+    serial_[t][k] = (uint16_t)((serial_[t][k] + 1) & 0x3FFF);  // its pending noteOff is now stale
+    cutting_[t][k] = true;
+    cutBlock_[t][k] = now_;
+}
+
+int DeviceVoice::pickPlayer(int slot, uint8_t instr, int voices, uint32_t now) {
+    now_ = now;
+    // a fade that didn't end (an envelope mode without a timed release): stop it
+    for (int t = 0; t < kTracks; t++)
+        for (int k = 0; k < kPlayers; k++)
+            if (cutting_[t][k] && now - cutBlock_[t][k] > 8 && instrumentPlayer[t].tidalPlaying((uint8_t)k))
+                instrumentPlayer[t].tidalStop((uint8_t)k);
     int sounding = 0;
     int oldT = -1, oldK = -1;  // oldest sounding player of any track
     for (int t = 0; t < kTracks; t++)
         for (int k = 0; k < kPlayers; k++)
-            if (instrumentPlayer[t].tidalPlaying(k)) {
+            if (this->sounding(t, k, now)) {
                 sounding++;
                 if (oldT < 0 || (int32_t)(started_[t][k] - started_[oldT][oldK]) < 0) oldT = t, oldK = k;
             }
     if ((uint32_t)sounding > vstats.maxSounding) vstats.maxSounding = (uint32_t)sounding;
     vstats.soundingSum += (uint32_t)sounding;
     vstats.picks++;
-    int freeK = -1, busyK = -1;  // free: idle longest; busy: oldest sounding
+
+    // this track's sounding players, oldest first; its free one idle longest
+    int busy[kPlayers], nb = 0, freeK = -1;
     for (int k = 0; k < kPlayers; k++) {
-        if (instrumentPlayer[slot].tidalPlaying(k)) {
-            if (busyK < 0 || (int32_t)(started_[slot][k] - started_[slot][busyK]) < 0) busyK = k;
+        if (this->sounding(slot, k, now)) {
+            int j = nb++;
+            while (j > 0 && (int32_t)(started_[slot][k] - started_[slot][busy[j - 1]]) < 0) {
+                busy[j] = busy[j - 1];
+                j--;
+            }
+            busy[j] = k;
         } else if (freeK < 0 || (int32_t)(started_[slot][k] - started_[slot][freeK]) < 0) {
             freeK = k;
         }
     }
-    if (freeK >= 0 && sounding < kCap) return freeK;
-    if (busyK >= 0) {
+    if (voices < 1) voices = 1;
+    if (voices > kPlayers) voices = kPlayers;
+
+    if (mtProject.sampleMemory[instr].isStreamed) {  // one stream per track: player 0
+        int others = 0;
+        for (int j = nb - 1; j >= 0; j--) {  // newest first: keep voices - 1 others
+            if (busy[j] == 0) continue;
+            if (others < voices - 1) others++;
+            else {
+                cut(slot, busy[j]);
+                vstats.voicesCuts++;
+            }
+        }
+        if (this->sounding(slot, 0, now)) vstats.trackSteals++;
+        return 0;
+    }
+    // `voices`: at most voices - 1 others keep ringing
+    if (nb > voices - 1) {
+        const int evict = nb - (voices - 1);
+        for (int j = 1; j < evict; j++) {
+            cut(slot, busy[j]);
+            vstats.voicesCuts++;
+        }
         vstats.trackSteals++;
-        return busyK;
+        return busy[0];  // retrigger the oldest with this note
+    }
+    if (sounding < cap_) return freeK;
+    if (nb > 0) {
+        vstats.trackSteals++;
+        return busy[0];
     }
     // this track is silent and the cap is reached: free the oldest anywhere
     if (oldT >= 0) {
-        instrumentPlayer[oldT].tidalStop((uint8_t)oldK);
-        serial_[oldT][oldK]++;  // its pending noteOff is now stale
+        cut(oldT, oldK);
         vstats.globalSteals++;
     }
     return freeK;
 }
 
-uint16_t DeviceVoice::noteOn(int slot, const tc::Entry& e, uint32_t) {
+uint16_t DeviceVoice::noteOn(int slot, const tc::Entry& e, uint32_t late) {
     if (slot < audioEngine::kVoices) {
-        const int k = pickPlayer(slot, e.chan);
+        const uint32_t now = e.block + late;
+        const int k = pickPlayer(slot, e.chan, e.voices ? e.voices : 1, now);
         const uint16_t serial = (uint16_t)((serial_[slot][k] + 1) & 0x3FFF);
         serial_[slot][k] = serial;
         started_[slot][k] = ++clock_;
+        startBlock_[slot][k] = now;
+        cutting_[slot][k] = false;
         if (!instrumentPlayer[slot].tidalNoteOn((uint8_t)k, e.chan, (int8_t)e.note, e.vel == 255 ? -1 : (int8_t)e.vel,
                                                 e.modId, e.modVal, e.nmods))
             serial_[slot][k] = (uint16_t)((serial + 1) & 0x3FFF);  // nothing started: its noteOff is stale

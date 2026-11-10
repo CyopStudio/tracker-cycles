@@ -153,6 +153,15 @@ else wrapped onto the active instruments; `n` / `note` add to C5; `gain`
 x100 = step volume; looped instruments get a noteOff after the event's
 length, one-shots play out. d9..d16 (MIDI) are not mapped yet.
 
+v8 (2026-11-10, PolyendTrac_TidalTick8.ptf): `voices` (docs/tidal_voices.md
+v0.2: default 1 = each note cuts the last), the cap fix, steals fade out
+in 5 ms. 14 sets (~3 min 50 s): 1 silence, 2-5 timing with default voices
+1 (compare with v6 on the same project), 6-8 ringing chords with voices 3
+at caps 8 / 12 / 16, 9 everyday with voices 3 at cap 12, 10-13 listening
+(chords, overlapping bass, echoes, `voices "<1 3>"`), 14 MIDI. The single-
+control listening sets of v5-v7 are gone. Flash 1,011,052 B (96.4 %),
+RAM 198,436 B.
+
 v7 (2026-11-10, PolyendTrac_TidalTick7.ptf): polyphony (docs/tidal_voices.md):
 3 sample players per track into the track's chain, at most 16 sounding,
 `setSlotPlayers(3)` instead of mono slots. 18 sets: set 6 (new, 20 s)

@@ -115,6 +115,9 @@ static const LibEntry kLib[] = {
     CTL("bpf", "Double"),
     CTL("att", "Double"),
     CTL("rel", "Double"),
+    // Tracker Cycles' own (not in Tidal: `let voices = pI "voices"`, see
+    // docs/tidal_voices.md): notes a sample track lets ring, 1-3 (default 1)
+    CTL("voices", "Int"),
     // ---- operators (fixities from GHCi :info, Tidal 1.10.3) ------------------
     OP("#", "Pat a -> Pat a -> Pat a", 9, Left, true),
     OP("|+|", "Num a => Pat a -> Pat a -> Pat a", 9, Left, true),

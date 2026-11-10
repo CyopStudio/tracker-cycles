@@ -37,7 +37,8 @@ struct Entry {
     uint8_t nmods;
     uint8_t modId[kMaxMods];
     uint16_t modVal[kMaxMods];
-    uint8_t pad[2];
+    uint8_t voices;      // sample: notes the slot lets ring, this one included (1-3; `voices`, default 1)
+    uint8_t pad[1];
 };
 static_assert(sizeof(Entry) == 48, "Entry must stay 48 bytes");
 

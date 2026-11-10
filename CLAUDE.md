@@ -385,6 +385,42 @@ folders listed in the project (e.g. a manifest) on project load.
   19 sounding (starts in the same block, or a retriggered player in its
   release-on-noteOn, not yet isPlaying(), count as free). Next: baseline
   v6 on the same project, then a lower / load-driven cap.
+  v8 (built 2026-11-10, decided with the user): `# voices N` (Tracker
+  Cycles' own control, 1-3, default 1): polyphony is opt-in per note,
+  without it each note cuts the last (v6 cost). Prototype: boot.ghci
+  defines it and routes 1-voice notes to the track's cut group, the
+  engine backend does the same in its OSC. Cap fix (just-started players
+  count), steals fade out in 5 ms, cap per set; tick v8 measures caps
+  8 / 12 / 16 (docs/tidal_voices.md v0.2).
+  v6 baseline on the v7 project (2026-11-10, docs/tidal_tick_v6_baseline.txt, user
+  rerun): light 52 %, everyday 71, heavy 78, 8x x*16 76, solo sets 20-47
+  (hats 45, snare 30, MIDI + bd 20); no drops. So v7's rise over the same
+  project: light +9, everyday +25, heavy +10, 8x x*16 +26, and +9..+16 on
+  solo sets that only ever had one note sounding. Cause of that constant
+  part: a one-shot that has played out (playing = 0) with no noteOff
+  keeps its envelope in sustain and sends a zero block every block, so
+  the track's chain, sends and reverb run on silence; v7's extra players
+  never got a noteOff (hush released only isPlaying() ones), so every
+  track that had played stayed hot. Fixed for all builds
+  (AudioPlayMemory::update: not playing, no stacked note, envelope not
+  idle -> idle; tidalAllOff releases every player). In v8.
+  v8 results (2026-11-10, docs/tidal_tick.txt, same project as the v6
+  baseline): the idle fix works: default-voices sets back at baseline
+  (light 51 vs 52, everyday 70 vs 71, 8x x*16 77 vs 76; MIDI 19 vs 20);
+  no drops or horizon skips in any set; heap 13.2 KB free, stack 14.1 KB
+  spare, audio blocks <= 37 of 70. Load vs cap (8 tracks of ringing
+  chords, voices 3): cap 8 61 % (max 96), 12 65 % (90), 16 77 % (98):
+  ~2 points per sounding player. Everyday with voices 3 at cap 12: 86 %
+  (max 109, one overrun peak), 17 ms main-loop gap. `voices "<1 3>"`
+  works (4 notes faded by voices). Two bugs: (1) heavy set: 1759 capped
+  starts, 942 notes 2+ blocks late (baseline 434 / 0): the scheduler
+  supersedes with players_ = 3 for every note, so voices-1 slots pass
+  up to 3 starts per block, each counted by the start cap, then cut at
+  once (5767 retriggers). Fix: supersede by the entry's own voices.
+  (2) set 9 reached 14 sounding with cap 12: the streamed-instrument path
+  (player 0) skips the cap check (likely; some project samples may be
+  streamed). Chord sets are 1-6 blocks late by design: 24 starts in one
+  block vs the 4-starts-per-block cap.
   The notes below are the plan before that decision.
 - Before: 8 sample voices, one per track (voice index == track index).
 - Target: 2 voices per sample channel (16 total), alternating, so a cut

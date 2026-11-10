@@ -128,6 +128,16 @@ AUDIO_CORE_RAM void AudioPlayMemory::update(void)
     if (isBlockedInstrument[currentInstrIdx])
         return;
 
+    // Tracker Cycles audio floor: the sample has ended (one-shot / slice)
+    // but no noteOff came, so the envelope still sustains and would send a
+    // zero block every block, keeping the track's chain, sends and reverb
+    // busy on silence. Nothing is left to play: go idle.
+    if (!playing && !stackedPlay.enable && envelope.state != envelopePhaseIdle &&
+        envelope.state != envelopePhaseForced)
+    {
+        envelopeSwitchPhase(envelopePhaseIdle);
+    }
+
     if (envelope.state == envelopePhaseIdle && !stackedPlay.enable)
     {
         if (playing)
