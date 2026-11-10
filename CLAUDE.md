@@ -489,7 +489,16 @@ folders listed in the project (e.g. a manifest) on project load.
      docs/tidal_voices.md; tick test v7 (PolyendTrac_TidalTick7.ptf,
      core/tidal/README.md).
    - 4d. Device editor: step 1 editor logic + FT812 drawing layer +
-     pad/encoder input.
+     pad/encoder input. Design draft docs/tidal_device_editor.md (v0.1,
+     2026-11-10): one Program edited in place, undo = block text ring,
+     no heap, evaluate straight into the scheduler, editor in module
+     slot 2 owning the player's Program. Editor timing build
+     (-DTIDAL_EDITOR_BENCH, PolyendTrac_TidalEdBench1.ptf, not yet run):
+     edits / menus by trial three ways + FT812 code-screen redraw; host
+     `make -C tidal edbench`: everything in microseconds (menus 50-400
+     us) - the device numbers decide. FT812 note: a control has 8 KB of
+     RAM_G and the whole frame's appended display lists must stay under
+     8172 B; CMD_TEXT costs 4 B per glyph.
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)

@@ -28,3 +28,11 @@ FX1 - menu with all pattern modifiers
 FX2 - menu with all FX modifiers
 Pattern - evaluate block
 Song - menu with all transition functions e.g. jumpMod
+
+*Notes
+
+setcps - can't selct '4' from '130/60/4'
+setcps - shift>insert should go to top level and allow navigation to next blocks. up from the first block should get to setcps
+
+on a single number, {} [] etc should automatically insert ""
+selecting 'often' etc should allow at least 1 of the menus to list the available selections for replacements

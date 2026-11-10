@@ -3,6 +3,7 @@
 #include "TrackerImpl.h"
 #include "../tidal/audio_profile.h"
 #include "../tidal/reverb_bench.h"
+#include "../tidal/editor_bench.h"
 #include "../tidal/tidal_bench.h"
 #include "../tidal/tidal_tick.h"
 #include "../tidal/tidal_player.h"
@@ -179,6 +180,7 @@ void TrackerImpl::update()
     engine.updateSdStream();
     sequencer.update();
     tidalBenchUpdate(platform);    // no-op unless built with -DTIDAL_BENCH
+    tidalEditorBenchUpdate(platform);  // no-op unless built with -DTIDAL_EDITOR_BENCH
     tidalTickUpdate(platform);     // no-op unless built with -DTIDAL_TICK
     tidalPlayerUpdate(platform);   // the Tidal file player (not in the test builds)
     audioProfileUpdate(platform);  // no-op unless built with -DAUDIO_PROFILE

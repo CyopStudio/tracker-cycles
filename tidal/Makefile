@@ -6,13 +6,14 @@
 #   make run        build (SDL) and open the prototype window (run_proto.sh)
 #   make golden     recapture golden/expected.txt + types.txt from real Tidal
 #   make bench      engine timing and arena use on heavy patterns
+#   make edbench    editor timing (edits, menus by trial; docs/tidal_device_editor.md)
 
 CXX       ?= g++
 CXXFLAGS  ?= -std=c++17 -O2 -g -Wall -Wextra -Wno-missing-field-initializers -Wno-format-truncation
 BUILD     := build
 CORE_SRC  := $(wildcard core/*.cpp)
 CORE_OBJ  := $(CORE_SRC:%.cpp=$(BUILD)/%.o)
-TEST_SRC  := $(filter-out tests/bench.cpp,$(wildcard tests/*.cpp))
+TEST_SRC  := $(filter-out tests/bench.cpp tests/edbench.cpp,$(wildcard tests/*.cpp))
 TEST_OBJ  := $(TEST_SRC:%.cpp=$(BUILD)/%.o)
 
 # The prototype draws with the firmware's own fonts (core/libs/fonts).
@@ -34,7 +35,7 @@ CXXFLAGS_SDL := -DTC_HAVE_SDL -I$(SDL_PREFIX)/include -I$(SDL_PREFIX)/include/SD
 PROTO_LIBS += -L$(SDL_PREFIX)/lib/x86_64-linux-gnu -L$(SDL_PREFIX)/lib -lSDL2
 endif
 
-.PHONY: all test smoke proto arm clean run golden bench
+.PHONY: all test smoke proto arm clean run golden bench edbench
 all: $(BUILD)/run_tests $(BUILD)/tidal_proto
 
 test: $(BUILD)/run_tests
@@ -57,6 +58,12 @@ bench: $(BUILD)/bench
 	./$(BUILD)/bench
 
 $(BUILD)/bench: $(CORE_OBJ) $(BUILD)/tests/bench.o
+	$(CXX) $(CXXFLAGS) -o $@ $^
+
+edbench: $(BUILD)/edbench
+	./$(BUILD)/edbench
+
+$(BUILD)/edbench: $(CORE_OBJ) $(BUILD)/tests/edbench.o
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 $(BUILD)/run_tests: $(CORE_OBJ) $(TEST_OBJ)

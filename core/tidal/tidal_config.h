@@ -14,6 +14,11 @@
 #define TC_CHECKER_ATTR __NOINIT(EXTERNAL_RAM)
 #endif
 
+// The editor bench's scratch text (internal RAM is the heap's)
+#ifndef TC_EDIT_BENCH_ATTR
+#define TC_EDIT_BENCH_ATTR __NOINIT(EXTERNAL_RAM)
+#endif
+
 // The timing bench and the tick test measure the evaluator's stack depth.
 #if defined(TIDAL_BENCH) || defined(TIDAL_TICK)
 #define TC_TRACK_STACK

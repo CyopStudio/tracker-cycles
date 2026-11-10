@@ -56,6 +56,32 @@ Cost of the bench build (2026-11-09): flash +65.5 KB (903,364 -> 970,484 B,
 92.6 %), internal RAM +29 KB (mostly the checker's type pool), SDRAM
 +403 KB (arena 212 KB, program 70 KB, output buffer 106 KB, report).
 
+## Editor timing build (plan 4d)
+
+```bash
+make clean
+make original CUSTOM_DEFINES="-DTIDAL_EDITOR_BENCH"
+cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_TidalEdBench1.ptf
+for o in core/build-MK66-ORIGINAL/obj/tidal/*.o; do
+  arm-none-eabi-objdump -h $o | grep -q init_array && echo "static init: $o"; done
+```
+
+`editor_bench.cpp` (docs/tidal_device_editor.md section 4): run 1 at 10 s
+after boot with the Tidal player hushed, then `/project.tidal` is reloaded
+at 30 s and run 2 runs at 40 s with it playing (put a busy file on the
+card: run 2 is the "heavy" case). Each run blocks the main loop for a few
+seconds. Part 1 is tidal/core/edit_bench.cpp (also `make -C tidal
+edbench` on the host): whole-Program copy, parse / check / render of a
+light, everyday and heavy block in an 8-block file, undo by text, a jog
+edit and three menus built by trial (Replace ~110 items, `$` wrap ~50,
+mini step ~60), each done by full copy / block copy / in place. Part 2
+draws a screen of colour-coded code in a test FT812 control (one
+CMD_TEXT per colour run, cursor, 12 highlight rectangles; display list
+kept under ~6.5 KB of its 8 KB) and times refreshControl() until the frame
+is swapped, plus a highlights-only control. Report: `/tidal_editor_bench.txt`.
+The test control draws over the current screen for a moment.
+Cost: flash +12 KB, internal RAM +160 B, SDRAM +250 KB (3 Programs).
+
 ## Tidal file player (normal build)
 
 Every Original Tracker image (not the -DTIDAL_TICK / -DTIDAL_BENCH test
