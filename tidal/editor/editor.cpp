@@ -24,7 +24,7 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"prev", Action::PrevSlot},   {"ok", Action::Confirm},        {"cancel", Action::Cancel},
     {"save", Action::Save},       {"tracker", Action::ToggleTrackerMode},
     {"copy", Action::Copy},       {"paste", Action::Paste},       {"home", Action::Home},
-    {"notes", Action::MenuNotes}, {"samples", Action::MenuSamples},
+    {"notes", Action::MenuNotes}, {"samples", Action::MenuSamples}, {"chords", Action::MenuChords},
     {"functions", Action::MenuFunctions}, {"controls", Action::MenuControls},
     {"quick1", Action::Quick1},   {"quick2", Action::Quick2},     {"quick3", Action::Quick3},
     {"quick4", Action::Quick4},   {"launch", Action::MenuLaunch},
@@ -447,6 +447,7 @@ bool Editor::tryWrapOp(const char* op, const Text& rhs, bool xOnLeft, uint16_t& 
 
 MenuList& Editor::menuBuild() {
     menuOpen_ = false;
+    menuVoices_ = false;
     menu_.clear();
     menuNext_ = 0;
     buildOnly_ = true;
@@ -535,8 +536,12 @@ static uint16_t valueOf(const Program& p, uint16_t step) {
 void Editor::enterNumber(int v, bool rest) {
     if (!padNumeric()) return error("pads enter numbers inside a numeric pattern");
     Text n = tnum(v);
-    if (rest) enterStep("~", "", "~");
-    else enterStep(n, v < 0 ? "(" + n + ")" : n, n);
+    if (rest) return enterStep("~", "", "~");
+    if (heldPads_ && chordHere()) return chordAdd(n, n);
+    const uint16_t s0 = gapSeq_;
+    const int p0 = gapPos_;
+    enterStep(n, v < 0 ? "(" + n + ")" : n, n);
+    if (entryDone(s0, p0)) chord_.push_back(n.c_str());
 }
 
 // Instrument mode: pads are the 48 instrument slots (samples_).
@@ -568,7 +573,142 @@ void Editor::enterInstrument(int i) {
     if (!padInstruments()) return error("pads pick instruments inside an s pattern");
     if (i < 0 || i >= kInstrumentSlots || !samples_[i][0])
         return error("instrument slot " + tnum(i + 1) + " is empty");
+    if (heldPads_ && chordHere()) return chordAdd(samples_[i], samples_[i]);
+    const uint16_t s0 = gapSeq_;
+    const int p0 = gapPos_;
     enterStep(samples_[i], "", samples_[i]);
+    if (entryDone(s0, p0)) chord_.push_back(samples_[i]);
+}
+
+// ---- chords (held pads, Shift+Note) ----------------------------------------
+
+void Editor::entryPadDown(int pad) {
+    if (pad >= 0 && pad < 64) heldPads_ |= (uint64_t)1 << pad;
+}
+
+void Editor::entryPadUp(int pad) {
+    if (pad >= 0 && pad < 64) heldPads_ &= ~((uint64_t)1 << pad);
+    if (!heldPads_) chord_.clear();  // all up: the chord is done
+}
+
+// The cursor is still in the gap after the step the held pads entered.
+bool Editor::chordHere() const {
+    return !chord_.empty() && gapSeq_ && gapSeq_ == chordSeq_ && gapPos_ == chordPos_ && gapPos_ > 0 &&
+           !menuOpen_;
+}
+
+// A pad entry ended in a gap it moved (a step entered): the start of a chord
+// if more pads come while this one is held.
+bool Editor::entryDone(uint16_t seq0, int pos0) {
+    chord_.clear();
+    if (!gapSeq_ || (gapSeq_ == seq0 && gapPos_ == pos0) || listGap() || gapPos_ < 1) return false;
+    // only a plain value (not the range or group the pads just ended)
+    const Kind k = prog_->at(prog_->child(gapSeq_, gapPos_ - 1)).kind;
+    if (k != Kind::MNum && k != Kind::MNote && k != Kind::MWord) return false;
+    chordSeq_ = gapSeq_;
+    chordPos_ = gapPos_;
+    return true;
+}
+
+// A pad while another is held: the step before the gap becomes the stack of
+// every held pad's value, "[0,4,7]"; the cursor stays in the gap.
+void Editor::chordAdd(const Text& code, const Label& label) {
+    if (chord_.size() >= chord_.capacity()) return error("a chord takes at most 8 notes");
+    for (const auto& c : chord_)
+        if (code == c.c_str()) return info("already in the chord: " + label);
+    chord_.push_back(code.c_str());
+    Text st = "[";
+    for (int i = 0; i < chord_.size(); i++) st = st + (i ? "," : "") + chord_[i].c_str();
+    st = st + "]";
+    const uint16_t seq = gapSeq_;
+    const int pos = gapPos_;
+    EditSpec sp = spec(EditKind::Replace, prog_->child(seq, pos - 1), st);
+    sp.mini = true;
+    uint16_t nn;
+    if (!doSpec(sp, nn)) {
+        chord_.pop_back();
+        gapSeq_ = seq;
+        gapPos_ = pos;
+        cursor_ = seq;
+        return error("chord " + st + " doesn't fit here");
+    }
+    gapSeq_ = seq;
+    gapPos_ = pos;
+    cursor_ = seq;
+    if (chord_.size() == 2) ensureVoices();
+    info("= chord " + st + "  (hold pads to add)");
+}
+
+static uint16_t findControlApp(const Program& p, uint16_t n, const char* name) {
+    if (!n) return 0;
+    const Node& x = p.at(n);
+    if (x.kind == Kind::App && x.first && p.at(x.first).kind == Kind::Fn && !strcmp(lib((int)p.at(x.first).a).name, name))
+        return n;
+    for (uint16_t c = x.first; c; c = p.at(c).next)
+        if (uint16_t f = findControlApp(p, c, name)) return f;
+    return 0;
+}
+
+// Chords ring only with more than one voice: a sample block without a
+// `voices` control gets `# voices 3` on its whole pattern (MIDI blocks
+// play chords anyway; an existing voices is left as the user set it).
+void Editor::ensureVoices() {
+    if (slot_ >= kSampleSlots) return;
+    const uint16_t b = prog_->block[slot_];
+    if (!b || !exprRoot() || findControlApp(*prog_, b, "voices")) return;
+    const uint16_t old = cursor_, seq = gapSeq_;
+    const int pos = gapPos_;
+    cursor_ = exprRoot();
+    gapSeq_ = 0;
+    uint16_t nn;
+    EditSpec sp;
+    const bool ok = tryWrapOp("#", "voices 3", true, nn, &sp) && doSpec(sp, nn);
+    cursor_ = old;
+    gapSeq_ = seq;
+    gapPos_ = pos;
+    if (!ok) error("chord: can't add # voices 3 (it would cut its own notes)");
+}
+
+// Shift+Note: chord names on the note at the cursor (in a gap: the step
+// before it, e.g. right after pad entry). The root is written as a note name
+// (Tidal: c5 = 0), since the chord syntax takes one: 4 -> e'maj, 12 -> c6'maj.
+void Editor::openChords() {
+    if (gapSeq_) {
+        if (gapPos_ == 0 || listGap()) return error("chords: on a note, or in the gap after one");
+        cursor_ = prog_->child(gapSeq_, gapPos_ - 1);
+        gapSeq_ = 0;
+    }
+    if (!cursor_) return error("chords: on a note in an n / note pattern");
+    const uint16_t v = valueOf(*prog_, cursor_);
+    const Node& x = prog_->at(v);
+    if (x.type != kTyPatBase + (int)Base::Note) return error("chords: on a note in an n / note pattern");
+    int root = 0;
+    bool chord = false;
+    if (x.kind == Kind::MNote || ((x.kind == Kind::MNum) && x.b == 1)) {
+        root = (int32_t)x.a;
+    } else if (x.kind == Kind::MChord) {
+        const char* w = prog_->str((int)x.a);
+        const char* q = strchr(w, '\'');
+        if (!q || !parseNoteName(w, (int)(q - w), root)) return error("chords: can't read this chord's root");
+        chord = true;
+    } else {
+        return error("chords: on a whole-number note (0, e, c6 ...)");
+    }
+    if (const uint16_t par = prog_->parentOf(v))
+        if (prog_->at(par).kind == Kind::MRange) return error("chords: not on a range's end (0 .. 7)");
+    cursor_ = v;
+    static const char* const kPc[12] = {"c", "cs", "d", "ef", "e", "f", "fs", "g", "af", "a", "bf", "b"};
+    const int pc = ((root % 12) + 12) % 12, oct = 5 + (root - pc) / 12;
+    Text name = kPc[pc];
+    if (oct != 5) name = name + tnum(oct);
+    MenuList& items = menuBuild();
+    for (const char* c : {"maj", "min", "maj7", "dom7", "min7", "dim", "dim7", "aug", "sus2", "sus4", "six", "five"}) {
+        const Text code = name + "'" + c;
+        addReplaceItems(items, code, code, true);
+    }
+    if (chord) addReplaceItems(items, "single note " + tnum(root), tnum(root), true);
+    menuVoices_ = true;
+    openMenu("chord");
 }
 
 // Pad entry: replace the value at the cursor (mini code inside "...",
@@ -795,7 +935,7 @@ void Editor::act(Action a) {
             case Action::Delete: case Action::Struct1: case Action::Struct2: case Action::Struct3:
             case Action::Struct4: case Action::Struct5: case Action::Struct6: case Action::Struct7:
             case Action::Struct8: case Action::MenuModifiers: case Action::MenuFx:
-            case Action::PlayCancel: case Action::Evaluate: case Action::Hush:
+            case Action::PlayCancel: case Action::Evaluate: case Action::Hush: case Action::MenuChords:
                 break;
             default: leaveGap(); break;  // act on the whole sequence
         }
@@ -823,6 +963,7 @@ void Editor::act(Action a) {
                 cursor_ = it.checked ? it.cursor : nn;
                 gapSeq_ = 0;
                 state_[slot_] = SlotState::Edited;
+                if (menuVoices_ && !it.label.startsWith("single")) ensureVoices();
                 info(menuTitle_ + ": " + it.label);
                 return;
             }
@@ -850,6 +991,7 @@ void Editor::act(Action a) {
             break;
         case Action::MenuNotes: openNotes(); break;
         case Action::MenuSamples: openSamples(); break;
+        case Action::MenuChords: openChords(); break;
         case Action::MenuFunctions: openWrap(WrapMode::Functions); break;
         case Action::MenuControls: openWrap(WrapMode::Controls); break;
         case Action::MenuLaunch: openLaunch(); break;

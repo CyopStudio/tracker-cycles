@@ -204,7 +204,7 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         case Control::Insert: return shift ? act(Action::Home, "Home") : act(Action::Insert, "Insert");
         case Control::Delete: return shift ? act(Action::Unwrap, "Unwrap") : act(Action::Delete, "Delete");
         case Control::Copy: return shift ? act(Action::Paste, "Paste") : act(Action::Copy, "Copy");
-        case Control::Note: return act(Action::JumpNotes, "n pattern");
+        case Control::Note: return shift ? act(Action::MenuChords, "chord") : act(Action::JumpNotes, "n pattern");
         case Control::Instr: return act(Action::JumpSamples, "s pattern");
         case Control::Fx1: return act(Action::MenuModifiers, "modifiers");
         case Control::Fx2: return act(Action::MenuFx, "FX");
@@ -283,8 +283,14 @@ bool press(Editor& ed, Control c, bool shift) {
     switch (k.type) {
         case Command::Act: ed.act(k.action); return true;
         case Command::Slot: ed.gotoSlot(k.slot); return true;
-        case Command::Number: ed.enterNumber(k.number, k.rest); return true;
-        case Command::Instrument: ed.enterInstrument(k.instrument); return true;
+        case Command::Number:
+            ed.enterNumber(k.number, k.rest);
+            if (!k.rest) ed.entryPadDown(padIndex(c));  // held: the next pads make a chord
+            return true;
+        case Command::Instrument:
+            ed.enterInstrument(k.instrument);
+            ed.entryPadDown(padIndex(c));
+            return true;
         case Command::Mute: ed.mutePad(k.slot); return true;
         case Command::Key: ed.kbdKey(k.key); return true;
         default: return false;
@@ -293,6 +299,7 @@ bool press(Editor& ed, Control c, bool shift) {
 
 void release(Editor& ed, Control c) {
     if (c == Control::Play) ed.playUp();
+    if (isPad(c)) ed.entryPadUp(padIndex(c));
 }
 
 bool typeChar(Editor& ed, char ch) {

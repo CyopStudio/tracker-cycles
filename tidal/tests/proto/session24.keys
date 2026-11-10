@@ -1,0 +1,6 @@
+hw:shift+pad5 hw:note msg hw:pad13+pad17+pad20 msg hw:pad15+pad18 msg hw:pad25 msg print
+hw:shift+pad6 hw:note hw:pad17 hw:shift+note menulist menu:1 hw:play msg
+hw:shift+note menulist menu:12 hw:play msg print
+hw:shift+pad2 hw:instr hw:pad1+pad2 msg print
+hw:shift+pad13 hw:note hw:pad13+pad17 msg print
+hw:shift+pad3 hw:note hw:pad13+pad17 msg hw:shift+note msg print

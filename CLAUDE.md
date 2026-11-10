@@ -69,6 +69,11 @@ to upstream CE.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
     Backspace = Unwrap.
+  - Chords (Editor5, user): pads held together stack into `"[0,4,7]"` /
+    `"[bd,sd]"` (the step before the gap; pad releases reach the editor),
+    Shift+Note = chord-name menu on the note (root as a note name:
+    4 -> `e'maj`); either adds `# voices 3` to a sample block without a
+    `voices` control.
   - Note / Instrument: jump to the block's n / s pattern (added as
     `# n "0"` / `# s "bd"` if missing; v2 step 3); FX1: pattern modifiers
     (`$` functions: time / structure / random / layer / sample), FX2:
@@ -554,7 +559,9 @@ folders listed in the project (e.g. a manifest) on project load.
      slot (Shift+pad) had no cursor and only Replace started a block. Fixed
      in PolyendTrac_TidalEditor3.ptf (not yet run): Note / Instrument /
      Screen 1-8 / FX start a block there, "dN" drawn selected; pad entry
-     moves to the gap after the new step (user's ask).
+     moves to the gap after the new step (user's ask). Editor4 (not yet
+     run): Params left free (comments on Shift+Config), Left / Right flow
+     leaf to leaf across the block. Editor5 (not yet run): chords (above).
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)

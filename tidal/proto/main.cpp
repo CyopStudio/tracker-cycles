@@ -18,6 +18,7 @@
 //                                 hw:CONTROL / hw:shift+CONTROL presses a
 //                                 Tracker control, e.g. hw:s1 hw:jog+
 //                                 hw:shift+play hw:pad3 (ids: editor/controls.cpp)
+//                                 hw:pad20+pad24+pad27 = pads held together
 //     --shot FILE.png             screenshot after the keys ran
 //     --window                    open a window with the mock Tracker panel
 //                                 (needs a build with SDL=1)
@@ -104,12 +105,24 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
                 }
                 continue;
             }
-            Control c;
-            if (!ctlFromId(id.c_str(), c)) {
-                fprintf(stderr, "unknown control '%s'\n", id.c_str());
-                return false;
+            // hw:pad20+pad24+pad27 = pads pressed in turn and held together
+            // (a chord), released at the end; every press is released
+            std::vector<Control> held;
+            const bool chord = id.rfind("pad", 0) == 0 && id.find("+pad") != std::string::npos;
+            for (size_t at = 0; at <= id.size();) {
+                size_t plus = chord ? id.find('+', at) : std::string::npos;
+                if (plus == std::string::npos) plus = id.size();
+                const std::string one = id.substr(at, plus - at);
+                at = plus + 1;
+                Control c;
+                if (!ctlFromId(one.c_str(), c)) {
+                    fprintf(stderr, "unknown control '%s'\n", one.c_str());
+                    return false;
+                }
+                if (!press(ed, c, shift)) fprintf(stderr, "%-10s | (%s does nothing here)\n", tok.c_str(), ctlName(c));
+                held.push_back(c);
             }
-            if (!press(ed, c, shift)) fprintf(stderr, "%-10s | (%s does nothing here)\n", tok.c_str(), ctlName(c));
+            for (Control c : held) release(ed, c);
         } else if (tok.rfind("wait:", 0) == 0) {
             int ms = atoi(tok.c_str() + 5);
             for (int t = 0; t < ms; t += 50) {

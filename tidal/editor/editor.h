@@ -53,6 +53,7 @@ enum class Action {
     Confirm, Cancel, Save, ToggleTrackerMode,
     Copy, Paste, Home,                 // clipboard, jump to the block's top
     MenuNotes, MenuSamples,            // filtered replace menus
+    MenuChords,                        // Shift+Note: chord names on the note at the cursor
     MenuFunctions, MenuControls,       // filtered wrap menus
     Quick1, Quick2, Quick3, Quick4,    // context buttons: brackets / operators
     MenuLaunch,                        // dN / jumpMod / jumpIn for the block
@@ -62,7 +63,7 @@ enum class Action {
     JumpNotes, JumpSamples,            // Note / Instrument: the block's n / s pattern
     PlayCancel,                        // Delete while Play is held
     JumpCps,                           // Shift+Song: to `setcps` (created if missing) and back
-    EditComment,                       // Params: the block's comment on the keyboard screen
+    EditComment,                       // Shift+Config: the block's comment on the keyboard screen
     KbdType, KbdOk, KbdCancel, KbdClear,  // keyboard screen (Screen 1 / 8 / 7 / 2)
 };
 const char* actionName(Action a);
@@ -127,6 +128,11 @@ public:
     // Pad number entry: active anywhere in a numeric pattern (Time / Double /
     // Int / Note: a step, a group, the quotes) or on a number argument.
     bool padNumeric() const;
+    // Entry pads held down (number / instrument pads, by pad index): a pad
+    // entered while another is still held adds to a chord, the step before
+    // the gap becomes "[a,b,...]" (and the block gets `# voices 3`).
+    void entryPadDown(int pad);
+    void entryPadUp(int pad);
     bool cursorInt(int& v) const;  // current value, if a whole number / note
     bool cursorRest() const;
     // Replace the value at the cursor (rest: ~), then select the next step's
@@ -218,6 +224,11 @@ private:
     void enterSlot(int s);
 
     void navigate(Action a);
+    bool chordHere() const;
+    bool entryDone(uint16_t seq0, int pos0);  // after a pad entry: start a chord there
+    void chordAdd(const Text& code, const Label& label);
+    void ensureVoices();
+    void openChords();
     bool flow(bool right, uint16_t from);  // Left / Right past the end of a leaf / sequence
     void flowInto(bool right, uint16_t n);
     void wheel(int dir, bool fast);
@@ -273,6 +284,11 @@ private:
     uint16_t cursor_ = 0;
     bool menuOpen_ = false;
     Label menuTitle_;
+    bool menuVoices_ = false;  // applying the menu's item also adds `# voices 3`
+    uint64_t heldPads_ = 0;    // entry pads held down
+    FixVec<Str<24>, 8> chord_;  // the held chord's steps, in order
+    uint16_t chordSeq_ = 0;    // the gap after the chord step
+    int chordPos_ = 0;
     MenuList menu_;
     int menuSel_ = 0;
     Label message_;

@@ -4,6 +4,7 @@
 // control does that job right now. The mock panel (panel.h) shows which.
 // Key hints in panel.cpp must match the tables here.
 #include <SDL.h>
+#include <vector>
 #include <ctype.h>
 
 #include "editor.h"
@@ -91,6 +92,18 @@ std::string keyName(const SDL_KeyboardEvent& k) {
 void pressCtl(Editor& ed, Control c, bool shift, const std::string& via, PanelState& st, Uint32& litUntil) {
     Command cmd = controlCommand(ed, c, shift);
     bool did = press(ed, c, shift);
+    // a click is a press and a release; Ctrl+click holds a pad (a chord)
+    // until the next plain click on a pad
+    static std::vector<Control> held;
+    if (isPad(c) && (SDL_GetModState() & KMOD_CTRL)) {
+        held.push_back(c);
+    } else {
+        release(ed, c);
+        if (isPad(c)) {
+            for (Control h : held) release(ed, h);
+            held.clear();
+        }
+    }
     st.lit = c;
     litUntil = SDL_GetTicks() + 180;
     st.last = via + " -> " + (shift && c != Control::Shift ? "Shift+" : "") + ctlName(c) + "  [" + ctlFwName(c) +

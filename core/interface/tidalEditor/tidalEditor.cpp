@@ -368,7 +368,12 @@ void functButton(uint8_t button, uint8_t state)
 void functPads(uint8_t pad, uint8_t state, int16_t)
 {
     tc::Editor* ed = tidalEditorModel();
-    if (!ed || state != buttonPress || pad >= tc::kPadCols * tc::kPadRows) return;
+    if (!ed || pad >= tc::kPadCols * tc::kPadRows) return;
+    if (state == buttonRelease) {
+        tc::release(*ed, tc::padCtl(pad));  // ends a held chord
+        return;
+    }
+    if (state != buttonPress) return;
     tc::press(*ed, tc::padCtl(pad), shiftHeld());
     tidalEditorSetDirty();
 }

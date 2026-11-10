@@ -215,7 +215,12 @@ Decisions:
    sibling list. Editor4: on a leaf (or with no sibling on that side) they
    go on to the previous / next leaf of the text, "..." gaps included,
    across the block (smoke session 23; 10 older sessions now edit other
-   nodes, their expectations regenerated). Chords: open question.
+   nodes, their expectations regenerated).
+   Editor5 (2026-11-10, user's choice: both, voices automatic): pads held
+   together make a stack `"[0,4,7]"` (functPads forwards releases;
+   Editor::entryPadDown / Up); Shift+Note opens chord names on the note
+   (`e'maj` ...); either adds `# voices 3` to a sample block that has no
+   `voices` (smoke session 24).
 4. Module in slot 2, player hand-over, File = save /project.tidal
    (4e: per-project files later).
 5. Device build, then the parked UI TODO (pad modes) if it fits.

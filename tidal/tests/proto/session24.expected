@@ -1,0 +1,90 @@
+msg: n pattern: pads enter notes
+msg: = chord [0,4,7]  (hold pads to add)
+msg: = chord [2,5]  (hold pads to add)
+msg: + 12  (gap: more pads insert more)
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+d5 $ n "[0, 4, 7] [2, 5] 12" # s "bd" # voices 3
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5
+menu chord: [e'maj] [e'min] [e'maj7] [e'dom7] [e'min7] [e'dim] [e'dim7] [e'aug] [e'sus2] [e'sus4] [e'six] [e'five]
+msg: chord: e'min
+menu chord: [e'maj] [e'min] [e'maj7] [e'dom7] [e'min7] [e'dim] [e'dim7] [e'aug] [e'sus2] [e'sus4] [e'six] [e'five] [single note 4]
+msg: chord: single note 4
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+d5 $ n "[0, 4, 7] [2, 5] 12" # s "bd" # voices 3
+
+d6 $ n "4" # s "bd" # voices 3
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5
+msg: + sd  (gap: more pads insert more)
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "bd*8 sd" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+d5 $ n "[0, 4, 7] [2, 5] 12" # s "bd" # voices 3
+
+d6 $ n "4" # s "bd" # voices 3
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5
+msg: = chord [0,4]  (hold pads to add)
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "bd*8 sd" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+d5 $ n "[0, 4, 7] [2, 5] 12" # s "bd" # voices 3
+
+d6 $ n "4" # s "bd" # voices 3
+
+-- MIDI channel 1
+d9 $ n "[0, 4] e'min" # legato 0.5
+msg: = 4  (gap: more pads insert more)
+msg: ERROR chords: not on a range's end (0 .. 7)
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "bd*8 sd" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 4" # s "arpy" # speed "<1 2>"
+
+d5 $ n "[0, 4, 7] [2, 5] 12" # s "bd" # voices 3
+
+d6 $ n "4" # s "bd" # voices 3
+
+-- MIDI channel 1
+d9 $ n "[0, 4] e'min" # legato 0.5

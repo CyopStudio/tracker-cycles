@@ -59,7 +59,8 @@ constexpr int kRestPad = kPadCols * kPadRows - 1;
 bool controlFor(const Editor& ed, Action a, Control& c, bool& shift);
 // Runs the command; returns false if the control does nothing here.
 bool press(Editor& ed, Control c, bool shift);
-// Release of a control that acts on release (Play: the modifier, v2).
+// Release of a control that acts on release (Play: the modifier, v2; pads:
+// the end of a held chord). Every pad press needs its release.
 void release(Editor& ed, Control c);
 // Keyboard screen: press the pad(s) that type `c` (Caps on / off around
 // it as needed). False if no key types it.
