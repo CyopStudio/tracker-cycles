@@ -286,8 +286,11 @@ void testMidi() {
 struct RecVoice : Voice {
     std::vector<Entry> on;
     std::vector<std::pair<int, int>> off;  // chan, note
-    void noteOn(int, const Entry& e, uint32_t) override { on.push_back(e); }
-    void noteOff(int, uint8_t chan, uint8_t note, uint8_t) override { off.push_back({chan, note}); }
+    uint16_t noteOn(int, const Entry& e, uint32_t) override {
+        on.push_back(e);
+        return 0;
+    }
+    void noteOff(int, uint8_t chan, uint8_t note, uint8_t, uint16_t) override { off.push_back({chan, note}); }
     void allOff() override {}
 };
 Entry gStorage[Scheduler::kStorageEntries];

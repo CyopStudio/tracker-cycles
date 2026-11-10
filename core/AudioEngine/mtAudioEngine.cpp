@@ -1716,6 +1716,13 @@ playerEngine::playerEngine()
             playMemPtr[channel]->setSamplePointsSource(playMemPtr[0]);
         }
     }
+#ifndef PLATFORM_IMX
+    for (int k = 1; k < AudioVoice::kPlayers; k++)
+    {
+        audioVoice.getPlayer(k)->envelopeReleaseNoteOn(RELEASE_NOTE_ON_VAL);
+        audioVoice.getPlayer(k)->setSamplePointsSource(nullptr);
+    }
+#endif
 }
 
 AUDIO_CORE_RAM void playerEngine ::modGlide(uint16_t value)
@@ -2100,6 +2107,12 @@ void playerEngine::setInterpolationEnable(bool value)
     {
         playMemPtr[channel]->setInterpolationEnable(value);
     }
+#ifndef PLATFORM_IMX
+    for (int k = 0; k < AudioVoice::kPlayers; k++)
+    {
+        audioVoice.getPlayer(k)->setInterpolationEnable(value);
+    }
+#endif
 }
 
 float playerEngine ::fmap(float x, float in_min, float in_max, float out_min, float out_max)
@@ -2113,6 +2126,7 @@ uint8_t playerEngine ::noteOnWithoutInstrument(std::vector<int16_t*> addr,
                                                uint8_t note,
                                                int8_t velocity)
 {
+    tidalRestoreStock();  // Tracker Cycles polyphony: stock notes use player 0
 
     initEnvelopesParameters(envAmp, (envelopeGenerator::strEnv*)&passEnvelope);
 
@@ -2438,6 +2452,15 @@ void playerEngine::init(
     {
         playMemPtr[channel]->init(timer, channel, nChannel);
     }
+#ifndef PLATFORM_IMX
+    // Tracker Cycles polyphony: the extra players never stream (no stream
+    // buffer: voiceIdx -1); the Tidal allocator keeps streamed instruments
+    // on player 0
+    for (int k = 1; k < AudioVoice::kPlayers; k++)
+    {
+        audioVoice.getPlayer(k)->init(timer, 0, -1);
+    }
+#endif
 }
 
 uint32_t playerEngine::getEnvelopeWtPosMod()

@@ -22,6 +22,7 @@ uint8_t playerEngine ::noteOn(uint8_t instr_idx, int8_t note, int8_t _velocity)
 
     uint8_t status;
 
+    tidalRestoreStock();  // Tracker Cycles polyphony: stock notes use player 0
     currentInstrument_idx = instr_idx;
     currentNote = note;
     stepVelocity = _velocity;
@@ -89,6 +90,7 @@ AUDIO_CORE_RAM uint8_t playerEngine ::noteOn(uint8_t instr_idx,
     AudioNoInterrupts();
     uint8_t status;
 
+    tidalRestoreStock();  // Tracker Cycles polyphony: stock notes use player 0
     currentInstrument_idx = instr_idx;
     currentNote = note;
     stepVelocity = velocity;
@@ -443,7 +445,7 @@ AUDIO_CORE_RAM void playerEngine::handleNoteOnFilter()
 AUDIO_CORE_RAM void playerEngine::handleNoteOnGain()
 {
     assert(playMemPtr[0] != nullptr);
-    if (!playMemPtr[0]->isPlaying())
+    if (!anyPlayerPlaying())
     {
         for (int channel = 0; channel < (int)ampPtr.size(); channel++)
         {
@@ -461,7 +463,7 @@ AUDIO_CORE_RAM void playerEngine::handleNoteOnGain()
 AUDIO_CORE_RAM void playerEngine::handleNoteOnPanning()
 {
     assert(playMemPtr[0] != nullptr);
-    if (!playMemPtr[0]->isPlaying()) // todo: see handleNoteOnGain() description
+    if (!anyPlayerPlaying()) // todo: see handleNoteOnGain() description
     {
 #ifndef PLATFORM_IMX
         monoToStereoPtr->gain(1.0f, MonoToStereo::Channel::left);
@@ -485,7 +487,7 @@ void playerEngine::handleNoteOnBitCrusher()
 AUDIO_CORE_RAM void playerEngine::handleNoteOnDelaySend()
 {
     assert(playMemPtr[0] != nullptr);
-    if (!playMemPtr[0]->isPlaying()) // todo: see handleNoteOnGain() description
+    if (!anyPlayerPlaying()) // todo: see handleNoteOnGain() description
     {
         preDelayMixer->gain(nChannel, 0.0f);
         preDelayMixer->gain(nChannel, 0.0f);
@@ -501,7 +503,7 @@ AUDIO_CORE_RAM void playerEngine::handleNoteOnDelaySend()
 AUDIO_CORE_RAM void playerEngine::handleNoteOnReverbSend()
 {
     assert(playMemPtr[0] != nullptr);
-    if (!playMemPtr[0]->isPlaying()) // todo: see handleNoteOnGain() description
+    if (!anyPlayerPlaying()) // todo: see handleNoteOnGain() description
     {
         prePolyverbMixer->gain(nChannel, 0.0f);
         prePolyverbMixer->gain(nChannel, 0.0f);

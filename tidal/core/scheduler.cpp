@@ -51,7 +51,7 @@ void Scheduler::init(Program* live, Event* buf, int cap, Mapper* mapper, Entry* 
     mapper_ = mapper;
     hooks_ = hooks;
     cap_ = 4;
-    mono_ = false;
+    players_ = 0;
     idleValid_ = false;
     idleUntil_ = 0;
     tmp_ = storage + kSlots * kRingSize;
@@ -418,7 +418,7 @@ void Scheduler::tick(Voice& v) {
             if (o.active && (int32_t)(o.block - b) <= 0) {
                 o.active = false;
                 nOff_[i]--;
-                v.noteOff(i, o.chan, o.note, o.offset);
+                v.noteOff(i, o.chan, o.note, o.offset, o.tag);
             }
     }
     int starts = 0;
@@ -439,22 +439,30 @@ void Scheduler::tick(Voice& v) {
                 h++;
                 continue;
             }
-            // one note at a time: a later start due now cuts this one anyway
-            if (sample && mono_ && h + 1 != t && (int32_t)(b - r.e[(h + 1) & (kRingSize - 1)].block) >= 0) {
-                stats_.superseded++;
-                h++;
-                continue;
+            // at most players_ notes at a time: players_ later starts due now
+            // would cut this one anyway
+            if (sample && players_ > 0) {
+                int later = 0;
+                for (uint32_t j = h + 1; j != t && later < players_; j++) {
+                    if ((int32_t)(b - r.e[j & (kRingSize - 1)].block) < 0) break;
+                    later++;
+                }
+                if (later >= players_) {
+                    stats_.superseded++;
+                    h++;
+                    continue;
+                }
             }
             if (sample && cap_ > 0 && starts >= cap_) {
                 stats_.capped++;
                 break;
             }
             Off* offs = off_[i];
-            if (sample && nOff_[i]) {  // one voice per sample slot: a new note cuts the old one
+            if (sample && players_ <= 1 && nOff_[i]) {  // one voice per sample slot: a new note cuts the old one
                 for (int j = 0; j < kMaxPendingOffs; j++) offs[j].active = false;
                 nOff_[i] = 0;
             }
-            v.noteOn(i, e, (uint32_t)late);
+            const uint16_t tag = v.noteOn(i, e, (uint32_t)late);
             if (sample) starts++;
             if (e.dur) {
                 uint64_t at = (uint64_t)e.block * kBlockSamples + e.offset + e.dur;
@@ -465,7 +473,7 @@ void Scheduler::tick(Voice& v) {
                     slotFor = &offs[0];
                     for (int j = 1; j < kMaxPendingOffs; j++)
                         if ((int32_t)(offs[j].block - slotFor->block) < 0) slotFor = &offs[j];
-                    v.noteOff(i, slotFor->chan, slotFor->note, 0);
+                    v.noteOff(i, slotFor->chan, slotFor->note, 0, slotFor->tag);
                 } else {
                     nOff_[i]++;
                 }
@@ -473,6 +481,7 @@ void Scheduler::tick(Voice& v) {
                 slotFor->offset = (uint8_t)(at % kBlockSamples);
                 slotFor->note = e.note;
                 slotFor->chan = e.chan;
+                slotFor->tag = tag;
                 slotFor->active = true;
             }
             h++;

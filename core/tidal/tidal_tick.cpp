@@ -1,5 +1,8 @@
 // Device tick test build (see tidal_tick.h and README.md).
 //
+// v7: polyphony (docs/tidal_voices.md): 3 sample players per track into the
+// track's chain, at most 16 sounding; set 6 overfills the cap (8 tracks of
+// ringing chords), sets 15-17 are polyphony listening sets.
 // v6: audio floor work (idle voices, muted sends, silent delay / reverb
 // send no blocks); set 1 = 10 s of silence to measure the floor.
 // v5: listening sets one track at a time (solo, with a hint popup);
@@ -27,6 +30,7 @@
 #include "tidal_tick.h"
 
 #include <ctype.h>
+#include <malloc.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -111,6 +115,16 @@ const TestSet kSets[] = {
      "d7 $ s \"lt*16\"\n"
      "d8 $ s \"mt*16\"\n",
      20, false, "timing: all 8 tracks together"},
+    {"setcps 0.575\n"
+     "d1 $ n \"<c'maj e'min>*2\" # s \"arpy\" # legato 3\n"
+     "d2 $ n \"<a'min f'maj>*2\" # s \"bass\" # legato 3\n"
+     "d3 $ n \"<e'min c'maj>*2\" # s \"pluck\" # legato 3\n"
+     "d4 $ n \"<g'maj d'min>*2\" # s \"casio\" # legato 3\n"
+     "d5 $ n \"<c'maj7 a'min7>*2\" # s \"jvbass\" # legato 3\n"
+     "d6 $ n \"<f'maj g'maj>*2\" # s \"bev\" # legato 3\n"
+     "d7 $ n \"<d'min e'min>*2\" # s \"bass1\" # legato 3\n"
+     "d8 $ n \"<a'min c'maj>*2\" # s \"bass2\" # legato 3\n",
+     20, false, "timing: polyphony cap, 8 tracks of ringing chords"},
     // listening: one sample control per set, alone
     {"d1 $ s \"bd*4\" # pan \"0 1\"\n", 7, true, "d1 kick: hard left / hard right"},
     {"d2 $ s \"hh*8\" # cutoff (range 300 8000 $ slow 4 sine) # resonance 0.3\n", 11, true,
@@ -123,6 +137,12 @@ const TestSet kSets[] = {
     {"d7 $ s \"<lt mt ht>*2\" # shape 0.6 # delay 0.4\n", 8, true, "d7 toms: distorted, with echoes"},
     {"d8 $ s \"drum*4\" # gain \"1 0.7 0.85 0.7\" # attack \"<0 0.05>\" # release 0.1\n", 9, true,
      "d8: accent on 1; every other cycle fades in"},
+    // listening: polyphony (3 players per track)
+    {"d4 $ n \"<c'maj e'min a'min f'maj>\" # s \"arpy\" # legato 2\n", 10, true,
+     "poly d4: whole 3-note chords, each rings into the next"},
+    {"d5 $ n \"0 3 7 10\" # s \"bass\" # legato 2\n", 10, true, "poly d5: bass notes overlap, tails under the next"},
+    {"d3 $ echo 3 0.2 0.6 $ n \"<0 7>\" # s \"pluck\" # legato 1\n", 10, true,
+     "poly d3: echoes ring over each other"},
     // listening: MIDI (copy docs/tidal_tick_midi.tidal to the card to run this alone)
     {"d1 $ s \"bd*4\"\n"
      "d9 $ n \"0 4 7 12\" # velocity \"0.5 1\" # legato 0.5\n"
@@ -191,9 +211,9 @@ uint32_t blockStarts = 0;
 
 // DeviceVoice, timed
 struct TickVoice : DeviceVoice {
-    void noteOn(int slot, const Entry& e, uint32_t late) override {
+    uint16_t noteOn(int slot, const Entry& e, uint32_t late) override {
         const uint32_t t0 = CYCLES();
-        DeviceVoice::noteOn(slot, e, late);
+        const uint16_t tag = DeviceVoice::noteOn(slot, e, late);
         const uint32_t c = CYCLES() - t0;
         isr.noteOnCyc += c;
         if (c > isr.noteOnCycMax) isr.noteOnCycMax = c;
@@ -201,9 +221,10 @@ struct TickVoice : DeviceVoice {
         isr.mods += e.nmods;
         isr.late[late < 3 ? late : 3]++;
         if (slot < audioEngine::kVoices) blockStarts++;
+        return tag;
     }
-    void noteOff(int slot, uint8_t chan, uint8_t note, uint8_t offset) override {
-        DeviceVoice::noteOff(slot, chan, note, offset);
+    void noteOff(int slot, uint8_t chan, uint8_t note, uint8_t offset, uint16_t tag) override {
+        DeviceVoice::noteOff(slot, chan, note, offset, tag);
         isr.offs++;
     }
 };
@@ -324,7 +345,7 @@ void start() {
     sched->init(live, buf, kQueryCap, &mapper, reinterpret_cast<tc::Entry*>(storageRaw),
                 tc::Scheduler::Hooks{irqOff, irqOn});
     sched->setSampleRate(750000, 17);  // 180 MHz * 16 / 255 / 256
-    sched->setMonoSlots(true);         // one voice per sample track
+    sched->setSlotPlayers(DeviceVoice::kPlayers);  // players per sample track
 
     FileSystem* fs = gPlatform->getFileSystem();
     if (fs->exists(kUserSet)) {
@@ -351,15 +372,16 @@ int activeInstruments() {
 
 int header(int n) {
     return n + snprintf(report + n, sizeof report - n,
-                        "Tracker Cycles device tick test v6 (" TC_TICK_VARIANT "), %s\n"
+                        "Tracker Cycles device tick test v7 (" TC_TICK_VARIANT "), %s\n"
                         "%d active instruments; scheduler object %u B (internal RAM), entries %u B, live program "
-                        "%u B (SDRAM); engine working set in internal RAM: %s; mono sample slots\n"
+                        "%u B (SDRAM); engine working set in internal RAM: %s; %d sample players per track, at most %d sounding\n"
                         "cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles\n\n",
                         gUserSet ? kUserSet : "built-in sets",
                         activeInstruments(), (unsigned)sizeof(tc::Scheduler), (unsigned)sizeof storageRaw,
                         (unsigned)sizeof(tc::Program),
                         tc::engineMemoryBytes(kFastEvents, kFastCtls, kFastParams) <= (int)sizeof fastMem ? "yes"
-                                                                                                         : "no");
+                                                                                                         : "no",
+                        DeviceVoice::kPlayers, DeviceVoice::kCap);
 }
 
 uint32_t unmapped() {
@@ -370,8 +392,10 @@ uint32_t unmapped() {
 
 int setReport(int n, uint32_t ms) {
     IsrStats s;
+    DeviceVoice::Stats vs;
     irqOff();
     s = isr;
+    vs = voice.vstats;
     irqOn();
     Profiler::AudioProcessorUsage u{};
     Profiler::getInstance()->getAudioProcessingUsagePercent(u, true);
@@ -403,6 +427,14 @@ int setReport(int n, uint32_t ms) {
                   (unsigned long)st.idleUpdates,
                   (unsigned long)st.splits, (unsigned long)st.skips, (long)sched->window().n, (long)sched->window().d,
                   (unsigned long)mapper.maps, avg(mapper.mapCyc, mapper.maps), u.average, u.tempMaximum);
+    {
+        n += snprintf(report + n, sizeof report - n,
+                      "players: most sounding at a noteOn %lu (cap %d), avg %lu.%lu; retriggered own track's oldest "
+                      "%lu, stopped another track's (cap) %lu; stale noteOffs %lu; audio blocks most in use %u of 70\n",
+                      (unsigned long)vs.maxSounding, DeviceVoice::kCap, avg(vs.soundingSum, vs.picks),
+                      avg((uint64_t)vs.soundingSum * 10, vs.picks) % 10, (unsigned long)vs.trackSteals,
+                      (unsigned long)vs.globalSteals, (unsigned long)vs.staleOffs, (unsigned)AudioMemoryUsageMax());
+    }
     for (int i = 0; i < tc::kSlots; i++) {
         const tc::MapWarnings& w = mapper.warnings(i);
         if (w.unknownName || w.noSound || w.droppedMods || w.filterClash)
@@ -418,6 +450,11 @@ int setReport(int n, uint32_t ms) {
                           (unsigned long)st.slotWindows[i], avg(st.slotUs[i], st.slotWindows[i]),
                           (unsigned long)st.slotUsMax[i]);
     const uintptr_t top = (uintptr_t)&_estack, brk = (uintptr_t)__brkval, minSp = tc::engineMinStack();
+    {
+        const struct mallinfo mi = mallinfo();
+        n += snprintf(report + n, sizeof report - n, "heap: %lu B in use, %lu B free in the arena\n",
+                      (unsigned long)mi.uordblks, (unsigned long)mi.fordblks);
+    }
     if (minSp == UINTPTR_MAX)  // no query has run yet (silent set)
         n += snprintf(report + n, sizeof report - n,
                       "stack: evaluator not run yet; heap end %lu B below the top of RAM\n",
@@ -438,6 +475,7 @@ void resetCounters() {
     mapper.maps = 0;
     mapper.mapCyc = 0;
     sched->resetStats();
+    AudioMemoryUsageMaxReset();
     Profiler::getInstance()->resetMeasuringAudio();
 }
 
@@ -462,6 +500,7 @@ void tidalTick() {
     const uint32_t t0 = CYCLES();
     if (isrReset) {
         memset(&isr, 0, sizeof isr);
+        voice.vstats = DeviceVoice::Stats{};
         isrReset = false;
     }
     blockStarts = 0;

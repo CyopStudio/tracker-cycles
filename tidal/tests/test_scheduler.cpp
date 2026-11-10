@@ -82,6 +82,7 @@ struct Rec {
     uint8_t offset;
     uint8_t note;
     uint32_t late;
+    uint16_t tag = 0;  // noteOn: what it returned; noteOff: what came back
     int64_t sample() const { return (int64_t)block * kBlockSamples + offset; }
 };
 struct RecVoice : Voice {
@@ -89,11 +90,13 @@ struct RecVoice : Voice {
     std::vector<Rec> off;
     int allOffs = 0;
     uint32_t now = 0;
-    void noteOn(int slot, const Entry& e, uint32_t late) override {
-        on.push_back(Rec{now, slot, e.block, e.offset, e.note, late});
+    uint16_t nextTag = 1;
+    uint16_t noteOn(int slot, const Entry& e, uint32_t late) override {
+        on.push_back(Rec{now, slot, e.block, e.offset, e.note, late, nextTag});
+        return nextTag++;
     }
-    void noteOff(int slot, uint8_t, uint8_t note, uint8_t offset) override {
-        off.push_back(Rec{now, slot, now, offset, note, 0});
+    void noteOff(int slot, uint8_t, uint8_t note, uint8_t offset, uint16_t tag) override {
+        off.push_back(Rec{now, slot, now, offset, note, 0, tag});
     }
     void allOff() override { allOffs++; }
 } gVoice;
@@ -557,6 +560,61 @@ void testMono() {
             gS.stats().capped);
 }
 
+// N players per sample slot: of the starts due in one block the last N play;
+// noteOffs of overlapping notes stay pending and come back with their
+// noteOn's tag (players 1: a new note cancels them, as before).
+void testPlayers() {
+    reset();
+    gS.setSlotPlayers(3);
+    if (!load("d1 $ s \"bd*4096\"\n")) return;  // ~7 starts per block
+    evalSlot(0);
+    Q endC{3, 1};
+    run((uint32_t)(refSample(endC) / kBlockSamples) + 10, 5);
+    std::vector<Onset> ref;  // one cycle past the end: starts there supersede in the last block
+    refOnsets(0, Q{1, 1}, Q{4, 1}, ref);
+    std::sort(ref.begin(), ref.end());
+    std::vector<Onset> want;  // last 3 onsets per block
+    for (size_t i = 0; i < ref.size(); i++) {
+        int later = 0;
+        for (size_t j = i + 1; j < ref.size() && ref[j].sample / kBlockSamples == ref[i].sample / kBlockSamples; j++)
+            later++;
+        if (later < 3 && ref[i].sample < refSample(endC) - 1) want.push_back(ref[i]);
+    }
+    run((uint32_t)(refSample(Q{4, 1}) / kBlockSamples), 5);
+    ref.erase(std::remove_if(ref.begin(), ref.end(), [&](const Onset& o) { return o.sample >= refSample(endC) - 1; }),
+              ref.end());
+    sameOnsets(played(0, refSample(endC) - 1), want, "3 players bd*4096");
+    SEXPECT(want.size() < ref.size() * 3 / 4, "test pattern too sparse (%zu of %zu)", want.size(), ref.size());
+    SEXPECT(gS.stats().superseded >= ref.size() - want.size(), "superseded %u, want >= %zu", gS.stats().superseded,
+            ref.size() - want.size());
+
+    // overlapping notes: every noteOff, with its own note's tag, once
+    for (int players : {3, 1}) {
+        reset();
+        gS.setSlotPlayers(players);
+        if (!load("d1 $ n \"0 1 2 3\" # s \"arpy\" # legato 2.5\n")) return;
+        evalSlot(0);
+        run((uint32_t)(refSample(Q{6, 1}) / kBlockSamples), 5);
+        std::vector<uint16_t> seen;
+        int wrong = 0;
+        for (const Rec& o : gVoice.off) {
+            bool ok = false;
+            for (const Rec& n : gVoice.on)
+                if (n.tag == o.tag && n.note == o.note && n.slot == o.slot) ok = true;
+            if (!ok) wrong++;
+            seen.push_back(o.tag);
+        }
+        std::sort(seen.begin(), seen.end());
+        const bool dup = std::adjacent_find(seen.begin(), seen.end()) != seen.end();
+        SEXPECT(!wrong && !dup, "players %d: %d noteOffs with a wrong tag, duplicates %d", players, wrong, (int)dup);
+        const size_t ons = gVoice.on.size(), offs = gVoice.off.size();
+        if (players == 3)
+            SEXPECT(ons >= 16 && offs + 3 >= ons, "3 players: %zu notes, only %zu noteOffs", ons, offs);
+        else
+            SEXPECT(offs <= 1, "1 player: %zu noteOffs (a new note cancels them)", offs);
+    }
+}
+
 void testHushAndErrors() {
     reset();
     if (!load("d1 $ s \"bd*8\"\nd9 $ n \"0 3\" # s \"midi\" # legato 2\n")) return;
@@ -611,6 +669,7 @@ void testScheduler(int& pass, int& fail) {
     testStall();
     testDense();
     testMono();
+    testPlayers();
     testIdleUpdates();
     testHushAndErrors();
     printf("scheduler: %s\n", fail == f0 ? "ok" : "FAILED");

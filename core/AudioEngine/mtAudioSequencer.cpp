@@ -2133,7 +2133,11 @@ uint8_t playerEngine::getMostSignificantVolume()
     uint8_t localVol = 0;
     if (muteState == MUTE_DISABLE)
     {
-        if ((trackControlParameter[(int)controlType::sequencerMode][(int)parameterList::volume]) ||
+        if (tidalVolume)
+        {
+            localVol = 50;  // ampLogValues[50] = 1.0: the note volume is in the player gain
+        }
+        else if ((trackControlParameter[(int)controlType::sequencerMode][(int)parameterList::volume]) ||
             (trackControlParameter[(int)controlType::sequencerMode2][(int)parameterList::volume]))
         {
             localVol = currentSeqModValues.volume;

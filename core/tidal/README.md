@@ -153,6 +153,16 @@ else wrapped onto the active instruments; `n` / `note` add to C5; `gain`
 x100 = step volume; looped instruments get a noteOff after the event's
 length, one-shots play out. d9..d16 (MIDI) are not mapped yet.
 
+v7 (2026-11-10, PolyendTrac_TidalTick7.ptf): polyphony (docs/tidal_voices.md):
+3 sample players per track into the track's chain, at most 16 sounding,
+`setSlotPlayers(3)` instead of mono slots. 18 sets: set 6 (new, 20 s)
+overfills the cap with 8 tracks of ringing 3-note chords; sets 15-17 are
+polyphony listening sets (d4 chords, d5 overlapping bass, d3 echoes).
+New report lines: `players:` (most / average sounding at a noteOn,
+retriggers of the track's oldest player, cap steals, stale noteOffs,
+audio blocks most in use of 70) and `heap:` (in use / free: the tick
+build's heap shrank ~6 KB). Flash 1,010,164 B (96.3 %), RAM 198,180 B.
+
 v6 (2026-11-09, PolyendTrac_TidalTick6.ptf): the audio floor work
 (CLAUDE.md, Polyphony section) is in every build; the tick test adds a
 first set of 10 s silence, so its "audio load" line is the idle floor

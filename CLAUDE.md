@@ -351,12 +351,42 @@ folders listed in the project (e.g. a manifest) on project load.
      fine); parse ~12 ms even for one line, mostly Program::clear() on
      the 70 KB SDRAM program (cheap to fix: reset counts instead of
      clearing all).
+     Step 4 (2026-11-10): polyphony, see "Polyphony" below and
+     docs/tidal_voices.md; tick test v7 (PolyendTrac_TidalTick7.ptf,
+     core/tidal/README.md).
    - 4d. Device editor: step 1 editor logic + FT812 drawing layer +
      pad/encoder input.
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)
-- Today: 8 sample voices, one per track (voice index == track index).
+- Built (2026-11-10, tick v7, not yet run on the device): design
+  docs/tidal_voices.md. Decided with the user: shared track chain (3
+  sample players per track summed by AudioSumPlayers into the track's
+  one crusher / filter / amp / pan / sends; per note: pitch, points,
+  slice, reverse, volume = player gain, amp envelope; per track: filter,
+  crush, shape, pan, sends) and at most 16 of the 24 players sounding.
+  DeviceVoice picks the player (free < cap, else the track's oldest, else
+  steal the oldest anywhere; streamed instruments on player 0); the
+  scheduler's setSlotPlayers(n) keeps the last n starts per block and
+  hands each noteOff its noteOn's tag. Every build: internal RAM +5.7 KB.
+  v7 results (2026-11-10, docs/tidal_tick.txt; project changed since v6:
+  11 instruments incl. the long/looped poly samples, longer global
+  reverb): polyphony works (chords 3 players, overlapping bass, echoes;
+  cap steals 25 and 358 stale noteOffs in the cap set, as designed; heap
+  17.7 KB used / 13.5 KB free; audio blocks <= 39 of 70; stack 14.2 KB
+  spare). But audio load v6 -> v7: silence 7 -> 7, light 36 -> 61,
+  everyday 74 -> 96 (max 112), heavy 65 -> 88, 8x x*16 77 -> 102 (max
+  123), cap set 90; solo sets +4..+37 (hats 22 -> 59: hh rings 1.7 s, so
+  3 players instead of 1; snare +13 with one player at a time, so part
+  is the longer reverb staying active). At >= 90 % the main loop starves:
+  update() 56-97 % of wall time, gaps up to 1.3 s, horizon skips, 790
+  dropped notes in the heavy set. Cap 16 is too many sounding players for
+  this CPU with reverb on (16 sounding ~ 60 points). Over-cap bug: up to
+  19 sounding (starts in the same block, or a retriggered player in its
+  release-on-noteOn, not yet isPlaying(), count as free). Next: baseline
+  v6 on the same project, then a lower / load-driven cap.
+  The notes below are the plan before that decision.
+- Before: 8 sample voices, one per track (voice index == track index).
 - Target: 2 voices per sample channel (16 total), alternating, so a cut
   note keeps its release while the next one starts ("release tails"). Covers
   overlapping legato/sustain, long samples, stut/echo.

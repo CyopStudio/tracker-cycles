@@ -161,8 +161,10 @@ mode is what the device can do (minus sound differences).
    Known approximations: attack-only events also set the decay to the
    instrument's release (the step-FX envelope rule); pads / previews on a
    track keep the last Tidal note's overrides until the next Tidal note.
-4. Then the per-channel voice allocator (Polyphony plan) is the next
-   step on top: the Entry gets a voice field.
+4. Built (2026-11-10), not yet run on the device: polyphony,
+   docs/tidal_voices.md (3 players per track into the track's chain,
+   cap 16; the device picks the player, the scheduler hands noteOffs back
+   by tag, so the Entry needed no voice field).
 
 ## 7. Decisions (2026-11-09, with the user)
 

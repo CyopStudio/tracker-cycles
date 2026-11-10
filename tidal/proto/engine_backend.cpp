@@ -181,9 +181,9 @@ struct EngineBackend::Impl : Mapper, Voice {
     }
 
     // ---- Voice (audio thread) ------------------------------------------------------
-    void noteOn(int slot, const Entry& e, uint32_t) override {
+    uint16_t noteOn(int slot, const Entry& e, uint32_t) override {
         const Msg& m = side[slot][e.modVal[0] % kSide];
-        if (!m.len || sock < 0) return;
+        if (!m.len || sock < 0) return 0;
         double t = wall0 + ((double)e.block * kBlockSamples + e.offset) * kFsDen / kFsNum + latency;
         double sec = floor(t);
         uint32_t ntpSec = (uint32_t)((uint64_t)sec + 2208988800ULL);
@@ -196,8 +196,9 @@ struct EngineBackend::Impl : Mapper, Voice {
         w.i32(m.len);
         w.raw(m.b, m.len);
         if (w.ok) sendto(sock, b, w.n, 0, (const sockaddr*)&addr, addrLen);
+        return 0;
     }
-    void noteOff(int, uint8_t, uint8_t, uint8_t) override {}  // SuperDirt plays events out by delta / legato
+    void noteOff(int, uint8_t, uint8_t, uint8_t, uint16_t) override {}  // SuperDirt plays events out by delta / legato
     void allOff() override {}
 
     // ---- threads ---------------------------------------------------------------------

@@ -3,7 +3,10 @@
 #ifndef PLATFORM_IMX
 AudioVoice::AudioVoice()
 {
-    connections.push_back(new AudioConnection(&memoryPlayer, &bitDepth));
+    connections.push_back(new AudioConnection(&memoryPlayer, 0, &playerSum, 0));
+    for (int k = 1; k < kPlayers; k++)
+        connections.push_back(new AudioConnection(&extraPlayers[k - 1], 0, &playerSum, k));
+    connections.push_back(new AudioConnection(&playerSum, &bitDepth));
     connections.push_back(new AudioConnection(&bitDepth, &filter));
     connections.push_back(new AudioConnection(&filter, &amplifier));
     connections.push_back(new AudioConnection(&amplifier, &monoToStereo));

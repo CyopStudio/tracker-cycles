@@ -8,7 +8,14 @@
 // envelopes, LFOs and performance mode treat them like step FX. Every note
 // starts from the instrument: overrides the previous Tidal note set and
 // this one doesn't have are ended with the stock endFx*() calls.
+//
+// Polyphony (docs/tidal_voices.md): the caller (DeviceVoice) picks which of
+// the track's kTidalPlayers sample players plays the note; playMemPtr[0]
+// is pointed at it, so every player-level setter below and update()'s
+// per-block refresh act on the newest note while older ones ring out with
+// what they had. Their sum feeds the track's one crusher / filter / amp.
 #ifdef TIDAL_TICK
+#include "ampLogarythmicValues.h"
 #include "mtAudioEngine.h"
 #include "mtSequencer.h"
 #include "mtStructs.h"
@@ -23,11 +30,17 @@ constexpr uint32_t bit(TMod m) { return 1u << (uint32_t)m; }
 constexpr uint32_t kFilterBits = bit(TMod::CutoffLP) | bit(TMod::CutoffHP) | bit(TMod::CutoffBP);
 constexpr uint32_t kPointBits = bit(TMod::Begin) | bit(TMod::End);
 constexpr uint32_t kEnvBits = bit(TMod::Attack) | bit(TMod::Release);
+// overrides held by the player itself (force flags / its own settings), not
+// by the track's chain
+constexpr uint32_t kPlayerBits =
+  bit(TMod::FineTune) | bit(TMod::Slice) | bit(TMod::Reverse) | bit(TMod::Begin) | bit(TMod::End);
+static_assert(playerEngine::kTidalPlayers == AudioVoice::kPlayers, "players per track");
 static_assert((int)TMod::Count <= 32, "TMod bits must fit 32 bits");
 
 }  // namespace
 
-AUDIO_CORE_RAM uint8_t playerEngine::tidalNoteOn(uint8_t instr_idx,
+AUDIO_CORE_RAM uint8_t playerEngine::tidalNoteOn(uint8_t player,
+                                                 uint8_t instr_idx,
                                                  int8_t note,
                                                  int8_t velocity,
                                                  const uint8_t* modId,
@@ -38,6 +51,8 @@ AUDIO_CORE_RAM uint8_t playerEngine::tidalNoteOn(uint8_t instr_idx,
         return 0;
     if (isBlockedNoteOn[instr_idx])
         return 0;
+    if (player >= kTidalPlayers)
+        player = 0;
 
     uint32_t has = 0;
     uint16_t v[(int)TMod::Count] = { 0 };
@@ -52,6 +67,15 @@ AUDIO_CORE_RAM uint8_t playerEngine::tidalNoteOn(uint8_t instr_idx,
     auto val = [&](TMod m) { return v[(int)m]; };
 
     AudioNoInterrupts();
+
+    // this note's player; its volume is its gain into the track's chain
+    AudioPlayMemory* const pm = audioVoice.getPlayer(player);
+    playMemPtr[0] = pm;
+    tidalCur = player;
+    pm->envelopeClearEndReleaseFlag();  // a stale flag from its last note would end this one's LFOs
+    audioVoice.getPlayerSum()->gain(
+      player, ampLogValues[velocity < 0 ? mtProject.instrument[instr_idx].volume : velocity]);
+    tidalVolume = true;
 
     currentInstrument_idx = instr_idx;
     currentNote = note;
@@ -119,7 +143,9 @@ AUDIO_CORE_RAM uint8_t playerEngine::tidalNoteOn(uint8_t instr_idx,
     }
 
     // end what the previous Tidal note set and this one doesn't
-    auto ends = [&](uint32_t mask) { return (tidalMods & mask) && !(has & mask); };
+    // player-level overrides: also what this player's own last note set
+    const uint32_t prev = tidalMods | (tidalModsP[player] & kPlayerBits);
+    auto ends = [&](uint32_t mask) { return (prev & mask) && !(has & mask); };
     if (ends(kFilterBits)) endFxFilter(0);
     if (ends(bit(TMod::Pan))) endFxPanning(0);
     if (ends(bit(TMod::BitDepth))) endFxBitDepth(0);
@@ -214,6 +240,7 @@ AUDIO_CORE_RAM uint8_t playerEngine::tidalNoteOn(uint8_t instr_idx,
                      0);
     }
     tidalMods = has;
+    tidalModsP[player] = has & kPlayerBits;
 
     // start, as the sequencer's noteOn
     bool isAmpRandom =
@@ -244,5 +271,38 @@ AUDIO_CORE_RAM uint8_t playerEngine::tidalNoteOn(uint8_t instr_idx,
         onEndDisplay = true;
     AudioInterrupts();
     return 1;
+}
+
+AUDIO_CORE_RAM void playerEngine::tidalNoteOff(uint8_t player)
+{
+    if (player >= kTidalPlayers)
+        return;
+    if (player == tidalCur)
+        noteOff();  // the track's envelopes / LFOs follow the newest note
+    else
+        audioVoice.getPlayer(player)->envelopeNoteOff();
+}
+
+AUDIO_CORE_RAM void playerEngine::tidalStop(uint8_t player)
+{
+    if (player >= kTidalPlayers)
+        return;
+    AudioPlayMemory* const pm = audioVoice.getPlayer(player);
+    pm->envelopeNoteOff();
+    pm->envelopeSetIdle();
+    pm->stop();
+}
+
+AUDIO_CORE_RAM bool playerEngine::tidalPlaying(uint8_t player)
+{
+    return player < kTidalPlayers && audioVoice.getPlayer(player)->isPlaying();
+}
+
+void playerEngine::tidalAllOff()
+{
+    for (uint8_t k = 0; k < kTidalPlayers; k++)
+        if (k != tidalCur && audioVoice.getPlayer(k)->isPlaying())
+            audioVoice.getPlayer(k)->envelopeNoteOff();
+    noteOff();
 }
 #endif

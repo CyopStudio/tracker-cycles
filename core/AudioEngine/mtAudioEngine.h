@@ -278,12 +278,37 @@ class playerEngine
     // tidal/core/mapping.h). Every note starts from the instrument; the
     // previous Tidal note's overrides that this one lacks are ended.
     // velocity: volume step 0..100, -1 = the instrument's.
-    uint8_t tidalNoteOn(uint8_t instr_idx,
+    // Polyphony (docs/tidal_voices.md): `player` (0..kTidalPlayers-1) is the
+    // track's sample player that plays it (picked by the caller); the note's
+    // volume becomes that player's gain into the track's shared chain, so
+    // the track amp / sends run at unity (tidalVolume). Pitch, start / end,
+    // slice, reverse and the amp envelope are per player; filter, crush,
+    // drive, pan and sends are per track (the latest note's).
+    static constexpr int kTidalPlayers = 3;
+    uint8_t tidalNoteOn(uint8_t player,
+                        uint8_t instr_idx,
                         int8_t note,
                         int8_t velocity,
                         const uint8_t* modId,
                         const uint16_t* modVal,
                         uint8_t nmods);
+    void tidalNoteOff(uint8_t player);  // release that player's note
+    void tidalStop(uint8_t player);     // stop it now (voice stolen)
+    bool tidalPlaying(uint8_t player);  // sounding (release tail included)
+    void tidalAllOff();
+    // the stock noteOn paths call this: back to player 0, instrument volume
+    void tidalRestoreStock()
+    {
+        tidalVolume = false;
+#ifndef PLATFORM_IMX
+        if (tidalCur != 0)
+        {
+            playMemPtr[0] = audioVoice.getPlayer(0);
+            tidalCur = 0;
+        }
+        audioVoice.getPlayerSum()->gain(0, 1.0f);
+#endif
+    }
     uint8_t noteOn(uint8_t instr_idx,
                    int8_t note,
                    int8_t velocity,
@@ -611,6 +636,20 @@ class playerEngine
     uint8_t nChannel;
     uint8_t lastSeqFx[2];
     uint32_t tidalMods = 0;  // TMod bits the last tidalNoteOn set
+    uint32_t tidalModsP[kTidalPlayers] = {};  // per player: its player-level TMod bits
+    uint8_t tidalCur = 0;                     // player playMemPtr[0] points at
+    bool tidalVolume = false;                 // note volume is in the player gain: track at unity
+    bool anyPlayerPlaying()
+    {
+#ifndef PLATFORM_IMX
+        for (int k = 0; k < AudioVoice::kPlayers; k++)
+            if (audioVoice.getPlayer(k)->isPlaying())
+                return true;
+        return false;
+#else
+        return playMemPtr[0]->isPlaying();
+#endif
+    }
     uint8_t lastSeqVal[2];
     int8_t currentNote;
     uint32_t refreshRegister;

@@ -1,6 +1,7 @@
 #ifndef AUDIOENGINE_AUDIOVOICE_H_
 #define AUDIOENGINE_AUDIOVOICE_H_
 #include "Audio.h"
+#include "sum_players.h"
 
 class AudioVoice
 {
@@ -27,6 +28,13 @@ class AudioVoice
 
     AudioVoice();
 #ifndef PLATFORM_IMX
+    // Tracker Cycles polyphony (docs/tidal_voices.md): kPlayers sample
+    // players per track, summed (with a gain each) into the track's one
+    // crusher / filter / amp / pan chain. Player 0 is getMemoryPlayer(),
+    // the only one the stock sequencer uses; the others play Tidal notes.
+    static constexpr int kPlayers = 3;
+    AudioPlayMemory* getPlayer(int k) { return k == 0 ? &memoryPlayer : &extraPlayers[k - 1]; }
+    AudioSumPlayers<kPlayers>* getPlayerSum() { return &playerSum; }
     AudioPlayMemory* getMemoryPlayer();
     AudioBitDepth* getBitDepth();
     AudioFilterStateVariable* getFilter();
@@ -45,7 +53,11 @@ class AudioVoice
 
   private:
 #ifndef PLATFORM_IMX
+    // declaration order = construction order = AudioStream update order:
+    // all players, then their sum, then the chain
     AudioPlayMemory memoryPlayer;
+    AudioPlayMemory extraPlayers[kPlayers - 1];
+    AudioSumPlayers<kPlayers> playerSum;
     AudioBitDepth bitDepth;
     AudioFilterStateVariable filter;
     AudioAmplifier amplifier;

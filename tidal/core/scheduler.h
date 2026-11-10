@@ -59,10 +59,13 @@ public:
 // in tests). Called from tick() only.
 class Voice {
 public:
-    // `late` = blocks after the scheduled block (note-start cap, jitter)
-    virtual void noteOn(int slot, const Entry& e, uint32_t late) = 0;
+    // `late` = blocks after the scheduled block (note-start cap, jitter).
+    // Returns a tag the scheduler hands back to this note's noteOff (the
+    // device: which of the slot's players, and that player's note number,
+    // so a noteOff for a stolen voice is ignored).
+    virtual uint16_t noteOn(int slot, const Entry& e, uint32_t late) = 0;
     // `chan` = the noteOn entry's chan (MIDI: the channel it went out on)
-    virtual void noteOff(int slot, uint8_t chan, uint8_t note, uint8_t offset) = 0;
+    virtual void noteOff(int slot, uint8_t chan, uint8_t note, uint8_t offset, uint16_t tag) = 0;
     virtual void allOff() = 0;
 };
 
@@ -121,11 +124,15 @@ public:
     }
     void setLateLimit(uint32_t blocks) { lateBlocks_ = blocks; }
     void setNoteStartCap(int n) { cap_ = n; }
-    // Sample slots play one note at a time: when several of a slot's starts
-    // are due in the same block, only the last is audible, so the earlier
-    // ones are skipped (counted in `superseded`, not by the cap). Off by
-    // default; the device turns it on (a voice pool per slot would not).
-    void setMonoSlots(bool on) { mono_ = on; }
+    // Sample slots play at most n notes at a time (the device: n players
+    // per track, docs/tidal_voices.md). When more than n of a slot's starts
+    // are due in the same block, only the last n are audible, so the
+    // earlier ones are skipped (counted in `superseded`, not by the cap).
+    // n = 1: one note at a time, and a new note also cancels the slot's
+    // pending noteOffs (as does n = 0, the default: no skipping). n >= 2:
+    // noteOffs stay pending, each goes back with its noteOn's tag.
+    void setSlotPlayers(int n) { players_ = n; }
+    void setMonoSlots(bool on) { players_ = on ? 1 : 0; }
 
     // ---- main loop ----------------------------------------------------------
     // Evaluate block `slot` of `edit` (a checked program): copies its tree
@@ -192,6 +199,7 @@ private:
         uint8_t note;
         uint8_t chan;
         bool active;
+        uint16_t tag;  // what the noteOn returned
     };
 
     Anchor makeAnchor(Q c0, int64_t s0, float s0f, Q cps) const;
@@ -214,7 +222,7 @@ private:
     uint32_t lookahead_;
     uint32_t lateBlocks_;
     int cap_;
-    bool mono_;
+    int players_;
     bool idleValid_;       // update() may return at once before idleUntil_
     uint32_t idleUntil_;   // block
 
