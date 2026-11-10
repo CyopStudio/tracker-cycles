@@ -89,6 +89,19 @@ public:
     uint16_t gapSeq() const { return gapSeq_; }
     // Several blocks per dN (v2 step 6): the block dN last evaluated (0 = none)
     uint16_t playingBlock(int s) const { return playing_[s]; }
+    // Per-event highlighting: steps of playing blocks lit while their
+    // events sound (backends that report them: engine). pollHighlights()
+    // drains the backend; true if what is lit may have changed.
+    struct LitStep {
+        int slot;
+        uint16_t node;
+        double on, off;  // steadySeconds()
+    };
+    bool pollHighlights(double now);
+    const std::vector<LitStep>& litSteps() const { return lit_; }
+    // Headless: each slot's playing block with every step lit since the
+    // last call marked as [[step]] (smoke tests); "" if none.
+    std::string litReport();
     int gapPos() const { return gapPos_; }
     bool trackerMode() const { return trackerMode_; }
     std::string cursorInfo() const;
@@ -159,6 +172,13 @@ private:
     SlotState state_[tc::kSlots];
     bool muted_[tc::kSlots] = {};
     uint16_t playing_[tc::kSlots] = {};
+    struct Evaluated {
+        uint32_t stmt;                 // stmtHash of what was sent
+        std::vector<uint16_t> atoms;   // its steps, atomOrder() of the block's expression
+    };
+    std::vector<Evaluated> evaluated_[tc::kSlots];  // newest last, a few kept
+    std::vector<LitStep> lit_;
+    std::vector<LitStep> litSeen_;
     bool newBlockArmed_ = false;  // Insert at a block's top: the next slot pad adds a block
     void selectBlock(uint16_t b);  // make b its slot's selected block, cursor on its top
     void newBlockAbove(int slot);

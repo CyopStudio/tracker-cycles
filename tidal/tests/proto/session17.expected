@@ -1,0 +1,12 @@
+lit: d1 $ every 4 (fast 2) $ s "[[bd]]*2 [~ [[sd]]] [[bd]] [[sd]]" # gain 1
+lit: d1 $ every 4 (fast 2) $ s "[[bd]]*2 [~ [[sd]]] [[bd]] [[sd]]" # gain 1
+lit: d3 $ n "[[0 .. 7]]" # s "[[arpy]]" # speed "<[[1]] [[2]]>"
+msg: s pattern: pads pick instruments
+msg: rest (Delete again removes the step)
+lit: d1 $ every 4 (fast 2) $ s "~*2 [~ [[sd]]] [[bd]] [[sd]]" # gain 1
+lit: d3 $ n "[[0 .. 7]]" # s "[[arpy]]" # speed "<[[1]] [[2]]>"
+lit: d9 $ n "[[c'maj]] [[e'min]]" # legato 0.5
+lit: d3 $ n "[[0 .. 7]]" # s "[[arpy]]" # speed "<[[1]] [[2]]>"
+lit: d9 $ n "[[c'maj]] [[e'min]]" # legato 0.5
+lit: d3 $ n "[[0 .. 7]]" # s "[[arpy]]" # speed "<[[1]] [[2]]>"
+lit: d9 $ n "[[c'maj]] [[e'min]]" # legato 0.5

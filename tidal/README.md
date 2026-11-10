@@ -237,6 +237,21 @@ error).
   Delete there removes the block and selects dN's other one. A new dN
   (Replace on an empty slot) goes in slot order. Loading plays nothing.
   `session16.keys` covers it.
+- **Per-event highlighting** (like Pulsar; engine backend only): while
+  an event sounds, the mini-notation steps that made it are lit (orange)
+  in the slot's playing block: words, numbers, notes, chords, booleans,
+  a whole `a .. b` range; `#` / `|+` / struct join both sides (`s "bd sd"
+  # n "<1 2>"` lights `bd` and `1`). At least 80 ms, from when it is heard
+  (latency included) to its end. Muted slots don't light. A step edited
+  since the evaluate stops lighting; the others keep going. How: the
+  engine tags each event with its atoms' node ids (`TC_EVENT_SRC`, kMaxSrc
+  4; on by default on the host, off on ARM: +8 B per arena event); the
+  engine backend maps them to "step k of the statement" (preorder,
+  `atomOrder()`) and reports `Highlight`s when the note goes out; the
+  editor keeps each evaluated statement's steps (by `stmtHash()`) and maps
+  k back to its own nodes. Headless: `lit` prints each playing block with
+  the steps lit since the last `lit` as `[[step]]`; `session17` (run with
+  `session17.args`: `--backend engine`, OSC to a dead port) covers it.
 
 ## Known gaps (next steps)
 

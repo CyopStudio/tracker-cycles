@@ -1,10 +1,35 @@
 // Where evaluated code goes. Step 1: real Tidal in GHCi. Step 3 swaps in
 // our own engine behind the same interface.
 #pragma once
+#include <stdint.h>
+
 #include <deque>
 #include <string>
+#include <vector>
+
+#include "engine.h"
+#include "tree.h"
 
 namespace proto {
+
+// Per-event highlighting (like Pulsar's): a sounding event names the
+// mini-notation steps that made it, as their positions in the preorder
+// list of steps of the statement it came from (atomOrder()). The editor
+// renders the statements from its tree, so it maps them back to its own
+// nodes by the statement's hash.
+struct Highlight {
+    int slot;
+    uint32_t stmt;                // stmtHash() of the evaluated statement
+    uint8_t n;
+    uint16_t atom[tc::kMaxSrc];   // indices into atomOrder() of its expression
+    double on, off;               // steadySeconds() when it sounds / ends
+};
+uint32_t stmtHash(const std::string& stmt);  // FNV-1a of the trimmed text
+double steadySeconds();
+// Step nodes (the kinds the engine tags events with) of the tree at
+// `root`, in preorder.
+bool isStepAtom(tc::Kind k);
+void atomOrder(const tc::Program& p, uint16_t root, std::vector<uint16_t>& out);
 
 class Backend {
 public:
@@ -15,6 +40,9 @@ public:
     virtual void send(const std::string& stmt) = 0;
     // Pull any pending output into the log.
     virtual void poll() {}
+    // Events that sounded since the last call (backends that know; the
+    // engine backend). Appends to `out`.
+    virtual void highlights(std::vector<Highlight>& out) { (void)out; }
     std::deque<std::string> log;  // most recent last
 protected:
     void addLog(const std::string& line);

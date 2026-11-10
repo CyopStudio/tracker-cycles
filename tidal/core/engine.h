@@ -43,6 +43,21 @@ int controlCount();
 const ControlDef& controlDef(int key);
 int controlKey(const char* name);  // -1 if unknown
 
+// Source steps (editor highlighting, like Pulsar's): each event keeps the
+// ids of the mini-notation atoms that made it (words, numbers, notes,
+// chords, booleans, `a .. b` ranges); combining patterns (`#`, `|+`,
+// struct, ...) joins both sides' ids, at most kMaxSrc. Host builds only
+// for now (+8 B per arena event); the device sets TC_EVENT_SRC 0 until its
+// editor (plan 4d) uses it.
+#ifndef TC_EVENT_SRC
+#if defined(__arm__)
+#define TC_EVENT_SRC 0
+#else
+#define TC_EVENT_SRC 1
+#endif
+#endif
+constexpr int kMaxSrc = 4;
+
 // Events of control patterns carry a small map; others a single value.
 // A control value is a float or a string id (8 bytes per entry).
 constexpr int kMaxCtl = 20;
@@ -61,6 +76,10 @@ struct Event {
     Val v;              // !isMap
     uint8_t nctl = 0;   // isMap
     Ctl ctl[kMaxCtl];
+#if TC_EVENT_SRC
+    uint8_t nsrc = 0;   // mini-notation steps that made this event (node ids)
+    uint16_t src[kMaxSrc];
+#endif
 };
 
 // ---- engine ------------------------------------------------------------------

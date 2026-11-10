@@ -148,8 +148,11 @@ public:
     // ---- main loop ----------------------------------------------------------
     // Evaluate block `slot` of `edit` (a checked program): copies its tree
     // into the live program, switching at the time its launch mode gives.
-    // False (and `err`) if the live program is full.
-    bool evaluate(const Program& edit, int slot, Error& err);
+    // False (and `err`) if the live program is full. `liveRoot` (optional)
+    // gets the copy's root in the live program (0 for an empty block): the
+    // copy has the same shape, so a backend can map its node ids (e.g. the
+    // events' source steps) back to `edit`.
+    bool evaluate(const Program& edit, int slot, Error& err, uint16_t* liveRoot = nullptr);
     void silence(int slot);           // `dN silence`, switching like evaluate
     void hush();                      // stop everything now
     // Cycles per second (exact). Takes effect at the window boundary after

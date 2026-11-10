@@ -205,6 +205,7 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
             ed.backend()->poll();
             if (ed.backend()->log.size() != before) dirty = true;
         }
+        if (ed.pollHighlights(steadySeconds())) dirty = true;
         if (dirty) {
             drawEditor(ed, screen);
             const Framebuffer* out = &screen;

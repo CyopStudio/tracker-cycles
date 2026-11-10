@@ -43,6 +43,18 @@ void isrUnlock() { gIsrMu.unlock(); }
 struct Msg {
     int len;
     unsigned char b[kMsgMax];
+    // highlighting: the event's steps (Highlight)
+    uint32_t stmt;
+    uint8_t nsrc;
+    uint16_t atom[kMaxSrc];
+    float lenSec;
+};
+
+// a live-program node that is a step: which statement, which step of it
+struct AtomRef {
+    uint32_t stmt;
+    uint16_t idx;
+    bool valid;
 };
 
 // OSC encoding
@@ -102,6 +114,7 @@ struct EngineBackend::Impl : Mapper, Voice {
     socklen_t addrLen = 0;
     double latency = 0.1;
     double wall0 = 0;  // unix time of block 0
+    double steady0 = 0;  // steadySeconds() of block 0
     std::chrono::steady_clock::time_point t0;
 
     // threads
@@ -110,6 +123,9 @@ struct EngineBackend::Impl : Mapper, Voice {
     std::atomic<bool> quit{false};
     std::thread audio, mainLoop;
     bool slotFailed[kSlots] = {false};
+    AtomRef atomRef[kMaxNodes] = {};   // by live node id (main loop, mainMu)
+    std::mutex hlMu;
+    std::vector<Highlight> hl;         // audio thread -> UI
 
     void say(const std::string& s) {
         std::lock_guard<std::mutex> g(logMu);
@@ -178,6 +194,17 @@ struct EngineBackend::Impl : Mapper, Voice {
             else w.f32(args[j].f);
         }
         m.len = w.ok ? w.n : 0;
+        m.lenSec = lenSamples / fs;
+        m.nsrc = 0;
+        m.stmt = 0;
+#if TC_EVENT_SRC
+        for (int k = 0; k < e.nsrc; k++) {
+            const AtomRef& r = atomRef[e.src[k]];
+            if (!r.valid || (m.nsrc && r.stmt != m.stmt)) continue;
+            m.stmt = r.stmt;
+            m.atom[m.nsrc++] = r.idx;
+        }
+#endif
         out.kind = EntryKind::Note;
         out.chan = (uint8_t)slot;
         out.modVal[0] = (uint16_t)k;
@@ -195,8 +222,20 @@ struct EngineBackend::Impl : Mapper, Voice {
     // ---- Voice (audio thread) ------------------------------------------------------
     uint16_t noteOn(int slot, const Entry& e, uint32_t) override {
         const Msg& m = side[slot][e.modVal[0] % kSide];
+        const double rel = ((double)e.block * kBlockSamples + e.offset) * kFsDen / kFsNum + latency;
+        if (m.nsrc) {
+            Highlight h;
+            h.slot = slot;
+            h.stmt = m.stmt;
+            h.n = m.nsrc;
+            for (int k = 0; k < m.nsrc; k++) h.atom[k] = m.atom[k];
+            h.on = steady0 + rel;
+            h.off = h.on + m.lenSec;
+            std::lock_guard<std::mutex> g(hlMu);
+            if (hl.size() < 4096) hl.push_back(h);
+        }
         if (!m.len || sock < 0) return 0;
-        double t = wall0 + ((double)e.block * kBlockSamples + e.offset) * kFsDen / kFsNum + latency;
+        double t = wall0 + rel;
         double sec = floor(t);
         uint32_t ntpSec = (uint32_t)((uint64_t)sec + 2208988800ULL);
         uint32_t ntpFrac = (uint32_t)((t - sec) * 4294967296.0);
@@ -278,6 +317,7 @@ EngineBackend::EngineBackend(const std::string& host, int port, double latency) 
 
     m.t0 = std::chrono::steady_clock::now();
     m.wall0 = std::chrono::duration<double>(std::chrono::system_clock::now().time_since_epoch()).count();
+    m.steady0 = std::chrono::duration<double>(m.t0.time_since_epoch()).count();
     m.audio = std::thread([&m] { m.audioThread(); });
     m.mainLoop = std::thread([&m] { m.mainThread(); });
 }
@@ -325,11 +365,27 @@ void EngineBackend::send(const std::string& stmt) {
         return;
     }
     if (m.edit.cpsExpr) m.setCpsFrom(m.edit);
+    const uint32_t h = stmtHash(s);
     for (int i = 0; i < kSlots; i++) {
         if (!m.edit.block[i]) continue;
         Error err;
-        if (!m.sched.evaluate(m.edit, i, err)) addLog("d" + std::to_string(i + 1) + ": " + err.msg);
+        uint16_t root = 0;
+        if (!m.sched.evaluate(m.edit, i, err, &root)) {
+            addLog("d" + std::to_string(i + 1) + ": " + err.msg);
+            continue;
+        }
+        // the copy's steps -> (this statement, step index); ids of freed
+        // trees are simply overwritten when reused
+        std::vector<uint16_t> atoms;
+        atomOrder(m.live, root, atoms);
+        for (size_t k = 0; k < atoms.size(); k++) m.atomRef[atoms[k]] = AtomRef{h, (uint16_t)k, true};
     }
+}
+
+void EngineBackend::highlights(std::vector<Highlight>& out) {
+    std::lock_guard<std::mutex> g(impl_->hlMu);
+    out.insert(out.end(), impl_->hl.begin(), impl_->hl.end());
+    impl_->hl.clear();
 }
 
 void EngineBackend::poll() {

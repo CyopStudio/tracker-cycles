@@ -111,8 +111,12 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
             int ms = atoi(tok.c_str() + 5);
             for (int t = 0; t < ms; t += 50) {
                 if (ed.backend()) ed.backend()->poll();
+                ed.pollHighlights(steadySeconds());
                 usleep(50000);
             }
+        } else if (tok == "lit") {  // steps lit since the last `lit` (engine backend; smoke tests)
+            ed.pollHighlights(steadySeconds());
+            fputs(ed.litReport().c_str(), stdout);
         } else if (tok == "log") {
             if (ed.backend())
                 for (const auto& l : ed.backend()->log) printf("| %s\n", l.c_str());

@@ -29,6 +29,8 @@ constexpr uint32_t err = 0xFF6B6B;
 constexpr uint32_t ok = 0x7BD88F;
 constexpr uint32_t edited = 0xF0C060;
 constexpr uint32_t accent = 0xFF9F1C;
+constexpr uint32_t lit = 0x8A5A12;     // a step whose event is sounding
+constexpr uint32_t litSel = 0xC07818;  // the same inside the cursor's selection
 }  // namespace col
 
 static Span gSpans[kMaxNodes];
@@ -47,6 +49,7 @@ struct BlockLayout {
     std::string text;
     std::vector<uint32_t> color;
     std::vector<bool> sel;
+    std::vector<bool> lit;  // per-event highlighting
     std::vector<int> row, colx;  // per char
     int rows = 0;
 };
@@ -80,7 +83,7 @@ static void paint(const Program& p, uint16_t idx, BlockLayout& L) {
 }
 
 static BlockLayout layoutBlock(const Program& p, uint16_t blk, uint16_t cursor, int cols, uint16_t gapSeq = 0,
-                               int gapPos = 0) {
+                               int gapPos = 0, const std::vector<uint16_t>* litNodes = nullptr) {
     BlockLayout L;
     char buf[8192];
     memset(gSpans, 0, sizeof gSpans);
@@ -91,7 +94,14 @@ static BlockLayout layoutBlock(const Program& p, uint16_t blk, uint16_t cursor, 
     int n = (int)L.text.size();
     L.color.assign(n, col::text);
     L.sel.assign(n, false);
+    L.lit.assign(n, false);
     paint(p, blk, L);
+    if (litNodes)
+        for (uint16_t ln : *litNodes) {
+            if (!ln || ln >= kMaxNodes) continue;
+            const Span& s = gSpans[ln];
+            for (int i = s.start; i < s.end && i < n; i++) L.lit[i] = true;
+        }
     if (gapSeq) {
         const int count = p.childCount(gapSeq);
         if (gapPos < count) L.gapAt = gSpans[p.child(gapSeq, gapPos)].start;
@@ -181,6 +191,7 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
         int slot;
         int idx;       // list index (comments), -1 for the placeholder
     };
+    const double now = steadySeconds();
     std::vector<Row> rows;
     for (int i = 0; i < p.blockCount(); i++) rows.push_back({p.blockAt(i), p.blockSlot(p.blockAt(i)), i});
     if (!p.block[ed.slot()]) rows.push_back({0, ed.slot(), -1});
@@ -190,7 +201,13 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     int curY = 0, y = 0, curH = 0;
     for (const Row& rw : rows) {
         const bool cur = rw.blk ? rw.blk == curBlk : true;
-        lays.push_back(rw.blk ? layoutBlock(p, rw.blk, cur ? ed.cursor() : 0, cols, cur ? ed.gapSeq() : 0, ed.gapPos())
+        // steps whose events sound now (only on the slot's playing block)
+        std::vector<uint16_t> litNodes;
+        if (rw.blk && rw.blk == ed.playingBlock(rw.slot))
+            for (const auto& l : ed.litSteps())
+                if (l.slot == rw.slot && l.on <= now && now < l.off) litNodes.push_back(l.node);
+        lays.push_back(rw.blk ? layoutBlock(p, rw.blk, cur ? ed.cursor() : 0, cols, cur ? ed.gapSeq() : 0, ed.gapPos(),
+                                            &litNodes)
                               : BlockLayout{});
         const bool hasComment = rw.idx >= 0 && p.blockComment(rw.idx)[0];
         int h = rw.blk ? (hasComment ? lineH : 0) + lays.back().rows * lineH + 8 : lineH + 8;
@@ -225,7 +242,8 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
                 for (size_t i = 0; i < L.text.size(); i++) {
                     int px = cx + L.colx[i] * adv, py = yy + L.row[i] * lineH;
                     if (py < areaTop - lineH || py > areaBottom) continue;
-                    if (L.sel[i]) fb.rect(px, py - 1, adv, lineH, col::cursor);
+                    if (L.sel[i]) fb.rect(px, py - 1, adv, lineH, L.lit[i] ? col::litSel : col::cursor);
+                    else if (L.lit[i]) fb.rect(px, py - 1, adv, lineH, col::lit);
                     if ((int)i == L.gapAt) fb.rect(px - 2, py - 1, 3, lineH, col::accent);  // gap cursor
                     char ch[2] = {L.text[i], 0};
                     fb.text(px, py, ch, L.sel[i] ? 0xFFFFFF : selected ? L.color[i] : col::dim);

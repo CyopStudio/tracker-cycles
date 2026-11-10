@@ -383,9 +383,36 @@ struct Ev {
     bool hasWhole = true;
     bool isMap = false;
     uint8_t nctl = 0;    // isMap: entries at gCtl[ctlAt]
+#if TC_EVENT_SRC
+    uint8_t nsrc = 0;    // source atoms (engine.h)
+#endif
     uint16_t ctlAt = 0;
+#if TC_EVENT_SRC
+    uint16_t src[kMaxSrc];
+#endif
     Val v;               // !isMap
 };
+#if TC_EVENT_SRC
+static inline void addSrc(Ev& o, uint16_t id) {
+    for (int k = 0; k < o.nsrc; k++)
+        if (o.src[k] == id) return;
+    if (o.nsrc < kMaxSrc) o.src[o.nsrc++] = id;
+}
+static inline void joinSrc(Ev& o, const Ev& l, const Ev& r) {
+    o.nsrc = 0;
+    for (int k = 0; k < l.nsrc; k++) addSrc(o, l.src[k]);
+    for (int k = 0; k < r.nsrc; k++) addSrc(o, r.src[k]);
+}
+#define TC_JOIN_SRC(o, l, r) joinSrc(o, l, r)
+#define TC_TAG_SRC(from, id)                                              \
+    for (int i_ = (from); i_ < top; i_++) {                               \
+        gArena[i_].nsrc = 1;                                              \
+        gArena[i_].src[0] = (id);                                         \
+    }
+#else
+#define TC_JOIN_SRC(o, l, r) ((void)0)
+#define TC_TAG_SRC(from, id) ((void)0)
+#endif
 TC_ENGINE_ARENA_ATTR static unsigned char gArenaRaw[sizeof(Ev) * kEventArena] __attribute__((aligned(8)));
 static Ev* gArena = reinterpret_cast<Ev*>(gArenaRaw);
 TC_ENGINE_ARENA_ATTR static Ctl gCtlPool[kCtlPool];
@@ -592,6 +619,7 @@ private:
     Q seqWeight(uint16_t n);
     void stepInfo(uint16_t c, uint16_t& target, Q& w, int& count);
     void qAtom(uint16_t n, Arc a);
+    void qAtomValues(uint16_t n, Arc a);
     void qEuclid(const Pat& x, int64_t k, int64_t n, int64_t r, bool inv, Arc a);
 
     // functions
@@ -881,6 +909,12 @@ void Eval::qSeq(uint16_t n, Arc a) {
 }
 
 void Eval::qAtom(uint16_t n, Arc a) {
+    const int m = top;
+    qAtomValues(n, a);
+    TC_TAG_SRC(m, n);
+}
+
+void Eval::qAtomValues(uint16_t n, Arc a) {
     const Node& nd = P.at(n);
     switch (nd.kind) {
         case Kind::MRest: return;
@@ -1009,12 +1043,14 @@ void Eval::qNode(uint16_t n, Arc a) {
             };
             int64_t l = val(lo), h = val(hi), cnt = (h >= l ? h - l : l - h) + 1;
             if (cnt > 256) return fail("range too long", n);
+            const int m0 = top;
             for (int64_t i = 0; i < cnt && !bad(); i++) {
                 Pat v;
                 v.k = Pat::Pure;
                 v.v = numQ(qint(h >= l ? l + i : l - i));
                 qCompress(v, qlazy(i, cnt), qlazy(i + 1, cnt), a);
             }
+            TC_TAG_SRC(m0, n);
             return;
         }
         case Kind::MRest:
@@ -1145,6 +1181,7 @@ void Eval::appLeft(const Pat& l, const Pat& r, Arc a, C combine) {
             o->part = part;
             o->isMap = false;
             o->nctl = 0;
+            TC_JOIN_SRC(*o, gArena[i], gArena[j]);
             if (!combine(gArena[i], gArena[j], *o)) top--;
         }
         drop(r0, r1);
@@ -1172,6 +1209,7 @@ void Eval::appRight(const Pat& l, const Pat& r, Arc a, C combine) {
             o->part = part;
             o->isMap = false;
             o->nctl = 0;
+            TC_JOIN_SRC(*o, gArena[i], gArena[j]);
             if (!combine(gArena[i], gArena[j], *o)) top--;
         }
         drop(l0, l1);
@@ -1199,6 +1237,7 @@ void Eval::appBoth(const Pat& l, const Pat& r, Arc a, C combine) {
             o->part = part;
             o->isMap = false;
             o->nctl = 0;
+            TC_JOIN_SRC(*o, gArena[i], gArena[j]);
             if (!combine(gArena[i], gArena[j], *o)) top--;
         }
     drop(m, re);
@@ -1984,6 +2023,10 @@ int queryPattern(const Program& p, uint16_t expr, Arc arc, Event* out, int cap, 
         if (e.v.t == VT::Num && e.v.exact) e.v.q = qnorm(e.v.q);
         e.nctl = in.isMap ? in.nctl : 0;
         for (int k = 0; k < e.nctl; k++) e.ctl[k] = gCtl[in.ctlAt + k];
+#if TC_EVENT_SRC
+        e.nsrc = in.nsrc;
+        for (int k = 0; k < in.nsrc; k++) e.src[k] = in.src[k];
+#endif
     }
     if (ev.top > cap) {
         err.set(-1, "more events than the output buffer holds");

@@ -21,6 +21,7 @@ public:
     bool alive() const override;
     void send(const std::string& stmt) override;
     void poll() override;
+    void highlights(std::vector<Highlight>& out) override;
 
     struct Impl;
 

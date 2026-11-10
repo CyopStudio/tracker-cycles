@@ -176,7 +176,7 @@ void Scheduler::switchTo(int i, uint16_t root, Q at) {
     s.failed = false;
 }
 
-bool Scheduler::evaluate(const Program& edit, int i, Error& err) {
+bool Scheduler::evaluate(const Program& edit, int i, Error& err, uint16_t* liveRoot) {
     uint16_t b = edit.block[i];
     uint16_t root = b ? edit.at(b).first : 0;
     Launch l = b ? blockLaunch(edit.at(b)) : Launch::Now;
@@ -189,6 +189,7 @@ bool Scheduler::evaluate(const Program& edit, int i, Error& err) {
             return false;
         }
     }
+    if (liveRoot) *liveRoot = copy;
     switchTo(i, copy, launchTime(l, k, nowCycle()));
     return true;
 }

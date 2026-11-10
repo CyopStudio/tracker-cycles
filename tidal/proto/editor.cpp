@@ -1678,9 +1678,82 @@ void Editor::evaluate() {
         }
     }
     if (backend_) backend_->send(text);
+    // remember its steps for highlighting (the old statement's events keep
+    // sounding until the switch, so a few are kept)
+    Evaluated ev{stmtHash(text), {}};
+    atomOrder(*prog_, prog_->at(b).first, ev.atoms);
+    auto& list = evaluated_[slot_];
+    list.push_back(std::move(ev));
+    if (list.size() > 4) list.erase(list.begin());
     state_[slot_] = SlotState::Playing;
     playing_[slot_] = b;
     info("d" + std::to_string(slot_ + 1) + " evaluated");
+}
+
+bool Editor::pollHighlights(double now) {
+    bool changed = false;
+    if (backend_) {
+        std::vector<Highlight> hs;
+        backend_->highlights(hs);
+        for (const Highlight& h : hs) {
+            if (h.slot < 0 || h.slot >= kSlots) continue;
+            const auto& list = evaluated_[h.slot];
+            for (auto it = list.rbegin(); it != list.rend(); ++it) {
+                if (it->stmt != h.stmt) continue;
+                for (int k = 0; k < h.n; k++) {
+                    if (h.atom[k] >= it->atoms.size()) continue;
+                    // short events still show: at least 80 ms
+                    LitStep l{h.slot, it->atoms[h.atom[k]], h.on, std::max(h.off, h.on + 0.08)};
+                    lit_.push_back(l);
+                    litSeen_.push_back(l);
+                }
+                changed = true;
+                break;
+            }
+        }
+        if (litSeen_.size() > 8192) litSeen_.erase(litSeen_.begin(), litSeen_.begin() + 4096);
+    }
+    const size_t before = lit_.size();
+    lit_.erase(std::remove_if(lit_.begin(), lit_.end(), [&](const LitStep& l) { return l.off < now; }), lit_.end());
+    if (lit_.size() != before) changed = true;
+    for (const LitStep& l : lit_)
+        if (l.on <= now) changed = true;  // something is lit: keep redrawing (on / off edges)
+    return changed;
+}
+
+std::string Editor::litReport() {
+    std::string out;
+    for (int s = 0; s < kSlots; s++) {
+        const uint16_t b = playing_[s];
+        if (!b || !prog_->at(b).first) continue;
+        std::vector<bool> on(kMaxNodes, false);
+        bool any = false;
+        for (const LitStep& l : litSeen_)
+            if (l.slot == s && l.node < kMaxNodes) on[l.node] = any = true;
+        if (!any) continue;
+        static Span spans[kMaxNodes];
+        memset(spans, 0, sizeof spans);
+        char buf[8192];
+        Renderer r(buf, sizeof buf, spans);
+        buf[0] = 0;
+        r.blockNode(*prog_, b);
+        std::string text = buf;
+        std::vector<int> open(text.size() + 1, 0), close(text.size() + 1, 0);
+        for (int n = 1; n < kMaxNodes; n++)
+            if (on[n] && spans[n].end > spans[n].start && spans[n].end <= text.size()) {
+                open[spans[n].start]++;
+                close[spans[n].end]++;
+            }
+        std::string line;
+        for (size_t i = 0; i <= text.size(); i++) {
+            for (int k = 0; k < close[i]; k++) line += "]]";
+            for (int k = 0; k < open[i]; k++) line += "[[";
+            if (i < text.size()) line += text[i];
+        }
+        out += "lit: " + line + "\n";
+    }
+    litSeen_.clear();
+    return out;
 }
 
 }  // namespace proto

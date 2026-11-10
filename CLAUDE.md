@@ -86,6 +86,14 @@ to upstream CE.
   Start menu shortcuts via wslg.exe (WSLg doesn't list .desktop apps here).
   `--panel` screenshots and `hw:` key tokens for headless sessions.
 
+- Per-event highlighting (Pulsar-style, prototype, 2026-11-10): engine
+  events carry their mini-notation atoms' node ids (TC_EVENT_SRC: host on,
+  ARM off; with it on, ARM engine +244 B flash and +8 B per arena event, so
+  +2 KB for the device's 256-event working set); the engine backend reports
+  "step k of statement h", the editor maps k to its nodes (tidal/README.md).
+  For the device (4d): carry the ids in Entry (48 B, 1 spare byte: needs
+  room) or a side table, plus the FT812 redraw rate while lit.
+
 ## Editor UI TODO (parked)
 Parked until we know the engine + editor fit on the MK66 (flash, RAM,
 query CPU; plan step 2 timing check). Don't build these before then.

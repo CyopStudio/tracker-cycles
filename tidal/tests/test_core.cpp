@@ -774,6 +774,60 @@ static void testGolden() {
 void testScheduler(int& pass, int& fail);
 void testMapping(int& pass, int& fail);
 
+// Source steps (editor highlighting): "onset:step+step ..." per onset event.
+static std::string srcString(const char* code, int cycles = 1) {
+    Error e, ce, qe;
+    std::string text = std::string("d1 $ ") + code + "\n";
+    gProg.clear();
+    if (!parseFile(gProg, text.c_str(), (int)text.size(), e)) return std::string("parse: ") + e.msg;
+    if (!checkProgram(gProg, ce)) return std::string("check: ") + ce.msg;
+    int n = queryPattern(gProg, gProg.at(gProg.block[0]).first, Arc{Q{0, 1}, Q{cycles, 1}}, gEvents, 4096, qe);
+    if (n < 0) return std::string("query: ") + qe.msg;
+    std::vector<std::pair<std::pair<double, std::string>, std::string>> rows;
+    for (int i = 0; i < n; i++) {
+        const Event& ev = gEvents[i];
+        if (!ev.hasWhole || !(ev.whole.s == ev.part.s)) continue;
+        std::string srcs;
+        for (int k = 0; k < ev.nsrc; k++) {
+            char buf[64];
+            Renderer r(buf, sizeof buf);
+            int len = r.expr(gProg, ev.src[k]);
+            buf[len < (int)sizeof buf ? len : (int)sizeof buf - 1] = 0;
+            srcs += (k ? "+" : "") + std::string(buf);
+        }
+        char t[32];
+        snprintf(t, sizeof t, "%d/%d", (int)ev.whole.s.n, (int)ev.whole.s.d);
+        rows.push_back({{(double)ev.whole.s.n / ev.whole.s.d, srcs}, t});
+    }
+    std::sort(rows.begin(), rows.end());
+    std::string out;
+    for (auto& r : rows) out += (out.empty() ? "" : " ") + r.second + ":" + r.first.second;
+    return out;
+}
+
+static void testEventSrc() {
+#if TC_EVENT_SRC
+    struct C {
+        const char* code;
+        const char* want;
+    } cases[] = {
+        {"s \"bd*2 [~ sd]\"", "0/1:bd 1/4:bd 3/4:sd"},
+        {"s \"bd sd\" # n \"<1 2>\"", "0/1:bd+1 1/2:sd+1"},
+        {"n \"0 .. 2\" # s \"arpy\"", "0/1:0 .. 2+arpy 1/3:0 .. 2+arpy 2/3:0 .. 2+arpy"},
+        {"n (\"0 2\" + \"10\") # s \"x\"", "0/1:0+10+x 1/2:2+10+x"},
+        {"struct \"t f t\" $ s \"hh\"", "0/1:t+hh 2/3:t+hh"},
+        {"n \"c'maj\" # s \"superpiano\"", "0/1:c'maj+superpiano 0/1:c'maj+superpiano 0/1:c'maj+superpiano"},
+        {"s \"[bd, hh(3,8)]\" # gain 1", "0/1:bd 0/1:hh 3/8:hh 3/4:hh"},
+        {"every 2 (fast 2) $ s \"bd sd\"", "0/1:bd 1/4:sd 1/2:bd 3/4:sd"},
+        {"s \"bd\" # n 3", "0/1:bd"},
+    };
+    for (auto& c : cases) {
+        std::string got = srcString(c.code);
+        EXPECT(got == c.want, "src %s: got [%s] want [%s]", c.code, got.c_str(), c.want);
+    }
+#endif
+}
+
 int main() {
     testNodeSize();
     testClearReuse();
@@ -785,6 +839,7 @@ int main() {
     testTypes();
     testRefinement();
     testGolden();
+    testEventSrc();
     testScheduler(gPass, gFail);
     testMapping(gPass, gFail);
     printf("%d passed, %d failed\n", gPass, gFail);

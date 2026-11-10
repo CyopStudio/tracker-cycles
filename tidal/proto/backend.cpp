@@ -9,7 +9,34 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
+#include <chrono>
+
 namespace proto {
+
+uint32_t stmtHash(const std::string& stmt) {
+    size_t a = stmt.find_first_not_of(" \t\n"), b = stmt.find_last_not_of(" \t\n");
+    uint32_t h = 2166136261u;
+    if (a == std::string::npos) return h;
+    for (size_t i = a; i <= b; i++) h = (h ^ (uint8_t)stmt[i]) * 16777619u;
+    return h;
+}
+
+double steadySeconds() {
+    using namespace std::chrono;
+    return duration<double>(steady_clock::now().time_since_epoch()).count();
+}
+
+bool isStepAtom(tc::Kind k) {
+    using tc::Kind;
+    return k == Kind::MWord || k == Kind::MNum || k == Kind::MNote || k == Kind::MChord || k == Kind::MBool ||
+           k == Kind::MRange;
+}
+
+void atomOrder(const tc::Program& p, uint16_t root, std::vector<uint16_t>& out) {
+    if (!root) return;
+    if (isStepAtom(p.at(root).kind)) out.push_back(root);
+    for (uint16_t c = p.at(root).first; c; c = p.at(c).next) atomOrder(p, c, out);
+}
 
 void Backend::addLog(const std::string& line) {
     log.push_back(line);
