@@ -928,8 +928,8 @@ static bool parseStatement(Program& prog, const char* text, int a, int b, int co
     }
     if (n > 0) {
         int slot = n - 1;
-        if (prog.block[slot]) {
-            err.set(st, "d%d appears more than once", n);
+        if (prog.blockCount() >= kMaxBlocks) {
+            err.set(st, "too many blocks (max %d)", kMaxBlocks);
             return false;
         }
         int j = i;
@@ -950,10 +950,12 @@ static bool parseStatement(Program& prog, const char* text, int a, int b, int co
             return false;
         }
         prog.appendChild(blk, e);
-        prog.block[slot] = blk;
+        prog.block[slot] = blk;  // several blocks for one dN: the last is selected
+        const int idx = prog.blockCount();
+        prog.insertBlock(idx, blk);
         // comment lines directly above the block
         int out = 0;
-        char* c = prog.comment[slot];
+        char* c = prog.blockComment(idx);
         for (int k = commentA; k < commentB && out < kMaxCommentLen; k++) c[out++] = text[k];
         while (out > 0 && (c[out - 1] == '\n' || c[out - 1] == '\r')) out--;
         c[out] = 0;

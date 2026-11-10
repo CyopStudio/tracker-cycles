@@ -19,6 +19,7 @@ const char* tyName(uint8_t code);
 // in it has a type code and mini atoms are refined (MWord -> MNote etc.).
 // Holes are allowed; `holes` returns how many were found.
 bool checkBlock(Program& p, int slot, Error& err, int* holes = nullptr);
+bool checkBlockNode(Program& p, uint16_t block, Error& err, int* holes = nullptr);
 bool checkCps(Program& p, Error& err);
 // Check every block; stops at the first error.
 bool checkProgram(Program& p, Error& err);

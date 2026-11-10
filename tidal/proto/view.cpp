@@ -79,19 +79,19 @@ static void paint(const Program& p, uint16_t idx, BlockLayout& L) {
     for (uint16_t ch = n.first; ch; ch = p.at(ch).next) paint(p, ch, L);
 }
 
-static BlockLayout layoutBlock(const Program& p, int slot, uint16_t cursor, int cols, uint16_t gapSeq = 0,
+static BlockLayout layoutBlock(const Program& p, uint16_t blk, uint16_t cursor, int cols, uint16_t gapSeq = 0,
                                int gapPos = 0) {
     BlockLayout L;
     char buf[8192];
     memset(gSpans, 0, sizeof gSpans);
     Renderer r(buf, sizeof buf, gSpans);
     buf[0] = 0;
-    r.block(p, slot);
+    r.blockNode(p, blk);
     L.text = buf;
     int n = (int)L.text.size();
     L.color.assign(n, col::text);
     L.sel.assign(n, false);
-    paint(p, p.block[slot], L);
+    paint(p, blk, L);
     if (gapSeq) {
         const int count = p.childCount(gapSeq);
         if (gapPos < count) L.gapAt = gSpans[p.child(gapSeq, gapPos)].start;
@@ -174,50 +174,61 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     const int cx = 76, cw = kW - cx - 10, lineH = f.height + 3;
     const int cols = cw / adv;
     const int areaTop = 34, areaBottom = 376;
-    std::vector<int> slots;
-    for (int s = 0; s < kSlots; s++)
-        if (p.block[s] || s == ed.slot()) slots.push_back(s);
-    // layouts and scroll so the current block is visible
+    // blocks in file order (several may share a dN: the selected one is
+    // bright, the others dim); an empty current dN gets a placeholder line
+    struct Row {
+        uint16_t blk;  // 0 = the empty current slot
+        int slot;
+        int idx;       // list index (comments), -1 for the placeholder
+    };
+    std::vector<Row> rows;
+    for (int i = 0; i < p.blockCount(); i++) rows.push_back({p.blockAt(i), p.blockSlot(p.blockAt(i)), i});
+    if (!p.block[ed.slot()]) rows.push_back({0, ed.slot(), -1});
+    const uint16_t curBlk = p.block[ed.slot()];
     std::vector<BlockLayout> lays;
     std::vector<int> heights;
-    int curY = 0, y = 0;
-    for (int s : slots) {
-        lays.push_back(layoutBlock(p, s, s == ed.slot() ? ed.cursor() : 0, cols,
-                                   s == ed.slot() ? ed.gapSeq() : 0, ed.gapPos()));
-        int h = (p.comment[s][0] ? lineH : 0) + lays.back().rows * lineH + 8;
-        if (!p.block[s]) h = lineH + 8;
-        if (s == ed.slot()) curY = y;
+    int curY = 0, y = 0, curH = 0;
+    for (const Row& rw : rows) {
+        const bool cur = rw.blk ? rw.blk == curBlk : true;
+        lays.push_back(rw.blk ? layoutBlock(p, rw.blk, cur ? ed.cursor() : 0, cols, cur ? ed.gapSeq() : 0, ed.gapPos())
+                              : BlockLayout{});
+        const bool hasComment = rw.idx >= 0 && p.blockComment(rw.idx)[0];
+        int h = rw.blk ? (hasComment ? lineH : 0) + lays.back().rows * lineH + 8 : lineH + 8;
+        if (cur) {
+            curY = y;
+            curH = h;
+        }
         heights.push_back(h);
         y += h;
     }
     int scroll = 0;
-    int curH = 0;
-    for (size_t k = 0; k < slots.size(); k++)
-        if (slots[k] == ed.slot()) curH = heights[k];
     if (curY + curH > areaBottom - areaTop) scroll = curY + curH - (areaBottom - areaTop);
     y = areaTop - scroll;
-    for (size_t k = 0; k < slots.size(); k++) {
-        int s = slots[k];
+    for (size_t k = 0; k < rows.size(); k++) {
+        const Row& rw = rows[k];
         const BlockLayout& L = lays[k];
-        int h = heights[k];
+        const int h = heights[k];
+        const bool cur = rw.blk ? rw.blk == curBlk : true;
+        const bool selected = rw.blk && p.block[rw.slot] == rw.blk;  // dN's selected alternative
         if (y + h >= areaTop && y < areaBottom) {
-            if (s == ed.slot()) fb.rect(cx - 6, y - 2, cw + 12, h - 4, col::current);
+            if (cur) fb.rect(cx - 6, y - 2, cw + 12, h - 4, col::current);
             int yy = y;
-            if (p.comment[s][0]) {
-                fb.text(cx, yy, p.comment[s], col::dim);
+            if (rw.idx >= 0 && p.blockComment(rw.idx)[0]) {
+                fb.text(cx, yy, p.blockComment(rw.idx), col::dim);
                 yy += lineH;
             }
-            if (!p.block[s]) {
-                std::string hint = "d" + std::to_string(s + 1) + "   (empty: replace to start)";
+            if (!rw.blk) {
+                std::string hint = "d" + std::to_string(rw.slot + 1) + "   (empty: replace to start)";
                 fb.text(cx, yy, hint.c_str(), col::dim);
             } else {
+                if (rw.blk == ed.playingBlock(rw.slot)) fb.rect(cx - 4, yy, 2, L.rows * lineH, col::ok);  // playing
                 for (size_t i = 0; i < L.text.size(); i++) {
                     int px = cx + L.colx[i] * adv, py = yy + L.row[i] * lineH;
                     if (py < areaTop - lineH || py > areaBottom) continue;
                     if (L.sel[i]) fb.rect(px, py - 1, adv, lineH, col::cursor);
                     if ((int)i == L.gapAt) fb.rect(px - 2, py - 1, 3, lineH, col::accent);  // gap cursor
                     char ch[2] = {L.text[i], 0};
-                    fb.text(px, py, ch, L.sel[i] ? 0xFFFFFF : L.color[i]);
+                    fb.text(px, py, ch, L.sel[i] ? 0xFFFFFF : selected ? L.color[i] : col::dim);
                 }
             }
         }

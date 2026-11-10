@@ -456,8 +456,68 @@ void Editor::enterStep(const std::string& miniCode, const std::string& exprCode,
 void Editor::gotoSlot(int s) {
     if (s < 0 || s >= kSlots) return;
     pending_ = 0;
+    gapSeq_ = 0;
+    if (newBlockArmed_) {
+        newBlockArmed_ = false;
+        return newBlockAbove(s);
+    }
+    const Program& p = *prog_;
+    // dN's blocks in file order; the same pad again cycles through them
+    std::vector<uint16_t> mine;
+    for (int i = 0; i < p.blockCount(); i++)
+        if (p.blockSlot(p.blockAt(i)) == s) mine.push_back(p.blockAt(i));
+    uint16_t target = 0;
+    if (s == slot_ && p.block[s] && mine.size() > 1) {
+        for (size_t k = 0; k < mine.size(); k++)
+            if (mine[k] == p.block[s]) target = mine[(k + 1) % mine.size()];
+    } else if (!mine.empty()) {
+        target = mine.front();
+        for (uint16_t b : mine)
+            if (b == playing_[s]) target = b;  // the playing one first
+    }
+    if (target) prog_->block[s] = target;
     enterSlot(s);
-    info(cursorInfo());
+    if (mine.size() > 1) {
+        int k = 0;
+        while (k < (int)mine.size() && mine[k] != prog_->block[s]) k++;
+        info("d" + std::to_string(s + 1) + " block " + std::to_string(k + 1) + " of " +
+             std::to_string(mine.size()) + (prog_->block[s] == playing_[s] ? " (playing)" : "") +
+             ": the pad again = next");
+    } else {
+        info(cursorInfo());
+    }
+}
+
+void Editor::selectBlock(uint16_t b) {
+    const int s = prog_->blockSlot(b);
+    prog_->block[s] = b;
+    slot_ = s;
+    pending_ = 0;
+    gapSeq_ = 0;
+    cursor_ = b;
+}
+
+// Insert, then slot pad N at a block's top: a new block for dN (silence)
+// above the current block; the cursor on `silence`, ready for Replace.
+void Editor::newBlockAbove(int slot) {
+    auto p = std::unique_ptr<Program>(new Program(*prog_));
+    const uint16_t cur = prog_->block[slot_];
+    int pos = cur ? p->blockIndex(cur) : -1;
+    if (pos < 0) pos = p->blockCount();
+    uint16_t b = p->alloc(Kind::Block);
+    Error e;
+    uint16_t x = b ? parseExpr(*p, "silence", 7, e) : 0;
+    if (!b || !x) return error("program full");
+    p->at(b).a = (uint32_t)slot;
+    p->appendChild(b, x);
+    if (!p->insertBlock(pos, b)) return error("too many blocks (max " + std::to_string(kMaxBlocks) + ")");
+    p->block[slot] = b;
+    snapshot();
+    prog_ = std::move(p);
+    slot_ = slot;
+    cursor_ = x;
+    if (state_[slot] == SlotState::Empty) state_[slot] = SlotState::Edited;
+    info("new block for d" + std::to_string(slot + 1) + ": Replace the silence to start");
 }
 
 void Editor::selectMenu(int i) {
@@ -472,8 +532,18 @@ std::string Editor::cursorInfo() const {
     }
     if (!cursor_) return prog_->block[slot_] ? "" : "empty slot: replace to start a pattern";
     const Node& n = prog_->at(cursor_);
-    if (n.kind == Kind::Block)  // the block's top: Up / Down = other blocks, Right = into it
-        return "d" + std::to_string(slot_ + 1) + " block (Up / Down: blocks, Right: into it)";
+    if (n.kind == Kind::Block) {  // the block's top: Up / Down = other blocks, Right = into it
+        int k = 0, count = 0;
+        for (int i = 0; i < prog_->blockCount(); i++)
+            if (prog_->blockSlot(prog_->blockAt(i)) == slot_) {
+                count++;
+                if (prog_->blockAt(i) == cursor_) k = count;
+            }
+        std::string s = "d" + std::to_string(slot_ + 1) + " block";
+        if (count > 1) s += " " + std::to_string(k) + " of " + std::to_string(count);
+        if (cursor_ == playing_[slot_]) s += " (playing)";
+        return s + " (Up / Down: blocks, Right: into it, Insert + pad: new block above)";
+    }
     std::string s = kindName(n.kind);
     if (n.kind == Kind::Fn || n.kind == Kind::Op || n.kind == Kind::SectionL || n.kind == Kind::SectionR)
         s += std::string(" ") + lib((int)n.a).name;
@@ -485,6 +555,7 @@ std::string Editor::cursorInfo() const {
 // actions
 
 void Editor::act(Action a) {
+    if (a != Action::Insert) newBlockArmed_ = false;  // only the very next slot pad
     if (gapSeq_ && !menuOpen_) {
         switch (a) {
             case Action::Left: case Action::Right: case Action::Up: case Action::Down:
@@ -570,6 +641,11 @@ void Editor::act(Action a) {
         case Action::Quick4: quick(3); break;
         case Action::Insert: {
             if (!cursor_) break;
+            if (prog_->at(cursor_).kind == Kind::Block) {
+                newBlockArmed_ = true;
+                info("slot pad: a new block for that dN above this one");
+                break;
+            }
             uint16_t par = prog_->parentOf(cursor_);
             Kind pk = par ? prog_->at(par).kind : Kind::None;
             if (pk == Kind::MSeq || pk == Kind::List) {
@@ -664,14 +740,8 @@ void Editor::navigate(Action a) {
     // at a block's top: Up / Down = the previous / next block, Right = into it
     if (p.at(cursor_).kind == Kind::Block) {
         if (a == Action::Up || a == Action::Down) {
-            const int dir = a == Action::Up ? -1 : 1;
-            for (int s = slot_ + dir; s >= 0 && s < kSlots; s += dir)
-                if (p.block[s]) {
-                    slot_ = s;
-                    pending_ = 0;
-                    cursor_ = p.block[s];
-                    break;
-                }
+            const int i = p.blockIndex(cursor_) + (a == Action::Up ? -1 : 1);
+            if (i >= 0 && i < p.blockCount()) selectBlock(p.blockAt(i));
         } else if (a == Action::Right && p.at(cursor_).first) {
             cursor_ = p.at(cursor_).first;
         }
@@ -793,6 +863,11 @@ void Editor::ensureBlock() {
     auto p = std::unique_ptr<Program>(new Program(*prog_));
     uint16_t b = p->alloc(Kind::Block);
     p->at(b).a = (uint32_t)slot_;
+    // a new dN goes in slot order: after the last block of a lower or equal dN
+    int pos = 0;
+    for (int i = 0; i < p->blockCount(); i++)
+        if (p->blockSlot(p->blockAt(i)) <= slot_) pos = i + 1;
+    if (!b || !p->insertBlock(pos, b)) return error("too many blocks (max " + std::to_string(kMaxBlocks) + ")");
     p->block[slot_] = b;
     prog_ = std::move(p);
     cursor_ = b;
@@ -808,6 +883,7 @@ void Editor::addReplaceItems(std::vector<MenuItem>& items, const std::string& la
 // Note button: pitches. Inside "..." single steps, otherwise note patterns.
 void Editor::openNotes() {
     ensureBlock();
+    if (!cursor_) return;
     std::vector<MenuItem> items;
     auto add = [&](const std::string& l, const std::string& code, bool mini) { addReplaceItems(items, l, code, mini); };
     if (isMiniKind(prog_->at(cursor_).kind)) {
@@ -829,6 +905,7 @@ void Editor::openNotes() {
 // Instrument button: samples. Inside "..." names (and name:n), otherwise s "name".
 void Editor::openSamples() {
     ensureBlock();
+    if (!cursor_) return;
     std::vector<MenuItem> items;
     bool mini = isMiniKind(prog_->at(cursor_).kind);
     for (auto& s : samples_) {
@@ -859,6 +936,7 @@ void Editor::doPaste() {
     std::unique_ptr<Program> before(new Program(*prog_));
     uint16_t beforeCursor = cursor_;
     ensureBlock();
+    if (!cursor_) return;
     bool targetMini = isMiniKind(prog_->at(cursor_).kind);
     uint16_t nn;
     std::shared_ptr<Program> r;
@@ -1207,6 +1285,7 @@ void Editor::openReplace() {
         addReplaceItems(items, label, code, mini);
     };
     ensureBlock();
+    if (!cursor_) return;
     const Node& n = prog_->at(cursor_);
     if (n.kind == Kind::Block || cursor_ == exprRoot()) {
         bool midi = slot_ >= kSampleSlots;
@@ -1405,15 +1484,21 @@ void Editor::deleteNode() {
         if (cur.at(cursor_).kind == Kind::Block || cursor_ == exprRoot()) {
             auto p = std::unique_ptr<Program>(new Program(*prog_));
             uint16_t b = p->block[slot_];
+            p->removeBlockAt(p->blockIndex(b));
             p->freeTree(b);
             p->block[slot_] = 0;
+            for (int i = 0; i < p->blockCount() && !p->block[slot_]; i++)  // another block of dN
+                if (p->blockSlot(p->blockAt(i)) == slot_) p->block[slot_] = p->blockAt(i);
             snapshot();
             prog_ = std::move(p);
-            cursor_ = 0;
-            if (backend_ && state_[slot_] == SlotState::Playing)
+            cursor_ = prog_->block[slot_];
+            const bool wasPlaying = playing_[slot_] == b;
+            if (wasPlaying) playing_[slot_] = 0;
+            if (backend_ && wasPlaying && state_[slot_] == SlotState::Playing)
                 backend_->send("d" + std::to_string(slot_ + 1) + " silence");
-            state_[slot_] = SlotState::Empty;
-            info("slot cleared");
+            if (!prog_->block[slot_]) state_[slot_] = SlotState::Empty;
+            else if (wasPlaying) state_[slot_] = SlotState::Edited;
+            info(prog_->block[slot_] ? "block deleted (dN's other block selected)" : "slot cleared");
         }
         return;
     }
@@ -1594,6 +1679,7 @@ void Editor::evaluate() {
     }
     if (backend_) backend_->send(text);
     state_[slot_] = SlotState::Playing;
+    playing_[slot_] = b;
     info("d" + std::to_string(slot_ + 1) + " evaluated");
 }
 

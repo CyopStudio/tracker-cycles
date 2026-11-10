@@ -46,8 +46,8 @@ void Program::clear() {
     hwm_ = 1;
     live_ = 0;
     nstrings_ = 0;
+    nblocks_ = 0;
     memset(block, 0, sizeof block);
-    memset(comment, 0, sizeof comment);
     cpsExpr = 0;
 }
 
@@ -128,6 +128,33 @@ int Program::subtreeSize(uint16_t idx) const {
     return n;
 }
 
+int Program::blockIndex(uint16_t b) const {
+    for (int i = 0; i < nblocks_; i++)
+        if (blocks_[i] == b) return i;
+    return -1;
+}
+
+bool Program::insertBlock(int pos, uint16_t b) {
+    if (nblocks_ >= kMaxBlocks || pos < 0 || pos > nblocks_) return false;
+    for (int i = nblocks_; i > pos; i--) {
+        blocks_[i] = blocks_[i - 1];
+        memcpy(blockComment_[i], blockComment_[i - 1], sizeof blockComment_[i]);
+    }
+    blocks_[pos] = b;
+    blockComment_[pos][0] = 0;
+    nblocks_++;
+    return true;
+}
+
+void Program::removeBlockAt(int pos) {
+    if (pos < 0 || pos >= nblocks_) return;
+    for (int i = pos; i + 1 < nblocks_; i++) {
+        blocks_[i] = blocks_[i + 1];
+        memcpy(blockComment_[i], blockComment_[i + 1], sizeof blockComment_[i]);
+    }
+    nblocks_--;
+}
+
 void Program::replace(uint16_t old, uint16_t repl) {
     uint16_t p = parentOf(old);
     nodes_[repl].next = nodes_[old].next;
@@ -135,6 +162,8 @@ void Program::replace(uint16_t old, uint16_t repl) {
     if (!p) {
         for (int s = 0; s < kSlots; s++)
             if (block[s] == old) block[s] = repl;
+        for (int i = 0; i < nblocks_; i++)
+            if (blocks_[i] == old) blocks_[i] = repl;
         if (cpsExpr == old) cpsExpr = repl;
         return;
     }

@@ -329,9 +329,11 @@ int Renderer::expr(const Program& p, uint16_t root) {
     return n_;
 }
 
-int Renderer::block(const Program& p, int slot) {
-    uint16_t b = p.block[slot];
+int Renderer::block(const Program& p, int slot) { return blockNode(p, p.block[slot]); }
+
+int Renderer::blockNode(const Program& p, uint16_t b) {
     if (!b) return n_;
+    const int slot = p.blockSlot(b);
     begin(b);
     char buf[40];
     const Node& bn = p.at(b);
@@ -361,14 +363,13 @@ int Renderer::file(const Program& p) {
         put('\n');
         any = true;
     }
-    for (int s = 0; s < kSlots; s++) {
-        if (!p.block[s]) continue;
+    for (int i = 0; i < p.blockCount(); i++) {  // file order
         if (any) put('\n');
-        if (p.comment[s][0]) {
-            puts(p.comment[s]);
+        if (p.blockComment(i)[0]) {
+            puts(p.blockComment(i));
             put('\n');
         }
-        block(p, s);
+        blockNode(p, p.blockAt(i));
         put('\n');
         any = true;
     }

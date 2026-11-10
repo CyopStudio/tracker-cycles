@@ -108,7 +108,14 @@ the four context quick-buttons (`# <last control>`, `|+ n 12`, ...).
    before; Up leaves; any other action works on the whole sequence; drawn
    as a bar). Not yet: gaps in Haskell lists (`stack [a, b]`). Smoke
    session 15; sessions 2 and 8 now step through the gaps (same results).
-6. Several blocks per dN: Program keeps a block list instead of one root
-   per slot (core tree, parser, renderer, file format, scheduler
-   evaluate, editor, device player); the biggest change, touches
-   tidal/core and its tests.
+6. Done (2026-11-10): several blocks per dN. Program keeps a block list
+   in file order (kMaxBlocks 32, a comment each; block[slot] = the
+   selected one, the parser selects the last, as Tidal running the whole
+   file would, so the scheduler, the device player and the tick test are
+   unchanged); renderer / checker work per block node; the editor: Insert
+   at a block's top + slot pad N = new `dN $ silence` above it, the slot
+   pad goes to dN's playing block (else the first) and cycles on a second
+   press, Up / Down at the top walk the list, Delete selects dN's other
+   block, a new dN goes in slot order, the view draws every block (other
+   alternatives dim, a green bar on the playing one). Smoke session 16;
+   session 11's message text changed.

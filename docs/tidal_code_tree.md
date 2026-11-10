@@ -67,7 +67,11 @@ not an expression node; it only changes when an evaluation takes effect.
 Timing observed in Tidal 1.10.3 (golden cases `@jump*`): `jumpMod 4` at
 2.5, 3.9 → 4, at 4 → 8; `jumpMod 3` at 0 → 3; `jumpIn 2` at 2.5 → 5, at
 3 → 5; `jumpIn 0` at 2.5 → 3. N and k are plain whole numbers (Tidal:
-`ID -> Int`); only one form per slot is allowed in a file. The prototype's
+`ID -> Int`). A file may hold several blocks for the same slot
+(alternatives, editor v2 step 6): the Program keeps every block in file
+order (with its comment, at most 32 blocks) and selects the LAST one per
+slot, as running the whole file in Tidal would; the editor switches by
+evaluating another one. The prototype's
 GHCi boot script defines both as in Tidal's BootTidal.hs. `xfade`,
 `jumpMod'` and the other transitions are out of v1.
 

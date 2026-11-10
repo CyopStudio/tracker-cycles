@@ -57,7 +57,9 @@ to upstream CE.
     Scheduler::setMuted). Song = launch menu (v2, docs/tidal_ui_v2.md: the full v2 mapping is
     being built in steps; step 1 done 2026-11-10: Pattern / Song, Shift +
     Screen 1-8 = the old screen functions, Home = the block's top, Up /
-    Down there = previous / next block, Right = into it).
+    Down there = previous / next block, Right = into it; step 6 done:
+    several blocks per dN, Insert at the top + pad N = new block above,
+    pad again cycles dN's blocks; the parser selects the last dN block).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

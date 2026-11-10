@@ -87,6 +87,8 @@ public:
     // Gap cursor (v2 step 5): between the steps of a "..." sequence; 0 = on
     // a node (cursor()). gapPos 0 = before the first step, count = after the last.
     uint16_t gapSeq() const { return gapSeq_; }
+    // Several blocks per dN (v2 step 6): the block dN last evaluated (0 = none)
+    uint16_t playingBlock(int s) const { return playing_[s]; }
     int gapPos() const { return gapPos_; }
     bool trackerMode() const { return trackerMode_; }
     std::string cursorInfo() const;
@@ -156,6 +158,10 @@ private:
     bool messageError_ = false;
     SlotState state_[tc::kSlots];
     bool muted_[tc::kSlots] = {};
+    uint16_t playing_[tc::kSlots] = {};
+    bool newBlockArmed_ = false;  // Insert at a block's top: the next slot pad adds a block
+    void selectBlock(uint16_t b);  // make b its slot's selected block, cursor on its top
+    void newBlockAbove(int slot);
     uint16_t gapSeq_ = 0;
     int gapPos_ = 0;
     void leaveGap();

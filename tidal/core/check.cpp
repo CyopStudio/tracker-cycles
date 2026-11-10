@@ -393,8 +393,9 @@ Checker& freshChecker(Program& p, Error& e) {
 
 }  // namespace
 
-bool checkBlock(Program& p, int slot, Error& err, int* holes) {
-    uint16_t b = p.block[slot];
+bool checkBlock(Program& p, int slot, Error& err, int* holes) { return checkBlockNode(p, p.block[slot], err, holes); }
+
+bool checkBlockNode(Program& p, uint16_t b, Error& err, int* holes) {
     if (holes) *holes = 0;
     if (!b || !p.at(b).first) return true;
     Checker& c = freshChecker(p, err);
@@ -421,8 +422,10 @@ bool checkCps(Program& p, Error& err) {
 
 bool checkProgram(Program& p, Error& err) {
     if (!checkCps(p, err)) return false;
-    for (int s = 0; s < kSlots; s++)
-        if (!checkBlock(p, s, err)) return false;
+    for (int i = 0; i < p.blockCount(); i++)  // every block, alternatives too
+        if (!checkBlockNode(p, p.blockAt(i), err)) return false;
+    for (int s = 0; s < kSlots; s++)  // a selected root not in the list (built in code)
+        if (p.block[s] && p.blockIndex(p.block[s]) < 0 && !checkBlock(p, s, err)) return false;
     return true;
 }
 

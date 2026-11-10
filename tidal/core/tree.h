@@ -18,6 +18,7 @@ constexpr int kMaxTypes = 255;
 constexpr int kSlots = 16;            // d1..d16
 constexpr int kSampleSlots = 8;       // d1..d8; d9..d16 are MIDI 1..8
 constexpr int kMaxCommentLen = 127;
+constexpr int kMaxBlocks = 32;         // blocks per file (several may share a dN)
 
 // ---- Node kinds (spec 4 and 5) ---------------------------------------------
 enum class Kind : uint8_t {
@@ -140,9 +141,20 @@ public:
     const char* str(int id) const { return strings_[id]; }
     int stringCount() const { return nstrings_; }
 
-    // blocks: one root per slot (0 = empty)
+    // blocks: the selected root per slot (0 = empty): what evaluate / check /
+    // map use. The file can hold several blocks for one dN (alternatives,
+    // editor v2): blockAt(i) lists them all in file order, each with the
+    // comment lines above it; the parser selects the last one per slot.
     uint16_t block[kSlots];
-    char comment[kSlots][kMaxCommentLen + 1];
+    int blockCount() const { return nblocks_; }
+    uint16_t blockAt(int i) const { return blocks_[i]; }
+    int blockSlot(uint16_t b) const { return (int)nodes_[b].a; }
+    int blockIndex(uint16_t b) const;  // -1 if not in the list
+    const char* blockComment(int i) const { return blockComment_[i]; }
+    char* blockComment(int i) { return blockComment_[i]; }
+    // insert root `b` (a Block node) at list position `pos` (0..count); false if full
+    bool insertBlock(int pos, uint16_t b);
+    void removeBlockAt(int pos);  // the list entry only (free the tree yourself)
     uint16_t cpsExpr;  // `setcps <expr>` (0 = none)
 
 private:
@@ -155,6 +167,9 @@ private:
     int live_;
     char strings_[kMaxStrings][kMaxStringLen + 1];
     int nstrings_;
+    uint16_t blocks_[kMaxBlocks];
+    char blockComment_[kMaxBlocks][kMaxCommentLen + 1];
+    int nblocks_;
 };
 
 // Rational helpers stored in Num / MNum nodes

@@ -285,7 +285,8 @@ static void testFiles() {
     if (!ok) return;
     EXPECT(gProg.block[0] && gProg.block[1] && gProg.block[2] && gProg.block[8],
            "blocks d1 d2 d3 d9 present");
-    EXPECT(strcmp(gProg.comment[0], "-- kick") == 0, "comment kept: '%s'", gProg.comment[0]);
+    EXPECT(strcmp(gProg.blockComment(gProg.blockIndex(gProg.block[0])), "-- kick") == 0, "comment kept: '%s'",
+           gProg.blockComment(gProg.blockIndex(gProg.block[0])));
     char out[1024];
     Renderer r(out, sizeof out);
     out[0] = 0;
@@ -305,10 +306,28 @@ static void testFiles() {
     Error ce;
     EXPECT(checkProgram(gProg, ce), "file type check: %s", ce.msg);
 
-    const char* bad = "d1 $ s \"bd\"\nd1 $ s \"sd\"\n";
+    // several blocks for one dN (editor v2): all kept in file order, each
+    // with its comment; the last is the selected one
+    const char* dup = "-- a\nd1 $ s \"bd\"\n\nd2 $ s \"hh\"\n\n-- b\nd1 $ s \"sd\"\n";
     Error e2;
-    EXPECT(!parseFile(gProg, bad, (int)strlen(bad), e2) && strstr(e2.msg, "more than once"),
-           "duplicate block rejected: %s", e2.msg);
+    bool dok = parseFile(gProg, dup, (int)strlen(dup), e2);
+    EXPECT(dok && gProg.blockCount() == 3, "duplicate dN parses: %s (%d blocks)", e2.msg, gProg.blockCount());
+    if (dok && gProg.blockCount() == 3) {
+        EXPECT(gProg.block[0] == gProg.blockAt(2) && gProg.blockSlot(gProg.blockAt(0)) == 0,
+               "the last d1 is selected");
+        EXPECT(!strcmp(gProg.blockComment(0), "-- a") && !strcmp(gProg.blockComment(2), "-- b"), "comments per block");
+        char dout[256];
+        Renderer dr(dout, sizeof dout);
+        dout[0] = 0;
+        dr.file(gProg);
+        EXPECT(!strcmp(dout, dup), "file order kept:\n%s", dout);
+        Error dce;
+        EXPECT(checkProgram(gProg, dce), "all blocks checked: %s", dce.msg);
+    }
+    const char* dupBad = "d1 $ s \"bd\"\n\nd1 $ s 3\n";  // the alternative doesn't type-check
+    Error e2b, ce2b;
+    EXPECT(parseFile(gProg, dupBad, (int)strlen(dupBad), e2b) && !checkProgram(gProg, ce2b),
+           "an alternative block is type-checked too");
     // launch modes (spec 2.1)
     const char* jf = "jumpMod 1 4 $ s \"bd sd\"\n\njumpIn 9 0 $ n \"c e\"\n\nd2 $ s \"hh\"\n";
     Error je;
@@ -324,7 +343,7 @@ static void testFiles() {
         Renderer jr(jo, sizeof jo);
         jo[0] = 0;
         jr.file(gProg);
-        const char* jwant = "jumpMod 1 4 $ s \"bd sd\"\n\nd2 $ s \"hh\"\n\njumpIn 9 0 $ n \"c e\"\n";
+        const char* jwant = "jumpMod 1 4 $ s \"bd sd\"\n\njumpIn 9 0 $ n \"c e\"\n\nd2 $ s \"hh\"\n";  // file order
         EXPECT(strcmp(jo, jwant) == 0, "jump render:\n%s---\nwant:\n%s", jo, jwant);
     }
     struct { const char* text; const char* msg; } jbad[] = {
@@ -334,7 +353,6 @@ static void testFiles() {
         {"jumpIn 1 $ s \"bd\"\n", "whole number of cycles"},
         {"jumpMod 1 4.5 $ s \"bd\"\n", "whole number of cycles"},
         {"jumpMod x 4 $ s \"bd\"\n", "slot number"},
-        {"jumpMod 1 4 $ s \"bd\"\nd1 $ s \"sd\"\n", "more than once"},
     };
     for (auto& jb : jbad) {
         Error x;

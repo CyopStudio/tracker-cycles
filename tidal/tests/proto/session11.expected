@@ -1,7 +1,7 @@
-msg: d1 block (Up / Down: blocks, Right: into it)
-msg: d2 block (Up / Down: blocks, Right: into it)
-msg: d3 block (Up / Down: blocks, Right: into it)
-msg: d1 block (Up / Down: blocks, Right: into it)
+msg: d1 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: d2 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: d3 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: d1 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
 msg: App : ControlPattern
 > setcps (120/60/4)
 > d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1

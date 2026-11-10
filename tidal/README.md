@@ -156,7 +156,7 @@ hardware can't.
 | Play alone (released, no pad) | unmute all | | Space |
 | Shift + Play alone | hush | | `h` |
 | Delete while Play is held | cancel (releasing Play then does nothing) | | |
-| Insert | copy step / element, or add a `# control` | | `i` |
+| Insert | copy step / element, or add a `# control`; at a block's top: arm a new block (the next slot pad N adds an empty `dN $ silence` above the current block) | | `i` |
 | Shift + Insert (Home) | jump to the block's top (`dN $` / `jumpMod N k $`) | | Home |
 | Delete | inside `"..."`: a step becomes `~` (timing stays), a `~` is removed, the step pad entry just appended is removed (ends entry); elsewhere: delete (operand, or leave a `??` hole) | | `x` / Del |
 | Shift + Delete (Backspace) | unwrap (same as Screen 3) | | |
@@ -170,7 +170,7 @@ hardware can't.
 | Song | launch menu: `dN $` (now), `jumpMod N 2/4/8/16`, `jumpIn N 1/2/4` (when the next evaluation takes effect) | | `l` |
 | Pads in a numeric pattern | enter a number: −12 top left, 0 at the start of the 2nd row, 34, then `~` (rest) bottom right (for `n`/`note`: semitones, a keyboard from c4). Replaces the value, group (`<1 2>`, `0 .. 7`) or quoted pattern at the cursor, then selects the next step's value, or appends a copy at the end of the sequence to type over; Delete removes that copy and ends entry. On the quotes this writes a pattern from scratch: pads `0 3 5 7`, Delete → `"0 3 5 7"`. A range fills low, then high. The current value's pad is framed | | click |
 | Pads in an `s` / `sound` pattern | instrument mode: pad N = instrument slot N (48, like the Tracker's instruments; names on the pads). Same entry as numbers (replace, next step, append, Delete ends); no rest pad, so pad 48 is slot 48. Default slots are Dirt-Samples folders; `--instruments FILE` (one name per line, blank = empty slot) replaces them | | click |
-| Pads elsewhere, or Shift + pad | 1–8 (top row) select d1..d8, 13–20 (2nd row) d9..d16 | | `1`..`8`, Shift+`1`..`8` |
+| Pads elsewhere, or Shift + pad | 1–8 (top row) select d1..d8, 13–20 (2nd row) d9..d16: dN's playing block, else its first; the same pad again cycles through dN's blocks | | `1`..`8`, Shift+`1`..`8` |
 | | next / previous slot pad | | Tab / Shift+Tab |
 | File | save | | Ctrl+S |
 | Config | tracker mode on/off | | `t` |
@@ -231,6 +231,12 @@ error).
   wins); that routing is never stored. Not yet emulated: the device's
   voices per channel (Polyphony in CLAUDE.md).
 - `setcps` is sent before the first evaluate and whenever it changes.
+- **Several blocks per dN** (alternatives): kept in file order with their
+  comments; evaluating one makes it dN's playing block (green bar), the
+  others are drawn dim. Up / Down at a block's top walk the file's blocks;
+  Delete there removes the block and selects dN's other one. A new dN
+  (Replace on an empty slot) goes in slot order. Loading plays nothing.
+  `session16.keys` covers it.
 
 ## Known gaps (next steps)
 
