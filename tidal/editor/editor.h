@@ -218,6 +218,8 @@ private:
     void enterSlot(int s);
 
     void navigate(Action a);
+    bool flow(bool right, uint16_t from);  // Left / Right past the end of a leaf / sequence
+    void flowInto(bool right, uint16_t n);
     void wheel(int dir, bool fast);
     void openReplace();
     enum class WrapMode { All, Functions, Controls, Dollar, Modifiers, Fx, Ops };

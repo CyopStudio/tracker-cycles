@@ -61,7 +61,7 @@ bool mapKey(const SDL_KeyboardEvent& k, bool shift, Key& out) {
         case SDLK_s: return ctl(ctrl ? Control::File : Control::Instr);
         case SDLK_n: return ctl(Control::Note);
         case SDLK_l: return ctl(Control::Song);
-        case SDLK_p: return ctl(Control::Params);
+        case SDLK_p: return intent(Action::EditComment);
         case SDLK_e: return ctl(Control::Pattern);
         case SDLK_f: return ctl(Control::Fx1);
         case SDLK_c: return ctl(ctrl ? Control::Copy : Control::Fx2);

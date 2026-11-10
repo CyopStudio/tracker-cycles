@@ -28,7 +28,7 @@ hw:shift+pad3
 hw:shift+s1
 menu:1
 hw:pattern
-hw:params
+hw:shift+config
 type:new_hats
 hw:s8
 hw:shift+song

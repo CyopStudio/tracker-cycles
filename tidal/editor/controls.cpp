@@ -209,7 +209,8 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         case Control::Fx1: return act(Action::MenuModifiers, "modifiers");
         case Control::Fx2: return act(Action::MenuFx, "FX");
         case Control::Pattern: return act(Action::Evaluate, ed.onCps() ? "Send tempo" : "Evaluate");
-        case Control::Params: return act(Action::EditComment, "comment");
+        // Params stays free (the instrument parameters); comments are on
+        // Shift+Config
         // Song: launch menu; Shift+Song: setcps (the Tracker's tempo is on
         // its Song screen); Master stays for the master settings
         case Control::Song:
@@ -249,7 +250,7 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
             return act((Action)((int)Action::Quick1 + q), l.c_str());
         }
         case Control::File: return act(Action::Save, "Save");
-        case Control::Config: return act(Action::ToggleTrackerMode, "Trk mode");
+        case Control::Config: return shift ? act(Action::EditComment, "comment") : act(Action::ToggleTrackerMode, "Trk mode");
         default: return {};
     }
 }

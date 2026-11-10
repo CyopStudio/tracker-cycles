@@ -38,7 +38,10 @@ to upstream CE.
   Insert/Up/Delete and Rec/Shift/Left/Down/Right, jog wheel bottom right.
   FX1 = `interfaceButtonVol`, FX2 = `interfaceButtonFx` (fPatternEdit.cpp).
 - Mapping (editing / in a menu):
-  - Arrows: siblings, parent / first child (menus: move). Inside "...",
+  - Arrows: siblings, parent / first child (menus: move). On a leaf (or a
+    node with no sibling on that side) Left / Right go on to the previous /
+    next leaf of the text, through "..." gaps, across the whole block
+    (Editor4, user's ask). Inside "...",
     Left / Right alternate step, gap, step (v2 step 5 gap cursor: pads
     insert, Screen 3-7 insert, Delete = Backspace, Up leaves; the same in
     Haskell lists `stack [a, b]`: Insert / Paste / Replace insert an
@@ -90,12 +93,13 @@ to upstream CE.
     the first block for Up / Down; Shift+Insert = the line). Screen 3-7 on
     a plain number make it a pattern ("[2 2]" ...); on a function argument
     (often's `rev`) Screen 1 / 2 / 8, FX1, FX2 list replacements.
-    Master is kept for the master settings. Params = the block's comment on the stock naming keyboard
+    Master is kept for the master settings. Shift+Config = the block's comment (Params is kept free for the
+    instrument parameters; was Params until Editor4) on the stock naming keyboard
     (mtKeyboardManager's layout, tidal/proto/keyboard.h: pads are keys,
     arrows + Screen 1 / Insert type the lit key, Delete = Backspace, jog
     moves the text cursor, Screen 2 Clear, 7 Cancel, 8 OK; edits the last
-    comment line above the block). Free: Perform, Master (reserved: master
-    settings), Sample *, Rec.
+    comment line above the block). Free: Params (reserved: instrument
+    parameters), Perform, Master (reserved: master settings), Sample *, Rec.
 - Launch: tidal/run_proto.sh (rebuilds, opens tidal/work.tidal, gitignored)
   or `make -C tidal run`; `--install-shortcut` makes Windows Desktop +
   Start menu shortcuts via wslg.exe (WSLg doesn't list .desktop apps here).

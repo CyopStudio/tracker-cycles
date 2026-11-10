@@ -60,3 +60,12 @@ should change the note entry now that we have cursor spaces beweeen numbers - a 
 dl N B is always present even with menus
 
 menus draw on top ok now
+
+
+*PolyendTrac_TidalEditor3
+
+Instrument parameters button needs to be kept free. currently opens comments. that should be shift>file
+
+currently no way to make chords. what do you suggest?
+
+at the lowest level, left and right should make the curser should continue navigating across the code

@@ -209,6 +209,13 @@ Decisions:
    (layout kCellSel on the Hint line); pad entry moves to the gap after
    the new step so the next pads insert (no Delete to end entry; smoke
    session 22).
+   Editor3 (user): Params must stay free (it opened the comment: now
+   Shift+Config; on the device Params leaves for the instrument
+   parameters); at the lowest level Left / Right stopped at the end of a
+   sibling list. Editor4: on a leaf (or with no sibling on that side) they
+   go on to the previous / next leaf of the text, "..." gaps included,
+   across the block (smoke session 23; 10 older sessions now edit other
+   nodes, their expectations regenerated). Chords: open question.
 4. Module in slot 2, player hand-over, File = save /project.tidal
    (4e: per-project files later).
 5. Device build, then the parked UI TODO (pad modes) if it fits.

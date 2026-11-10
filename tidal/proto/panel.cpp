@@ -113,7 +113,6 @@ static const char* fixedKey(Control c) {
         case Control::Fx2: return "c";
         case Control::Pattern: return "e";
         case Control::Song: return "l";
-        case Control::Params: return "p";
         default: break;
     }
     if (isPad(c)) {
@@ -131,6 +130,7 @@ static const char* actionKey(Action a) {
         case Action::Unwrap: return "u";
         case Action::Undo: return "z";
         case Action::Hush: return "h";
+        case Action::EditComment: return "p";
         case Action::Confirm: return "Enter";
         case Action::Cancel: return "Esc";
         case Action::Paste: return "Ctrl+V";

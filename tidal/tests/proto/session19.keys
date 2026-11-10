@@ -18,7 +18,7 @@ msg
 hw:shift+song
 msg
 hw:shift+pad2
-hw:params
+hw:shift+config
 msg
 hw:s2
 type:Hats_on_8
@@ -32,12 +32,12 @@ msg
 hw:s8
 msg
 hw:shift+pad3
-hw:params
+hw:shift+config
 type:arp_line
 hw:s7
 msg
 hw:shift+pad1
-hw:params
+hw:shift+config
 hw:s2
 hw:s8
 msg

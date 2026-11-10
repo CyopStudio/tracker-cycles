@@ -340,10 +340,12 @@ void functButton(uint8_t button, uint8_t state)
     if (!ed || button > (uint8_t)Control::Right) return;
     const Control c = (Control)button;  // the Control enum is the firmware's button order
     const bool shift = shiftHeld();
-    // keys that leave the editor: Perform, Master, the Sample keys, Config,
-    // File (Shift+File saves)
-    const bool leave = c == Control::Perform || c == Control::Master || c == Control::Config ||
-                       (c >= Control::SmpLoad && c <= Control::SmpRec) || (c == Control::File && !shift);
+    // keys that leave the editor: Params (the instrument parameters), Perform,
+    // Master, the Sample keys, Config and File (Shift+Config = the block's
+    // comment, Shift+File saves)
+    const bool leave = c == Control::Params || c == Control::Perform || c == Control::Master ||
+                       (c >= Control::SmpLoad && c <= Control::SmpRec) || (c == Control::Config && !shift) ||
+                       (c == Control::File && !shift);
     if (leave) {
         if (state == buttonPress) tidalEditorModule.eventFunct(eventSwitchModule, &tidalEditorModule, &button, 0);
         return;

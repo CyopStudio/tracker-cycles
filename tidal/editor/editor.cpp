@@ -1004,6 +1004,10 @@ void Editor::navigate(Action a) {
         } else if (a == Action::Left && gapPos_ > 0) {
             cursor_ = p.child(gapSeq_, gapPos_ - 1);
             gapSeq_ = 0;
+        } else if (a == Action::Left || a == Action::Right) {
+            // the first / last gap: on across the code
+            const uint16_t seq = gapSeq_;
+            if (flow(a == Action::Right, seq)) return info(cursorInfo());
         } else if (a == Action::Up) {
             cursor_ = gapSeq_;
             gapSeq_ = 0;
@@ -1044,6 +1048,14 @@ void Editor::navigate(Action a) {
         info(cursorInfo());
         return;
     }
+    // a leaf, or a node with no sibling on that side: Left / Right go on to
+    // the previous / next leaf of the text (into and out of subtrees and
+    // "..." sequences, within the block)
+    if ((a == Action::Left || a == Action::Right) &&
+        (!p.at(cursor_).first || !(a == Action::Right ? p.at(cursor_).next : p.prevSibling(cursor_)))) {
+        flow(a == Action::Right, cursor_);
+        return info(cursorInfo());
+    }
     uint16_t n = 0;
     switch (a) {
         case Action::Down:
@@ -1066,6 +1078,58 @@ void Editor::navigate(Action a) {
     }
     if (n) cursor_ = n;
     info(cursorInfo());
+}
+
+// From node `from` (a leaf, or a sequence whose first / last gap the cursor
+// is on): climb to the first ancestor with a sibling on that side and go into
+// it; inside a "..." sequence or a list, the gap next to the node is the stop.
+// The children render in tree order (render.cpp), so this is the text order.
+bool Editor::flow(bool right, uint16_t from) {
+    const Program& p = *prog_;
+    uint16_t c = from;
+    for (;;) {
+        const uint16_t par = p.parentOf(c);
+        if (!par || p.at(par).kind == Kind::Block) return false;  // the block's end
+        const Kind pk = p.at(par).kind;
+        if (pk == Kind::MSeq || pk == Kind::List) {
+            int idx = 0;
+            for (uint16_t k = p.at(par).first; k && k != c; k = p.at(k).next) idx++;
+            gapSeq_ = par;
+            gapPos_ = right ? idx + 1 : idx;
+            cursor_ = par;
+            return true;
+        }
+        const uint16_t sib = right ? p.at(c).next : p.prevSibling(c);
+        if (sib) {
+            flowInto(right, sib);
+            return true;
+        }
+        c = par;
+    }
+}
+
+// Into node n from the left (right = true) or the right: its first / last
+// leaf, or the first / last gap of a sequence or list on the way down.
+void Editor::flowInto(bool right, uint16_t n) {
+    const Program& p = *prog_;
+    gapSeq_ = 0;
+    for (;;) {
+        const Node& x = p.at(n);
+        if ((x.kind == Kind::MSeq || x.kind == Kind::List) && x.first) {
+            gapSeq_ = n;
+            gapPos_ = right ? 0 : p.childCount(n);
+            cursor_ = n;
+            return;
+        }
+        if (!x.first) {
+            cursor_ = n;
+            return;
+        }
+        uint16_t k = x.first;
+        if (!right)
+            while (p.at(k).next) k = p.at(k).next;
+        n = k;
+    }
 }
 
 static uint16_t firstNumber(const Program& p, uint16_t n);

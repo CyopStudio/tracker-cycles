@@ -3,7 +3,7 @@
 setcps (120/60/4)
 
 -- kick and snare
-d1 $ 0.26 <~ ((every 4 (fast 2) $ s "<bd(4,8)*2> [~ sd] bd sd" # gain 1) |+ n 11)
+d1 $ 0.26 <~ ((every 4 (fast 2) $ sound "bd*2 [~ sd] bd sd" # gain 1 |+ n 12) |+ n 11)
 
 -- hats
 d2 $ s "hh*8" # gain 0.8 # pan sine # pan sine # pan sine

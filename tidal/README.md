@@ -136,7 +136,7 @@ hardware can't.
 
 | Tracker control | Editing | In a menu | Key |
 | :--- | :--- | :--- | :--- |
-| ← → | previous / next sibling; inside `"..."`: step, gap, step, gap … (the gap is a thin bar: pads insert steps there and stay in the gap, Screen 3–7 insert a bracket / alternation / polymeter / Euclid / choice, Delete removes the step before it, ↑ leaves it); inside a Haskell list (`stack [a, b]`, `cat`, `fastcat`, `slowcat`): element, gap, element … (Insert puts a copy of the element before the gap there, Shift+Copy pastes the clipboard there, Shift+Screen 1 opens the Replace list as an "insert" menu, Delete removes the element before the gap (a list keeps one); the new element is selected) | previous / next item | ← → |
+| ← → | previous / next sibling; on a leaf, or with no sibling on that side: on to the previous / next leaf of the text (into and out of subtrees and `"..."`, whose first / last gap is a stop; within the block); inside `"..."`: step, gap, step, gap … (the gap is a thin bar: pads insert steps there and stay in the gap, Screen 3–7 insert a bracket / alternation / polymeter / Euclid / choice, Delete removes the step before it, ↑ leaves it); inside a Haskell list (`stack [a, b]`, `cat`, `fastcat`, `slowcat`): element, gap, element … (Insert puts a copy of the element before the gap there, Shift+Copy pastes the clipboard there, Shift+Screen 1 opens the Replace list as an "insert" menu, Delete removes the element before the gap (a list keeps one); the new element is selected) | previous / next item | ← → |
 | ↑ ↓ | parent / first child; at a block's top (`dN $`): previous / next block | previous / next item | ↑ ↓ |
 | → at a block's top | into the block's expression | | → |
 | Jog wheel | change value (number, note, sample, function) | move | wheel, `+` `-`, PgUp/PgDn |
@@ -175,8 +175,8 @@ hardware can't.
 | | next / previous slot pad | | Tab / Shift+Tab |
 | File | save | | Ctrl+S |
 | Shift + Song | `setcps` (the Tracker's tempo is on its Song screen; Master stays for the master settings): the cursor goes to its first number (the BPM in `setcps (120/60/4)`; a file without one gets `setcps (138/60/4)`, Tidal's default 0.575); jog changes it, Replace offers tempo numbers, Pattern sends it (the setcps bar turns green; amber = edited, not sent), Undo works; Shift+Song again or a slot pad goes back. Left / Right walk its numbers (120, 60, 4), Up = the setcps line (jog there = the BPM, Replace = whole tempos `130/60/4` ...), Down from the line = the first block, Up from the first block's top = the setcps line, Shift+Insert = the line | | Shift+`l` |
-| Params | edit the comment line above the block on the keyboard screen (the Tracker's naming keyboard: pads are its 42 keys, arrows move the lit key, Screen 1 / Insert type it, Delete = Backspace, jog moves the text cursor, Screen 2 clears, Screen 7 cancels, Screen 8 OK; empty removes the line; only the last comment line is edited) | | `p`; then typing, Enter = OK, Esc = Cancel |
-| Config | tracker mode on/off | | `t` |
+| Shift + Config | edit the comment line above the block on the keyboard screen (the Tracker's naming keyboard: pads are its 42 keys, arrows move the lit key, Screen 1 / Insert type it, Delete = Backspace, jog moves the text cursor, Screen 2 clears, Screen 7 cancels, Screen 8 OK; empty removes the line; only the last comment line is edited) | | `p`; then typing, Enter = OK, Esc = Cancel |
+| Config | tracker mode on/off (Params is kept free for the instrument parameters) | | `t` |
 | (none) | quit | | Ctrl+Q |
 
 Screen 5–8 are context buttons, labelled on the screen's soft-key bar.
