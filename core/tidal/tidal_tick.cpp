@@ -1,5 +1,8 @@
 // Device tick test build (see tidal_tick.h and README.md).
 //
+// v10: load-driven cap (max 16, down to 8 as the smoothed audio load goes
+// 70 -> 85 %; over it at a noteOn the oldest fade); sets 6-8 = chords,
+// everyday and heavy with voices 3 on every track, governed, solo.
 // v9: the scheduler supersedes by each start's own `voices` (v8 let 3
 // starts per block through for voices-1 tracks: heavy set late), the
 // streamed-instrument path respects the cap (v8: 14 sounding at cap 12),
@@ -126,7 +129,8 @@ const TestSet kSets[] = {
      "d7 $ s \"lt*16\"\n"
      "d8 $ s \"mt*16\"\n",
      20, false, "timing: all 8 tracks together"},
-    // timing: polyphony at caps 12 / 14 / 16 (load vs cap)
+    // timing: polyphony under the load-driven cap (max 16), each hushed
+    // first (solo) so the last set's tails don't carry over
     {"setcps 0.575\n"
      "d1 $ n \"<c'maj e'min>*2\" # s \"arpy\" # legato 3 # voices 3\n"
      "d2 $ n \"<a'min f'maj>*2\" # s \"bass\" # legato 3 # voices 3\n"
@@ -136,27 +140,7 @@ const TestSet kSets[] = {
      "d6 $ n \"<f'maj g'maj>*2\" # s \"bev\" # legato 3 # voices 3\n"
      "d7 $ n \"<d'min e'min>*2\" # s \"bass1\" # legato 3 # voices 3\n"
      "d8 $ n \"<a'min c'maj>*2\" # s \"bass2\" # legato 3 # voices 3\n",
-     20, false, "timing: cap 12, 8 tracks of ringing chords (voices 3)", 12},
-    {"setcps 0.575\n"
-     "d1 $ n \"<c'maj e'min>*2\" # s \"arpy\" # legato 3 # voices 3\n"
-     "d2 $ n \"<a'min f'maj>*2\" # s \"bass\" # legato 3 # voices 3\n"
-     "d3 $ n \"<e'min c'maj>*2\" # s \"pluck\" # legato 3 # voices 3\n"
-     "d4 $ n \"<g'maj d'min>*2\" # s \"casio\" # legato 3 # voices 3\n"
-     "d5 $ n \"<c'maj7 a'min7>*2\" # s \"jvbass\" # legato 3 # voices 3\n"
-     "d6 $ n \"<f'maj g'maj>*2\" # s \"bev\" # legato 3 # voices 3\n"
-     "d7 $ n \"<d'min e'min>*2\" # s \"bass1\" # legato 3 # voices 3\n"
-     "d8 $ n \"<a'min c'maj>*2\" # s \"bass2\" # legato 3 # voices 3\n",
-     20, false, "timing: cap 14, 8 tracks of ringing chords (voices 3)", 14},
-    {"setcps 0.575\n"
-     "d1 $ n \"<c'maj e'min>*2\" # s \"arpy\" # legato 3 # voices 3\n"
-     "d2 $ n \"<a'min f'maj>*2\" # s \"bass\" # legato 3 # voices 3\n"
-     "d3 $ n \"<e'min c'maj>*2\" # s \"pluck\" # legato 3 # voices 3\n"
-     "d4 $ n \"<g'maj d'min>*2\" # s \"casio\" # legato 3 # voices 3\n"
-     "d5 $ n \"<c'maj7 a'min7>*2\" # s \"jvbass\" # legato 3 # voices 3\n"
-     "d6 $ n \"<f'maj g'maj>*2\" # s \"bev\" # legato 3 # voices 3\n"
-     "d7 $ n \"<d'min e'min>*2\" # s \"bass1\" # legato 3 # voices 3\n"
-     "d8 $ n \"<a'min c'maj>*2\" # s \"bass2\" # legato 3 # voices 3\n",
-     20, false, "timing: cap 16, 8 tracks of ringing chords (voices 3)", 16},
+     20, true, "timing: governed cap, 8 tracks of ringing chords (voices 3)"},
     {"d1 $ s \"bd*2 [~ bd] bd\" # voices 3\n"
      "d2 $ s \"~ sd\" # n \"<0 1>\" # voices 3\n"
      "d3 $ every 2 (fast 2) $ s \"hh*8\" # voices 3\n"
@@ -165,16 +149,17 @@ const TestSet kSets[] = {
      "d6 $ s \"cp*2\" # pan sine # voices 3\n"
      "d7 $ sometimes (# speed 2) $ s \"drum*4\" # voices 3\n"
      "d8 $ s \"<lt mt ht>*3\" # voices 3\n",
-     20, false, "timing: cap 12, everyday with voices 3 on every track", 12},
-    {"d1 $ s \"bd*2 [~ bd] bd\" # voices 3\n"
-     "d2 $ s \"~ sd\" # n \"<0 1>\" # voices 3\n"
-     "d3 $ every 2 (fast 2) $ s \"hh*8\" # voices 3\n"
-     "d4 $ n \"0 .. 7\" # s \"arpy\" # voices 3\n"
-     "d5 $ off 0.125 (|+ n 12) $ n \"0 3 7\" # s \"bass\" # voices 3\n"
-     "d6 $ s \"cp*2\" # pan sine # voices 3\n"
-     "d7 $ sometimes (# speed 2) $ s \"drum*4\" # voices 3\n"
-     "d8 $ s \"<lt mt ht>*3\" # voices 3\n",
-     20, false, "timing: cap 14, everyday with voices 3 on every track", 14},
+     20, true, "timing: governed cap, everyday with voices 3 on every track"},
+    {"setcps 0.7\n"
+     "d1 $ stut 8 0.5 0.0625 $ s \"hh*16\" # n \"0 .. 15\" # voices 3\n"
+     "d2 $ jux rev $ chop 8 $ s \"bd*8 sd*8\" # speed \"1 2\" # voices 3\n"
+     "d3 $ echo 8 0.125 0.7 $ s \"bd(5,8) sd(3,8,2)\" # n (irand 8) # voices 3\n"
+     "d4 $ off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale \"major\" \"0 .. 7\") # s \"arpy\" # voices 3\n"
+     "d5 $ chunk 4 (hurry 2) $ iter 4 $ s \"bd sd hh cp hh sd bd cp\" # n \"0 .. 7\" # voices 3\n"
+     "d6 $ s \"hh*16\" # n \"0 .. 15\" # pan sine # gain (range 0.8 1 saw) # voices 3\n"
+     "d7 $ sometimes (# speed 2) $ often (# crush 4) $ s \"[bd*4, hh*8, ~ sd]\" # voices 3\n"
+     "d8 $ n (arp \"up\" \"<c'maj e'min7 g'dom7 a'min>*2\") # s \"bass\" # legato 0.5 # voices 3\n",
+     20, true, "timing: governed cap, heavy with voices 3 on every track"},
     // listening: polyphony
     {"d4 $ n \"<c'maj e'min a'min f'maj>\" # s \"arpy\" # legato 2 # voices 3\n", 10, true,
      "poly d4: whole 3-note chords, each rings into the next"},
@@ -413,9 +398,9 @@ int activeInstruments() {
 
 int header(int n) {
     return n + snprintf(report + n, sizeof report - n,
-                        "Tracker Cycles device tick test v9 (" TC_TICK_VARIANT "), %s\n"
+                        "Tracker Cycles device tick test v10 (" TC_TICK_VARIANT "), %s\n"
                         "%d active instruments; scheduler object %u B (internal RAM), entries %u B, live program "
-                        "%u B (SDRAM); engine working set in internal RAM: %s; %d sample players per track, default cap %d, voices default 1\n"
+                        "%u B (SDRAM); engine working set in internal RAM: %s; %d sample players per track, cap max %d (load-driven), voices default 1\n"
                         "cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles\n\n",
                         gUserSet ? kUserSet : "built-in sets",
                         activeInstruments(), (unsigned)sizeof(tc::Scheduler), (unsigned)sizeof storageRaw,
@@ -476,6 +461,11 @@ int setReport(int n, uint32_t ms) {
                       (unsigned long)vs.maxSounding, voice.cap(), avg(vs.soundingSum, vs.picks),
                       avg((uint64_t)vs.soundingSum * 10, vs.picks) % 10, (unsigned long)vs.trackSteals,
                       (unsigned long)vs.voicesCuts, (unsigned long)vs.globalSteals, (unsigned long)vs.staleOffs, (unsigned)AudioMemoryUsageMax());
+        n += snprintf(report + n, sizeof report - n,
+                      "governor: smoothed load max %lu %% (now %d %%); cap at noteOns min %lu, avg %lu (max %d); "
+                      "faded by the governor %lu\n",
+                      (unsigned long)vs.loadMax, voice.loadPercent(), (unsigned long)vs.capMin,
+                      avg(vs.capSum, vs.picks), voice.cap(), (unsigned long)vs.governorCuts);
     }
     for (int i = 0; i < tc::kSlots; i++) {
         const tc::MapWarnings& w = mapper.warnings(i);
@@ -547,6 +537,7 @@ void tidalTick() {
         isrReset = false;
     }
     blockStarts = 0;
+    voice.blockLoad(Profiler::getInstance()->lastAudioUs());  // last callback's time: the governor's load
     sched->tick(voice);
     const uint32_t c = CYCLES() - t0;
     isr.blocks++;

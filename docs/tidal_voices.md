@@ -143,6 +143,19 @@ v6 on the same project). AudioPlayMemory::update now switches such a
 player's envelope to idle (16 zero blocks, then nothing), and
 `tidalAllOff` releases every player.
 
+## v10: load-driven cap
+
+The user's choice (2026-11-10): the cap follows the audio load, max 16.
+DeviceVoice::blockLoad(us) runs once per block in the interrupt with the
+last audio callback's time (Profiler::lastAudioUs()) and keeps a smoothed
+load (% of the 2902 us block): fast up (~4 blocks), slow down (~32 blocks,
+~93 ms). Effective cap = 16 at <= 70 %, falling in a line to 8 at >= 85 %
+(kLoadLo / kLoadHi / kMinCap in tidal_device.h). At a noteOn, players
+sounding beyond the effective cap fade out oldest first (5 ms, up to 4 per
+note: "governor cuts"), then the usual rules apply with that cap. The
+report's `governor:` line gives the highest smoothed load, the lowest and
+average cap at noteOns and the governor cuts.
+
 ## v9 fixes
 
 - Scheduler: a start due in a block is skipped if the k-th later start

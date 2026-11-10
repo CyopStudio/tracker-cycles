@@ -35,9 +35,19 @@ class DeviceVoice : public tc::Voice {
 public:
     static constexpr int kTracks = 8;
     static constexpr int kPlayers = 3;
-    static constexpr int kCap = 14;  // default cap (tick v8: 12 -> 65 %, 16 -> 77 % on 8 ringing tracks)
+    // The cap is load-driven (v10): at most cap() (default kCap), less as
+    // the audio load rises: kCap below kLoadLo % (smoothed), falling in a
+    // line to kMinCap at kLoadHi %. Over it at a noteOn, the oldest
+    // sounding players fade out (governor cuts).
+    static constexpr int kCap = 16;
+    static constexpr int kMinCap = 8;
+    static constexpr int kLoadLo = 70, kLoadHi = 85;
     void setCap(int c) { cap_ = c < 1 ? 1 : c > kTracks * kPlayers ? kTracks * kPlayers : c; }
     int cap() const { return cap_; }
+    // Audio interrupt, once per block: the last callback's time in us.
+    void blockLoad(int us);
+    int loadPercent() const { return (int)(loadQ8_ >> 8); }
+    int effectiveCap() const;
 
     uint16_t noteOn(int slot, const tc::Entry& e, uint32_t late) override;
     void noteOff(int slot, uint8_t chan, uint8_t note, uint8_t offset, uint16_t tag) override;
@@ -47,6 +57,10 @@ public:
     struct Stats {
         uint32_t trackSteals;   // notes that retriggered their track's oldest sounding player
         uint32_t voicesCuts;    // extra notes faded out by a note's `voices` limit
+        uint32_t governorCuts;  // notes faded out because the load lowered the cap
+        uint32_t capMin;        // lowest effective cap at a noteOn (0 = none yet)
+        uint32_t capSum;        // sum of the effective cap over sample noteOns
+        uint32_t loadMax;       // highest smoothed load seen (%)
         uint32_t globalSteals;  // notes that stopped another track's player (cap)
         uint32_t staleOffs;     // noteOffs ignored: their player was taken since
         uint32_t maxSounding;   // most players sounding at a noteOn (before it)
@@ -57,6 +71,8 @@ public:
 
 private:
     int pickPlayer(int slot, uint8_t instr, int voices, uint32_t now);
+    bool oldestSounding(uint32_t now, int& t, int& k) const;
+    uint32_t loadQ8_ = 0;  // smoothed audio load, % << 8
     bool sounding(int t, int k, uint32_t now) const;
     void cut(int t, int k);
     int cap_ = kCap;

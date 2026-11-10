@@ -153,6 +153,12 @@ else wrapped onto the active instruments; `n` / `note` add to C5; `gain`
 x100 = step volume; looped instruments get a noteOff after the event's
 length, one-shots play out. d9..d16 (MIDI) are not mapped yet.
 
+v10 (2026-11-10, PolyendTrac_TidalTick10.ptf): load-driven cap (max 16,
+down to 8 as the smoothed audio load goes 70 -> 85 %). 13 sets (~3 min
+50 s): 1-5 as before, 6-8 chords / everyday / heavy with voices 3 on
+every track under the governor (solo: hushed first), 9-12 listening,
+13 MIDI. Report adds `governor:`. Flash 1,012,628 B (96.6 %).
+
 v9 (2026-11-10, PolyendTrac_TidalTick9.ptf): supersede by each start's
 `voices`, cap on the streamed path, default cap 14. 15 sets (~4 min 10 s):
 as v8, but sets 6-8 = chords at caps 12 / 14 / 16 and sets 9-10 =

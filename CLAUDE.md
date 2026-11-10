@@ -438,6 +438,25 @@ folders listed in the project (e.g. a manifest) on project load.
   not a bug: set 9 is not solo, so set 8's (cap 16) ringing chords carry
   over; the v8 guess (streamed path) was wrong, the streamed-path cap is
   kept anyway. Next: decide fixed 12 vs a load-driven cap.
+  v10 (built 2026-11-10, PolyendTrac_TidalTick10.ptf, not yet run;
+  user: load-driven, max 16): DeviceVoice::blockLoad() smooths the last
+  audio callback's time (Profiler::lastAudioUs(), new getter; up in ~4
+  blocks, down in ~32) and the cap is 16 below 70 %, falling in a line to
+  8 at 85 %; over it at a noteOn the oldest sounding players fade (up to
+  4 per note). Sets 6-8: chords, everyday and heavy, all with voices 3
+  on every track, governed, solo (hushed first).
+  v10 results (2026-11-10, docs/tidal_tick.txt): voices-1 sets unchanged
+  (light 51 %, everyday 70, heavy 79, 8x x*16 77; no drops anywhere).
+  Governed, voices 3 on every track: chords 62 % avg (max 116; v9 cap 16
+  77 / 99), everyday 80 % (max 108; v9 cap 14 92 / 112, cap 12 86 /
+  109), heavy 82 % (max 111) with 1706 capped starts and 915 notes 2+
+  blocks late (stut / chop with voices 3 pass 3 starts per block into the
+  4-per-block start cap). Governor: smoothed load peaks 96-98 %, cap down
+  to 8 (avg 8-13), 121-167 governor fades per 20 s set. Averages now
+  under 85 %; single-block peaks over 100 % remain in these worst cases
+  (reactive governor; start bursts). Main-loop gaps 17-29 ms at the
+  start of those sets are the 8-slot evaluate. Tuning levers if needed:
+  lower kLoadLo / kLoadHi, a load-aware note-start cap.
   The notes below are the plan before that decision.
 - Before: 8 sample voices, one per track (voice index == track index).
 - Target: 2 voices per sample channel (16 total), alternating, so a cut

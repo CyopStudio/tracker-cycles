@@ -62,8 +62,37 @@ void DeviceVoice::cut(int t, int k) {
     cutBlock_[t][k] = now_;
 }
 
+void DeviceVoice::blockLoad(int us) {
+    // % of the 2902 us block; smoothing: fast up (~4 blocks), slow down
+    // (~32 blocks, ~93 ms), so a burst lowers the cap at once
+    const uint32_t pct = us <= 0 ? 0 : (uint32_t)us * 100u / 2902u;
+    const uint32_t x = (pct > 200 ? 200 : pct) << 8;
+    if (x > loadQ8_) loadQ8_ += (x - loadQ8_) >> 2;
+    else loadQ8_ -= (loadQ8_ - x) >> 5;
+    if ((loadQ8_ >> 8) > vstats.loadMax) vstats.loadMax = loadQ8_ >> 8;
+}
+
+int DeviceVoice::effectiveCap() const {
+    const int load = loadPercent();
+    if (load <= kLoadLo) return cap_;
+    const int lo = kMinCap < cap_ ? kMinCap : cap_;
+    if (load >= kLoadHi) return lo;
+    return cap_ - (cap_ - lo) * (load - kLoadLo) / (kLoadHi - kLoadLo);
+}
+
+bool DeviceVoice::oldestSounding(uint32_t now, int& t, int& k) const {
+    t = k = -1;
+    for (int i = 0; i < kTracks; i++)
+        for (int j = 0; j < kPlayers; j++)
+            if (sounding(i, j, now) && (t < 0 || (int32_t)(started_[i][j] - started_[t][k]) < 0)) t = i, k = j;
+    return t >= 0;
+}
+
 int DeviceVoice::pickPlayer(int slot, uint8_t instr, int voices, uint32_t now) {
     now_ = now;
+    const int cap = effectiveCap();
+    if (!vstats.capMin || (uint32_t)cap < vstats.capMin) vstats.capMin = (uint32_t)cap;
+    vstats.capSum += (uint32_t)cap;
     // a fade that didn't end (an envelope mode without a timed release): stop it
     for (int t = 0; t < kTracks; t++)
         for (int k = 0; k < kPlayers; k++)
@@ -80,6 +109,15 @@ int DeviceVoice::pickPlayer(int slot, uint8_t instr, int voices, uint32_t now) {
     if ((uint32_t)sounding > vstats.maxSounding) vstats.maxSounding = (uint32_t)sounding;
     vstats.soundingSum += (uint32_t)sounding;
     vstats.picks++;
+    // the load lowered the cap below what sounds: fade the oldest (a few per note)
+    for (int n = 0; sounding > cap && n < 4; n++) {
+        int t, k;
+        if (!oldestSounding(now, t, k)) break;
+        cut(t, k);
+        sounding--;
+        vstats.governorCuts++;
+    }
+    if (!oldestSounding(now, oldT, oldK)) oldT = oldK = -1;
 
     // this track's sounding players, oldest first; its free one idle longest
     int busy[kPlayers], nb = 0, freeK = -1;
@@ -111,7 +149,7 @@ int DeviceVoice::pickPlayer(int slot, uint8_t instr, int voices, uint32_t now) {
         }
         if (this->sounding(slot, 0, now)) {
             vstats.trackSteals++;  // retrigger: no new voice
-        } else if (sounding - cuts >= cap_ && oldT >= 0 && !cutting_[oldT][oldK]) {
+        } else if (sounding - cuts >= cap && oldT >= 0 && !cutting_[oldT][oldK]) {
             cut(oldT, oldK);  // a new voice at the cap: free the oldest anywhere (v8 skipped this)
             vstats.globalSteals++;
         }
@@ -127,7 +165,7 @@ int DeviceVoice::pickPlayer(int slot, uint8_t instr, int voices, uint32_t now) {
         vstats.trackSteals++;
         return busy[0];  // retrigger the oldest with this note
     }
-    if (sounding < cap_) return freeK;
+    if (sounding < cap) return freeK;
     if (nb > 0) {
         vstats.trackSteals++;
         return busy[0];
