@@ -14,7 +14,7 @@
 // is pointed at it, so every player-level setter below and update()'s
 // per-block refresh act on the newest note while older ones ring out with
 // what they had. Their sum feeds the track's one crusher / filter / amp.
-#ifdef TIDAL_TICK
+#ifndef PLATFORM_IMX
 #include "ampLogarythmicValues.h"
 #include "mtAudioEngine.h"
 #include "mtSequencer.h"

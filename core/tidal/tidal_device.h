@@ -1,9 +1,9 @@
 // The Tidal scheduler's device side (plan 4c step 3): the project's
 // instruments for the mapper (DeviceHost) and the voices the audio
 // interrupt drives (DeviceVoice: playerEngine::tidalNoteOn on tracks 1-8,
-// MIDI out for d9-d16). Only with -DTIDAL_TICK for now.
+// MIDI out for d9-d16). Every Original Tracker build (plan 4a stage 3).
 #pragma once
-#ifdef TIDAL_TICK
+#ifndef PLATFORM_IMX
 #include "../../tidal/core/mapping.h"
 
 // mtProject's 48 sample instruments.

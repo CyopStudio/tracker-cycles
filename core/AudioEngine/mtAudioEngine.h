@@ -266,7 +266,7 @@ class playerEngine
               AudioMixer<MixerAndFxs<audioEngine::kVoices>::kSendsInputsCount>* prePolyverbMixer);
 
     uint8_t noteOn(uint8_t instr_idx, int8_t note, int8_t velocity);
-    // Tracker Cycles (mtAudioTidal.cpp, only with -DTIDAL_TICK for now): a
+    // Tracker Cycles (mtAudioTidal.cpp, every Original Tracker build): a
     // note with Tidal's per-note overrides (ids / values of tc::TMod,
     // tidal/core/mapping.h). Every note starts from the instrument; the
     // previous Tidal note's overrides that this one lacks are ended.

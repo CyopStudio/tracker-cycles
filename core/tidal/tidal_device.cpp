@@ -1,5 +1,5 @@
 // See tidal_device.h.
-#ifdef TIDAL_TICK
+#ifndef PLATFORM_IMX
 #include "tidal_device.h"
 
 #include "ampLogarythmicValues.h"

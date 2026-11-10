@@ -1,6 +1,5 @@
-// Builds tidal/core/scheduler.cpp into the firmware (only with -DTIDAL_TICK
-// for now; see core/tidal/README.md).
-#ifdef TIDAL_TICK
+// Builds tidal/core/scheduler.cpp into every Original Tracker firmware (core/tidal/README.md).
+#ifndef PLATFORM_IMX  // the Tidal runtime is part of every Original Tracker build
 #include "tidal_config.h"
 #include "../../tidal/core/scheduler.cpp"
 #endif

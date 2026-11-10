@@ -16,7 +16,7 @@ extern "C"
 {
     extern void _vStackTop(void); // symbols from linker script
     extern void _vStackBase(void);
-#if (defined(TIDAL_BENCH) || defined(TIDAL_TICK)) && !defined(PLATFORM_IMX)
+#ifndef PLATFORM_IMX  // Tracker Cycles: the Tidal runtime is in every MK66 build
     extern char* __brkval; // teensy core heap end
 #endif
 }
@@ -32,7 +32,7 @@ void Profiler::init()
     size_t allocSize = 4096;
     do
     {
-#if (defined(TIDAL_BENCH) || defined(TIDAL_TICK)) && !defined(PLATFORM_IMX)
+#ifndef PLATFORM_IMX  // Tracker Cycles: the Tidal runtime is in every MK66 build
         // Tracker Cycles bench / tick test: leave a stack reserve for the
         // Tidal evaluator's recursion (deepest 20.6 KB measured) instead of
         // claiming all but 8 KB (teensy STACK_MARGIN) for the heap. This only

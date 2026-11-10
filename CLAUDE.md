@@ -306,6 +306,46 @@ folders listed in the project (e.g. a manifest) on project load.
      less audio load than v12 (silence 7 -> 5 %: the step sequencer's
      tick is gone; light 43 -> 40, everyday 62 -> 59, heavy 72 -> 69),
      no drops; heap 28.5 KB free (v12 13.2 KB), stack 13.3 KB spare.
+     Stage 3 design (2026-11-10, started, no code yet): build the engine /
+     mapper / scheduler / DeviceVoice / tidalNoteOn always on MK66 (tc_*.cpp,
+     tidal_device.*, mtAudioTidal.cpp guards -> #ifndef PLATFORM_IMX;
+     TC_TRACK_STACK and the Profiler 32 KB stack reserve for the player
+     build too); new core/tidal/tidal_player.{h,cpp} (not in TIDAL_TICK /
+     TIDAL_BENCH builds), set up like tidal_tick.cpp's start() (scheduler
+     object internal, entries / programs SDRAM, 26 KB engine working set,
+     setSlotPlayers(3), DeviceHost without the test fallback): once the
+     project's instruments are loaded it reads /project.tidal and
+     evaluates every block (setcps too); hooks tidalPlayerTick() (audio
+     callback, blockLoad + sched->tick) and tidalPlayerUpdate() (main
+     loop, sched->update with a 4 ms budget) in Tracker.cpp;
+     sequencer.setTransport(): Play re-reads the file and re-evaluates,
+     stop = hush; sequencer.setTempo(cps * 240). Status screen replaces
+     patternPlaceholder in module slot 2 (file, per-slot playing / error,
+     cps, audio load, voices sounding / cap; screen buttons Reload /
+     Hush). MIDI clock out: in the tick, pulse = floor(sched cycle * 96)
+     (24 ppqn x 4 beats per cycle, Scheduler::cycleAt / nowCycle), send
+     with midiSetClockSubBlockOffsetUs + sendMidiClock; sendMidiStart at
+     the first evaluate's cycle start, sendMidiStop on hush (mtMidi
+     respects mtConfig.midi.clkOut).
+     Stage 3 built (2026-11-10, PolyendTrac_Player1.ptf, not yet run):
+     the Tidal runtime (tc_*.cpp, tidal_device.*, mtAudioTidal.cpp) and
+     the Profiler's 32 KB stack reserve are in every MK66 build;
+     core/tidal/tidal_player.* (TC_TIDAL_PLAYER: not in TIDAL_TICK /
+     TIDAL_BENCH images) starts once instruments are loaded and the file
+     manager is idle (3 s at the earliest, 60 s at the latest), plays
+     /project.tidal (docs/project_example.tidal), Tracker mode per block
+     (trackerCheck: a refused block keeps what played), slots missing
+     from the file are silenced; name cache dropped when the instruments
+     change (signature checked every 1 s); MIDI clock out from a 20 ms
+     main-loop snapshot of the cycle clock, Start on the next cycle
+     boundary after the first evaluate, Stop on hush. The other screens'
+     Play keys toggle reload / hush (sequencer transport).
+     interface/tidalStatus/ replaces the pattern slot's placeholder.
+     Stock flash 794,100 B (75.7 %), internal RAM 186,824 B.
+     Device (2026-11-10, user): Player1 "works as expected"; reload after
+     an edit and the parse-error display not tested yet (the file can't
+     be edited on the device: test with a file edited on a computer, e.g.
+     one with a typo, put on the card before boot).
    - 4b. Scheduler: queries on the main loop a fixed window ahead into a
      fixed-size event queue; the audio ISR only pops due events.
      Design: docs/tidal_scheduler.md (v0.2: per-slot SPSC rings of 32 B

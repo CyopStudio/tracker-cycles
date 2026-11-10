@@ -5,7 +5,6 @@
 #include "mtPadBoard.h"
 #include "mtPadsBacklight.h"
 
-cPlaceholder patternPlaceholder("Tidal", "The Tidal status screen comes in plan 4a stage 3.");
 cPlaceholder songPlaceholder("Song", "Song mode is not part of Tracker Cycles.");
 cPlaceholder recorderPlaceholder("Sample Recorder", "Sample recording is not part of Tracker Cycles.");
 cPlaceholder performancePlaceholder("Performance", "Performance mode is not part of Tracker Cycles.");

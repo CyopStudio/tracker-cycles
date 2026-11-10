@@ -2,8 +2,8 @@
 // was removed (pattern / song editor, sample recorder, performance mode).
 // Interface::modules[], the function-key menu and the saved key bindings
 // index these slots, so they stay; this shows a title and a line of text
-// and lets every module button switch away. The pattern editor's slot gets
-// the Tidal status screen in stage 3.
+// and lets every module button switch away. The pattern editor's slot has
+// the Tidal status screen (interface/tidalStatus).
 #ifndef INTERFACE_PLACEHOLDER_H_
 #define INTERFACE_PLACEHOLDER_H_
 
@@ -28,7 +28,6 @@ class cPlaceholder : public ModuleBase
     hControl textBox_ = -1;
 };
 
-extern cPlaceholder patternPlaceholder;
 extern cPlaceholder songPlaceholder;
 extern cPlaceholder recorderPlaceholder;
 extern cPlaceholder performancePlaceholder;

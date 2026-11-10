@@ -56,6 +56,19 @@ Cost of the bench build (2026-11-09): flash +65.5 KB (903,364 -> 970,484 B,
 92.6 %), internal RAM +29 KB (mostly the checker's type pool), SDRAM
 +403 KB (arena 212 KB, program 70 KB, output buffer 106 KB, report).
 
+## Tidal file player (normal build)
+
+Every Original Tracker image (not the -DTIDAL_TICK / -DTIDAL_BENCH test
+builds) runs `tidal_player.cpp`: copy a `.tidal` file to the card as
+`/project.tidal` (example: docs/project_example.tidal), load a project with
+the instruments it names (`s` = sample file name without extension), and it
+plays once the project has loaded. Pattern key = the Tidal status screen
+(interface/tidalStatus): file / parse messages, each block's state, cps /
+BPM, audio load, voices sounding and the polyphony cap. Screen 1 = Reload,
+Screen 2 = Hush, Play = reload, Shift+Play = hush; elsewhere Play toggles
+reload / hush. MIDI clock out (Config, MIDI) runs at 24 ppqn, 4 beats per
+cycle, with Start on a cycle boundary.
+
 ## Audio profiler (CPU cost of the stock audio path)
 
 ```bash

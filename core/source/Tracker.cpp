@@ -5,6 +5,7 @@
 #include "../tidal/reverb_bench.h"
 #include "../tidal/tidal_bench.h"
 #include "../tidal/tidal_tick.h"
+#include "../tidal/tidal_player.h"
 #include "mtWavetableEnvelopes.h"
 #include "core/interface.h"
 #include "elapsedMillis.h"
@@ -179,6 +180,7 @@ void TrackerImpl::update()
     sequencer.update();
     tidalBenchUpdate(platform);    // no-op unless built with -DTIDAL_BENCH
     tidalTickUpdate(platform);     // no-op unless built with -DTIDAL_TICK
+    tidalPlayerUpdate(platform);   // the Tidal file player (not in the test builds)
     audioProfileUpdate(platform);  // no-op unless built with -DAUDIO_PROFILE
     reverbBenchUpdate(platform);   // no-op unless built with -DREVERB_BENCH
 }
@@ -210,6 +212,7 @@ void TrackerImpl::updateAudioBuffers(void* left, void* right, int length)
     float updateIntervalSeconds = length / kAudioSampleRate;
     sequencer.tick(updateIntervalSeconds);
     tidalTick();  // no-op unless built with -DTIDAL_TICK
+    tidalPlayerTick();  // the Tidal file player (not in the test builds)
     AUDIO_PROFILE_MARK(apSeq);
 
     engine.update();

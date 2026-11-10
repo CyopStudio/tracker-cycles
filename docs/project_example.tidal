@@ -1,0 +1,15 @@
+-- Tracker Cycles: copy to the card as /project.tidal. The player evaluates
+-- every block when the project has loaded; press Play to re-read the file
+-- after editing it, Shift+Play (on the Tidal screen) or Stop to hush.
+-- `s` names are the project's sample file names (without extension).
+
+setcps 0.55
+
+d1 $ s "bd*2 [~ bd] bd"
+d2 $ s "~ sd" # room 0.2
+d3 $ s "hh*8" # gain "1 0.8" # pan sine
+d4 $ n "<0 3 5 7>" # s "bass" # legato 0.9
+d5 $ n "<c'maj e'min a'min f'maj>" # s "arpy" # legato 2 # voices 3 # room 0.4
+
+-- MIDI out on channel 1 (Config: MIDI out)
+-- d9 $ n "0 7 12 7" # velocity 0.8 # legato 0.5
