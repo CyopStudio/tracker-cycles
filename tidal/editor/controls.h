@@ -62,6 +62,13 @@ bool press(Editor& ed, Control c, bool shift);
 // Release of a control that acts on release (Play: the modifier, v2; pads:
 // the end of a held chord). Every pad press needs its release.
 void release(Editor& ed, Control c);
+// Pad lights (the Tracker's pads: one colour, a back and a brighter front
+// layer, blinking). Slot pads: the current slot Front, playing Back, edited
+// / muted Dim, error Blink, empty Off. Number pads: the value at the cursor
+// Front, 0 Dim. Instrument pads: the one at the cursor Front, loaded ones
+// Dim. Keyboard screen: the lit key Front, keys Dim.
+enum class PadLight : uint8_t { Off, Dim, Back, Front, Blink };
+PadLight padLight(const Editor& ed, int pad, bool shift);
 // Keyboard screen: press the pad(s) that type `c` (Caps on / off around
 // it as needed). False if no key types it.
 bool typeChar(Editor& ed, char c);

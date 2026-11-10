@@ -13,6 +13,8 @@
 #include "core/interface.h"
 #include "core/interfaceMenuPopup.h"
 #include "display.h"
+#include "mtPadsBacklight.h"
+#include "mtStructs.h"
 #include "../../tidal/tidal_editor.h"
 #include "../../../tidal/editor/controls.h"
 #include "../../../tidal/editor/keyboard.h"
@@ -254,6 +256,7 @@ class TcMenuView : public TcControl
         API_SAVE_CONTEXT();
         if (ed->keyboardOpen()) drawKeyboard(*ed);
         else if (ed->menuOpen()) drawMenu(*ed);
+        else if (tidalEditorStatusOpen()) drawStatus();
         API_RESTORE_CONTEXT();
     }
 
@@ -287,6 +290,33 @@ class TcMenuView : public TcControl
             const tc::MenuItem& it = m[first + i];
             API_COLOR(first + i == ed.menuSel() ? 0xFFFFFF : it.checked ? col::text : col::dim);
             API_CMD_TEXT(mx + 10, my + 28 + i * rh, codeFont().handle, 0, it.label.c_str());
+        }
+    }
+
+    // Status view (Shift+Master): one line per row, small font
+    void drawStatus()
+    {
+        const char* text = tidalEditorStatusLines();
+        const int sx = 300, sy = 40, sw = 490, rh = 16;
+        int rows = 1;
+        for (const char* c = text; *c; c++) rows += *c == '\n';
+        const int sh = rows * rh + 30 > kAreaBottom - sy ? kAreaBottom - sy : rows * rh + 30;
+        API_BEGIN(RECTS);
+        rect(sx, sy, sw, sh, 0x101216);
+        frame(sx, sy, sw, sh, col::dim);
+        API_END();
+        API_COLOR(col::accent);
+        API_CMD_TEXT(sx + 10, sy + 6, smallFont().handle, 0, "status  (Shift+Master closes)");
+        char line[128];
+        int y = sy + 26;
+        for (const char* c = text; *c && y + rh <= sy + sh;) {
+            const char* e = strchr(c, '\n');
+            const int len = e ? (int)(e - c) : (int)strlen(c);
+            snprintf(line, sizeof line, "%.*s", len, c);
+            API_COLOR(strstr(line, "error") ? col::err : col::text);
+            API_CMD_TEXT(sx + 10, y, smallFont().handle, 0, line);
+            y += rh;
+            c += len + (e ? 1 : 0);
         }
     }
 
@@ -331,6 +361,51 @@ class TcMenuView : public TcControl
 char gLabel[8][24];
 bool gShiftShown = false;
 
+// ---- pad lights (tc::padLight: the shared rules) ---------------------------------------
+constexpr int kPads = tc::kPadCols * tc::kPadRows;
+tc::PadLight gPadShown[kPads];
+bool gPadsValid = false;
+
+void setPad(int p, tc::PadLight l)
+{
+    const uint8_t front = mtConfig.values.padsLightFront, back = mtConfig.values.padsLightBack,
+                  dim = mtConfig.values.padsLightBackDim;
+    if (gPadsValid && gPadShown[p] == tc::PadLight::Blink) padsBacklight.stopBlink(p);  // ours only
+    padsBacklight.setFrontLayer(0, 0, p);
+    switch (l) {
+        case tc::PadLight::Off: padsBacklight.setBackLayer(0, 0, p); break;
+        case tc::PadLight::Dim: padsBacklight.setBackLayer(1, dim, p); break;
+        case tc::PadLight::Back: padsBacklight.setBackLayer(1, back, p); break;
+        case tc::PadLight::Front:
+            padsBacklight.setBackLayer(0, 0, p);
+            padsBacklight.setFrontLayer(1, front, p);
+            break;
+        case tc::PadLight::Blink:
+            padsBacklight.setBackLayer(0, 0, p);
+            padsBacklight.startBlink(front, p);
+            break;
+    }
+    gPadShown[p] = l;
+}
+
+void updatePads(const tc::Editor& ed, bool shift)
+{
+    for (int p = 0; p < kPads; p++) {
+        const tc::PadLight l = tc::padLight(ed, p, shift);
+        if (!gPadsValid || l != gPadShown[p]) setPad(p, l);
+    }
+    gPadsValid = true;
+}
+
+void clearPads()
+{
+    if (!gPadsValid) return;
+    for (int p = 0; p < kPads; p++)
+        if (gPadShown[p] == tc::PadLight::Blink) padsBacklight.stopBlink(p);
+    padsBacklight.clearGlobalPads(1, 1, 0);  // not its blink branch: it miscounts pads that don't blink
+    gPadsValid = false;
+}
+
 bool shiftHeld() { return mtInterface.getPlatform()->getButtons()->isButtonPressed(interfaceButtonShift); }
 
 // ---- input --------------------------------------------------------------------------------
@@ -340,6 +415,10 @@ void functButton(uint8_t button, uint8_t state)
     if (!ed || button > (uint8_t)Control::Right) return;
     const Control c = (Control)button;  // the Control enum is the firmware's button order
     const bool shift = shiftHeld();
+    if (c == Control::Master && shift) {  // the status view
+        if (state == buttonPress) tidalEditorToggleStatus();
+        return;
+    }
     // keys that leave the editor: Params (the instrument parameters), Perform,
     // Master, the Sample keys, Config and File (Shift+Config = the block's
     // comment, Shift+File saves)
@@ -406,6 +485,7 @@ void cTidalEditorModule::start(uint32_t)
 void cTidalEditorModule::stop()
 {
     moduleRefresh = 0;
+    clearPads();
     display.setControlHide(code_);
     display.setControlHide(side_);
     display.setControlHide(menu_);
@@ -417,6 +497,10 @@ void cTidalEditorModule::update()
     const uint32_t ms = mtInterface.getPlatform()->getTimer()->millis();
     const bool shift = shiftHeld();
     if (shift != gShiftShown) tidalEditorSetDirty();
+    if (tidalEditorStatusOpen() && ms - lastStatusMs_ >= 250) {  // live numbers
+        lastStatusMs_ = ms;
+        tidalEditorSetDirty();
+    }
     if (ms - lastDrawMs_ < 30) return;  // at most ~33 redraws a second (one display frame each)
     if (!tidalEditorTakeDirty()) return;
     lastDrawMs_ = ms;
@@ -432,13 +516,14 @@ void cTidalEditorModule::redraw()
     display.refreshControl(code_);
     display.setControlShow(side_);
     display.refreshControl(side_);
-    if (ed && (ed->menuOpen() || ed->keyboardOpen())) {
+    if (ed && (ed->menuOpen() || ed->keyboardOpen() || tidalEditorStatusOpen())) {
         display.setControlShow(menu_);
         display.refreshControl(menu_);
     } else {
         display.setControlHide(menu_);
     }
     gShiftShown = shiftHeld();
+    if (ed) updatePads(*ed, gShiftShown);
     for (int i = 0; i < 8; i++) {
         gLabel[i][0] = 0;
         if (ed) {

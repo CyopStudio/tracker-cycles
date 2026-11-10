@@ -208,7 +208,9 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         case Control::Instr: return act(Action::JumpSamples, "s pattern");
         case Control::Fx1: return act(Action::MenuModifiers, "modifiers");
         case Control::Fx2: return act(Action::MenuFx, "FX");
-        case Control::Pattern: return act(Action::Evaluate, ed.onCps() ? "Send tempo" : "Evaluate");
+        case Control::Pattern:
+            if (shift && !ed.onCps()) return act(Action::SilenceSlot, "Silence dN");
+            return act(Action::Evaluate, ed.onCps() ? "Send tempo" : "Evaluate");
         // Params stays free (the instrument parameters); comments are on
         // Shift+Config
         // Song: launch menu; Shift+Song: setcps (the Tracker's tempo is on
@@ -300,6 +302,31 @@ bool press(Editor& ed, Control c, bool shift) {
 void release(Editor& ed, Control c) {
     if (c == Control::Play) ed.playUp();
     if (isPad(c)) ed.entryPadUp(padIndex(c));
+}
+
+PadLight padLight(const Editor& ed, int pad, bool shift) {
+    const Command k = controlCommand(ed, padCtl(pad), shift);
+    switch (k.type) {
+        case Command::Slot:
+        case Command::Mute: {
+            const SlotState s = ed.slotState(k.slot);
+            if (s == SlotState::Error) return PadLight::Blink;
+            if (k.type == Command::Slot && k.slot == ed.slot()) return PadLight::Front;
+            if (ed.muted(k.slot)) return PadLight::Dim;
+            if (s == SlotState::Playing) return PadLight::Back;
+            return s == SlotState::Edited ? PadLight::Dim : PadLight::Off;
+        }
+        case Command::Number: {
+            int v;
+            if (k.rest ? ed.cursorRest() : (ed.cursorInt(v) && v == k.number)) return PadLight::Front;
+            return k.number == 0 && !k.rest ? PadLight::Dim : PadLight::Off;
+        }
+        case Command::Instrument:
+            if (ed.cursorInstrument() == k.instrument) return PadLight::Front;
+            return k.label.empty() ? PadLight::Off : PadLight::Dim;
+        case Command::Key: return k.key == ed.kbdSel() ? PadLight::Front : PadLight::Dim;
+        default: return PadLight::Off;
+    }
 }
 
 bool typeChar(Editor& ed, char ch) {

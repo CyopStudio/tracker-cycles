@@ -223,6 +223,16 @@ Decisions:
    `voices` (smoke session 24).
 4. Module in slot 2, player hand-over, File = save /project.tidal
    (4e: per-project files later).
+   Done (2026-11-10, Editor6): the editor is the normal firmware
+   (core/makefile adds -DTIDAL_EDITOR on MK66 unless a tick / bench test
+   image is built; those get a placeholder in slot 2); the player no
+   longer plays the file at start-up or on Play; interface/tidalStatus is
+   gone. Its content is the status view on Shift+Master (an overlay, live
+   every 250 ms, written to /tidal_status.txt when opened), with the stack
+   measured by painting the heap-stack gap when the editor starts.
+   Shift+Pattern = silence the current dN (user). Pad lights: the shared
+   tc::padLight() (slot state, the value / instrument at the cursor,
+   keyboard keys), on the stock back / front / blink layers.
 5. Device build, then the parked UI TODO (pad modes) if it fits.
 
 ## 6. Editor timing build

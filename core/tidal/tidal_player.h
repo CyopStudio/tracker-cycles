@@ -20,7 +20,7 @@ void tidalPlayerUpdate(Platform* platform);
 // Audio interrupt, once per block (where sequencer.tick runs).
 void tidalPlayerTick();
 
-// For the status screen (main loop).
+// For the editor's status view (main loop).
 constexpr const char* kTidalPlayerFile = "/project.tidal";
 bool tidalPlayerReload();  // read the file and evaluate it; false on a file / parse error
 void tidalPlayerHush();
@@ -43,6 +43,7 @@ class Program;
 }
 bool tidalPlayerReadFile(const char*& text, int& len, char* msg, int msgLen);  // /project.tidal
 bool tidalPlayerWriteFile(const char* text, int len, char* msg, int msgLen);
+bool tidalPlayerWriteText(const char* path, const char* text, int len, char* msg, int msgLen);  // any file
 bool tidalPlayerEvaluate(const tc::Program& p, int slot, char* msg, int msgLen);  // checked block
 void tidalPlayerSilence(int slot);
 void tidalPlayerMute(int slot, bool on);

@@ -25,6 +25,7 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"save", Action::Save},       {"tracker", Action::ToggleTrackerMode},
     {"copy", Action::Copy},       {"paste", Action::Paste},       {"home", Action::Home},
     {"notes", Action::MenuNotes}, {"samples", Action::MenuSamples}, {"chords", Action::MenuChords},
+    {"silence", Action::SilenceSlot},
     {"functions", Action::MenuFunctions}, {"controls", Action::MenuControls},
     {"quick1", Action::Quick1},   {"quick2", Action::Quick2},     {"quick3", Action::Quick3},
     {"quick4", Action::Quick4},   {"launch", Action::MenuLaunch},
@@ -921,7 +922,7 @@ void Editor::act(Action a) {
         switch (a) {
             case Action::Left: case Action::Right: case Action::Up: case Action::Down:
             case Action::Delete: case Action::Insert: case Action::Paste: case Action::Replace:
-            case Action::PlayCancel: case Action::Evaluate: case Action::Hush:
+            case Action::PlayCancel: case Action::Evaluate: case Action::Hush: case Action::SilenceSlot:
                 break;
             case Action::Wrap: case Action::Struct1: case Action::Struct2: case Action::Struct3:
             case Action::Struct4: case Action::Struct5: case Action::Struct6: case Action::Struct7:
@@ -936,6 +937,7 @@ void Editor::act(Action a) {
             case Action::Struct4: case Action::Struct5: case Action::Struct6: case Action::Struct7:
             case Action::Struct8: case Action::MenuModifiers: case Action::MenuFx:
             case Action::PlayCancel: case Action::Evaluate: case Action::Hush: case Action::MenuChords:
+            case Action::SilenceSlot:
                 break;
             default: leaveGap(); break;  // act on the whole sequence
         }
@@ -1078,6 +1080,16 @@ void Editor::act(Action a) {
         case Action::Evaluate: evaluate(); break;
         case Action::JumpCps: jumpCps(); break;
         case Action::EditComment: openCommentKeyboard(); break;
+        case Action::SilenceSlot:
+            if (playing_[slot_] || state_[slot_] == SlotState::Playing) {
+                if (out_) out_->silence(slot_);
+                playing_[slot_] = 0;
+                if (state_[slot_] == SlotState::Playing) state_[slot_] = SlotState::Edited;
+                info("d" + tnum(slot_ + 1) + " silenced (Pattern plays it again)");
+            } else {
+                info("d" + tnum(slot_ + 1) + " isn't playing");
+            }
+            break;
         case Action::Hush:
             if (out_) out_->hush();
             for (int s = 0; s < kSlots; s++)

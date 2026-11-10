@@ -1,9 +1,10 @@
 // Tracker Cycles device editor (plan 4d step 3, -DTIDAL_EDITOR): the shared
 // editor (tidal/editor) on the FT812, in the Pattern key's module slot in
 // place of the Tidal status screen. Every button, pad and the jog go
-// through the shared control mapping (tidal/editor/controls.*); Perform,
-// Master, the Sample keys, Config and File (unshifted) still switch modules,
-// Shift+File saves /project.tidal.
+// through the shared control mapping (tidal/editor/controls.*); Params,
+// Perform, Master, the Sample keys, Config and File (unshifted) still switch
+// modules; Shift+File saves /project.tidal, Shift+Config edits the block's
+// comment, Shift+Master shows the status view.
 #ifndef INTERFACE_TIDALEDITOR_H_
 #define INTERFACE_TIDALEDITOR_H_
 
@@ -23,7 +24,7 @@ class cTidalEditorModule : public ModuleBase
   private:
     hControl code_ = -1, side_ = -1, menu_ = -1, bg_ = -1;
     hControl label_[8] = {};
-    uint32_t lastDrawMs_ = 0;
+    uint32_t lastDrawMs_ = 0, lastStatusMs_ = 0;
 };
 
 extern cTidalEditorModule tidalEditorModule;

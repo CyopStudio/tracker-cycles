@@ -28,6 +28,31 @@ __NOINIT(EXTERNAL_RAM) char saveText[16384];
 
 double nowSeconds();
 
+// ---- stack painting -------------------------------------------------------
+extern "C" char* __brkval;    // heap end (teensy core)
+extern "C" unsigned long _estack;  // top of RAM
+constexpr uint32_t kPaint = 0xC5A3C5A3u;
+uint32_t* gPaintLo = nullptr;  // painted words: [gPaintLo, gPaintHi)
+uint32_t* gPaintHi = nullptr;
+
+__attribute__((noinline)) void paintStack() {
+    volatile uint32_t here = 0;
+    uintptr_t lo = ((uintptr_t)__brkval + 1024 + 3) & ~(uintptr_t)3;  // leave malloc some room
+    uintptr_t hi = ((uintptr_t)&here - 512) & ~(uintptr_t)3;           // below this frame
+    if (hi <= lo) return;
+    gPaintLo = (uint32_t*)lo;
+    gPaintHi = (uint32_t*)hi;
+    for (uint32_t* w = gPaintLo; w < gPaintHi; w++) *w = kPaint;
+}
+
+uintptr_t deepestAddr() {
+    if (!gPaintLo) return 0;
+    uint32_t* w = gPaintLo;
+    if ((uintptr_t)__brkval > (uintptr_t)w) w = (uint32_t*)(((uintptr_t)__brkval + 3) & ~(uintptr_t)3);
+    while (w < gPaintHi && *w == kPaint) w++;
+    return (uintptr_t)w;
+}
+
 // The editor's results go to the Tidal player.
 class DeviceOutput : public tc::EditorOutput {
 public:
@@ -95,6 +120,69 @@ bool tidalEditorTakeDirty() {
 void tidalEditorSetDirty() { gDirty = true; }
 const char* tidalEditorStatus() { return gStatus; }
 
+int tidalStackDeepest() {
+    const uintptr_t a = deepestAddr();
+    return a ? (int)((uintptr_t)&_estack - a) : 0;
+}
+int tidalHeapGap() {
+    const uintptr_t a = deepestAddr();
+    return a ? (int)(a - (uintptr_t)__brkval) : 0;
+}
+
+namespace {
+bool gStatusOpen = false;
+__NOINIT(EXTERNAL_RAM) char gStatusText[1536];
+}  // namespace
+
+bool tidalEditorStatusOpen() { return gStatusOpen; }
+
+const char* tidalEditorStatusLines() {
+    tidalEditorStatusText(gStatusText, sizeof gStatusText);
+    return gStatusText;
+}
+
+int tidalEditorStatusText(char* buf, int cap) {
+    int n = 0;
+    auto add = [&](const char* fmt, auto... a) {
+        if (n < cap - 1) n += snprintf(buf + n, cap - n, fmt, a...);
+        if (n > cap - 1) n = cap - 1;
+    };
+    if (!tidalPlayerStarted()) {
+        add("waiting for the project\n");
+    } else {
+        const float cps = tidalPlayerCps();
+        add("cps %d.%03d (%d BPM)   audio %d %%   voices %d / %d\n", (int)cps, (int)(cps * 1000.0f + 0.5f) % 1000,
+            (int)(cps * 240.0f + 0.5f), tidalPlayerAudioLoad(), tidalPlayerSounding(), tidalPlayerCap());
+    }
+    const int deep = tidalStackDeepest(), gap = tidalHeapGap();
+    if (deep) add("stack: deepest %d.%d KB below the top of RAM, %d.%d KB to spare above the heap\n", deep / 1024,
+                  deep % 1024 * 10 / 1024, gap / 1024, gap % 1024 * 10 / 1024);
+    else add("stack: not measured\n");
+    add("heap end %d B below the top of RAM\n", (int)((uintptr_t)&_estack - (uintptr_t)__brkval));
+    add("%s\n", gStatus);
+    int quiet = 0;
+    for (int s = 0; s < tc::kSlots; s++) {
+        char warn[64];
+        const char* err = tidalPlayerSlotError(s);
+        const char* w = tidalPlayerSlotWarning(s, warn, sizeof warn);
+        if (err) add("d%d  error: %s\n", s + 1, err);
+        else if (tidalPlayerSlotPlaying(s)) add("d%d  playing%s%s\n", s + 1, w ? "  - " : "", w ? w : "");
+        else quiet++;
+    }
+    if (quiet == tc::kSlots) add("nothing playing\n");
+    return n;
+}
+
+void tidalEditorToggleStatus() {
+    gStatusOpen = !gStatusOpen;
+    gDirty = true;
+    if (gStatusOpen && tidalPlayerStarted()) {  // a copy on the card, for the record
+        const int n = tidalEditorStatusText(gStatusText, sizeof gStatusText);
+        char msg[64];
+        tidalPlayerWriteText("/tidal_status.txt", gStatusText, n, msg, sizeof msg);
+    }
+}
+
 const tc::CodeScreen& tidalEditorLayout(const tc::CodeGeometry& g) {
     tc::CodeScreen& scr = *reinterpret_cast<tc::CodeScreen*>(scrRaw);
     if (gEd) tc::layoutCode(*gEd, nowSeconds(), g, scr, *reinterpret_cast<tc::LayoutScratch*>(scratchRaw));
@@ -112,6 +200,7 @@ void tidalEditorUpdate(Platform* platform) {
         gEd->setOutput(gOut);
         gEd->setLazyMenus(true);  // menu items checked a few per pass (editor bench v1)
         gDirty = true;
+        paintStack();
     }
     if (!gLoaded && tidalPlayerStarted()) {
         gLoaded = true;

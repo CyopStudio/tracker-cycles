@@ -56,28 +56,36 @@ Cost of the bench build (2026-11-09): flash +65.5 KB (903,364 -> 970,484 B,
 92.6 %), internal RAM +29 KB (mostly the checker's type pool), SDRAM
 +403 KB (arena 212 KB, program 70 KB, output buffer 106 KB, report).
 
-## Device editor test build (plan 4d step 3)
+## Device editor (the normal firmware, plan 4d)
 
 ```bash
 make clean
-make original CUSTOM_DEFINES="-DTIDAL_EDITOR"
-cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_TidalEditor1.ptf
+make original        # the editor image: core/makefile adds -DTIDAL_EDITOR
 ```
 
-The Pattern key (and the boot screen) is the Tidal editor instead of the
-status screen: the shared editor model (tidal/editor, built in by
+Every MK66 image except the -DTIDAL_TICK / -DTIDAL_BENCH /
+-DTIDAL_EDITOR_BENCH test images builds the editor (those show a
+placeholder in the Pattern slot). The Pattern key (and the boot screen) is
+the Tidal editor: the shared editor model (tidal/editor, built in by
 `tc_editor.cpp`) with its storage in SDRAM (`tidal_editor.cpp`), drawn by
 interface/tidalEditor (code as bitmap glyphs through the shared layout,
 slot list, status lines, menu overlay / keyboard screen, the stock soft-key
-labels). The player starts as usual but plays nothing until a block is
-evaluated (loading plays nothing); `/project.tidal` is read into the
-editor. Controls as in the prototype (tidal/README.md), every button
-through `controlCommand()` / `press()`; Perform, Master, the Sample keys,
-Config and File switch modules as usual, Shift+File saves
-`/project.tidal`. Menus are checked lazily (a few items per main-loop
-pass; unchecked items are dim). The status line shows our controls'
-display-list bytes (`dl N B`). Highlights are off on the device for now.
-Cost: flash +75.7 KB (864,728 B, 82.5 %), internal RAM +352 B, SDRAM
+labels, pad lights from `tc::padLight()`). The player starts as usual but
+plays nothing until a block is evaluated (loading plays nothing);
+`/project.tidal` is read into the editor. Controls as in the prototype
+(tidal/README.md), every button through `controlCommand()` / `press()` /
+`release()`; Params, Perform, Master, the Sample keys, Config and File
+switch modules as usual, Shift+File saves `/project.tidal`, Shift+Config
+edits the block's comment, Shift+Pattern silences the current dN,
+Shift+Master toggles the status view (cps / BPM, audio load, voices / cap,
+stack, heap, load message, each block's state; opening it writes the same
+text to `/tidal_status.txt`). Stack: the gap between the heap and the stack
+is painted when the editor starts; the status view shows the deepest point
+reached since (main loop and interrupts). Menus are checked lazily (a few
+items per main-loop pass; unchecked items are dim). The status line shows
+our controls' display-list bytes (`dl N B`). Highlights are off on the
+device for now.
+History: built first as a test image (Editor1, Cost: flash +75.7 KB (864,728 B, 82.5 %), internal RAM +352 B, SDRAM
 +470 KB.
 
 ## Editor timing build (plan 4d)
@@ -109,15 +117,15 @@ Cost: flash +12 KB, internal RAM +160 B, SDRAM +250 KB (3 Programs).
 ## Tidal file player (normal build)
 
 Every Original Tracker image (not the -DTIDAL_TICK / -DTIDAL_BENCH test
-builds) runs `tidal_player.cpp`: copy a `.tidal` file to the card as
-`/project.tidal` (example: docs/project_example.tidal), load a project with
-the instruments it names (`s` = sample file name without extension), and it
-plays once the project has loaded. Pattern key = the Tidal status screen
-(interface/tidalStatus): file / parse messages, each block's state, cps /
-BPM, audio load, voices sounding and the polyphony cap. Screen 1 = Reload,
-Screen 2 = Hush, Play = reload, Shift+Play = hush; elsewhere Play toggles
-reload / hush. MIDI clock out (Config, MIDI) runs at 24 ppqn, 4 beats per
-cycle, with Start on a cycle boundary.
+builds) runs `tidal_player.cpp`, the Tidal runtime under the editor:
+scheduler, voices, MIDI out, and the editor's evaluate / silence / mute /
+tempo / file calls. It starts once the project's instruments are loaded;
+loading the file plays nothing. (Until the editor became the normal build
+it also played `/project.tidal` at start-up and had its own status screen,
+interface/tidalStatus, now gone; `tidalPlayerReload()` remains for the
+editor bench.) Play on the other screens stops everything (hush). MIDI
+clock out (Config, MIDI) runs at 24 ppqn, 4 beats per cycle, with Start on
+a cycle boundary.
 
 ## Audio profiler (CPU cost of the stock audio path)
 

@@ -8,6 +8,7 @@
 cPlaceholder songPlaceholder("Song", "Song mode is not part of Tracker Cycles.");
 cPlaceholder recorderPlaceholder("Sample Recorder", "Sample recording is not part of Tracker Cycles.");
 cPlaceholder performancePlaceholder("Performance", "Performance mode is not part of Tracker Cycles.");
+cPlaceholder tidalPlaceholder("Tidal", "This test image has no Tidal editor.");
 
 namespace {
 

@@ -65,6 +65,7 @@ enum class Action {
     JumpCps,                           // Shift+Song: to `setcps` (created if missing) and back
     EditComment,                       // Shift+Config: the block's comment on the keyboard screen
     KbdType, KbdOk, KbdCancel, KbdClear,  // keyboard screen (Screen 1 / 8 / 7 / 2)
+    SilenceSlot,                       // Shift+Pattern: the current dN stops (its code stays)
 };
 const char* actionName(Action a);
 bool actionFromName(const char* s, Action& out);

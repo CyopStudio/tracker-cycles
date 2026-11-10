@@ -3,7 +3,8 @@
 // Interface::modules[], the function-key menu and the saved key bindings
 // index these slots, so they stay; this shows a title and a line of text
 // and lets every module button switch away. The pattern editor's slot has
-// the Tidal status screen (interface/tidalStatus).
+// the Tidal editor (interface/tidalEditor), or tidalPlaceholder in the test
+// images built without it.
 #ifndef INTERFACE_PLACEHOLDER_H_
 #define INTERFACE_PLACEHOLDER_H_
 
@@ -31,5 +32,6 @@ class cPlaceholder : public ModuleBase
 extern cPlaceholder songPlaceholder;
 extern cPlaceholder recorderPlaceholder;
 extern cPlaceholder performancePlaceholder;
+extern cPlaceholder tidalPlaceholder;
 
 #endif

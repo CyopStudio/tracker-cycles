@@ -562,6 +562,12 @@ folders listed in the project (e.g. a manifest) on project load.
      moves to the gap after the new step (user's ask). Editor4 (not yet
      run): Params left free (comments on Shift+Config), Left / Right flow
      leaf to leaf across the block. Editor5 (not yet run): chords (above).
+     Editor6 (2026-11-10, not yet run): the editor IS the normal firmware
+     (`make original`; core/makefile adds -DTIDAL_EDITOR on MK66 except
+     tick / bench test images), interface/tidalStatus removed (status view
+     on Shift+Master, also /tidal_status.txt; stack measured by painting
+     the heap-stack gap), Shift+Pattern = silence dN, pad lights
+     (tc::padLight, shared).
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)
@@ -810,7 +816,8 @@ folders listed in the project (e.g. a manifest) on project load.
 - Needs make, python3 (stdlib only).
 
 ## Build
-- `make original` -> build/PolyendTracker_CE_<ver>.ptf
+- `make original` -> build/PolyendTracker_CE_<ver>.ptf (the editor
+  firmware; test images: CUSTOM_DEFINES=-DTIDAL_TICK etc.)
   (version in version.mk, ORIGINAL_VER_*; currently 1.0.0)
 - `make clean`, `make version`
 - Makefiles don't track flags: `make clean` after changing CUSTOM_DEFINES.

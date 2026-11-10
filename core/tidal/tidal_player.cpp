@@ -110,11 +110,7 @@ int activeInstruments() {
     return n;
 }
 
-#ifdef TIDAL_EDITOR
-void transportPlay() {}  // the editor evaluates (Pattern); Play elsewhere does nothing
-#else
-void transportPlay() { tidalPlayerReload(); }
-#endif
+void transportPlay() {}  // the editor evaluates (Pattern); Play on other screens does nothing
 void transportStop() { tidalPlayerHush(); }
 bool transportPlaying() { return tidalPlayerAnyPlaying(); }
 
@@ -164,14 +160,18 @@ bool tidalPlayerReadFile(const char*& text, int& len, char* msg, int msgLen) {
     return true;
 }
 
-bool tidalPlayerWriteFile(const char* text, int len, char* msg, int msgLen) {
+bool tidalPlayerWriteText(const char* path, const char* text, int len, char* msg, int msgLen) {
     FileSystem* fs = gPlatform->getFileSystem();
-    auto [ok, fh] = fs->openFile(kTidalPlayerFile, FileSystem::kWriteCreateNew);
-    if (!ok || !fh) return snprintf(msg, msgLen, "can't write %s", kTidalPlayerFile), false;
+    auto [ok, fh] = fs->openFile(path, FileSystem::kWriteCreateNew);
+    if (!ok || !fh) return snprintf(msg, msgLen, "can't write %s", path), false;
     fs->writeFile(text, (size_t)len, fh);
     fs->closeFile(fh);
-    snprintf(msg, msgLen, "saved %s", kTidalPlayerFile);
+    snprintf(msg, msgLen, "saved %s", path);
     return true;
+}
+
+bool tidalPlayerWriteFile(const char* text, int len, char* msg, int msgLen) {
+    return tidalPlayerWriteText(kTidalPlayerFile, text, len, msg, msgLen);
 }
 
 namespace {
@@ -331,9 +331,6 @@ void tidalPlayerUpdate(Platform* platform) {
         const bool loaded = activeInstruments() && newFileManager.getCurrentOperation() == fmNoOperation;
         if (ms < kStartMs || (ms < kStartLatestMs && !loaded)) return;
         start();
-#ifndef TIDAL_EDITOR
-        tidalPlayerReload();  // play the card's file at start-up (the editor build: loading plays nothing)
-#endif
         return;
     }
     sched->update(clockUs, kUpdateBudgetUs);

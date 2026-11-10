@@ -19,6 +19,7 @@
 //                                 Tracker control, e.g. hw:s1 hw:jog+
 //                                 hw:shift+play hw:pad3 (ids: editor/controls.cpp)
 //                                 hw:pad20+pad24+pad27 = pads held together
+//                                 pads / shift+pads: the pad lights
 //     --shot FILE.png             screenshot after the keys ran
 //     --window                    open a window with the mock Tracker panel
 //                                 (needs a build with SDL=1)
@@ -136,6 +137,14 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
         } else if (tok == "lit") {  // steps lit since the last `lit` (engine backend; smoke tests)
             ed.pollHighlights(steadySeconds());
             fputs(litReport(ed).c_str(), stdout);
+        } else if (tok == "pads" || tok == "shift+pads") {  // pad lights (device LEDs), 4 rows of 12
+            static const char kC[] = ".-oO*";
+            for (int r = 0; r < kPadRows; r++) {
+                printf("pads%s ", r ? "     " : ":");
+                for (int c2 = 0; c2 < kPadCols; c2++)
+                    putchar(kC[(int)padLight(ed, r * kPadCols + c2, tok[0] == 's')]);
+                putchar('\n');
+            }
         } else if (tok == "log") {
             if (appBackend())
                 for (const auto& l : appBackend()->log) printf("| %s\n", l.c_str());

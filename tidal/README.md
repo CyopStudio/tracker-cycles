@@ -170,6 +170,8 @@ hardware can't.
 | FX1 | pattern modifiers menu: time, structure, randomness, layering, sample cutting (`fast`, `every`, `jux`, `chop` …) applied with `$` | | `f` |
 | FX2 | sound FX menu: `# cutoff`, `# room`, `# delay`, `# crush`, `# shape`, `# pan`, `# gain`, envelopes; from inside `"..."` on the enclosing pattern | | `c` |
 | Pattern | evaluate current block | OK | `e` |
+| Shift + Pattern | silence the current dN (`dN silence`; the code stays, Pattern plays it again) | | |
+| Shift + Master | device: the status view (cps, audio load, voices, stack, each block's state; also written to `/tidal_status.txt`) | | |
 | Song | launch menu: `dN $` (now), `jumpMod N 2/4/8/16`, `jumpIn N 1/2/4` (when the next evaluation takes effect) | | `l` |
 | Pads in a numeric pattern | enter a number: −12 top left, 0 at the start of the 2nd row, 34, then `~` (rest) bottom right (for `n`/`note`: semitones, a keyboard from c4). Replaces the value, group (`<1 2>`, `0 .. 7`) or quoted pattern at the cursor, then moves to the gap after it, so the next pads insert there (no Delete needed to end entry; Delete in the gap removes the step before). On the quotes this writes a pattern from scratch: pads `0 3 5 7` → `"0 3 5 7"`. On an empty slot, Note / Instrument start a block (`n "0"` / `s "<first instrument>"`) and the pads enter into it. A range fills low, then high. The current value's pad is framed | | click |
 | Pads in an `s` / `sound` pattern | instrument mode: pad N = instrument slot N (48, like the Tracker's instruments; names on the pads). Same entry as numbers (replace, then the gap after it); no rest pad, so pad 48 is slot 48. Default slots are Dirt-Samples folders; `--instruments FILE` (one name per line, blank = empty slot) replaces them | | click |
@@ -213,7 +215,8 @@ stdout), and
 `play`, `insert`, `delete`, `jog+`, `jog-`, `pad1`..`pad48`, `file`,
 `config`, `copy`, `note`, `instr`, `fx1`, `fx2`, ...; see
 `editor/controls.cpp`; `hw:pad13+pad17+pad20` = pads held together, a
-chord). New action tokens: `copy paste home notes samples chords
+chord; `pads` / `shift+pads` print the pad lights, `.` off `-` dim `o` back
+`O` front `*` blink). New action tokens: `copy paste home notes samples chords silence
 functions controls quick1..quick4 launch cps comment kbdtype kbdok kbdcancel kbdclear`; `type:TEXT` presses the
 keyboard screen's pads for TEXT (`_` = space). `--panel` makes screenshots include the mock panel.
 `tests/proto/session3.keys` to `session9.keys` use only `hw:` tokens;

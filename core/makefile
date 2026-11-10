@@ -53,6 +53,11 @@ DEFINES += $(FW_VERSION_DEFINES) $(CUSTOM_DEFINES)
 
 ifeq ($(PLATFORM), MK66)
 COMPILER_OPTIONS+=-mcpu=cortex-m4 -mfpu=fpv4-sp-d16 
+# Tracker Cycles: the device Tidal editor is the normal firmware (plan 4d);
+# the tick / bench test images own the Tidal runtime themselves
+ifeq ($(filter -DTIDAL_TICK -DTIDAL_BENCH -DTIDAL_EDITOR_BENCH,$(CUSTOM_DEFINES)),)
+DEFINES += -DTIDAL_EDITOR
+endif
 else ifeq ($(PLATFORM), IMX)
 COMPILER_OPTIONS+=-mcpu=cortex-m7 -mfpu=fpv5-sp-d16 -mfp16-format=ieee
 DEFINES+=-DPLATFORM_IMX -DFEATURE_SYNTH
