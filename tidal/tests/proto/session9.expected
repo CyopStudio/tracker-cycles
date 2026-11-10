@@ -1,10 +1,10 @@
 > setcps (120/60/4)
 > d2 $ s "bd hh 808bd wind" # gain 0.8 # pan sine
-> d1 $ every 4 (fast 2) $ s "808hc*2 sd bd sd" # gain 1
+> d1 $ every 4 (fast 2) $ s "808hc*2 sd [~ sd] bd sd" # gain 1
 setcps (120/60/4)
 
 -- kick and snare
-d1 $ every 4 (fast 2) $ s "808hc*2 sd bd sd" # gain 1
+d1 $ every 4 (fast 2) $ s "808hc*2 sd [~ sd] bd sd" # gain 1
 
 -- hats
 d2 $ s "bd hh 808bd wind" # gain 0.8 # pan sine

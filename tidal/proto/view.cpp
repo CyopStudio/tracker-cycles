@@ -101,7 +101,14 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
             char t[kCodeCols + 1];
             for (int i = 0; i < L.n; i++) t[i] = L.cell[i].ch;
             t[L.n] = 0;
+            int sel = 0;  // the empty current slot: "dN" under the cursor
+            while (sel < L.n && (L.cell[sel].flags & kCellSel)) sel++;
+            if (sel) fb.rect(cx, yy - 1, sel * adv, lineH, col::cursor);
             fb.text(cx, yy, t, col::dim);
+            for (int i = 0; i < sel; i++) {
+                char ch[2] = {L.cell[i].ch, 0};
+                fb.text(cx + i * adv, yy, ch, 0xFFFFFF);
+            }
             continue;
         }
         if (L.bar == LineBar::Playing) fb.rect(cx - 4, yy, 2, lineH, col::ok);

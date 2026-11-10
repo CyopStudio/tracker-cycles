@@ -28,7 +28,7 @@ enum class LineKind : uint8_t {
     Code,     // cells at their columns
     Cps,      // the setcps line (cells, no highlights / gap)
     Comment,  // the comment above a block: one string, dim
-    Hint,     // "dN   (empty: replace to start)", dim
+    Hint,     // "dN   (empty: ...)", dim; "dN" selected when it's the current slot
 };
 enum class LineBar : uint8_t { None, Playing, CpsSent, CpsEdited };
 

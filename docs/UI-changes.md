@@ -48,3 +48,15 @@ menus seem responsive
 evaluating mute and hush all work
 
 shift-pad works
+
+*PolyendTrac_TidalEditor2
+
+making an empty slot with shift padN looses the cursor, so  no way to start a new block.
+
+note and sound entry with pads works
+
+should change the note entry now that we have cursor spaces beweeen numbers - a pad entry can just move to the curser space after the inserted note, so no need to hit del at the end
+
+dl N B is always present even with menus
+
+menus draw on top ok now

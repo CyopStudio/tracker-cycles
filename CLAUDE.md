@@ -74,9 +74,10 @@ to upstream CE.
   - Pads by context: inside a numeric pattern (Time/Double/Int/Note) or on
     a number argument they enter numbers, -12 top left .. 34, bottom right
     = rest `~` (0 starts row 2; for n/note a chromatic keyboard), replacing
-    the value / group at the cursor, then selecting the next step's value
-    or appending a copy at the end (tracker-style entry); Delete removes
-    that appended copy and ends entry. In an s / sound pattern the pads are
+    the value / group at the cursor, then moving to the gap after it, so
+    further pads insert (Editor3, 2026-11-10; was: select the next step /
+    append a copy, Delete ends entry). Empty slot: Note / Instrument /
+    Screen 1-8 / FX start a block, its "dN" shows the cursor. In an s / sound pattern the pads are
     the 48 instrument slots (same entry, no rest pad; prototype default =
     Dirt-Samples names, `--instruments FILE`). Elsewhere, and always with Shift, pads
     1-8 = d1..d8, 13-20 = d9..d16 (lit by slot state). Keyboard digits are
@@ -544,7 +545,12 @@ folders listed in the project (e.g. a manifest) on project load.
      garbled (glyph cell = the char code itself with SETFONT2, not minus
      the first char) and menus under the code (the display draws
      lower-numbered controls on top: overlay created first). Fixed in
-     PolyendTrac_TidalEditor2.ptf.
+     PolyendTrac_TidalEditor2.ptf. Editor2 (user): pads enter notes /
+     sounds, menus on top, `dl` within budget even with menus; an empty
+     slot (Shift+pad) had no cursor and only Replace started a block. Fixed
+     in PolyendTrac_TidalEditor3.ptf (not yet run): Note / Instrument /
+     Screen 1-8 / FX start a block there, "dN" drawn selected; pad entry
+     moves to the gap after the new step (user's ask).
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)

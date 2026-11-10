@@ -126,6 +126,12 @@ class TcCodeView : public TcControl
             if (L.bar == tc::LineBar::Playing) rect(kCodeX - 4, y, 2, lh, col::ok);
             if (L.bar == tc::LineBar::CpsSent) rect(kCodeX - 4, y, 2, lh, col::ok);
             if (L.bar == tc::LineBar::CpsEdited) rect(kCodeX - 4, y, 2, lh, col::edited);
+            if (L.kind == tc::LineKind::Hint) {
+                // the empty current slot: a cursor box behind "dN"
+                for (int i = 0; i < L.n && (L.cell[i].flags & tc::kCellSel); i++)
+                    rect(kCodeX + i * adv, y - 1, adv, lh, col::cursor);
+                continue;
+            }
             if (L.kind != tc::LineKind::Code && L.kind != tc::LineKind::Cps) continue;
             for (int i = 0; i < L.n; i++) {
                 const tc::CodeCell& c = L.cell[i];
@@ -165,7 +171,8 @@ class TcCodeView : public TcControl
             const int y = kAreaTop + L.y;
             if (y < kAreaTop - lh || y > kAreaBottom) continue;
             if (L.kind == tc::LineKind::Comment || L.kind == tc::LineKind::Hint) {
-                for (int i = 0; i < L.n && kCodeX + i * adv < 790; i++) glyph(kCodeX + i * adv, y, L.cell[i].ch, col::dim);
+                for (int i = 0; i < L.n && kCodeX + i * adv < 790; i++)
+                    glyph(kCodeX + i * adv, y, L.cell[i].ch, (L.cell[i].flags & tc::kCellSel) ? 0xFFFFFF : col::dim);
                 continue;
             }
             const bool code = L.kind == tc::LineKind::Code;

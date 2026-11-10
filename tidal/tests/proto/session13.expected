@@ -7,7 +7,7 @@ msg: n pattern: pads enter notes
 setcps (120/60/4)
 
 -- kick and snare
-d1 $ (every 4 (fast 2) $ s "ho*2 [~ sd] bd sd" # gain 1) # n "7 7"
+d1 $ (every 4 (fast 2) $ s "ho*2 [~ sd] bd sd" # gain 1) # n "7"
 
 -- hats
 d2 $ s "hh*8" # gain 0.8 # pan sine

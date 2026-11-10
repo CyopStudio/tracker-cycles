@@ -159,7 +159,7 @@ hardware can't.
 | Delete while Play is held | cancel (releasing Play then does nothing) | | |
 | Insert | copy step / element, or add a `# control`; at a block's top: arm a new block (the next slot pad N adds an empty `dN $ silence` above the current block) | | `i` |
 | Shift + Insert (Home) | jump to the block's top (`dN $` / `jumpMod N k $`) | | Home |
-| Delete | inside `"..."`: a step becomes `~` (timing stays), a `~` is removed, the step pad entry just appended is removed (ends entry); elsewhere: delete (operand, or leave a `??` hole) | | `x` / Del |
+| Delete | inside `"..."`: a step becomes `~` (timing stays), a `~` is removed, elsewhere: delete (operand, or leave a `??` hole) | | `x` / Del |
 | Shift + Delete (Backspace) | unwrap (same as Screen 3) | | |
 | Copy | copy the selection (whole pattern on a block) | | Ctrl+C |
 | Shift + Copy (Paste) | replace the selection with the copy; a step can be pasted as a pattern (`"bd"`); works on an empty slot | | Ctrl+V |
@@ -169,8 +169,8 @@ hardware can't.
 | FX2 | sound FX menu: `# cutoff`, `# room`, `# delay`, `# crush`, `# shape`, `# pan`, `# gain`, envelopes; from inside `"..."` on the enclosing pattern | | `c` |
 | Pattern | evaluate current block | OK | `e` |
 | Song | launch menu: `dN $` (now), `jumpMod N 2/4/8/16`, `jumpIn N 1/2/4` (when the next evaluation takes effect) | | `l` |
-| Pads in a numeric pattern | enter a number: −12 top left, 0 at the start of the 2nd row, 34, then `~` (rest) bottom right (for `n`/`note`: semitones, a keyboard from c4). Replaces the value, group (`<1 2>`, `0 .. 7`) or quoted pattern at the cursor, then selects the next step's value, or appends a copy at the end of the sequence to type over; Delete removes that copy and ends entry. On the quotes this writes a pattern from scratch: pads `0 3 5 7`, Delete → `"0 3 5 7"`. A range fills low, then high. The current value's pad is framed | | click |
-| Pads in an `s` / `sound` pattern | instrument mode: pad N = instrument slot N (48, like the Tracker's instruments; names on the pads). Same entry as numbers (replace, next step, append, Delete ends); no rest pad, so pad 48 is slot 48. Default slots are Dirt-Samples folders; `--instruments FILE` (one name per line, blank = empty slot) replaces them | | click |
+| Pads in a numeric pattern | enter a number: −12 top left, 0 at the start of the 2nd row, 34, then `~` (rest) bottom right (for `n`/`note`: semitones, a keyboard from c4). Replaces the value, group (`<1 2>`, `0 .. 7`) or quoted pattern at the cursor, then moves to the gap after it, so the next pads insert there (no Delete needed to end entry; Delete in the gap removes the step before). On the quotes this writes a pattern from scratch: pads `0 3 5 7` → `"0 3 5 7"`. On an empty slot, Note / Instrument start a block (`n "0"` / `s "<first instrument>"`) and the pads enter into it. A range fills low, then high. The current value's pad is framed | | click |
+| Pads in an `s` / `sound` pattern | instrument mode: pad N = instrument slot N (48, like the Tracker's instruments; names on the pads). Same entry as numbers (replace, then the gap after it); no rest pad, so pad 48 is slot 48. Default slots are Dirt-Samples folders; `--instruments FILE` (one name per line, blank = empty slot) replaces them | | click |
 | Pads elsewhere, or Shift + pad | 1–8 (top row) select d1..d8, 13–20 (2nd row) d9..d16: dN's playing block, else its first; the same pad again cycles through dN's blocks | | `1`..`8`, Shift+`1`..`8` |
 | | next / previous slot pad | | Tab / Shift+Tab |
 | File | save | | Ctrl+S |

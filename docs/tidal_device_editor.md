@@ -200,6 +200,15 @@ Decisions:
    VERTEX2II takes the code itself) and menus drew under the code (the
    display draws lower-numbered controls last: the overlay is now created
    first). Both fixed in Editor2.
+   Editor2 (user): pad note / sound entry works, menus draw on top, the
+   `dl N B` budget line stays present with menus open; but an empty slot
+   picked with Shift+pad had no visible cursor and only Replace started a
+   block. Editor3 (2026-11-10, not yet run): Note / Instrument (start
+   `n "0"` / `s "<first instrument>"`), Screen 1-8, FX1 / FX2 and the menu
+   keys start a block on an empty slot, whose "dN" is drawn selected
+   (layout kCellSel on the Hint line); pad entry moves to the gap after
+   the new step so the next pads insert (no Delete to end entry; smoke
+   session 22).
 4. Module in slot 2, player hand-over, File = save /project.tidal
    (4e: per-project files later).
 5. Device build, then the parked UI TODO (pad modes) if it fits.

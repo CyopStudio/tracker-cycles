@@ -608,20 +608,18 @@ void Editor::enterStep(const Text& miniCode, const Text& exprCode, const Label& 
             }
         }
         if (par && r->at(par).kind == Kind::MSeq) {
-            uint16_t next = r->at(step).next;
-            if (next) {
-                cur = valueOf(*r, next);
-            } else {
-                // end of the sequence: append a copy to type over (of the
-                // value just entered, not of a whole range)
-                uint16_t src = r->at(step).kind == Kind::MRange ? cur : step;
-                uint16_t c2 = r->copyTree(*r, src);
-                if (c2) {
-                    r->at(c2).next = 0;
-                    r->at(step).next = c2;
-                    cur = appended = valueOf(*r, c2);
-                }
+            // then the gap after the step: the next pads insert there (Delete
+            // there removes the step before, the arrows move on)
+            int idx = 0;
+            for (uint16_t c = r->at(par).first; c && c != step; c = r->at(c).next) idx++;
+            if (!endEdit(par)) {
+                cursor_ = oldCursor;
+                return;
             }
+            gapSeq_ = par;
+            gapPos_ = idx + 1;
+            cursor_ = par;
+            return info("= " + label + "  (gap: more pads insert more)");
         }
     }
     if (!endEdit(cur)) {
@@ -629,7 +627,7 @@ void Editor::enterStep(const Text& miniCode, const Text& exprCode, const Label& 
         return;
     }
     pending_ = appended;
-    info("= " + label + (appended ? "  (next value; Del ends entry)" : ""));
+    info("= " + label);
 }
 
 void Editor::gotoSlot(int s) {
@@ -718,7 +716,8 @@ Label Editor::cursorInfo() const {
         Label m;
         return m.printf("gap %d of %d: pads / Screen 3-7 insert, Delete removes the step before", gapPos_, count), m;
     }
-    if (!cursor_) return prog_->block[slot_] ? "" : "empty slot: replace to start a pattern";
+    if (!cursor_)
+        return prog_->block[slot_] ? "" : "empty slot: Replace, Instrument, Note, Screen 1-8 or FX start a block";
     if (cps_ && cursor_ == prog_->cpsExpr && prog_->at(cursor_).kind != Kind::Num)
         return "setcps (Right: its numbers, Down: the blocks, jog: the BPM, Pattern sends it)";
     const Node& n = prog_->at(cursor_);
@@ -763,6 +762,19 @@ void Editor::act(Action a) {
             case Action::NextSlot: case Action::PrevSlot: case Action::Home:
                 break;
             default: return error("on setcps: jog / Replace change it, Pattern sends it; Shift+Song or a slot pad goes back");
+        }
+    }
+    // an empty slot: the keys that would wrap or add something start a block
+    // (the starter patterns); Note / Instrument make one themselves
+    if (!menuOpen_ && !cps_ && !prog_->block[slot_]) {
+        switch (a) {
+            case Action::Struct1: case Action::Struct2: case Action::Struct3: case Action::Struct4:
+            case Action::Struct5: case Action::Struct6: case Action::Struct7: case Action::Struct8:
+            case Action::MenuModifiers: case Action::MenuFx: case Action::Wrap: case Action::Insert:
+            case Action::Quick1: case Action::Quick2: case Action::Quick3: case Action::Quick4:
+            case Action::MenuFunctions: case Action::MenuControls:
+                return openReplace();
+            default: break;
         }
     }
     if (gapSeq_ && !menuOpen_ && listGap()) {
@@ -1437,6 +1449,23 @@ static uint16_t findControlMini(const Program& p, uint16_t n, const char* name, 
 void Editor::jumpControl(bool notes) {
     const char* what = notes ? "n" : "s";
     if (!notes && slot_ >= kSampleSlots) return error("MIDI blocks (d9-d16) have no s pattern");
+    if (!prog_->block[slot_]) {
+        // an empty slot: start the block with the pattern this key jumps to
+        const char* firstIns = "bd";
+        for (int i = 0; i < kInstrumentSlots; i++)
+            if (samples_[i][0]) {
+                firstIns = samples_[i];
+                break;
+            }
+        Text code;
+        if (!notes) code.printf("s \"%s\"", firstIns);
+        else if (slot_ >= kSampleSlots) code = "n \"0\"";
+        else code.printf("n \"0\" # s \"%s\"", firstIns);
+        ensureBlock();
+        uint16_t nn;
+        EditSpec sp = spec(EditKind::Replace, cursor_, code);
+        if (!cursor_ || !doSpec(sp, nn)) return error(Label("can't start a block with ") + code.c_str());
+    }
     uint16_t b = prog_->block[slot_];
     if (!b || !exprRoot()) return error("empty slot: replace to start a pattern");
     uint16_t mini = notes ? findControlMini(*prog_, b, "n", "note") : findControlMini(*prog_, b, "s", "sound");
