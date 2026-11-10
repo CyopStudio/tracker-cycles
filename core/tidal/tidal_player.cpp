@@ -110,7 +110,11 @@ int activeInstruments() {
     return n;
 }
 
+#ifdef TIDAL_EDITOR
+void transportPlay() {}  // the editor evaluates (Pattern); Play elsewhere does nothing
+#else
 void transportPlay() { tidalPlayerReload(); }
+#endif
 void transportStop() { tidalPlayerHush(); }
 bool transportPlaying() { return tidalPlayerAnyPlaying(); }
 
@@ -143,26 +147,83 @@ void setTempoFromCps() {
 
 // ---- API ----------------------------------------------------------------------------
 
+bool tidalPlayerReadFile(const char*& text, int& len, char* msg, int msgLen) {
+    msg[0] = 0;
+    if (!gStarted) return snprintf(msg, msgLen, "the player isn't running yet"), false;
+    FileSystem* fs = gPlatform->getFileSystem();
+    if (!fs->exists(kTidalPlayerFile)) return snprintf(msg, msgLen, "no %s on the card", kTidalPlayerFile), false;
+    auto [ok, fh] = fs->openFile(kTidalPlayerFile, FileSystem::kRead);
+    int32_t n = (ok && fh) ? fs->readFile(fileText, sizeof fileText - 1, fh) : -1;
+    if (ok && fh) fs->closeFile(fh);
+    if (n < 0) return snprintf(msg, msgLen, "can't read %s", kTidalPlayerFile), false;
+    if (n >= (int32_t)sizeof fileText - 1)
+        return snprintf(msg, msgLen, "%s is over %u bytes", kTidalPlayerFile, (unsigned)sizeof fileText - 1), false;
+    fileText[n] = 0;
+    text = fileText;
+    len = (int)n;
+    return true;
+}
+
+bool tidalPlayerWriteFile(const char* text, int len, char* msg, int msgLen) {
+    FileSystem* fs = gPlatform->getFileSystem();
+    auto [ok, fh] = fs->openFile(kTidalPlayerFile, FileSystem::kWriteCreateNew);
+    if (!ok || !fh) return snprintf(msg, msgLen, "can't write %s", kTidalPlayerFile), false;
+    fs->writeFile(text, (size_t)len, fh);
+    fs->closeFile(fh);
+    snprintf(msg, msgLen, "saved %s", kTidalPlayerFile);
+    return true;
+}
+
+namespace {
+// MIDI Start on the next cycle boundary (where `dN $` switches), when
+// something starts from silence
+void armClockIfStarting(bool wasPlaying) {
+    if (wasPlaying || gClockRunning) return;
+    publishSnap();
+    const ClockSnap& s = gSnap[gSnapIdx];
+    const int32_t now = (int32_t)floorf(s.pulse0);
+    gStartPulse = (now / kPulsesPerCycle + 1) * kPulsesPerCycle;
+    gClockArmed = true;
+}
+}  // namespace
+
+void tidalPlayerSetCps(const tc::Program& p) {
+    if (!gStarted || !p.cpsExpr) return;
+    tc::Event* buf = reinterpret_cast<tc::Event*>(bufRaw);
+    tc::Error qe;
+    int q = tc::queryPattern(p, p.cpsExpr, tc::Arc{tc::Q{0, 1}, tc::Q{1, 1}}, buf, kQueryCap, qe);
+    if (q > 0 && buf[0].v.t == tc::VT::Num) {
+        const tc::Val& v = buf[0].v;
+        sched->setCps(v.exact ? v.q : tc::qmake(llroundf(v.fl * 100000.0f), 100000));
+        setTempoFromCps();
+    }
+}
+
+bool tidalPlayerEvaluate(const tc::Program& p, int slot, char* msg, int msgLen) {
+    if (!gStarted) return snprintf(msg, msgLen, "the player isn't running yet"), false;
+    const bool wasPlaying = tidalPlayerAnyPlaying();
+    tc::Error err;
+    if (!sched->evaluate(p, slot, err)) return snprintf(msg, msgLen, "%s", err.msg), false;
+    gSlotError[slot][0] = 0;
+    armClockIfStarting(wasPlaying);
+    return true;
+}
+
+void tidalPlayerSilence(int slot) {
+    if (gStarted) sched->silence(slot);
+}
+void tidalPlayerMute(int slot, bool on) {
+    if (gStarted) sched->setMuted(slot, on);
+}
+void tidalPlayerUnmuteAll() {
+    if (gStarted) sched->unmuteAll();
+}
+
 bool tidalPlayerReload() {
     if (!gStarted) return false;
-    gMessage[0] = 0;
-    FileSystem* fs = gPlatform->getFileSystem();
-    if (!fs->exists(kTidalPlayerFile)) {
-        snprintf(gMessage, sizeof gMessage, "no %s on the card", kTidalPlayerFile);
-        return false;
-    }
-    auto [ok, fh] = fs->openFile(kTidalPlayerFile, FileSystem::kRead);
-    int32_t len = (ok && fh) ? fs->readFile(fileText, sizeof fileText - 1, fh) : -1;
-    if (ok && fh) fs->closeFile(fh);
-    if (len < 0) {
-        snprintf(gMessage, sizeof gMessage, "can't read %s", kTidalPlayerFile);
-        return false;
-    }
-    if (len >= (int32_t)sizeof fileText - 1) {
-        snprintf(gMessage, sizeof gMessage, "%s is over %u bytes", kTidalPlayerFile, (unsigned)sizeof fileText - 1);
-        return false;
-    }
-    fileText[len] = 0;
+    const char* text = nullptr;
+    int len = 0;
+    if (!tidalPlayerReadFile(text, len, gMessage, sizeof gMessage)) return false;
 
     tc::Error e, ce;
     edit->clear();
@@ -270,7 +331,9 @@ void tidalPlayerUpdate(Platform* platform) {
         const bool loaded = activeInstruments() && newFileManager.getCurrentOperation() == fmNoOperation;
         if (ms < kStartMs || (ms < kStartLatestMs && !loaded)) return;
         start();
-        tidalPlayerReload();  // play the card's file at start-up
+#ifndef TIDAL_EDITOR
+        tidalPlayerReload();  // play the card's file at start-up (the editor build: loading plays nothing)
+#endif
         return;
     }
     sched->update(clockUs, kUpdateBudgetUs);

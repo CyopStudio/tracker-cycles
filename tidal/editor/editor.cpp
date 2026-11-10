@@ -5,12 +5,12 @@
 
 #include <algorithm>
 
-#include "check.h"
+#include "../core/check.h"
 #include "keyboard.h"
-#include "library.h"
-#include "mapping.h"
-#include "parse.h"
-#include "render.h"
+#include "../core/library.h"
+#include "../core/mapping.h"
+#include "../core/parse.h"
+#include "../core/render.h"
 
 namespace tc {
 

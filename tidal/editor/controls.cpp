@@ -5,7 +5,7 @@
 #include <string.h>
 
 #include "keyboard.h"
-#include "tree.h"
+#include "../core/tree.h"
 
 namespace tc {
 

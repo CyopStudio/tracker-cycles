@@ -9,6 +9,7 @@
 #include "controls.h"
 #include "output.h"
 #include "keyboard.h"
+#include "layout.h"
 #include "render.h"
 
 using namespace tc;
@@ -36,7 +37,6 @@ constexpr uint32_t lit = 0x8A5A12;     // a step whose event is sounding
 constexpr uint32_t litSel = 0xC07818;  // the same inside the cursor's selection
 }  // namespace col
 
-static Span gSpans[kMaxNodes];
 
 static uint32_t stateColor(SlotState s) {
     switch (s) {
@@ -45,104 +45,6 @@ static uint32_t stateColor(SlotState s) {
         case SlotState::Error: return col::err;
         default: return col::dim;
     }
-}
-
-struct BlockLayout {
-    int gapAt = -1;  // gap cursor: a bar before this character
-    std::string text;
-    std::vector<uint32_t> color;
-    std::vector<bool> sel;
-    std::vector<bool> lit;  // per-event highlighting
-    std::vector<int> row, colx;  // per char
-    int rows = 0;
-};
-
-static void paint(const Program& p, uint16_t idx, BlockLayout& L) {
-    const Node& n = p.at(idx);
-    uint32_t c = 0;
-    switch (n.kind) {
-        case Kind::Fn: c = col::fn; break;
-        case Kind::Num:
-        case Kind::MNum: c = col::num; break;
-        case Kind::MWord:
-        case Kind::MNote:
-        case Kind::MChord:
-        case Kind::MBool: c = col::word; break;
-        case Kind::Mini: c = col::quote; break;
-        case Kind::Hole: c = col::hole; break;
-        default: break;
-    }
-    const Span& s = gSpans[idx];
-    if (c && s.end > s.start) {
-        if (n.kind == Kind::Mini) {
-            // only the quote characters
-            if (s.start < L.color.size()) L.color[s.start] = c;
-            if (s.end >= 1 && (size_t)(s.end - 1) < L.color.size()) L.color[s.end - 1] = c;
-        } else {
-            for (int i = s.start; i < s.end && i < (int)L.color.size(); i++) L.color[i] = c;
-        }
-    }
-    for (uint16_t ch = n.first; ch; ch = p.at(ch).next) paint(p, ch, L);
-}
-
-static BlockLayout layoutBlock(const Program& p, uint16_t blk, uint16_t cursor, int cols, uint16_t gapSeq = 0,
-                               int gapPos = 0, const std::vector<uint16_t>* litNodes = nullptr, bool cps = false) {
-    BlockLayout L;
-    char buf[8192];
-    memset(gSpans, 0, sizeof gSpans);
-    Renderer r(buf, sizeof buf, gSpans);
-    buf[0] = 0;
-    if (cps) r.cps(p);  // the setcps line
-    else r.blockNode(p, blk);
-    L.text = buf;
-    int n = (int)L.text.size();
-    L.color.assign(n, col::text);
-    L.sel.assign(n, false);
-    L.lit.assign(n, false);
-    paint(p, cps ? p.cpsExpr : blk, L);
-    if (litNodes)
-        for (uint16_t ln : *litNodes) {
-            if (!ln || ln >= kMaxNodes) continue;
-            const Span& s = gSpans[ln];
-            for (int i = s.start; i < s.end && i < n; i++) L.lit[i] = true;
-        }
-    if (gapSeq) {
-        const int count = p.childCount(gapSeq);
-        if (gapPos < count) L.gapAt = gSpans[p.child(gapSeq, gapPos)].start;
-        else if (count) L.gapAt = gSpans[p.child(gapSeq, count - 1)].end;
-    } else if (cursor) {
-        const Span& s = gSpans[cursor];
-        for (int i = s.start; i < s.end && i < n; i++) L.sel[i] = true;
-    }
-    // wrap at spaces, continuation lines indented by 4
-    L.row.assign(n, 0);
-    L.colx.assign(n, 0);
-    int row = 0, c = 0, i = 0;
-    while (i < n) {
-        // find the end of the next word
-        int j = i;
-        while (j < n && L.text[j] != ' ') j++;
-        int wl = j - i;
-        if (c > 4 && c + wl > cols) {
-            row++;
-            c = 4;
-        }
-        for (int k = i; k < j; k++) {
-            if (c >= cols) {
-                row++;
-                c = 4;
-            }
-            L.row[k] = row;
-            L.colx[k] = c++;
-        }
-        if (j < n) {  // the space
-            L.row[j] = row;
-            L.colx[j] = c++;
-        }
-        i = j + 1;
-    }
-    L.rows = row + 1;
-    return L;
 }
 
 void drawEditor(const Editor& ed, Framebuffer& fb) {
@@ -182,91 +84,41 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     }
     fb.text(8, top + kSlots * rowH + 2, "smp|midi", col::dim, FontId::Sans12);
 
-    // code area
+    // code area: tidal/editor/layout.* (shared with the device's view)
     const Font& f = fb.font(FontId::Mono14);
     const int adv = f.widths['m'] ? f.widths['m'] : f.width;  // monospace advance
     const int cx = 76, cw = kW - cx - 10, lineH = f.height + 3;
-    const int cols = cw / adv;
     const int areaTop = 34, areaBottom = 376;
-    // blocks in file order (several may share a dN: the selected one is
-    // bright, the others dim); an empty current dN gets a placeholder line
-    struct Row {
-        uint16_t blk;  // 0 = the empty current slot
-        int slot;
-        int idx;       // list index (comments), -1 for the placeholder, -2 = setcps
-    };
-    const double now = steadySeconds();
-    std::vector<Row> rows;
-    if (p.cpsExpr) rows.push_back({0, -1, -2});
-    for (int i = 0; i < p.blockCount(); i++) rows.push_back({p.blockAt(i), p.blockSlot(p.blockAt(i)), i});
-    if (!p.block[ed.slot()] && !ed.onCps()) rows.push_back({0, ed.slot(), -1});
-    const uint16_t curBlk = ed.onCps() ? 0xFFFF : p.block[ed.slot()];
-    std::vector<BlockLayout> lays;
-    std::vector<int> heights;
-    int curY = 0, y = 0, curH = 0;
-    for (const Row& rw : rows) {
-        const bool cur = rw.idx == -2 ? ed.onCps() : rw.blk ? rw.blk == curBlk : !ed.onCps();
-        // steps whose events sound now (only on the slot's playing block)
-        std::vector<uint16_t> litNodes;
-        if (rw.blk && rw.blk == ed.playingBlock(rw.slot))
-            for (const auto& l : ed.litSteps())
-                if (l.slot == rw.slot && l.on <= now && now < l.off) litNodes.push_back(l.node);
-        if (rw.idx == -2) lays.push_back(layoutBlock(p, 0, cur ? ed.cursor() : 0, cols, 0, 0, nullptr, true));
-        else
-            lays.push_back(rw.blk ? layoutBlock(p, rw.blk, cur ? ed.cursor() : 0, cols, cur ? ed.gapSeq() : 0,
-                                                ed.gapPos(), &litNodes)
-                                  : BlockLayout{});
-        const bool hasComment = rw.idx >= 0 && p.blockComment(rw.idx)[0];
-        int h = rw.blk || rw.idx == -2 ? (hasComment ? lineH : 0) + lays.back().rows * lineH + 8 : lineH + 8;
-        if (cur) {
-            curY = y;
-            curH = h;
+    static CodeScreen scr;
+    static LayoutScratch scratch;
+    layoutCode(ed, steadySeconds(), CodeGeometry{cw / adv, lineH, 8, areaBottom - areaTop}, scr, scratch);
+    if (scr.box.on) fb.rect(cx - 6, areaTop + scr.box.y - 2, cw + 12, scr.box.h - 4, col::current);
+    static const uint32_t kStyle[] = {col::text, col::fn, col::num, col::word, col::quote, col::hole};
+    for (int li = 0; li < scr.n; li++) {
+        const CodeLine& L = scr.line[li];
+        const int yy = areaTop + L.y;
+        if (L.kind == LineKind::Comment || L.kind == LineKind::Hint) {
+            char t[kCodeCols + 1];
+            for (int i = 0; i < L.n; i++) t[i] = L.cell[i].ch;
+            t[L.n] = 0;
+            fb.text(cx, yy, t, col::dim);
+            continue;
         }
-        heights.push_back(h);
-        y += h;
-    }
-    int scroll = 0;
-    if (curY + curH > areaBottom - areaTop) scroll = curY + curH - (areaBottom - areaTop);
-    y = areaTop - scroll;
-    for (size_t k = 0; k < rows.size(); k++) {
-        const Row& rw = rows[k];
-        const BlockLayout& L = lays[k];
-        const int h = heights[k];
-        const bool cur = rw.idx == -2 ? ed.onCps() : rw.blk ? rw.blk == curBlk : !ed.onCps();
-        const bool selected = rw.idx == -2 || (rw.blk && p.block[rw.slot] == rw.blk);  // dN's selected alternative
-        if (y + h >= areaTop && y < areaBottom) {
-            if (cur) fb.rect(cx - 6, y - 2, cw + 12, h - 4, col::current);
-            int yy = y;
-            if (rw.idx >= 0 && p.blockComment(rw.idx)[0]) {
-                fb.text(cx, yy, p.blockComment(rw.idx), col::dim);
-                yy += lineH;
-            }
-            if (rw.idx == -2) {
-                // setcps: a bar like the playing one, green once sent, amber while edited
-                fb.rect(cx - 4, yy, 2, L.rows * lineH, ed.cpsSent() ? col::ok : col::edited);
-                for (size_t i = 0; i < L.text.size(); i++) {
-                    int px = cx + L.colx[i] * adv, py = yy + L.row[i] * lineH;
-                    if (L.sel[i]) fb.rect(px, py - 1, adv, lineH, col::cursor);
-                    char ch[2] = {L.text[i], 0};
-                    fb.text(px, py, ch, L.sel[i] ? 0xFFFFFF : L.color[i]);
-                }
-            } else if (!rw.blk) {
-                std::string hint = "d" + std::to_string(rw.slot + 1) + "   (empty: replace to start)";
-                fb.text(cx, yy, hint.c_str(), col::dim);
-            } else {
-                if (rw.blk == ed.playingBlock(rw.slot)) fb.rect(cx - 4, yy, 2, L.rows * lineH, col::ok);  // playing
-                for (size_t i = 0; i < L.text.size(); i++) {
-                    int px = cx + L.colx[i] * adv, py = yy + L.row[i] * lineH;
-                    if (py < areaTop - lineH || py > areaBottom) continue;
-                    if (L.sel[i]) fb.rect(px, py - 1, adv, lineH, L.lit[i] ? col::litSel : col::cursor);
-                    else if (L.lit[i]) fb.rect(px, py - 1, adv, lineH, col::lit);
-                    if ((int)i == L.gapAt) fb.rect(px - 2, py - 1, 3, lineH, col::accent);  // gap cursor
-                    char ch[2] = {L.text[i], 0};
-                    fb.text(px, py, ch, L.sel[i] ? 0xFFFFFF : selected ? L.color[i] : col::dim);
-                }
-            }
+        if (L.bar == LineBar::Playing) fb.rect(cx - 4, yy, 2, lineH, col::ok);
+        if (L.bar == LineBar::CpsSent || L.bar == LineBar::CpsEdited)
+            fb.rect(cx - 4, yy, 2, lineH, L.bar == LineBar::CpsSent ? col::ok : col::edited);
+        const bool code = L.kind == LineKind::Code;
+        if (code && (yy < areaTop - lineH || yy > areaBottom)) continue;
+        for (int i = 0; i < L.n; i++) {
+            const CodeCell& c = L.cell[i];
+            const int px = cx + L.col[i] * adv;
+            const bool sel = c.flags & kCellSel, lit = c.flags & kCellLit;
+            if (sel) fb.rect(px, yy - 1, adv, lineH, lit ? col::litSel : col::cursor);
+            else if (lit) fb.rect(px, yy - 1, adv, lineH, col::lit);
+            if (c.flags & kCellGap) fb.rect(px - 2, yy - 1, 3, lineH, col::accent);  // gap cursor
+            char ch[2] = {c.ch, 0};
+            fb.text(px, yy, ch, sel ? 0xFFFFFF : (code && L.dim) ? col::dim : kStyle[(int)c.style]);
         }
-        y += h;
     }
 
     // bottom panel

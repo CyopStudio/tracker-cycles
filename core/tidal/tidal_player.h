@@ -34,6 +34,20 @@ float tidalPlayerCps();
 int tidalPlayerAudioLoad();            // smoothed audio load, %
 int tidalPlayerSounding();             // sample players sounding now
 int tidalPlayerCap();                  // the load-driven polyphony cap now
+
+// The device editor (-DTIDAL_EDITOR, plan 4d) owns the program; it plays
+// it through these (main loop). Loading plays nothing in that build: the
+// file is only read at start-up, for the editor.
+namespace tc {
+class Program;
+}
+bool tidalPlayerReadFile(const char*& text, int& len, char* msg, int msgLen);  // /project.tidal
+bool tidalPlayerWriteFile(const char* text, int len, char* msg, int msgLen);
+bool tidalPlayerEvaluate(const tc::Program& p, int slot, char* msg, int msgLen);  // checked block
+void tidalPlayerSilence(int slot);
+void tidalPlayerMute(int slot, bool on);
+void tidalPlayerUnmuteAll();
+void tidalPlayerSetCps(const tc::Program& p);
 #else
 inline void tidalPlayerUpdate(Platform*) {}
 inline void tidalPlayerTick() {}

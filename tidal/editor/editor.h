@@ -8,7 +8,7 @@
 #include <stdint.h>
 
 #include "fixed.h"
-#include "tree.h"
+#include "../core/tree.h"
 
 namespace tc {
 

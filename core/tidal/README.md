@@ -56,6 +56,30 @@ Cost of the bench build (2026-11-09): flash +65.5 KB (903,364 -> 970,484 B,
 92.6 %), internal RAM +29 KB (mostly the checker's type pool), SDRAM
 +403 KB (arena 212 KB, program 70 KB, output buffer 106 KB, report).
 
+## Device editor test build (plan 4d step 3)
+
+```bash
+make clean
+make original CUSTOM_DEFINES="-DTIDAL_EDITOR"
+cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_TidalEditor1.ptf
+```
+
+The Pattern key (and the boot screen) is the Tidal editor instead of the
+status screen: the shared editor model (tidal/editor, built in by
+`tc_editor.cpp`) with its storage in SDRAM (`tidal_editor.cpp`), drawn by
+interface/tidalEditor (code as bitmap glyphs through the shared layout,
+slot list, status lines, menu overlay / keyboard screen, the stock soft-key
+labels). The player starts as usual but plays nothing until a block is
+evaluated (loading plays nothing); `/project.tidal` is read into the
+editor. Controls as in the prototype (tidal/README.md), every button
+through `controlCommand()` / `press()`; Perform, Master, the Sample keys,
+Config and File switch modules as usual, Shift+File saves
+`/project.tidal`. Menus are checked lazily (a few items per main-loop
+pass; unchecked items are dim). The status line shows our controls'
+display-list bytes (`dl N B`). Highlights are off on the device for now.
+Cost: flash +75.7 KB (864,728 B, 82.5 %), internal RAM +352 B, SDRAM
++470 KB.
+
 ## Editor timing build (plan 4d)
 
 ```bash

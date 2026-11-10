@@ -13,6 +13,7 @@
 #include "instrumentEditor/instrumentEditor.h"
 #include "masterParams/masterParams.h"
 #include "placeholder/placeholder.h"
+#include "tidalEditor/tidalEditor.h"
 #include "tidalStatus/tidalStatus.h"
 #include "mtAudioEngine.h"
 #include "projectEditor/projectEditor.h"
@@ -56,7 +57,11 @@ const uint8_t Interface::modulesCount = 13;
 const hModule Interface::modules[modulesCount] = {
     &projectEditor,    // 0
     &sampleImporter,   // 1
+#ifdef TIDAL_EDITOR
+    &tidalEditorModule,      // 2 (was the pattern editor: the device Tidal editor, plan 4d)
+#else
     &tidalStatus,            // 2 (was the pattern editor: the Tidal status screen)
+#endif
     &samplePlayback,   // 3
     &songPlaceholder,        // 4 (was the song editor)
     &instrumentEditor, // 5
@@ -262,7 +267,11 @@ void Interface::processStartScreen()
 #ifdef TRACKER_MINI
             initSpecialMiniTrackerButtons();
 #endif
+#ifdef TIDAL_EDITOR
+            activateModule(&tidalEditorModule, 0);
+#else
             activateModule(&tidalStatus, 0);
+#endif
             unmuteAudioOutByKey();
 
 #ifdef TRACKER_MINI
@@ -466,7 +475,7 @@ void Interface::activateModule(hModule module, uint32_t options)
     ip->clearGlobalPads();
 
     onScreenModule = module;
-    if (module != &tidalStatus)
+    if (module != &tidalStatus && (hModule)module != (hModule)Interface::modules[2])
     {
         songTimer.show();
     }

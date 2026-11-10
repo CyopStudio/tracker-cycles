@@ -176,6 +176,23 @@ Decisions:
 3. FT812 code-view control (lines, colour runs, cursor, gap bar,
    highlights), soft-key labels, menu overlay; keyboard via
    mtKeyboardManager.
+   Built (2026-11-10, -DTIDAL_EDITOR, PolyendTrac_TidalEditor1.ptf, not
+   yet run): tidal/editor/layout.* lays the code area out as styled lines
+   (the prototype view now draws from it: 10 reference screenshots
+   byte-identical before / after); interface/tidalEditor draws it as
+   bitmap glyphs (cell = char - the font's first char, VERTEX_TRANSLATE_X
+   past x 511, a colour change only when it changes, rectangles first,
+   scissored to the code area), plus the slot list, status lines, a menu /
+   keyboard overlay (our own keyboard screen from the model, not
+   mtKeyboardManager: the model already has the stock layout and
+   behaviour) and the stock soft-key labels. Input: every button 0-32 (the
+   Control enum is the firmware's button order), pads and jog through
+   press() / release(). The player gained tidalPlayerEvaluate / Silence /
+   Mute / UnmuteAll / SetCps / ReadFile / WriteFile; in the editor build it
+   doesn't evaluate the file at boot. Also done here: the module in slot 2
+   (step 4's first part). Open: pad LEDs, highlights (TC_EVENT_SRC on the
+   device), the status screen as a sub-view, display-list totals (the
+   status line shows ours).
 4. Module in slot 2, player hand-over, File = save /project.tidal
    (4e: per-project files later).
 5. Device build, then the parked UI TODO (pad modes) if it fits.

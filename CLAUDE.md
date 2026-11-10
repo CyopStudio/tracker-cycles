@@ -531,10 +531,17 @@ folders listed in the project (e.g. a manifest) on project load.
      measure the editor's deepest stack on the device.
      Port order 2 done (2026-11-10): the control mapping is
      tidal/editor/controls.* (enum `Control`, Str<24> labels, no tables in
-     RAM), shared by the prototype and the device. Next (port order 3): the
-     FT812 code view (glyphs as bitmaps, colour changes only when needed,
-     cursor / gap bar, highlights in their own control), soft keys, menu
-     overlay, keyboard via mtKeyboardManager.
+     RAM), shared by the prototype and the device.
+     Port order 3 built (2026-11-10, not yet run): -DTIDAL_EDITOR,
+     PolyendTrac_TidalEditor1.ptf (core/tidal/README.md): the shared layout
+     (tidal/editor/layout.*, the prototype draws from it, screenshots
+     byte-identical), interface/tidalEditor (bitmap-glyph code view, slot
+     list, status, menu / keyboard overlay, stock soft keys; every control
+     through press()), core/tidal/tidal_editor.* (SDRAM storage, output to
+     the player's new evaluate / mute / tempo / file API; loading plays
+     nothing). Flash 864,728 B (82.5 %), RAM +352 B, SDRAM +470 KB. To
+     check on the device: glyph cells (char - first char), pad numbering,
+     display-list total (status line), menus filling in lazily.
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)
