@@ -2,6 +2,7 @@
 #include "Profiler.h"
 #include "TrackerImpl.h"
 #include "../tidal/audio_profile.h"
+#include "../tidal/reverb_bench.h"
 #include "../tidal/tidal_bench.h"
 #include "../tidal/tidal_tick.h"
 #include "mtWavetableEnvelopes.h"
@@ -182,6 +183,7 @@ void TrackerImpl::update()
     tidalBenchUpdate(platform);    // no-op unless built with -DTIDAL_BENCH
     tidalTickUpdate(platform);     // no-op unless built with -DTIDAL_TICK
     audioProfileUpdate(platform);  // no-op unless built with -DAUDIO_PROFILE
+    reverbBenchUpdate(platform);   // no-op unless built with -DREVERB_BENCH
 }
 
 void TrackerImpl::updateAudioBuffers(void* left, void* right, int length)
@@ -222,6 +224,7 @@ void TrackerImpl::updateAudioBuffers(void* left, void* right, int length)
     audioProfileBlock(apMidi - apStart, apSeq - apMidi, apPlayers - apSeq, apGraph - apPlayers);
 #endif
     Profiler::getInstance()->stopMeasuringAudio();
+    reverbBenchBlock();  // no-op unless built with -DREVERB_BENCH (outside the audio-load measurement)
 }
 
 void TrackerImpl::updateInputAudioBuffers(void* dataI2s, void* dataUsb, int length)

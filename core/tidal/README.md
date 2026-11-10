@@ -83,6 +83,47 @@ python3 core/tidal/audio_profile.py audio_profile.txt [build/PolyendTrac_AudioPr
 Cost (2026-11-09): flash +2.3 KB, internal RAM +5.3 KB, SDRAM +20 KB. The
 timing itself adds ~20 cycles per active node to the graph stage.
 
+## Reverb bench (CPU vs RAM for the reverb)
+
+```bash
+make clean
+make original CUSTOM_DEFINES="-DREVERB_BENCH"
+cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_ReverbBench.ptf
+```
+
+`reverb_bench.cpp` times the reverb (Polyverb, ~18 % of the block in the
+audio profiler) in the audio interrupt, after the callback's own work
+(outside the Profiler's audio load): each block one variant processes a
+128-sample test block, round robin; output discarded, the live reverb
+untouched. Three captures of ~10 s (400 runs per variant) at 20, 60 and
+100 s after boot; the popups say what to play next (stopped, light,
+heavy: SDRAM contention from sample playback changes the SDRAM rows).
+Report: `/reverb_bench.txt`, cycles per block and % of the block per
+variant, with the internal RAM / SDRAM each would need.
+
+| Row | Variant | Internal | SDRAM |
+| ---: | :--- | ---: | ---: |
+| 0 | stock, both buffers SDRAM (as shipped) | 0 | 64 KB |
+| 1 / 2 | stock, buffer 1 / buffer 2 internal | 32 KB | 32 KB |
+| 3 | stock, both internal (both point at one 32 KB: same cost, garbage sound) | 64 KB | 0 |
+| 4 | bench engine, full rate, SDRAM (overhead check vs row 0) | 0 | 64 KB |
+| 5 | full rate, the 4 input diffusers in internal RAM | 4 KB | 64 KB |
+| 6 | half rate (decimate 2, line lengths halved, linear upsample), SDRAM | 0 | 32 KB |
+| 7 | half rate, diffusers internal | 2 KB | 32 KB |
+| 8 | half rate, all internal | 32 KB | 0 |
+
+Host check (2026-11-10): the bench engine at full rate matches the stock
+`Reverb` within 1 LSB; at half rate the tail decays at the same rate
+(-60 dB at ~2.1 s for both). Build: internal RAM +38.8 KB (32 KB pool +
+4 KB diffusers + state), flash +10 KB; `make original` unchanged.
+
+Results (2026-11-10, docs/reverb_bench.txt), % of the block, the same in
+all three captures (playback doesn't slow the SDRAM rows): 0 stock 17.1,
+1 buffer 1 internal 11.3, 2 buffer 2 internal 14.4, 3 both internal 8.7,
+4 bench full rate 18.2 (bench engine overhead +1.1: separate wet arrays
++ mix), 5 diffusers internal 15.6, 6 half rate 10.4, 7 half rate +
+diffusers 8.9, 8 half rate all internal 6.0.
+
 ## Device tick test (plan step 4b)
 
 ```bash

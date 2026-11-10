@@ -438,6 +438,26 @@ folders listed in the project (e.g. a manifest) on project load.
     audio interrupt when one lands mid-query (set 5: d4 / d8 ~2.4 ms vs
     ~150 us for the rest), so mapping averages there are inflated.
     Stock features (export, recording, tails, meters) not yet checked.
+    Export and recording are not needed in this firmware (user,
+    2026-11-10): no need to test them; strip candidates for 4a.
+  - Reverb bench (2026-11-10, `-DREVERB_BENCH`, core/tidal/README.md): the reverb is Polyverb (Clouds' Griesinger/Dattorro
+    plate, MIT), ~23 delay-line accesses per sample, both 32 KB buffers in
+    uncached SDRAM: the memory, not the algorithm, is the suspect. The
+    bench times variants in the ISR (buffers internal, the 4 input
+    diffusers internal = 4 KB, half rate with halved lines = half the
+    memory) to keep as a CPU-vs-RAM reference table.
+    Results (2026-11-10, docs/reverb_bench.txt; % of the block, identical
+    stopped / light / heavy playback: SDRAM contention from playback is
+    negligible): stock 17.1 (as shipped, 0 internal); buffer 1 internal
+    11.3 (32 KB); buffer 2 internal 14.4 (32 KB); both internal 8.7
+    (64 KB); diffusers internal 15.6 (4 KB, bench engine; it costs +1.1
+    over stock: row 4 18.2 vs row 0); half rate SDRAM 10.4 (0 KB internal,
+    SDRAM 64 -> 32 KB); half rate + diffusers 8.9 (2 KB); half rate all
+    internal 6.0 (32 KB). Memory ~half the cost (~15 cycles per SDRAM
+    access, ~23 per sample); the other half is compute (~356 cycles per
+    sample even all internal: signed % per access, int16 <-> float,
+    ssat). Cheapest win: half rate in SDRAM, -6.7 points, no internal
+    RAM (needs a listening check); then trade internal RAM per the table.
 
 ## Engine constraints
 - No malloc/new in audio or sequencer real-time paths. Fixed node pools,
@@ -482,7 +502,8 @@ folders listed in the project (e.g. a manifest) on project load.
 - core/tidal/  firmware wrappers that build tidal/core into libTracker.a
   (only with -DTIDAL_BENCH / -DTIDAL_TICK for now), the on-device timing
   bench, the device tick test (tidal_tick.cpp), and the
-  audio profiler (-DAUDIO_PROFILE, per-stage / per-node audio cost).
+  audio profiler (-DAUDIO_PROFILE, per-stage / per-node audio cost), the
+  reverb bench (-DREVERB_BENCH).
 - tidal/     our code (host build, `make -C tidal test smoke arm`):
   core/ shared tree/parser/renderer/checker (no heap, portable),
   proto/ editor prototype, tests/, golden/ (cases + events captured from
