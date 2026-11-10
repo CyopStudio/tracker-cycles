@@ -17,6 +17,7 @@ public:
     int expr(const Program& p, uint16_t root);   // expression only
     int block(const Program& p, int slot);       // "d1 $ ..." (no comment): the slot's selected block
     int blockNode(const Program& p, uint16_t b);  // any block root (several per dN)
+    int cps(const Program& p);                   // "setcps (...)" (nothing without one)
     int file(const Program& p);                  // whole .tidal file
     bool overflow() const { return overflow_; }
     int length() const { return n_; }

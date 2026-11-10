@@ -7,6 +7,7 @@
 
 #include "check.h"
 #include "hardware.h"
+#include "keyboard.h"
 #include "render.h"
 
 using namespace tc;
@@ -83,19 +84,20 @@ static void paint(const Program& p, uint16_t idx, BlockLayout& L) {
 }
 
 static BlockLayout layoutBlock(const Program& p, uint16_t blk, uint16_t cursor, int cols, uint16_t gapSeq = 0,
-                               int gapPos = 0, const std::vector<uint16_t>* litNodes = nullptr) {
+                               int gapPos = 0, const std::vector<uint16_t>* litNodes = nullptr, bool cps = false) {
     BlockLayout L;
     char buf[8192];
     memset(gSpans, 0, sizeof gSpans);
     Renderer r(buf, sizeof buf, gSpans);
     buf[0] = 0;
-    r.blockNode(p, blk);
+    if (cps) r.cps(p);  // the setcps line
+    else r.blockNode(p, blk);
     L.text = buf;
     int n = (int)L.text.size();
     L.color.assign(n, col::text);
     L.sel.assign(n, false);
     L.lit.assign(n, false);
-    paint(p, blk, L);
+    paint(p, cps ? p.cpsExpr : blk, L);
     if (litNodes)
         for (uint16_t ln : *litNodes) {
             if (!ln || ln >= kMaxNodes) continue;
@@ -189,28 +191,31 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     struct Row {
         uint16_t blk;  // 0 = the empty current slot
         int slot;
-        int idx;       // list index (comments), -1 for the placeholder
+        int idx;       // list index (comments), -1 for the placeholder, -2 = setcps
     };
     const double now = steadySeconds();
     std::vector<Row> rows;
+    if (p.cpsExpr) rows.push_back({0, -1, -2});
     for (int i = 0; i < p.blockCount(); i++) rows.push_back({p.blockAt(i), p.blockSlot(p.blockAt(i)), i});
-    if (!p.block[ed.slot()]) rows.push_back({0, ed.slot(), -1});
-    const uint16_t curBlk = p.block[ed.slot()];
+    if (!p.block[ed.slot()] && !ed.onCps()) rows.push_back({0, ed.slot(), -1});
+    const uint16_t curBlk = ed.onCps() ? 0xFFFF : p.block[ed.slot()];
     std::vector<BlockLayout> lays;
     std::vector<int> heights;
     int curY = 0, y = 0, curH = 0;
     for (const Row& rw : rows) {
-        const bool cur = rw.blk ? rw.blk == curBlk : true;
+        const bool cur = rw.idx == -2 ? ed.onCps() : rw.blk ? rw.blk == curBlk : !ed.onCps();
         // steps whose events sound now (only on the slot's playing block)
         std::vector<uint16_t> litNodes;
         if (rw.blk && rw.blk == ed.playingBlock(rw.slot))
             for (const auto& l : ed.litSteps())
                 if (l.slot == rw.slot && l.on <= now && now < l.off) litNodes.push_back(l.node);
-        lays.push_back(rw.blk ? layoutBlock(p, rw.blk, cur ? ed.cursor() : 0, cols, cur ? ed.gapSeq() : 0, ed.gapPos(),
-                                            &litNodes)
-                              : BlockLayout{});
+        if (rw.idx == -2) lays.push_back(layoutBlock(p, 0, cur ? ed.cursor() : 0, cols, 0, 0, nullptr, true));
+        else
+            lays.push_back(rw.blk ? layoutBlock(p, rw.blk, cur ? ed.cursor() : 0, cols, cur ? ed.gapSeq() : 0,
+                                                ed.gapPos(), &litNodes)
+                                  : BlockLayout{});
         const bool hasComment = rw.idx >= 0 && p.blockComment(rw.idx)[0];
-        int h = rw.blk ? (hasComment ? lineH : 0) + lays.back().rows * lineH + 8 : lineH + 8;
+        int h = rw.blk || rw.idx == -2 ? (hasComment ? lineH : 0) + lays.back().rows * lineH + 8 : lineH + 8;
         if (cur) {
             curY = y;
             curH = h;
@@ -225,8 +230,8 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
         const Row& rw = rows[k];
         const BlockLayout& L = lays[k];
         const int h = heights[k];
-        const bool cur = rw.blk ? rw.blk == curBlk : true;
-        const bool selected = rw.blk && p.block[rw.slot] == rw.blk;  // dN's selected alternative
+        const bool cur = rw.idx == -2 ? ed.onCps() : rw.blk ? rw.blk == curBlk : !ed.onCps();
+        const bool selected = rw.idx == -2 || (rw.blk && p.block[rw.slot] == rw.blk);  // dN's selected alternative
         if (y + h >= areaTop && y < areaBottom) {
             if (cur) fb.rect(cx - 6, y - 2, cw + 12, h - 4, col::current);
             int yy = y;
@@ -234,7 +239,16 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
                 fb.text(cx, yy, p.blockComment(rw.idx), col::dim);
                 yy += lineH;
             }
-            if (!rw.blk) {
+            if (rw.idx == -2) {
+                // setcps: a bar like the playing one, green once sent, amber while edited
+                fb.rect(cx - 4, yy, 2, L.rows * lineH, ed.cpsSent() ? col::ok : col::edited);
+                for (size_t i = 0; i < L.text.size(); i++) {
+                    int px = cx + L.colx[i] * adv, py = yy + L.row[i] * lineH;
+                    if (L.sel[i]) fb.rect(px, py - 1, adv, lineH, col::cursor);
+                    char ch[2] = {L.text[i], 0};
+                    fb.text(px, py, ch, L.sel[i] ? 0xFFFFFF : L.color[i]);
+                }
+            } else if (!rw.blk) {
                 std::string hint = "d" + std::to_string(rw.slot + 1) + "   (empty: replace to start)";
                 fb.text(cx, yy, hint.c_str(), col::dim);
             } else {
@@ -297,6 +311,36 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
             if (idx == ed.menuSel()) fb.rect(mx + 2, yy - 2, mw - 4, rh, col::cursor);
             fb.text(mx + 10, yy, m[idx].label.c_str(), idx == ed.menuSel() ? 0xFFFFFF : col::text,
                     FontId::Mono14, (mw - 20) / adv);
+        }
+    }
+
+    // keyboard screen (the Tracker's naming keyboard, keyboard.h): the text
+    // field, then the 42 keys laid out on the 12 x 4 pads
+    if (ed.keyboardOpen()) {
+        const int kx = 20, ky = 40, kw = kW - 40, kh = 330;
+        fb.rect(kx, ky, kw, kh, 0x101216);
+        fb.frame(kx, ky, kw, kh, col::accent);
+        fb.text(kx + 12, ky + 8, ed.kbdTitle().c_str(), col::accent, FontId::Sans12);
+        const int fy = ky + 32;
+        fb.rect(kx + 12, fy, kw - 24, lineH + 10, col::panel);
+        std::string shown = "-- " + ed.kbdText();
+        for (size_t i = 0; i < shown.size(); i++) {  // per character, like the code area
+            char ch[2] = {shown[i], 0};
+            fb.text(kx + 20 + (int)i * adv, fy + 5, ch, i < 3 ? col::dim : col::text);
+        }
+        fb.rect(kx + 20 + (3 + ed.kbdPos()) * adv, fy + 3, 2, lineH + 4, col::accent);  // text cursor
+        const int gx = kx + 12, gy = fy + lineH + 26, cellW = (kw - 24) / kPadCols, cellH = 52;
+        for (int k = 0; k < kbd::kKeys; k++) {
+            const int pad = kbd::kKeyPad[k], r = pad / kPadCols, c = pad % kPadCols;
+            const int x = gx + c * cellW, y = gy + r * cellH, w = kbd::keyWidth(k) * cellW - 4;
+            const bool sel = k == ed.kbdSel(), on = k == kbd::kKeyCaps && ed.kbdCaps();
+            fb.rect(x, y, w, cellH - 4, sel ? col::cursor : on ? 0x5A4A1E : col::current);
+            const char ch = ed.kbdCaps() ? kbd::kBig[k] : kbd::kSmall[k];
+            std::string label = k == kbd::kKeyBackspace ? "Bksp" : k == kbd::kKeyCaps ? "Caps"
+                              : k == kbd::kKeySpace     ? "Space" : std::string(1, ch);
+            const int tw = fb.textWidth(label.c_str(), FontId::Sans12);
+            fb.text(x + (w - tw) / 2, y + (cellH - 4) / 2 - 7, label.c_str(), sel ? 0xFFFFFF : col::text,
+                    FontId::Sans12);
         }
     }
 }

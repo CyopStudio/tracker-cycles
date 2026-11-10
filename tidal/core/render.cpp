@@ -352,14 +352,20 @@ int Renderer::blockNode(const Program& p, uint16_t b) {
     return n_;
 }
 
+int Renderer::cps(const Program& p) {
+    if (!p.cpsExpr) return n_;
+    puts("setcps ");
+    bool paren = exprPrec(p, p.cpsExpr) < 11;
+    if (paren) put('(');
+    node(p, p.cpsExpr, 0, 0);
+    if (paren) put(')');
+    return n_;
+}
+
 int Renderer::file(const Program& p) {
     bool any = false;
     if (p.cpsExpr) {
-        puts("setcps ");
-        bool paren = exprPrec(p, p.cpsExpr) < 11;
-        if (paren) put('(');
-        node(p, p.cpsExpr, 0, 0);
-        if (paren) put(')');
+        cps(p);
         put('\n');
         any = true;
     }

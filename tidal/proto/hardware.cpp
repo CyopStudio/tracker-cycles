@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "keyboard.h"
 #include "tree.h"
 
 namespace proto {
@@ -90,6 +91,35 @@ Ctl slotPad(int s) {
 
 Command controlCommand(const Editor& ed, Ctl c, bool shift) {
     const bool menu = ed.menuOpen();
+    if (ed.keyboardOpen()) {
+        // the Tracker's naming keyboard (keyboard.h): pads are keys, arrows
+        // move the lit key, Screen 1 / Insert type it, Delete = Backspace,
+        // jog moves the text cursor; Screen 2 clears, 7 cancels, 8 is OK
+        if (isPad(c)) {
+            Command k;
+            k.type = Command::Key;
+            k.key = kbd::kPadKey[padIndex(c)];
+            const char ch = ed.kbdCaps() ? kbd::kBig[k.key] : kbd::kSmall[k.key];
+            k.label = k.key == kbd::kKeyBackspace ? "Bksp" : k.key == kbd::kKeyCaps ? "Caps"
+                    : k.key == kbd::kKeySpace     ? "Space" : std::string(1, ch);
+            return k;
+        }
+        switch (c) {
+            case Ctl::Left: return act(Action::Left, "key left");
+            case Ctl::Right: return act(Action::Right, "key right");
+            case Ctl::Up: return act(Action::Up, "key up");
+            case Ctl::Down: return act(Action::Down, "key down");
+            case Ctl::JogUp: return act(Action::WheelUp, "cursor >");
+            case Ctl::JogDown: return act(Action::WheelDown, "cursor <");
+            case Ctl::Screen0:
+            case Ctl::Insert: return act(Action::KbdType, "Enter key");
+            case Ctl::Screen1: return act(Action::KbdClear, "Clear");
+            case Ctl::Delete: return act(Action::Delete, "Backspace");
+            case Ctl::Screen6: return act(Action::KbdCancel, "Cancel");
+            case Ctl::Screen7: return act(Action::KbdOk, "OK");
+            default: return {};
+        }
+    }
     if (ed.playHeld()) {
         // Play held (v2): slot pads mute / unmute (Shift+Play: solo), Delete cancels
         if (isPad(c)) {
@@ -172,8 +202,13 @@ Command controlCommand(const Editor& ed, Ctl c, bool shift) {
         case Ctl::Instr: return act(Action::JumpSamples, "s pattern");
         case Ctl::Fx1: return act(Action::MenuModifiers, "modifiers");
         case Ctl::Fx2: return act(Action::MenuFx, "FX");
-        case Ctl::Pattern: return act(Action::Evaluate, "Evaluate");
-        case Ctl::Song: return act(Action::MenuLaunch, "launch");
+        case Ctl::Pattern: return act(Action::Evaluate, ed.onCps() ? "Send tempo" : "Evaluate");
+        case Ctl::Params: return act(Action::EditComment, "comment");
+        // Song: launch menu; Shift+Song: setcps (the Tracker's tempo is on
+        // its Song screen); Master stays for the master settings
+        case Ctl::Song:
+            if (shift) return act(Action::JumpCps, ed.onCps() ? "back" : "setcps");
+            return act(Action::MenuLaunch, "launch");
         // Screen 1-8: the structure menus $ # [] <> {} () | |+; with Shift
         // the old Replace / Wrap / Unwrap / Undo + context quick-buttons
         // (docs/tidal_ui_v2.md)
@@ -244,12 +279,26 @@ bool press(Editor& ed, Ctl c, bool shift) {
         case Command::Number: ed.enterNumber(k.number, k.rest); return true;
         case Command::Instrument: ed.enterInstrument(k.instrument); return true;
         case Command::Mute: ed.mutePad(k.slot); return true;
+        case Command::Key: ed.kbdKey(k.key); return true;
         default: return false;
     }
 }
 
 void release(Editor& ed, Ctl c) {
     if (c == Ctl::Play) ed.playUp();
+}
+
+bool typeChar(Editor& ed, char ch) {
+    if (!ed.keyboardOpen()) return false;
+    bool caps = false;
+    const int key = kbd::keyFor(ch, caps);
+    if (key < 0) return false;
+    const bool letter = (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+    const bool flip = letter && caps != ed.kbdCaps();
+    if (flip) press(ed, padCtl(kbd::kKeyPad[kbd::kKeyCaps]), false);
+    press(ed, padCtl(kbd::kKeyPad[key]), false);
+    if (flip) press(ed, padCtl(kbd::kKeyPad[kbd::kKeyCaps]), false);
+    return true;
 }
 
 }  // namespace proto

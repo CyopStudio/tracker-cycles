@@ -114,6 +114,9 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
                 ed.pollHighlights(steadySeconds());
                 usleep(50000);
             }
+        } else if (tok.rfind("type:", 0) == 0) {  // keyboard screen: type text ('_' = space)
+            for (char ch : tok.substr(5))
+                if (!typeChar(ed, ch == '_' ? ' ' : ch)) fprintf(stderr, "no key types '%c'\n", ch);
         } else if (tok == "lit") {  // steps lit since the last `lit` (engine backend; smoke tests)
             ed.pollHighlights(steadySeconds());
             fputs(ed.litReport().c_str(), stdout);

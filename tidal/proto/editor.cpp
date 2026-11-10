@@ -8,6 +8,7 @@
 #include <sstream>
 
 #include "check.h"
+#include "keyboard.h"
 #include "library.h"
 #include "mapping.h"
 #include "parse.h"
@@ -37,6 +38,9 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"modifiers", Action::MenuModifiers}, {"fx", Action::MenuFx},
     {"jumpn", Action::JumpNotes}, {"jumps", Action::JumpSamples},
     {"playcancel", Action::PlayCancel},
+    {"cps", Action::JumpCps},     {"comment", Action::EditComment},
+    {"kbdtype", Action::KbdType}, {"kbdok", Action::KbdOk},       {"kbdcancel", Action::KbdCancel},
+    {"kbdclear", Action::KbdClear},
 };
 
 const char* actionName(Action a) {
@@ -175,6 +179,7 @@ uint16_t Editor::exprRoot() const {
 
 void Editor::enterSlot(int s) {
     slot_ = s;
+    cps_ = false;
     uint16_t b = prog_->block[s];
     cursor_ = b ? (prog_->at(b).first ? prog_->at(b).first : b) : 0;
     menuOpen_ = false;
@@ -182,6 +187,13 @@ void Editor::enterSlot(int s) {
 
 bool Editor::recheck(Program& p, std::string& err) const {
     Error e;
+    if (cps_) {  // editing setcps: only its expression is checked
+        if (!checkCps(p, e)) {
+            err = e.msg;
+            return false;
+        }
+        return true;
+    }
     if (!checkBlock(p, slot_, e)) {
         err = e.msg;
         return false;
@@ -215,6 +227,7 @@ void Editor::commit(std::unique_ptr<Program> p, uint16_t cursor) {
     prog_ = std::move(p);
     cursor_ = cursor;
     messageError_ = false;  // callers test it after commit; an earlier error must not stick
+    if (cps_) return;  // setcps: no slot state
     if (state_[slot_] != SlotState::Empty || prog_->block[slot_]) state_[slot_] = SlotState::Edited;
 }
 
@@ -480,6 +493,7 @@ void Editor::enterStep(const std::string& miniCode, const std::string& exprCode,
 
 void Editor::gotoSlot(int s) {
     if (s < 0 || s >= kSlots) return;
+    cps_ = false;
     pending_ = 0;
     gapSeq_ = 0;
     if (newBlockArmed_) {
@@ -585,7 +599,20 @@ std::string Editor::cursorInfo() const {
 // actions
 
 void Editor::act(Action a) {
+    if (kbdOpen_) return kbdAction(a);
     if (a != Action::Insert) newBlockArmed_ = false;  // only the very next slot pad
+    if (cps_ && !menuOpen_) {
+        switch (a) {
+            case Action::Left: case Action::Right: case Action::Up: case Action::Down:
+            case Action::WheelUp: case Action::WheelDown: case Action::WheelUpFast: case Action::WheelDownFast:
+            case Action::Replace: case Action::Undo: case Action::Evaluate: case Action::Hush:
+            case Action::Save: case Action::Copy: case Action::Paste: case Action::JumpCps:
+            case Action::ToggleTrackerMode: case Action::PlayCancel: case Action::Confirm: case Action::Cancel:
+            case Action::NextSlot: case Action::PrevSlot:
+                break;
+            default: return error("on setcps: jog / Replace change it, Pattern sends it; Shift+Song or a slot pad goes back");
+        }
+    }
     if (gapSeq_ && !menuOpen_ && listGap()) {
         switch (a) {
             case Action::Left: case Action::Right: case Action::Up: case Action::Down:
@@ -719,12 +746,19 @@ void Editor::act(Action a) {
             } else {
                 prog_ = std::move(undo_.back());
                 undo_.pop_back();
+                if (cps_ && prog_->cpsExpr) {  // stay on setcps
+                    cursor_ = prog_->cpsExpr;
+                    info("undone");
+                    break;
+                }
                 enterSlot(slot_);
                 state_[slot_] = prog_->block[slot_] ? SlotState::Edited : SlotState::Empty;
                 info("undone");
             }
             break;
         case Action::Evaluate: evaluate(); break;
+        case Action::JumpCps: jumpCps(); break;
+        case Action::EditComment: openCommentKeyboard(); break;
         case Action::Hush:
             if (backend_) backend_->send("hush");
             for (int s = 0; s < kSlots; s++)
@@ -1375,6 +1409,12 @@ void Editor::openReplace() {
     auto add = [&](const std::string& label, const std::string& code, bool mini) {
         addReplaceItems(items, label, code, mini);
     };
+    if (cps_) {  // setcps: numbers only (silence would type-check but set no tempo)
+        for (const char* v : {"90", "100", "110", "120", "128", "130", "138", "140", "150", "160", "170", "174",
+                              "60", "4", "3", "0.5", "1"})
+            add(v, v, false);
+        return openMenu("tempo", std::move(items));
+    }
     ensureBlock();
     if (!cursor_) return;
     const Node& n = prog_->at(cursor_);
@@ -1754,6 +1794,18 @@ std::string Editor::evalText(int slot, std::string* errOut) const {
 }
 
 void Editor::evaluate() {
+    if (cps_) {
+        if (!prog_->cpsExpr) return error("no setcps");
+        Error e;
+        if (!checkCps(*prog_, e)) return error(e.msg);
+        char buf[256];
+        Renderer r(buf, sizeof buf);
+        buf[0] = 0;
+        r.expr(*prog_, prog_->cpsExpr);
+        lastCps_ = std::string("setcps (") + buf + ")";
+        if (backend_) backend_->send(lastCps_);
+        return info("tempo sent: " + lastCps_);
+    }
     uint16_t b = prog_->block[slot_];
     if (!b || !prog_->at(b).first) return error("nothing to evaluate");
     Error e;
@@ -1855,6 +1907,140 @@ std::string Editor::litReport() {
     }
     litSeen_.clear();
     return out;
+}
+
+// ---------------------------------------------------------------------------
+// setcps (Shift+Song)
+
+bool Editor::cpsSent() const {
+    if (!prog_->cpsExpr) return true;
+    char buf[256];
+    Renderer r(buf, sizeof buf);
+    buf[0] = 0;
+    r.expr(*prog_, prog_->cpsExpr);
+    return lastCps_ == std::string("setcps (") + buf + ")";
+}
+
+void Editor::jumpCps() {
+    if (cps_) {  // back to the slot
+        enterSlot(slot_);
+        return info(cursorInfo());
+    }
+    menuOpen_ = false;
+    gapSeq_ = 0;
+    pending_ = 0;
+    if (!prog_->cpsExpr) {
+        // Tidal 1.10.3's default tempo is 0.575 cycles / s = 138 BPM at 4
+        // beats per cycle, so adding it changes nothing until edited
+        auto p = std::unique_ptr<Program>(new Program(*prog_));
+        Error e;
+        const char* code = "138/60/4";
+        uint16_t x = parseExpr(*p, code, (int)strlen(code), e);
+        if (!x) return error("program full");
+        p->cpsExpr = x;
+        if (!checkCps(*p, e)) return error(e.msg);
+        snapshot();
+        prog_ = std::move(p);
+        char buf[256];
+        Renderer r(buf, sizeof buf);
+        buf[0] = 0;
+        r.expr(*prog_, prog_->cpsExpr);
+        if (lastCps_.empty()) lastCps_ = std::string("setcps (") + buf + ")";  // the backend's default anyway
+    }
+    cps_ = true;
+    const uint16_t n = firstNumber(*prog_, prog_->cpsExpr);
+    cursor_ = n ? n : prog_->cpsExpr;
+    info("setcps: jog changes the value (BPM / 60 / beats per cycle), Pattern sends it, Shift+Song goes back");
+}
+
+// ---------------------------------------------------------------------------
+// keyboard screen (Params): the block's comment
+
+void Editor::openCommentKeyboard() {
+    const uint16_t b = prog_->block[slot_];
+    if (!b) return error("no block to comment (start one first)");
+    const int idx = prog_->blockIndex(b);
+    if (idx < 0) return error("block not in the file");
+    const std::string all = prog_->blockComment(idx);
+    // edit the last line (the one right above the block); earlier lines stay
+    const size_t nl = all.rfind('\n');
+    const std::string head = nl == std::string::npos ? "" : all.substr(0, nl + 1);
+    std::string last = nl == std::string::npos ? all : all.substr(nl + 1);
+    if (last.rfind("--", 0) == 0) last = last.substr(2);
+    if (!last.empty() && last[0] == ' ') last = last.substr(1);
+    kbdMax_ = std::min(48, kMaxCommentLen - (int)head.size() - 3);
+    if (kbdMax_ <= 0) return error("comment too long already");
+    if ((int)last.size() > kbdMax_) last.resize(kbdMax_);
+    kbdOpen_ = true;
+    kbdBlock_ = idx;
+    kbdText_ = last;
+    kbdPos_ = (int)last.size();
+    kbdSel_ = 0;
+    kbdCaps_ = false;
+    menuOpen_ = false;
+    kbdTitle_ = "comment above d" + std::to_string(slot_ + 1);
+    info("keyboard: pads type, arrows + Screen 1 type the lit key, jog moves the cursor, Screen 8 OK, Screen 7 Cancel");
+}
+
+void Editor::kbdKey(int key) {
+    if (!kbdOpen_ || key < 0 || key >= kbd::kKeys) return;
+    kbdSel_ = key;
+    if (key == kbd::kKeyCaps) {
+        kbdCaps_ = !kbdCaps_;
+        return;
+    }
+    if (key == kbd::kKeyBackspace) {
+        if (kbdPos_ > 0) kbdText_.erase(--kbdPos_, 1);
+        return;
+    }
+    if ((int)kbdText_.size() >= kbdMax_) return error("comment full (" + std::to_string(kbdMax_) + " characters)");
+    const char c = kbdCaps_ ? kbd::kBig[key] : kbd::kSmall[key];
+    kbdText_.insert(kbdText_.begin() + kbdPos_++, c);
+    messageError_ = false;
+}
+
+void Editor::kbdAction(Action a) {
+    switch (a) {
+        case Action::Left: kbdSel_ = kbd::kMove[0][kbdSel_]; return;
+        case Action::Right: kbdSel_ = kbd::kMove[1][kbdSel_]; return;
+        case Action::Up: kbdSel_ = kbd::kMove[2][kbdSel_]; return;
+        case Action::Down: kbdSel_ = kbd::kMove[3][kbdSel_]; return;
+        case Action::WheelUp:
+        case Action::WheelUpFast: kbdPos_ = std::min((int)kbdText_.size(), kbdPos_ + 1); return;
+        case Action::WheelDown:
+        case Action::WheelDownFast: kbdPos_ = std::max(0, kbdPos_ - 1); return;
+        case Action::KbdType:
+        case Action::Insert: return kbdKey(kbdSel_);
+        case Action::Delete: return kbdKey(kbd::kKeyBackspace);
+        case Action::KbdClear:
+            kbdText_.clear();
+            kbdPos_ = 0;
+            return;
+        case Action::KbdCancel:
+        case Action::Cancel:
+            kbdOpen_ = false;
+            return info("comment unchanged");
+        case Action::KbdOk:
+        case Action::Confirm: {
+            kbdOpen_ = false;
+            if (kbdBlock_ < 0 || kbdBlock_ >= prog_->blockCount()) return error("block gone");
+            const std::string all = prog_->blockComment(kbdBlock_);
+            const size_t nl = all.rfind('\n');
+            std::string head = nl == std::string::npos ? "" : all.substr(0, nl + 1);
+            std::string text = kbdText_;
+            while (!text.empty() && text.back() == ' ') text.pop_back();
+            std::string out = text.empty() ? head : head + "-- " + text;
+            while (!out.empty() && out.back() == '\n') out.pop_back();
+            if (out == all) return info("comment unchanged");
+            if ((int)out.size() > kMaxCommentLen) return error("comment too long");
+            auto p = std::unique_ptr<Program>(new Program(*prog_));
+            memcpy(p->blockComment(kbdBlock_), out.c_str(), out.size() + 1);
+            snapshot();
+            prog_ = std::move(p);
+            return info(text.empty() ? "comment removed" : "comment: " + text);
+        }
+        default: return;  // nothing else while the keyboard is up
+    }
 }
 
 }  // namespace proto

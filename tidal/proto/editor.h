@@ -27,6 +27,9 @@ enum class Action {
     MenuModifiers, MenuFx,
     JumpNotes, JumpSamples,            // Note / Instrument: the block's n / s pattern
     PlayCancel,                        // Delete while Play is held
+    JumpCps,                           // Shift+Song: to `setcps` (created if missing) and back
+    EditComment,                       // Params: the block's comment on the keyboard screen
+    KbdType, KbdOk, KbdCancel, KbdClear,  // keyboard screen (Screen 1 / 8 / 7 / 2)
 };
 const char* actionName(Action a);
 bool actionFromName(const std::string& s, Action& out);
@@ -103,6 +106,19 @@ public:
     // last call marked as [[step]] (smoke tests); "" if none.
     std::string litReport();
     int gapPos() const { return gapPos_; }
+    // `setcps` (Shift+Song): the cursor is in its expression; jog / Replace
+    // edit it, Pattern sends it, Shift+Song or a slot pad goes back.
+    bool onCps() const { return cps_; }
+    bool cpsSent() const;  // the setcps shown is the one last sent
+    // Keyboard screen (the Tracker's naming keyboard, keyboard.h): editing
+    // the last comment line above the current block.
+    bool keyboardOpen() const { return kbdOpen_; }
+    const std::string& kbdText() const { return kbdText_; }
+    int kbdPos() const { return kbdPos_; }     // text cursor
+    int kbdSel() const { return kbdSel_; }     // highlighted key
+    bool kbdCaps() const { return kbdCaps_; }
+    const std::string& kbdTitle() const { return kbdTitle_; }
+    void kbdKey(int key);                      // a key's pad pressed
     bool trackerMode() const { return trackerMode_; }
     std::string cursorInfo() const;
     // Context buttons (Screen 5..8): inside "..." brackets [ ] < > { }%4 (3,8),
@@ -180,6 +196,13 @@ private:
     };
     std::vector<Evaluated> evaluated_[tc::kSlots];  // newest last, a few kept
     std::vector<LitStep> lit_;
+    bool cps_ = false;
+    void jumpCps();
+    bool kbdOpen_ = false, kbdCaps_ = false;
+    std::string kbdText_, kbdTitle_;
+    int kbdPos_ = 0, kbdSel_ = 0, kbdBlock_ = -1, kbdMax_ = 0;
+    void openCommentKeyboard();
+    void kbdAction(Action a);
     std::vector<LitStep> litSeen_;
     bool newBlockArmed_ = false;  // Insert at a block's top: the next slot pad adds a block
     void selectBlock(uint16_t b);  // make b its slot's selected block, cursor on its top

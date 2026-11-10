@@ -4,6 +4,7 @@
 // control does that job right now. The mock panel (panel.h) shows which.
 // Key hints in panel.cpp must match the tables here.
 #include <SDL.h>
+#include <ctype.h>
 
 #include "editor.h"
 #include "fb.h"
@@ -58,6 +59,7 @@ bool mapKey(const SDL_KeyboardEvent& k, bool shift, Key& out) {
         case SDLK_s: return ctl(ctrl ? Ctl::File : Ctl::Instr);
         case SDLK_n: return ctl(Ctl::Note);
         case SDLK_l: return ctl(Ctl::Song);
+        case SDLK_p: return ctl(Ctl::Params);
         case SDLK_e: return ctl(Ctl::Pattern);
         case SDLK_f: return ctl(Ctl::Fx1);
         case SDLK_c: return ctl(ctrl ? Ctl::Copy : Ctl::Fx2);
@@ -125,6 +127,22 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
             bool shift = kbShift || latched;
             if (e.type == SDL_QUIT) {
                 running = false;
+            } else if (e.type == SDL_TEXTINPUT && ed.keyboardOpen()) {
+                // keyboard screen: each typed character presses its pad
+                for (const char* t = e.text.text; *t; t++) {
+                    if (typeChar(ed, *t)) st.last = std::string("type '") + *t + "' -> its pad";
+                    else st.last = std::string("no Tracker key types '") + *t + "'";
+                }
+                dirty = true;
+            } else if (e.type == SDL_KEYDOWN && ed.keyboardOpen() && e.key.keysym.sym < 128 &&
+                       isprint((int)e.key.keysym.sym) && !(e.key.keysym.mod & KMOD_CTRL)) {
+                // printable keys arrive as SDL_TEXTINPUT (above)
+            } else if (e.type == SDL_KEYDOWN && ed.keyboardOpen() &&
+                       (e.key.keysym.sym == SDLK_RETURN || e.key.keysym.sym == SDLK_KP_ENTER ||
+                        e.key.keysym.sym == SDLK_ESCAPE)) {
+                const bool ok = e.key.keysym.sym != SDLK_ESCAPE;
+                pressCtl(ed, ok ? Ctl::Screen7 : Ctl::Screen6, false, ok ? "key Enter" : "key Esc", st, litUntil);
+                dirty = true;
             } else if (e.type == SDL_KEYDOWN) {
                 Key k;
                 if (e.key.keysym.sym == SDLK_q && (e.key.keysym.mod & KMOD_CTRL)) {
@@ -158,7 +176,7 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
                 }
                 dirty = true;
             } else if (e.type == SDL_KEYUP) {
-                if (e.key.keysym.sym == SDLK_SPACE) {  // Play released (v2: acts on release)
+                if (e.key.keysym.sym == SDLK_SPACE && ed.playHeld()) {  // Play released (v2: acts on release)
                     release(ed, Ctl::Play);
                     st.last = "key Space released -> Play";
                 }

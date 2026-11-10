@@ -81,8 +81,16 @@ to upstream CE.
     Dirt-Samples names, `--instruments FILE`). Elsewhere, and always with Shift, pads
     1-8 = d1..d8, 13-20 = d9..d16 (lit by slot state). Keyboard digits are
     Shift+pad.
-  - File = save, Config = tracker mode. Free: Params, Perform, Master,
-    Sample *, Song, Rec, other pads.
+  - File = save, Config = tracker mode. Shift+Song = `setcps` (the
+    Tracker's tempo lives on its Song screen; created as `138/60/4` =
+    Tidal's default 0.575 if missing; cursor on the BPM, jog / Replace with
+    tempo numbers, Pattern sends it, Shift+Song or a slot pad goes back).
+    Master is kept for the master settings. Params = the block's comment on the stock naming keyboard
+    (mtKeyboardManager's layout, tidal/proto/keyboard.h: pads are keys,
+    arrows + Screen 1 / Insert type the lit key, Delete = Backspace, jog
+    moves the text cursor, Screen 2 Clear, 7 Cancel, 8 OK; edits the last
+    comment line above the block). Free: Perform, Master (reserved: master
+    settings), Sample *, Rec.
 - Launch: tidal/run_proto.sh (rebuilds, opens tidal/work.tidal, gitignored)
   or `make -C tidal run`; `--install-shortcut` makes Windows Desktop +
   Start menu shortcuts via wslg.exe (WSLg doesn't list .desktop apps here).

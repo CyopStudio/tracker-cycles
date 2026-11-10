@@ -39,12 +39,13 @@ const char* ctlFwName(Ctl c);  // firmware enum, e.g. "interfaceButtonSampleLoad
 bool ctlFromId(const std::string& s, Ctl& out);
 
 struct Command {
-    enum Type { None, Act, Slot, Number, Instrument, Mute } type = None;
+    enum Type { None, Act, Slot, Number, Instrument, Mute, Key } type = None;
     Action action = Action::Cancel;
     int slot = -1;
     int number = 0;  // Type::Number: value a pad enters
     bool rest = false;  // Type::Number: the rest pad (~)
     int instrument = -1;  // Type::Instrument: slot 0..47
+    int key = -1;         // Type::Key: keyboard screen key (keyboard.h)
     std::string label;  // short, for the panel / screen soft-key bar
 };
 
@@ -62,5 +63,8 @@ bool controlFor(const Editor& ed, Action a, Ctl& c, bool& shift);
 bool press(Editor& ed, Ctl c, bool shift);
 // Release of a control that acts on release (Play: the modifier, v2).
 void release(Editor& ed, Ctl c);
+// Keyboard screen: press the pad(s) that type `c` (Caps on / off around
+// it as needed). False if no key types it.
+bool typeChar(Editor& ed, char c);
 
 }  // namespace proto

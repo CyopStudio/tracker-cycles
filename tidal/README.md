@@ -173,6 +173,8 @@ hardware can't.
 | Pads elsewhere, or Shift + pad | 1–8 (top row) select d1..d8, 13–20 (2nd row) d9..d16: dN's playing block, else its first; the same pad again cycles through dN's blocks | | `1`..`8`, Shift+`1`..`8` |
 | | next / previous slot pad | | Tab / Shift+Tab |
 | File | save | | Ctrl+S |
+| Shift + Song | `setcps` (the Tracker's tempo is on its Song screen; Master stays for the master settings): the cursor goes to its first number (the BPM in `setcps (120/60/4)`; a file without one gets `setcps (138/60/4)`, Tidal's default 0.575); jog changes it, Replace offers tempo numbers, Pattern sends it (the setcps bar turns green; amber = edited, not sent), Undo works; Shift+Song again or a slot pad goes back | | Shift+`l` |
+| Params | edit the comment line above the block on the keyboard screen (the Tracker's naming keyboard: pads are its 42 keys, arrows move the lit key, Screen 1 / Insert type it, Delete = Backspace, jog moves the text cursor, Screen 2 clears, Screen 7 cancels, Screen 8 OK; empty removes the line; only the last comment line is edited) | | `p`; then typing, Enter = OK, Esc = Cancel |
 | Config | tracker mode on/off | | `t` |
 | (none) | quit | | Ctrl+Q |
 
@@ -186,8 +188,8 @@ number (`|+ 12`); on the quotes themselves the bracket set applies, so use
 with a negative shift. Each wrap is type-checked; one that doesn't fit
 shows an error.
 
-Unused for now: Params, Perform, Master, Smp Load/Play/Edit/Rec,
-Song, Rec, pads outside the two slot rows. Purple text on a
+Unused for now: Perform, Master (kept for the master settings), Smp
+Load/Play/Edit/Rec, Rec, pads outside the two slot rows. Purple text on a
 button is its Shift function, following the labels printed on the device
 (Paste, Home, Backspace). Pads light like on the device: green playing, amber edited, red
 error; the current slot has a white frame.
@@ -208,7 +210,8 @@ stdout), and
 `play`, `insert`, `delete`, `jog+`, `jog-`, `pad1`..`pad48`, `file`,
 `config`, `copy`, `note`, `instr`, `fx1`, `fx2`, ...; see
 `proto/hardware.cpp`). New action tokens: `copy paste home notes samples
-functions controls quick1..quick4 launch`. `--panel` makes screenshots include the mock panel.
+functions controls quick1..quick4 launch cps comment kbdtype kbdok kbdcancel kbdclear`; `type:TEXT` presses the
+keyboard screen's pads for TEXT (`_` = space). `--panel` makes screenshots include the mock panel.
 `tests/proto/session3.keys` to `session9.keys` use only `hw:` tokens;
 `session10.keys` checks Tracker mode (menus per slot kind, the evaluate
 error).
@@ -266,7 +269,10 @@ error).
   `docs/host_setup.md`): boot script loads, `setcps`/`dN`/`hush` and the
   d9..d16 MIDI routing are accepted, errors show in the log (`log` key
   token prints it headless). Not yet heard: SuperDirt isn't set up.
-- No editing of `setcps` or comments in the UI yet; edit the file.
+- Comments: only the last line above a block is editable on the device
+  keyboard (its 42 keys: letters, digits, `- + @`, space); other
+  characters from a file are kept. `session19.keys` covers comments and
+  `setcps`.
 - Candidate menus are built by trial (copy program, check): fine on the
   host, needs a cheaper method on the device.
 - Node `type` is a compact code, not the spec's per-program type table.
