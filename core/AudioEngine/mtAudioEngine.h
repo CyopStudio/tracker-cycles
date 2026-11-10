@@ -138,7 +138,6 @@ class audioEngine
     void clearDelay();
     void clearReverb();
     void resetLimiter();
-    void performanceModeEndAll();
     void startTestSignal(float amp, float freq);
     void stopTestSignal();
     void endAllFx(bool synthOnly = false);
@@ -392,7 +391,6 @@ class playerEngine
     {
         sequencerMode,
         sequencerMode2,
-        performanceMode,
 
         controlTypeLength
     };
@@ -488,125 +486,12 @@ class playerEngine
 
     } currentSeqModValues;
 
-    struct strCurrentPerformanceValues
-    {
-        uint16_t startPoint;
-        uint16_t loopPoint1;
-        uint16_t loopPoint2;
-        uint16_t endPoint;
-        uint8_t reversePlayback;
-        float filterCutoff;
-        uint8_t filterType;
-        uint8_t filterEnable;
-        uint8_t delaySend;
-        uint8_t reverbSend;
-        int16_t panning;
-        int8_t tune;
-        uint8_t volume;
-        uint32_t wavetablePosition;
-        uint16_t granularPosition;
 
-        uint8_t lfoAmpEnable;
-        uint8_t lfoAmpRate;
-
-        uint8_t lfoCutoffEnable;
-        uint8_t lfoCutoffRate;
-
-        uint8_t lfoWavetablePositionEnable;
-        uint8_t lfoWavetablePositionRate;
-
-        uint8_t lfoGranularPositionEnable;
-        uint8_t lfoGranularPositionRate;
-
-        uint8_t lfoPanningEnable;
-        uint8_t lfoPanningRate;
-
-        uint8_t lfoFinetuneEnable;
-        uint8_t lfoFinetuneRate;
-
-        uint8_t bitDepth;
-        uint8_t overdrive;
-
-    } currentPerformanceValues;
-
-    struct strPerformanceMod
-    {
-        int8_t volume;
-        int8_t panning;
-        int8_t tune;
-        int8_t delaySend;
-        int8_t reverbSend;
-        int8_t cutoff;
-        int16_t wavetablePosition;
-        int16_t granularPosition;
-        uint8_t filterType;
-        int32_t startPoint;
-        int32_t endPoint;
-        uint8_t reversePlayback;
-        int8_t lfoAmpRate;
-        int8_t lfoCutoffRate;
-        int8_t lfoPositionRate;
-        int8_t lfoPanningRate;
-        int8_t lfoFinetuneRate;
-
-        int8_t bitDepth;
-        int8_t overdrive;
-    } performanceMod;
 
     float currentEnvelopeModification[envMax];
 
     uint8_t trackControlParameter[(int)controlType::controlTypeLength]
                                  [(int)parameterList::parameterListLength];
-    //**********************************************************************************************************************************
-    // PERFORMANCE MODE
-    //*****************************CHANGE
-    void changeVolumePerformanceMode(int8_t value);
-    void changePanningPerformanceMode(int8_t value);
-    void changeBitDepthPerformanceMode(int8_t value);
-    void changeOverdrivePerformanceMode(int8_t value);
-    void changeTunePerformanceMode(int8_t value);
-    void changeDelaySendPerformanceMode(int8_t value);
-    void changeReverbSendPerformanceMode(int8_t value);
-    void changeStartPointPerformanceMode(int32_t value);
-    void changeEndPointPerformanceMode(int32_t value);
-    void changeCutoffPerformanceMode(int8_t value);
-    void changeFilterTypePerformanceMode(uint8_t mode);
-    void changeSamplePlaybackPerformanceMode(uint8_t value);
-    void changeWavetableWindowPerformanceMode(int16_t value);
-    void changeGranularPositionPerformanceMode(int16_t value);
-
-    void changePositionPerformanceMode(int16_t value);
-
-    void changeAmpLfoRatePerformanceMode(int8_t value);
-    void changeCutoffLfoRatePerformanceMode(int8_t value);
-    void changePositionLfoRatePerformanceMode(int8_t value);
-    void changePanningLfoRatePerformanceMode(int8_t value);
-    void changeFinetuneLfoRatePerformanceMode(int8_t value);
-
-    //*****************************END
-    void endVolumePerformanceMode();
-    void endPanningPerformanceMode();
-    void endBitDepthPerformanceMode();
-    void endOverdrivePerformanceMode();
-    void endTunePerformanceMode();
-    void endDelaySendPerformanceMode();
-    void endReverbSendPerformanceMode();
-    void endStartPointPerformanceMode();
-    void endCutoffPerformanceMode();
-    void endFilterTypePerformanceMode();
-    void endSamplePlaybackPerformanceMode();
-    void endEndPointPerformanceMode();
-    void endWavetableWindowPerformanceMode();
-    void endGranularPositionPerformanceMode();
-
-    void endPositionPerformanceMode();
-
-    void endAmpLfoRatePerformanceMode();
-    void endCutoffLfoRatePerformanceMode();
-    void endPositionLfoRatePerformanceMode();
-    void endPanningLfoRatePerformanceMode();
-    void endFinetuneLfoRatePerformanceMode();
-
     void setPassEnvelope(uint8_t state);
     float getRMSValue();
     AudioVoice* getAudioVoice();
@@ -861,8 +746,6 @@ class playerEngine
     void filterConnect();
     void filterDisconnect();
 
-    void changePointsPerformanceMode(int32_t spValue, int32_t epValue);
-    void endPointsPerformanceMode();
 
     void calcLfoBasedEnvelope(envelopeGenerator::strEnv* env,
                               strInstrument::strEnvBasedLfo* lfo,

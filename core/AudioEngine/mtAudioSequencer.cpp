@@ -911,11 +911,6 @@ void playerEngine::fxCutoffLFO(uint8_t fx_val, uint8_t fx_n)
         }
     }
 
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::lfoCutoff])
-    {
-        changeCutoffLfoRatePerformanceMode(performanceMod.lfoCutoffRate);
-    }
-    else
     {
         uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[envCutoff].loop;
         uint8_t targetLoop = (curLoop == 3) ? 3 : 1;
@@ -979,12 +974,6 @@ void playerEngine::fxPositionGranularLFO(uint8_t fx_val, uint8_t fx_n)
         }
     }
 
-    if (trackControlParameter[(int)controlType::performanceMode]
-                             [(int)parameterList::lfoGranularPosition])
-    {
-        changePositionLfoRatePerformanceMode(performanceMod.lfoPositionRate);
-    }
-    else
     {
         uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[envGranPos].loop;
         uint8_t targetLoop = (curLoop == 3) ? 3 : 1;
@@ -1029,12 +1018,6 @@ void playerEngine::fxPositionWavetableLFO(uint8_t fx_val, uint8_t fx_n)
         }
     }
 
-    if (trackControlParameter[(int)controlType::performanceMode]
-                             [(int)parameterList::lfoWavetablePosition])
-    {
-        changePositionLfoRatePerformanceMode(performanceMod.lfoPositionRate);
-    }
-    else
     {
         uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[envWtPos].loop;
         uint8_t targetLoop = (curLoop == 3) ? 3 : 1;
@@ -1079,11 +1062,6 @@ void playerEngine::fxPanningLFO(uint8_t fx_val, uint8_t fx_n)
         }
     }
 
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::lfoPanning])
-    {
-        changePanningLfoRatePerformanceMode(performanceMod.lfoPanningRate);
-    }
-    else
     {
         uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[envPan].loop;
         uint8_t targetLoop = (curLoop == 3) ? 3 : 1;
@@ -1127,11 +1105,6 @@ void playerEngine::fxFinetuneLFO(uint8_t fx_val, uint8_t fx_n)
         }
     }
 
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::lfoFinetune])
-    {
-        changeFinetuneLfoRatePerformanceMode(performanceMod.lfoFinetuneRate);
-    }
-    else
     {
         uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[envFinetune].loop;
         uint8_t targetLoop = (curLoop == 3) ? 3 : 1;
@@ -1740,21 +1713,6 @@ void playerEngine::endFxCutoffLFO(uint8_t fx_n)
     trackControlParameter[(int)controlType::sequencerMode + fx_n][(int)parameterList::lfoCutoff] =
       0;
 
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::lfoCutoff])
-    {
-        if (fx_n == MOST_SIGNIFICANT_FX)
-        {
-            if (trackControlParameter[(int)controlType::sequencerMode + otherFx_n]
-                                     [(int)parameterList::lfoCutoff])
-            {
-                currentSeqModValues.lfoCutoffRate = lastSeqVal[otherFx_n];
-                currentSeqModValues.lfoCutoffEnable = 1;
-
-                changeCutoffLfoRatePerformanceMode(performanceMod.lfoCutoffRate);
-            }
-        }
-    }
-    else
     {
         uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[envCutoff].loop;
         if (trackControlParameter[(int)controlType::sequencerMode + otherFx_n]
@@ -1820,22 +1778,6 @@ void playerEngine::endFxPositionGranularLFO(uint8_t fx_n)
     trackControlParameter[(int)controlType::sequencerMode + fx_n]
                          [(int)parameterList::lfoGranularPosition] = 0;
 
-    if (trackControlParameter[(int)controlType::performanceMode]
-                             [(int)parameterList::lfoGranularPosition])
-    {
-        if (fx_n == MOST_SIGNIFICANT_FX)
-        {
-            if (trackControlParameter[(int)controlType::sequencerMode + otherFx_n]
-                                     [(int)parameterList::lfoGranularPosition])
-            {
-                currentSeqModValues.lfoGranularPositionRate = lastSeqVal[otherFx_n];
-                currentSeqModValues.lfoGranularPositionEnable = 1;
-
-                changePositionLfoRatePerformanceMode(performanceMod.lfoPositionRate);
-            }
-        }
-    }
-    else
     {
         uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[envGranPos].loop;
         if (trackControlParameter[(int)controlType::sequencerMode + otherFx_n]
@@ -1888,22 +1830,6 @@ void playerEngine::endFxPositionWavetableLFO(uint8_t fx_n)
     trackControlParameter[(int)controlType::sequencerMode + fx_n]
                          [(int)parameterList::lfoWavetablePosition] = 0;
 
-    if (trackControlParameter[(int)controlType::performanceMode]
-                             [(int)parameterList::lfoWavetablePosition])
-    {
-        if (fx_n == MOST_SIGNIFICANT_FX)
-        {
-            if (trackControlParameter[(int)controlType::sequencerMode + otherFx_n]
-                                     [(int)parameterList::lfoWavetablePosition])
-            {
-                currentSeqModValues.lfoWavetablePositionRate = lastSeqVal[otherFx_n];
-                currentSeqModValues.lfoWavetablePositionEnable = 1;
-
-                changePositionLfoRatePerformanceMode(performanceMod.lfoPositionRate);
-            }
-        }
-    }
-    else
     {
         uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[envWtPos].loop;
         if (trackControlParameter[(int)controlType::sequencerMode + otherFx_n]
@@ -1956,20 +1882,6 @@ void playerEngine::endFxPanningLFO(uint8_t fx_n)
     trackControlParameter[(int)controlType::sequencerMode + fx_n][(int)parameterList::lfoPanning] =
       0;
 
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::lfoPanning])
-    {
-        if (fx_n == MOST_SIGNIFICANT_FX)
-        {
-            if (trackControlParameter[(int)controlType::sequencerMode + otherFx_n]
-                                     [(int)parameterList::lfoPanning])
-            {
-                currentSeqModValues.lfoPanningRate = lastSeqVal[otherFx_n];
-                currentSeqModValues.lfoPanningEnable = 1;
-            }
-        }
-        changePanningLfoRatePerformanceMode(performanceMod.lfoPanningRate);
-    }
-    else
     {
         uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[envPan].loop;
         if (trackControlParameter[(int)controlType::sequencerMode + otherFx_n]
@@ -2022,20 +1934,6 @@ void playerEngine::endFxFinetuneLFO(uint8_t fx_n)
     trackControlParameter[(int)controlType::sequencerMode + fx_n][(int)parameterList::lfoFinetune] =
       0;
 
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::lfoFinetune])
-    {
-        if (fx_n == MOST_SIGNIFICANT_FX)
-        {
-            if (trackControlParameter[(int)controlType::sequencerMode + otherFx_n]
-                                     [(int)parameterList::lfoFinetune])
-            {
-                currentSeqModValues.lfoFinetuneRate = lastSeqVal[otherFx_n];
-                currentSeqModValues.lfoFinetuneEnable = 1;
-            }
-        }
-        changeFinetuneLfoRatePerformanceMode(performanceMod.lfoFinetuneRate);
-    }
-    else
     {
         uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[envFinetune].loop;
         if (trackControlParameter[(int)controlType::sequencerMode + otherFx_n]
@@ -2094,8 +1992,7 @@ float playerEngine::getMostSignificantAmount()
     float localAmount = 0.0f;
 
     if (trackControlParameter[(int)controlType::sequencerMode][(int)parameterList::lfoAmp] ||
-        trackControlParameter[(int)controlType::sequencerMode2][(int)parameterList::lfoAmp] ||
-        trackControlParameter[(int)controlType::performanceMode][(int)parameterList::lfoAmp])
+        trackControlParameter[(int)controlType::sequencerMode2][(int)parameterList::lfoAmp])
     {
         localAmount = mtProject.instrument[currentInstrument_idx].lfo[envAmp].amount;
     }
@@ -2153,12 +2050,6 @@ uint8_t playerEngine::getMostSignificantVolume()
             localVol = mtProject.instrument[currentInstrument_idx].volume;
         }
 
-        if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::volume])
-        {
-            localVol = (uint8_t)clamp<int>((int)localVol + (int)performanceMod.volume,
-                                           (int)MIN_INSTRUMENT_VOLUME,
-                                           (int)MAX_INSTRUMENT_VOLUME);
-        }
     }
 
     return localVol;
@@ -2211,7 +2102,6 @@ AUDIO_CORE_RAM bool playerEngine::isActiveEnvelope(uint8_t type)
 {
     return (
       (mtProject.instrument[currentInstrument_idx].envelope[type].enable) ||
-      (trackControlParameter[(int)controlType::performanceMode][envelopesControlValue[type]]) ||
       (trackControlParameter[(int)controlType::sequencerMode][envelopesControlValue[type]]) ||
       (trackControlParameter[(int)controlType::sequencerMode2][envelopesControlValue[type]]));
 }
@@ -2226,31 +2116,13 @@ void playerEngine::setSyncParamsLFO(uint8_t type)
     {
         uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[type].loop;
         if ((curLoop == 1 || curLoop == 3) ||
-            (trackControlParameter[(int)controlType::performanceMode]
-                                  [envelopesControlValue[type]]) ||
             (trackControlParameter[(int)controlType::sequencerMode][envelopesControlValue[type]]) ||
             (trackControlParameter[(int)controlType::sequencerMode2][envelopesControlValue[type]]))
         {
 
             uint8_t localRate = mtProject.instrument[currentInstrument_idx].lfo[type].speed;
 
-            if (trackControlParameter[(int)controlType::performanceMode]
-                                     [envelopesControlValue[type]])
-            {
-                switch (type)
-                {
-                    case envCutoff: localRate = currentPerformanceValues.lfoCutoffRate; break;
-                    case envGranPos:
-                        localRate = currentPerformanceValues.lfoGranularPositionRate;
-                        break;
-                    case envPan: localRate = currentPerformanceValues.lfoPanningRate; break;
-                    case envWtPos:
-                        localRate = currentPerformanceValues.lfoWavetablePositionRate;
-                        break;
-                    case envFinetune: localRate = currentPerformanceValues.lfoFinetuneRate; break;
-                }
-            }
-            else if ((trackControlParameter[(int)controlType::sequencerMode]
+            if ((trackControlParameter[(int)controlType::sequencerMode]
                                            [envelopesControlValue[type]]) ||
                      (trackControlParameter[(int)controlType::sequencerMode2]
                                            [envelopesControlValue[type]]))
@@ -2306,18 +2178,13 @@ void playerEngine::setSyncParamsAmpLFO()
 {
     uint8_t curAmpLoop = mtProject.instrument[currentInstrument_idx].envelope[envAmp].loop;
     if ((curAmpLoop == 1 || curAmpLoop == 3) ||
-        (trackControlParameter[(int)controlType::performanceMode][envAmp]) ||
         (trackControlParameter[(int)controlType::sequencerMode][envAmp]) ||
         (trackControlParameter[(int)controlType::sequencerMode2][envAmp]))
     {
 
         uint8_t localRate = mtProject.instrument[currentInstrument_idx].lfo[envAmp].speed;
 
-        if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::lfoAmp])
-        {
-            localRate = currentPerformanceValues.lfoAmpRate;
-        }
-        else if ((trackControlParameter[(int)controlType::sequencerMode]
+        if ((trackControlParameter[(int)controlType::sequencerMode]
                                        [(int)parameterList::lfoAmp]) ||
                  (trackControlParameter[(int)controlType::sequencerMode2]
                                        [(int)parameterList::lfoAmp]))
@@ -2369,22 +2236,12 @@ void playerEngine::setSyncParamsAmpLFO()
 // BIT DEPTH
 void playerEngine::setFxBitDepth()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::bitDepth])
-    {
-        changeBitDepthPerformanceMode(performanceMod.bitDepth);
-    }
-    else
     {
         modBitDepth(currentSeqModValues.bitDepth);
     }
 }
 void playerEngine::clearFxBitDepth()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::bitDepth])
-    {
-        changeBitDepthPerformanceMode(performanceMod.bitDepth);
-    }
-    else
     {
         modBitDepth(mtProject.instrument[currentInstrument_idx].bitDepth);
     }
@@ -2428,12 +2285,6 @@ void playerEngine::clearFxGlide()
 // REVERSE
 void playerEngine::setFxReverse()
 {
-    if (trackControlParameter[(int)controlType::performanceMode]
-                             [(int)parameterList::samplePlaybeckDirection])
-    {
-        changeSamplePlaybackPerformanceMode(performanceMod.reversePlayback);
-    }
-    else
     {
         for (int channel = 0; channel < (int)playMemPtr.size(); channel++)
         {
@@ -2450,12 +2301,6 @@ void playerEngine::setFxReverse()
 }
 void playerEngine::clearFxReverse()
 {
-    if (trackControlParameter[(int)controlType::performanceMode]
-                             [(int)parameterList::samplePlaybeckDirection])
-    {
-        changeSamplePlaybackPerformanceMode(performanceMod.reversePlayback);
-    }
-    else
     {
         for (int channel = 0; channel < (int)playMemPtr.size(); channel++)
         {
@@ -2466,12 +2311,6 @@ void playerEngine::clearFxReverse()
 // POSITION GRANULAR
 void playerEngine::setFxPositionGranular()
 {
-    if (trackControlParameter[(int)controlType::performanceMode]
-                             [(int)parameterList::granularPosition])
-    {
-        changeGranularPositionPerformanceMode(performanceMod.granularPosition);
-    }
-    else
     {
         for (int channel = 0; channel < (int)playMemPtr.size(); channel++)
         {
@@ -2483,12 +2322,6 @@ void playerEngine::setFxPositionGranular()
 }
 void playerEngine::clearFxPositionGranular()
 {
-    if (trackControlParameter[(int)controlType::performanceMode]
-                             [(int)parameterList::granularPosition])
-    {
-        changeWavetableWindowPerformanceMode(performanceMod.granularPosition);
-    }
-    else
     {
         uint32_t localGranPos =
           mtProject.instrument[currentInstrument_idx].granular.currentPosition;
@@ -2548,12 +2381,6 @@ void playerEngine::clearFxGranularLength()
 // POSITION WAVETABLE
 void playerEngine::setFxPositionWavetable()
 {
-    if (trackControlParameter[(int)controlType::performanceMode]
-                             [(int)parameterList::wavetablePosition])
-    {
-        changeWavetableWindowPerformanceMode(performanceMod.wavetablePosition);
-    }
-    else
     {
         for (int channel = 0; channel < (int)playMemPtr.size(); channel++)
         {
@@ -2565,12 +2392,6 @@ void playerEngine::setFxPositionWavetable()
 }
 void playerEngine::clearFxPositionWavetable()
 {
-    if (trackControlParameter[(int)controlType::performanceMode]
-                             [(int)parameterList::wavetablePosition])
-    {
-        changeWavetableWindowPerformanceMode(performanceMod.wavetablePosition);
-    }
-    else
     {
         uint32_t localWtPos = mtProject.instrument[currentInstrument_idx].wavetableCurrentWindow;
         int32_t localWtMod =
@@ -2596,11 +2417,6 @@ void playerEngine::clearFxPositionWavetable()
 // TUNE
 void playerEngine::setFxTune()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::tune])
-    {
-        changeTunePerformanceMode(performanceMod.tune);
-    }
-    else
     {
         for (int channel = 0; channel < (int)playMemPtr.size(); channel++)
         {
@@ -2612,11 +2428,6 @@ void playerEngine::setFxTune()
 }
 void playerEngine::clearFxTune()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::tune])
-    {
-        changeTunePerformanceMode(performanceMod.tune);
-    }
-    else
     {
         for (int channel = 0; channel < (int)playMemPtr.size(); channel++)
         {
@@ -2629,11 +2440,6 @@ void playerEngine::clearFxTune()
 // START POINT
 void playerEngine::setFxStartPoint(uint8_t fx_n)
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::startPoint])
-    {
-        changeStartPointPerformanceMode(performanceMod.startPoint);
-    }
-    else
     {
         //		if(trackControlParameter[(int)controlType::sequencerMode +
         // otherFx_n][(int)parameterList::endPoint]) modSeqPoints(currentSeqModValues.startPoint,
@@ -2644,11 +2450,6 @@ void playerEngine::setFxStartPoint(uint8_t fx_n)
 }
 void playerEngine::clearFxStartPoint()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::startPoint])
-    {
-        changeStartPointPerformanceMode(performanceMod.startPoint);
-    }
-    else
     {
         for (int channel = 0; channel < (int)playMemPtr.size(); channel++)
         {
@@ -2682,22 +2483,12 @@ void playerEngine::clearFxSlice()
 // OVERDRIVE
 void playerEngine::setFxOverdrive()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::overdrive])
-    {
-        changeOverdrivePerformanceMode(performanceMod.overdrive);
-    }
-    else
     {
         modOverdrive(currentSeqModValues.overdrive);
     }
 }
 void playerEngine::clearFxOverdrive()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::overdrive])
-    {
-        changeOverdrivePerformanceMode(performanceMod.overdrive);
-    }
-    else
     {
         modOverdrive(mtProject.instrument[currentInstrument_idx].overdrive);
     }
@@ -2705,11 +2496,6 @@ void playerEngine::clearFxOverdrive()
 // FILTER
 void playerEngine::setFxCutoff()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::filterCutoff])
-    {
-        changeCutoffPerformanceMode(performanceMod.cutoff);
-    }
-    else
     {
         if (!isActiveEnvelope(envCutoff))
             modCutoff(currentSeqModValues.filterCutoff);
@@ -2718,11 +2504,6 @@ void playerEngine::setFxCutoff()
 }
 void playerEngine::clearFxCutoff()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::filterCutoff])
-    {
-        changeCutoffPerformanceMode(performanceMod.cutoff);
-    }
-    else
     {
         float localCutoff = mtProject.instrument[currentInstrument_idx].cutOff;
 
@@ -2748,22 +2529,12 @@ void playerEngine::clearFxCutoff()
 
 void playerEngine::setFxFilterType()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::filterType])
-    {
-        changeFilterTypePerformanceMode(performanceMod.filterType);
-    }
-    else
     {
         changeFilterType(currentSeqModValues.filterType);
     }
 }
 void playerEngine::clearFxFilterType()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::filterType])
-    {
-        changeFilterTypePerformanceMode(performanceMod.filterType);
-    }
-    else
     {
         changeFilterType(mtProject.instrument[currentInstrument_idx].filterType);
     }
@@ -2771,11 +2542,6 @@ void playerEngine::clearFxFilterType()
 
 void playerEngine::setFxAmpRateLFO()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::lfoAmp])
-    {
-        changeAmpLfoRatePerformanceMode(performanceMod.lfoAmpRate);
-    }
-    else
     {
         uint8_t curAmpLoop = mtProject.instrument[currentInstrument_idx].envelope[envAmp].loop;
         uint8_t targetLoop = (curAmpLoop == 3) ? 3 : 1;
@@ -2790,11 +2556,6 @@ void playerEngine::setFxAmpRateLFO()
 
 void playerEngine::clearFxAmpRateLFO()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::lfoAmp])
-    {
-        changeAmpLfoRatePerformanceMode(performanceMod.lfoAmpRate);
-    }
-    else
     {
         if (mtProject.instrument[currentInstrument_idx].envelope[envAmp].enable)
         {

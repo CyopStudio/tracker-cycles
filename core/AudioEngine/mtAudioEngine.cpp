@@ -707,31 +707,6 @@ AUDIO_CORE_RAM void audioEngine::endAllFx(bool synthOnly)
 #endif
 }
 
-void audioEngine::performanceModeEndAll()
-{
-    for (uint8_t i = 0; i < 8; i++)
-    {
-        instrumentPlayer[i].endCutoffPerformanceMode();
-        instrumentPlayer[i].endEndPointPerformanceMode();
-        instrumentPlayer[i].endFilterTypePerformanceMode();
-        instrumentPlayer[i].endGranularPositionPerformanceMode();
-        instrumentPlayer[i].endPanningPerformanceMode();
-        instrumentPlayer[i].endDelaySendPerformanceMode();
-        instrumentPlayer[i].endReverbSendPerformanceMode();
-        instrumentPlayer[i].endSamplePlaybackPerformanceMode();
-        instrumentPlayer[i].endStartPointPerformanceMode();
-        instrumentPlayer[i].endTunePerformanceMode();
-        instrumentPlayer[i].endVolumePerformanceMode();
-        instrumentPlayer[i].endWavetableWindowPerformanceMode();
-        instrumentPlayer[i].endAmpLfoRatePerformanceMode();
-        instrumentPlayer[i].endCutoffLfoRatePerformanceMode();
-        instrumentPlayer[i].endPositionLfoRatePerformanceMode();
-        instrumentPlayer[i].endPanningLfoRatePerformanceMode();
-        instrumentPlayer[i].endFinetuneLfoRatePerformanceMode();
-        instrumentPlayer[i].endBitDepthPerformanceMode();
-        instrumentPlayer[i].endOverdrivePerformanceMode();
-    }
-}
 
 #ifdef PLATFORM_IMX
 void audioEngine::refreshOutputSourceOutsideTheRecorder()

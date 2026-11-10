@@ -109,30 +109,6 @@ AUDIO_CORE_RAM uint8_t playerEngine ::noteOn(uint8_t instr_idx,
 
     handleFxNoteOnReverbSend();
 
-    //********* obsluga performance parametrow obslugiwanych w play_memory
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::endPoint])
-    {
-        changeEndPointPerformanceMode(
-          std::roundf(mapClamped<float>((float)performanceMod.endPoint,
-                                        (float)-MAX_16BIT,
-                                        (float)MAX_16BIT,
-                                        -100.0f,
-                                        100.0f))); // zalatanie na szybko
-    }
-    if (trackControlParameter[(int)controlType::performanceMode][(
-          int)parameterList::startPoint]) // tu nie ma mapowania bo posredniczy change position
-    {
-        changeStartPointPerformanceMode(performanceMod.startPoint);
-    }
-    if (trackControlParameter[(int)controlType::performanceMode]
-                             [(int)parameterList::wavetablePosition])
-    {
-        changeWavetableWindowPerformanceMode(performanceMod.wavetablePosition);
-    }
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::tune])
-    {
-        changeTunePerformanceMode(performanceMod.tune);
-    }
     //******** seqFx
     if (velocity >= 0)
     {
@@ -255,8 +231,7 @@ AUDIO_CORE_RAM void playerEngine::noteOffFade()
         uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[i].loop;
         if ((curLoop == 0 || curLoop == 2) &&
             (!trackControlParameter[(int)controlType::sequencerMode][i]) &&
-            (!trackControlParameter[(int)controlType::sequencerMode2][i]) &&
-            (!trackControlParameter[(int)controlType::performanceMode][i]))
+            (!trackControlParameter[(int)controlType::sequencerMode2][i]))
         {
             envelopePtr[i]->stop();
         }
@@ -306,8 +281,7 @@ AUDIO_CORE_RAM void playerEngine::noteOffOrdinary()
     uint8_t curAmpLoop = mtProject.instrument[currentInstrument_idx].envelope[envAmp].loop;
     if ((curAmpLoop == 1 || curAmpLoop == 3) ||
         (trackControlParameter[(int)controlType::sequencerMode][(int)parameterList::lfoAmp]) ||
-        (trackControlParameter[(int)controlType::sequencerMode2][(int)parameterList::lfoAmp]) ||
-        (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::lfoAmp]))
+        (trackControlParameter[(int)controlType::sequencerMode2][(int)parameterList::lfoAmp]))
     {
         // amp loop nie ma release wiec wszystko zabijamy od razu
         for (uint8_t i = envPan; i < ACTIVE_ENVELOPES; i++)
@@ -324,8 +298,7 @@ AUDIO_CORE_RAM void playerEngine::noteOffOrdinary()
             uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[i].loop;
             if ((curLoop == 0 || curLoop == 2) &&
                 (!trackControlParameter[(int)controlType::sequencerMode][i]) &&
-                (!trackControlParameter[(int)controlType::sequencerMode2][i]) &&
-                (!trackControlParameter[(int)controlType::performanceMode][i]))
+                (!trackControlParameter[(int)controlType::sequencerMode2][i]))
             {
                 envelopePtr[i]->stop();
             }
@@ -345,8 +318,6 @@ AUDIO_CORE_RAM void playerEngine::noteOffOrdinary()
                 (trackControlParameter[(int)controlType::sequencerMode]
                                       [envelopesControlValue[i]]) ||
                 (trackControlParameter[(int)controlType::sequencerMode2]
-                                      [envelopesControlValue[i]]) ||
-                (trackControlParameter[(int)controlType::performanceMode]
                                       [envelopesControlValue[i]]))
             {
                 currentEnvelopeModification[i] = 0;
@@ -371,8 +342,6 @@ AUDIO_CORE_RAM void playerEngine::noteOffOrdinary()
                     (trackControlParameter[(int)controlType::sequencerMode]
                                           [envelopesControlValue[i]]) ||
                     (trackControlParameter[(int)controlType::sequencerMode2]
-                                          [envelopesControlValue[i]]) ||
-                    (trackControlParameter[(int)controlType::performanceMode]
                                           [envelopesControlValue[i]]))
                 {
                     currentEnvelopeModification[i] = 0;
@@ -585,8 +554,7 @@ void playerEngine::handleInitFxNoteOnEnvelope(uint8_t n)
     else
     {
         if ((!trackControlParameter[(int)controlType::sequencerMode][envelopesControlValue[n]]) &&
-            (!trackControlParameter[(int)controlType::sequencerMode2][envelopesControlValue[n]]) &&
-            (!trackControlParameter[(int)controlType::performanceMode][envelopesControlValue[n]]))
+            (!trackControlParameter[(int)controlType::sequencerMode2][envelopesControlValue[n]]))
         {
             handleInitNoteOnEnvelope(n);
         }
@@ -613,27 +581,6 @@ void playerEngine::handleInitFxNoteOnEnvelope(uint8_t n)
             uint8_t curLoop = mtProject.instrument[currentInstrument_idx].envelope[n].loop;
             if (curLoop == 1 || curLoop == 3)
             {
-                if (trackControlParameter[(int)controlType::performanceMode][n])
-                {
-                    switch (n)
-                    {
-                        case envCutoff:
-                            changeCutoffLfoRatePerformanceMode(performanceMod.lfoCutoffRate);
-                            break;
-                        case envGranPos:
-                            changePositionLfoRatePerformanceMode(performanceMod.lfoPositionRate);
-                            break;
-                        case envWtPos:
-                            changePositionLfoRatePerformanceMode(performanceMod.lfoPositionRate);
-                            break;
-                        case envPan:
-                            changePositionLfoRatePerformanceMode(performanceMod.lfoPanningRate);
-                            break;
-                        case envFinetune:
-                            changePositionLfoRatePerformanceMode(performanceMod.lfoFinetuneRate);
-                            break;
-                    }
-                }
             }
         }
     }
@@ -641,8 +588,7 @@ void playerEngine::handleInitFxNoteOnEnvelope(uint8_t n)
 void playerEngine::handleInitFxNoteOnAmpEnvelope()
 {
     if ((!trackControlParameter[(int)controlType::sequencerMode][(int)parameterList::lfoAmp]) &&
-        (!trackControlParameter[(int)controlType::sequencerMode2][(int)parameterList::lfoAmp]) &&
-        (!trackControlParameter[(int)controlType::performanceMode][(int)parameterList::lfoAmp]))
+        (!trackControlParameter[(int)controlType::sequencerMode2][(int)parameterList::lfoAmp]))
     {
         handleInitNoteOnAmpEnvelope();
     }
@@ -663,11 +609,6 @@ void playerEngine::handleInitFxNoteOnAmpEnvelope()
         uint8_t curAmpLoop = mtProject.instrument[currentInstrument_idx].envelope[envAmp].loop;
         if (curAmpLoop == 1 || curAmpLoop == 3)
         {
-            if (trackControlParameter[(int)controlType::performanceMode]
-                                     [(int)parameterList::lfoAmp])
-            {
-                changeCutoffLfoRatePerformanceMode(performanceMod.lfoAmpRate);
-            }
         }
     }
 }
@@ -714,11 +655,7 @@ AUDIO_CORE_RAM void playerEngine::handleFxNoteOnFilter()
     //*****
     //***** cutoff + enable
 
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::filterCutoff])
-    {
-        changeCutoffPerformanceMode(performanceMod.cutoff); // włączenie filtra jest w środku
-    }
-    else if ((trackControlParameter[(int)controlType::sequencerMode]
+    if ((trackControlParameter[(int)controlType::sequencerMode]
                                    [(int)parameterList::filterCutoff]) ||
              (trackControlParameter[(int)controlType::sequencerMode2]
                                    [(int)parameterList::filterCutoff]))
@@ -740,11 +677,7 @@ AUDIO_CORE_RAM void playerEngine::handleFxNoteOnFilter()
     }
     //*****
     //***** filter type
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::filterType])
-    {
-        changeFilterTypePerformanceMode(performanceMod.filterType);
-    }
-    else if ((trackControlParameter[(int)controlType::sequencerMode]
+    if ((trackControlParameter[(int)controlType::sequencerMode]
                                    [(int)parameterList::filterType]) ||
              (trackControlParameter[(int)controlType::sequencerMode2]
                                    [(int)parameterList::filterType]))
@@ -760,11 +693,7 @@ AUDIO_CORE_RAM void playerEngine::handleFxNoteOnFilter()
     }
     //*****
 
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::overdrive])
-    {
-        changeOverdrivePerformanceMode(performanceMod.overdrive);
-    }
-    else if ((trackControlParameter[(int)controlType::sequencerMode]
+    if ((trackControlParameter[(int)controlType::sequencerMode]
                                    [(int)parameterList::overdrive]) ||
              (trackControlParameter[(int)controlType::sequencerMode2]
                                    [(int)parameterList::overdrive]))
@@ -789,11 +718,7 @@ AUDIO_CORE_RAM void playerEngine::handleFxNoteOnPanning()
 
 AUDIO_CORE_RAM void playerEngine::handleFxNoteOnBitDepth()
 {
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::bitDepth])
-    {
-        changeBitDepthPerformanceMode(performanceMod.bitDepth);
-    }
-    else if ((trackControlParameter[(int)controlType::sequencerMode]
+    if ((trackControlParameter[(int)controlType::sequencerMode]
                                    [(int)parameterList::bitDepth]) ||
              (trackControlParameter[(int)controlType::sequencerMode2]
                                    [(int)parameterList::bitDepth]))

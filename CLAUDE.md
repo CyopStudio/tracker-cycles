@@ -298,9 +298,12 @@ folders listed in the project (e.g. a manifest) on project load.
      in still drives the mixer and instrument params. The factory test's
      input loopback no longer records. Stock flash 857,684 -> 690,784 B
      (internal RAM 161,948 -> 149,192 B); Tidal tick build 799,248 B
-     (76 %; was 1,013,588 B = 96.7 % before the strip). Still to remove:
-     the player engine's performance-mode code (mtAudioPerformanceMode.cpp
-     and its checks; nothing sets it now).
+     (76 %; was 1,013,588 B = 96.7 % before the strip). The player
+     engine's performance-mode code went after stage 3 (2026-11-10):
+     mtAudioPerformanceMode.cpp, the controlType::performanceMode row of
+     trackControlParameter, performanceMod / currentPerformanceValues and
+     every branch on them (.tc_tools/rmperf.py, reviewed by hand); flash
+     -4.8 KB, RAM -0.8 KB.
      Device (2026-11-10): user: Strip2 "worked as expected". Tick v13 on
      the stripped firmware (docs/tidal_tick.txt): every set 2-3 points
      less audio load than v12 (silence 7 -> 5 %: the step sequencer's

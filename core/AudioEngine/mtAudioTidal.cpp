@@ -5,7 +5,7 @@
 // tidal/core/mapping.*) instead of two 8-bit step FX. They use the
 // player's own step-FX state (lane 0: trackControlParameter[sequencerMode]
 // flags + currentSeqModValues) and setters, so update()'s refresh,
-// envelopes, LFOs and performance mode treat them like step FX. Every note
+// envelopes and LFOs treat them like step FX. Every note
 // starts from the instrument: overrides the previous Tidal note set and
 // this one doesn't have are ended with the stock endFx*() calls.
 //
@@ -124,23 +124,6 @@ AUDIO_CORE_RAM uint8_t playerEngine::tidalNoteOn(uint8_t player,
     handleFxNoteOnDelaySend();
     handleFxNoteOnReverbSend();
 
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::endPoint])
-    {
-        changeEndPointPerformanceMode(std::roundf(mapClamped<float>(
-          (float)performanceMod.endPoint, (float)-MAX_16BIT, (float)MAX_16BIT, -100.0f, 100.0f)));
-    }
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::startPoint])
-    {
-        changeStartPointPerformanceMode(performanceMod.startPoint);
-    }
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::wavetablePosition])
-    {
-        changeWavetableWindowPerformanceMode(performanceMod.wavetablePosition);
-    }
-    if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::tune])
-    {
-        changeTunePerformanceMode(performanceMod.tune);
-    }
 
     // end what the previous Tidal note set and this one doesn't
     // player-level overrides: also what this player's own last note set
