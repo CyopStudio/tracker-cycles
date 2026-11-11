@@ -83,6 +83,7 @@ enum class Action {
     SilenceSlot,                       // Shift+Pattern: the current dN stops (its code stays)
     MenuFolders,                       // Sample Loader: Tidal sample folders (/Tidal/) to load
     BlockUp, BlockDown,                // Shift+Up / Down: the previous / next block (its top)
+    LineBreak,                         // Shift+Screen 5: a line break before the argument / operator (toggle)
 };
 const char* actionName(Action a);
 bool actionFromName(const char* s, Action& out);
@@ -286,6 +287,7 @@ private:
     int padAgain_ = -1;     // the slot pad pressed last, if nothing else came after it
     void blockStep(int dir);
     void duplicateBlock();
+    void toggleBreak();
     Text joinSteps(uint16_t seq, int pos, int n, const char* sep) const;
     void actOne(Action a);  // blocks with no code once no menu needs them (Cancel, Undo)
     void doCopy();

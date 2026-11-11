@@ -303,7 +303,8 @@ static void testFiles() {
         "-- kick\n"
         "d1 $ s \"bd*4\"\n"
         "\n"
-        "d2 $ every 2 (fast 2) $ s \"hh*8\"\n"
+        "d2 $ every 2 (fast 2)\n"  // the line break is kept (kBreakOp on the $)
+        "    $ s \"hh*8\"\n"
         "\n"
         "d3 silence\n"
         "\n"
@@ -311,6 +312,20 @@ static void testFiles() {
     EXPECT(strcmp(out, want) == 0, "file render:\n%s---\nwant:\n%s", out, want);
     Error ce;
     EXPECT(checkProgram(gProg, ce), "file type check: %s", ce.msg);
+    {  // line breaks: kept by the parser, written by file(), not by statements
+        const char* b = "d1 $ every 4 (fast 2)\n    $ s \"bd*2\"\n    # gain 1 # pan sine\n\nd2 $ fast 2\n    (s \"hh\")\n";
+        Program bp;
+        Error be;
+        EXPECT(parseFile(bp, b, (int)strlen(b), be), "breaks parse: %s", be.msg);
+        char bo[512];
+        Renderer rb(bo, sizeof bo);
+        rb.file(bp);
+        EXPECT(strcmp(bo, b) == 0, "breaks round trip:\n%s---\nwant:\n%s", bo, b);
+        char so[256];
+        Renderer rs(so, sizeof so);
+        rs.blockNode(bp, bp.block[0]);
+        EXPECT(!strchr(so, '\n') && strstr(so, "(fast 2) $ s"), "statement on one line: %s", so);
+    }
 
     // several blocks for one dN (editor v2): all kept in file order, each
     // with its comment; the last is the selected one

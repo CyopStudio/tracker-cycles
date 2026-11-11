@@ -38,6 +38,11 @@ static bool operandParens(const Program& p, uint16_t child, int prec, Assoc asso
     return side < 0 ? assoc != Assoc::Left : assoc != Assoc::Right;
 }
 
+void Renderer::sep(bool brk) {
+    if (brk && breaks_) puts("\n    ");
+    else put(' ');
+}
+
 void Renderer::put(char c) {
     if (n_ + 1 >= cap_) {
         overflow_ = true;
@@ -105,7 +110,14 @@ void Renderer::node(const Program& p, uint16_t idx, int needPrec, int side) {
             int i = 0;
             int argc = p.childCount(idx);
             for (; c; c = p.at(c).next, i++) {
-                if (i > 0) puts(dollar && i == argc - 1 ? " $ " : " ");
+                if (i > 0) {
+                    if (dollar && i == argc - 1) {
+                        sep(n.flags & kBreakOp);
+                        puts("$ ");
+                    } else {
+                        sep(p.at(c).flags & kBreak);
+                    }
+                }
                 bool last = dollar && i == argc - 1;
                 bool paren;
                 if (last) paren = false;
@@ -130,7 +142,7 @@ void Renderer::node(const Program& p, uint16_t idx, int needPrec, int side) {
             bool tight = n.kind == Kind::Op && strcmp(lib((int)n.a).name, "/") == 0 &&
                          p.at(l).kind != Kind::App && p.at(r).kind == Kind::Num &&
                          (p.at(l).kind == Kind::Num || (p.at(l).kind == Kind::Op && !pl));
-            if (!tight) put(' ');
+            if (!tight) sep(n.flags & kBreakOp);
             puts(n.kind == Kind::Op ? lib((int)n.a).name : ".");
             if (!tight) put(' ');
             bool pr = operandParens(p, r, prec, assoc, +1);
@@ -370,6 +382,7 @@ int Renderer::cps(const Program& p) {
 }
 
 int Renderer::file(const Program& p) {
+    breaks_ = true;  // the file keeps its line breaks
     bool any = false;
     if (p.cpsExpr) {
         cps(p);

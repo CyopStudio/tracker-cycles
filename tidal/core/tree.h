@@ -73,6 +73,10 @@ constexpr uint16_t kDigitStyle = 1 << 5;  // MBool: 1/0 instead of t/f
 constexpr uint16_t kNegParen = 1 << 6;    // Num: written as (-x)
 constexpr uint16_t kDecimalsMask = 0x0F00; // Num/MNum: fractional digits
 constexpr uint16_t kLaunchMask = 0x3000;   // Block: when an evaluation takes effect
+// Line breaks (UI notes, Editor14): kept by the parser, written to files and
+// laid out on screen; statements sent elsewhere stay on one line.
+constexpr uint16_t kBreak = 1 << 14;       // an App argument: a new line before it
+constexpr uint16_t kBreakOp = 1 << 15;     // Op / Compose / App with $: a new line before the symbol
 constexpr int kLaunchShift = 12;
 
 // Block launch modes (Tidal transitions, spec 2.1). Tidal 1.10.3 timing,

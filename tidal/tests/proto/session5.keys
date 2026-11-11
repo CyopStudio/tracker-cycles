@@ -2,7 +2,7 @@ hw:down hw:right hw:right hw:right hw:down hw:down hw:right hw:down hw:down hw:s
 hw:up hw:up hw:shift+s6
 hw:shift+pad1 hw:shift+insert hw:right hw:right hw:right hw:right hw:shift+s6 hw:jog-
 hw:shift+insert hw:right hw:shift+s8 hw:jog+
-hw:shift+pad2 hw:down controls menu:6 hw:pattern hw:shift+insert hw:right hw:shift+s5
+hw:shift+pad2 hw:down controls menu:6 hw:pattern hw:shift+insert hw:right quick1
 hw:shift+pad3 hw:down hw:down hw:down hw:right hw:shift+s6 hw:up hw:up hw:shift+s6
 hw:pattern
 print

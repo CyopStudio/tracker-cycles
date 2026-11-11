@@ -20,6 +20,9 @@ public:
     int cps(const Program& p);                   // "setcps (...)" (nothing without one)
     int file(const Program& p);                  // whole .tidal file
     bool overflow() const { return overflow_; }
+    // Line breaks (kBreak / kBreakOp) as new lines (files, the screen); off:
+    // spaces (statements for GHCi, labels).
+    void setBreaks(bool on) { breaks_ = on; }
     int length() const { return n_; }
 
 private:
@@ -37,6 +40,8 @@ private:
     Span* spans_;
     int n_ = 0;
     bool overflow_ = false;
+    bool breaks_ = false;
+    void sep(bool brk);  // " ", or a new line + indent
 };
 
 // Precedence of a rendered expression node (11 = atomic).

@@ -426,6 +426,7 @@ enum class Tok : uint8_t { End, Ident, Num, Str, Op, LParen, RParen, LBrack, RBr
 struct Token {
     Tok t;
     int pos, len;
+    bool nl;  // a line break before it (kept as kBreak / kBreakOp)
 };
 
 static bool isSym(char c) { return c && strchr("!#$%&*+./<=>?@\\^|-~:", c) != nullptr; }
@@ -455,8 +456,9 @@ struct ExprParser {
 
     Token lex() {
         // skip whitespace and -- comments
+        bool nl = false;
         for (;;) {
-            while (i < len && isspace((unsigned char)s[i])) i++;
+            while (i < len && isspace((unsigned char)s[i])) nl |= s[i++] == '\n';
             if (i + 1 < len && s[i] == '-' && s[i + 1] == '-') {
                 // "--" starts a comment only if not part of a longer operator
                 int j = i;
@@ -468,7 +470,7 @@ struct ExprParser {
             }
             break;
         }
-        Token t{Tok::End, i, 0};
+        Token t{Tok::End, i, 0, nl};
         if (i >= len) return t;
         char c = s[i];
         int st = i;
@@ -759,6 +761,7 @@ struct ExprParser {
         }
         int argc = prog.childCount(a) - 1;
         while (startsAtom(cur)) {
+            const bool nl = cur.nl;
             uint16_t arg = atom();
             if (!ok()) return 0;
             if (++argc >= kMaxChildren) {
@@ -766,6 +769,7 @@ struct ExprParser {
                 return 0;
             }
             prog.appendChild(a, arg);
+            if (nl) prog.at(arg).flags |= kBreak;
         }
         return a;
     }
@@ -834,6 +838,7 @@ struct ExprParser {
                 prog.appendChild(o, rhs);
                 lhs = o;
             }
+            if (opTok.nl && lhs) prog.at(lhs).flags |= kBreakOp;  // a line break before the symbol
             lastPrec = prec;
             lastAssoc = assoc;
         }

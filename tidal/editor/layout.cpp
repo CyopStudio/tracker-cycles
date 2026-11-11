@@ -48,6 +48,7 @@ int layoutText(const Editor& ed, uint16_t blk, bool cps, bool cur, bool lit, int
     const Program& p = ed.prog();
     memset(s.spans, 0, sizeof s.spans);
     Renderer r(s.text, kLayoutText + 1, s.spans);
+    r.setBreaks(true);
     s.text[0] = 0;
     int n = cps ? r.cps(p) : r.blockNode(p, blk);
     if (n > kLayoutText) n = kLayoutText;
@@ -82,11 +83,12 @@ int layoutText(const Editor& ed, uint16_t blk, bool cps, bool cur, bool lit, int
         const Span& sp = s.spans[ed.cursor()];
         for (int i = sp.start; i < sp.end && i < n; i++) s.flags[i] |= kCellSel;
     }
-    // wrap at spaces, continuation lines indented by 4
+    // wrap at spaces, continuation lines indented by 4; a line break (kBreak,
+    // the renderer's "\n    ") starts a new row
     int row = 0, c = 0, i = 0;
     while (i < n) {
         int j = i;
-        while (j < n && s.text[j] != ' ') j++;
+        while (j < n && s.text[j] != ' ' && s.text[j] != '\n') j++;
         const int wl = j - i;
         if (c > 4 && c + wl > cols) {
             row++;
@@ -101,7 +103,12 @@ int layoutText(const Editor& ed, uint16_t blk, bool cps, bool cur, bool lit, int
             s.col[k] = (uint8_t)(c < 255 ? c : 255);
             c++;
         }
-        if (j < n) {  // the space
+        if (j < n && s.text[j] == '\n') {  // a line break: a new row (its cell drawn as a space)
+            s.row[j] = (uint16_t)row;
+            s.col[j] = (uint8_t)(c < 255 ? c : 255);
+            row++;
+            c = 0;
+        } else if (j < n) {  // the space
             s.row[j] = (uint16_t)row;
             s.col[j] = (uint8_t)(c < 255 ? c : 255);
             c++;
@@ -216,7 +223,7 @@ void layoutCode(const Editor& ed, double now, const CodeGeometry& g, CodeScreen&
                     while (i < n && s.row[i] == r) {
                         if (l->n < kCodeCols) {
                             CodeCell& c = l->cell[l->n];
-                            c.ch = s.text[i];
+                            c.ch = s.text[i] == '\n' ? ' ' : s.text[i];
                             c.style = s.style[i];
                             c.flags = cps ? (uint8_t)(s.flags[i] & kCellSel) : s.flags[i];
                             l->col[l->n] = s.col[i];

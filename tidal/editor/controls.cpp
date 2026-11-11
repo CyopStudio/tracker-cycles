@@ -251,7 +251,7 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         case Control::Screen1: return act(Action::Wrap, "Wrap");
         case Control::Screen2: return act(Action::Unwrap, "Unwrap");
         case Control::Screen3: return act(Action::Undo, "Undo");
-        case Control::Screen4:
+        case Control::Screen4: return act(Action::LineBreak, "<CR>");  // a line break (UI notes, Editor14)
         case Control::Screen5:
         case Control::Screen6:
         case Control::Screen7: {

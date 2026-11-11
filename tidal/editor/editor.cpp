@@ -26,7 +26,7 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"copy", Action::Copy},       {"paste", Action::Paste},       {"home", Action::Home},
     {"notes", Action::MenuNotes}, {"samples", Action::MenuSamples}, {"chords", Action::MenuChords},
     {"silence", Action::SilenceSlot}, {"folders", Action::MenuFolders},
-    {"blockup", Action::BlockUp}, {"blockdown", Action::BlockDown},
+    {"blockup", Action::BlockUp}, {"blockdown", Action::BlockDown}, {"linebreak", Action::LineBreak},
     {"functions", Action::MenuFunctions}, {"controls", Action::MenuControls},
     {"quick1", Action::Quick1},   {"quick2", Action::Quick2},     {"quick3", Action::Quick3},
     {"quick4", Action::Quick4},   {"launch", Action::MenuLaunch},
@@ -945,6 +945,43 @@ void Editor::blockStep(int dir) {
     info(cursorInfo());
 }
 
+// Shift+Screen 5: a line break (on / off) before the argument at the cursor,
+// or before the operator / $ it belongs to (UI notes, Editor14).
+void Editor::toggleBreak() {
+    if (cps_ || !cursor_ || prog_->at(cursor_).kind == Kind::Block)
+        return error("a line break goes before an argument or an operator of a block");
+    const Program& p = *prog_;
+    const uint16_t n = cursor_;
+    const Kind k = p.at(n).kind;
+    if (isMiniKind(k)) return error("no line breaks inside \"...\" (on the quotes: before the whole string)");
+    uint16_t target = 0, flag = 0;
+    const uint16_t par = p.parentOf(n);
+    const Kind pk = par ? p.at(par).kind : Kind::None;
+    if (onOperator() || ((k == Kind::Op || k == Kind::Compose) && pk == Kind::Block)) {
+        target = n;  // the operator itself: before its symbol
+        flag = kBreakOp;
+    } else if (pk == Kind::Op || pk == Kind::Compose) {
+        target = par;  // an operand: before the operator's symbol
+        flag = kBreakOp;
+    } else if (pk == Kind::App && p.at(par).first != n) {
+        const bool lastDollar = (p.at(par).flags & kDollar) && !p.at(n).next;
+        target = lastDollar ? par : n;  // after $: before the $
+        flag = lastDollar ? kBreakOp : kBreak;
+    } else if ((k == Kind::App && (p.at(n).flags & kDollar)) || k == Kind::Op || k == Kind::Compose) {
+        target = n;
+        flag = kBreakOp;
+    } else {
+        return error("a line break goes before an argument or an operator");
+    }
+    const bool wasOp = onOperator();
+    if (!beginEdit()) return;
+    prog_->at(target).flags ^= flag;
+    const bool on = prog_->at(target).flags & flag;
+    if (!endEdit(n, false)) return;
+    onOp_ = wasOp;
+    info(on ? "line break (Shift+Screen 5 again removes it)" : "line break removed");
+}
+
 // Copy at a block's top: a copy of the block below it (UI notes, Editor14).
 void Editor::duplicateBlock() {
     const uint16_t b = prog_->block[slot_];
@@ -1169,6 +1206,7 @@ void Editor::actOne(Action a) {
         case Action::MenuFolders: openFolders(); break;
         case Action::BlockUp: blockStep(-1); break;
         case Action::BlockDown: blockStep(1); break;
+        case Action::LineBreak: toggleBreak(); break;
         case Action::Struct1:
         case Action::Struct2:
         case Action::Struct3:
