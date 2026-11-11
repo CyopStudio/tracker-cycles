@@ -180,6 +180,20 @@ to upstream CE.
     <CR> before); cursor mode at boot; step table fine.
     RC10 (user): A, B, C all work. PARKED until after D: highlights still
     stop while a menu checks (feels like a crash; a slow menu is fine).
+    D (RC11, PolyendTrac_CyclesRC11.ptf, not yet run): Shift+Screen 1-3
+    quick controls; `$` / `#` symbols selectable in tree mode (Delete
+    unwraps; fixed: Delete on a block's outer `#` cleared the slot, the
+    symbol state was dropped before Delete ran); cursor mode
+    (tidal/editor/cursor.cpp, on at boot, Rec toggles, key `m` in the
+    prototype, `--mode tree` for smoke sessions): tokens = runs of the
+    rendered block's characters with one deepest node (spans), expression
+    parens / commas skipped, `dN` = the top; Left / Right by token, Up /
+    Down by hard line + column then the blocks around; Delete / Shift+
+    Delete (Backspace, never onto the top) / Insert by token (tidal/README
+    table); wrap / copy / paste keys take a function name as its
+    application (headOf); cursorSettle() after every act / slot pad moves
+    a non-token cursor onto its first token. Editor +40 KB SDRAM (token
+    scratch), flash 950,252 B (90.6 %).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

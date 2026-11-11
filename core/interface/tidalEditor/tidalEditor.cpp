@@ -255,6 +255,11 @@ class TcSideView : public TcControl
         rect(0, kInfoY - 4, 800, kKeysY - (kInfoY - 4), display.getTheme().bottomButtonsBgColors[1]);
         API_END();
         const int16_t h = smallFont().handle;
+        // right: the editing mode (Rec switches, UI v3 D), then the load status
+        char right[140];
+        const char* status = tidalEditorStatus();
+        snprintf(right, sizeof right, "%s%s%s", ed && !ed->cursorMode() ? "tree mode" : "cursor mode",
+                 status[0] ? "   " : "", status);
         if (ed) {
             if (tidalEditorStatusOpen()) {  // status (Shift+Master) in place of the cursor info
                 char st[200];
@@ -263,7 +268,7 @@ class TcSideView : public TcControl
                 API_CMD_TEXT(10, kInfoY, h, 0, st);
             } else {
                 // cut short of the status on the right (Regular 12: <= 8 px a glyph)
-                const int statusW = ((int)strlen(tidalEditorStatus()) + 12) * 8;
+                const int statusW = ((int)strlen(right) + 4) * 8;
                 API_SCISSOR_XY(0, kInfoY - 4);
                 API_SCISSOR_SIZE(800 - 10 - statusW > 100 ? 800 - 10 - statusW : 100, 20);
                 API_COLOR(col::dim);
@@ -275,10 +280,8 @@ class TcSideView : public TcControl
             API_CMD_TEXT(10, kInfoLine2, h, 0, ed->message().c_str());
         }
         if (!tidalEditorStatusOpen()) {
-            char st[120];
-            snprintf(st, sizeof st, "%s", tidalEditorStatus());
             API_COLOR(col::dim);
-            API_CMD_TEXT(790, kInfoY, h, OPT_RIGHTX, st);
+            API_CMD_TEXT(790, kInfoY, h, OPT_RIGHTX, right);
         }
         API_RESTORE_CONTEXT();
     }
@@ -584,6 +587,7 @@ void cTidalEditorModule::redraw()
             f.str(ed->cursorInfo().c_str());
             f.str(ed->message().c_str());
             f.num(ed->messageIsError());
+            f.num(ed->cursorMode());
         }
         f.num(tidalEditorStatusOpen());
         if (tidalEditorStatusOpen()) {

@@ -104,6 +104,7 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     fb.text(10, 427, ed.message().c_str(), ed.messageIsError() ? col::err : col::text, FontId::Sans12, 110);
     {
         std::string right;
+        right += ed.cursorMode() ? "cursor mode   " : "tree mode   ";  // Rec switches (UI v3 D)
         if (ed.trackerMode()) right += "tracker mode   ";
         if (appBackend()) right += std::string(appBackend()->name()) + (appBackend()->alive() ? " ok" : " not running");
         else right += "no backend";

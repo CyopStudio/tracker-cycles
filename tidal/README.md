@@ -134,6 +134,21 @@ Every key goes through a Tracker control (`editor/controls.cpp`, the mapping
 the device editor will use), so the keyboard can't do anything the
 hardware can't.
 
+**Two modes (UI v3 D):** cursor mode (at start) and tree mode; **Rec**
+switches (key `m`). The table below is the tree mode. Cursor mode differs
+only in these keys, the rest (jog, pads, menus, Screen keys) is the same:
+
+| Cursor mode | |
+| :--- | :--- |
+| ← → | previous / next token in text order (names, numbers, a string's quotes, its steps, brackets, `*2` …, `$` / `#` / operators; the `dN` top); stays in the block |
+| ↑ ↓ | the token at the same column on the line above / below (line breaks); past the first / last line: the block above (its last line) / below (its first line) |
+| Delete | the token under the cursor: a step becomes `~` (a `~` goes); a function's name: unwrap it (a control behind an operator, `# gain 1`, goes with its operator); `$` / `#` / an operator: unwrap; `[` / `<` / `{`: the brackets go, the steps stay; `*` / `?` / `(`: unwrap; an argument: what it belongs to is unwrapped (never a `??`); the `dN` top: the block |
+| Shift + Delete | Backspace: the same for the token to the left (in a gap: the step before it); never the `dN` top |
+| Insert | on a function's name: the `$` modifiers menu (FX1) around its application; inside `"..."`: a copy of the step after it; at the `dN` top: a new block (slot pad); elsewhere: the `#` FX menu (FX2) at the end of the operator chain |
+
+The prototype starts in cursor mode; `--mode tree` starts in tree mode
+(the smoke sessions do, unless their `.args` say `--mode cursor`).
+
 | Tracker control | Editing | In a menu | Key |
 | :--- | :--- | :--- | :--- |
 | ← → | previous / next sibling; on a leaf, or with no sibling on that side: on to the previous / next leaf of the text (into and out of subtrees and `"..."`, whose first / last gap is a stop; within the block); inside `"..."`: step, gap, step, gap … (the gap is a thin bar: pads insert steps there and stay in the gap, Screen 3–7 insert a bracket / alternation / polymeter / Euclid / choice, Delete removes the step before it, ↑ leaves it); inside a Haskell list (`stack [a, b]`, `cat`, `fastcat`, `slowcat`): element, gap, element … (Insert puts a copy of the element before the gap there, Shift+Copy pastes the clipboard there, Shift+Screen 1 opens the Replace list as an "insert" menu, Delete removes the element before the gap (a list keeps one); the new element is selected) | previous / next item | ← → |
@@ -198,7 +213,7 @@ with a negative shift. Each wrap is type-checked; one that doesn't fit
 shows an error.
 
 Unused for now: Perform, Master (kept for the master settings), Smp
-Load/Play/Edit/Rec, Rec, pads outside the two slot rows. Purple text on a
+Load/Play/Edit/Rec, pads outside the two slot rows. Purple text on a
 button is its Shift function, following the labels printed on the device
 (Paste, Home, Backspace). Pads light like on the device: green playing, amber edited, red
 error; the current slot has a white frame.

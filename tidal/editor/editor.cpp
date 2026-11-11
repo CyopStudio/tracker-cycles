@@ -41,7 +41,8 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"playcancel", Action::PlayCancel},
     {"cps", Action::JumpCps},     {"selleft", Action::SelLeft}, {"selright", Action::SelRight},     {"comment", Action::EditComment},
     {"kbdtype", Action::KbdType}, {"kbdok", Action::KbdOk},       {"kbdcancel", Action::KbdCancel},
-    {"kbdclear", Action::KbdClear},
+    {"kbdclear", Action::KbdClear}, {"cursormode", Action::ToggleCursorMode},
+    {"backspace", Action::Backspace},
 };
 
 const char* actionName(Action a) {
@@ -678,7 +679,7 @@ bool Editor::cursorRest() const { return cursor_ && prog_->at(cursor_).kind == K
 
 // The step a mini node belongs to: climb out of modifier targets (bd in
 // bd*2). A range's ends (lo .. hi) are values of their own, so stop there.
-static uint16_t stepOf(const Program& p, uint16_t n) {
+uint16_t stepOf(const Program& p, uint16_t n) {
     for (;;) {
         uint16_t par = p.parentOf(n);
         if (!par || !isMiniModifier(p.at(par).kind) || p.at(par).kind == Kind::MRange || p.at(par).first != n)
@@ -933,6 +934,14 @@ void Editor::enterStep(const Text& miniCode, const Text& exprCode, const Label& 
 }
 
 void Editor::gotoSlot(int s) {
+    gotoSlotTree(s);
+    if (!cursorMode_) return;
+    const bool plain = message_ == cursorInfo();  // the message describes the cursor: follow it
+    cursorSettle();
+    if (plain) info(cursorInfo());
+}
+
+void Editor::gotoSlotTree(int s) {
     if (s < 0 || s >= kSlots) return;
     dropEmptyBlocks();
     cps_ = false;
@@ -1068,8 +1077,7 @@ bool Editor::operatorSides(uint16_t& l, uint16_t& r) const {
 // Shift+Screen 1-3 (UI v3, user's choice): `# gain 0.9`, `# room 0.3`,
 // `# delay 0.3` on the pattern around the cursor (out of a "..." string or
 // an argument until it fits); the cursor lands on the new value for the jog.
-void Editor::quickControl(const char* rhs) {
-    if (cps_ || !cursor_) return error("go to a block's pattern first");
+uint16_t Editor::controlTarget() const {
     const Program& p = *prog_;
     uint16_t t = cursor_;
     if (p.at(t).kind == Kind::Block) t = p.at(t).first;
@@ -1085,6 +1093,13 @@ void Editor::quickControl(const char* rhs) {
         if (arg || un.kind == Kind::Op || un.kind == Kind::Tuple || un.kind == Kind::List) t = up;
         else break;
     }
+    return t;
+}
+
+void Editor::quickControl(const char* rhs) {
+    if (cps_ || !cursor_) return error("go to a block's pattern first");
+    const Program& p = *prog_;
+    uint16_t t = controlTarget();
     for (; t && p.at(t).kind != Kind::Block; t = p.parentOf(t)) {
         EditSpec sp = spec(EditKind::WrapOp, t, rhs);
         sp.op = "#";
@@ -1222,6 +1237,7 @@ void Editor::act(Action a) {
     dropEmptyBlocks();
     actOne(a);
     dropEmptyBlocks();
+    cursorSettle();
 }
 
 void Editor::actOne(Action a) {
@@ -1241,6 +1257,10 @@ void Editor::actOne(Action a) {
         case Action::WheelUp: case Action::WheelDown: case Action::WheelUpFast: case Action::WheelDownFast:
         case Action::Replace: case Action::Left: case Action::Right: case Action::Up:
         case Action::Evaluate: case Action::PlayCancel: case Action::Confirm: case Action::Cancel:
+        case Action::Delete: case Action::Backspace:  // Delete on a symbol unwraps it (not the whole expression)
+            break;
+        case Action::Down:
+            if (!cursorMode_) onOp_ = false;  // cursor mode: the line below from the symbol's column
             break;
         default: onOp_ = false; break;
     }
@@ -1296,6 +1316,20 @@ void Editor::actOne(Action a) {
             default: leaveGap(); break;  // act on the whole sequence
         }
     }
+    // cursor mode: a function's name stands for its whole application for
+    // the keys that wrap, copy or paste (the tree mode selects that node itself)
+    if (cursorMode_ && !menuOpen_ && !gapSeq_ && cursor_) {
+        switch (a) {
+            case Action::Struct1: case Action::Struct2: case Action::Struct3: case Action::Struct4:
+            case Action::Struct5: case Action::Struct6: case Action::Struct7: case Action::Struct8:
+            case Action::MenuModifiers: case Action::MenuFx: case Action::Wrap: case Action::MenuFunctions:
+            case Action::MenuControls: case Action::Copy: case Action::Paste: case Action::Quick1:
+            case Action::Quick2: case Action::Quick3: case Action::Quick4: case Action::LineBreak:
+                if (const uint16_t h = headOf(cursor_)) cursor_ = h;
+                break;
+            default: break;
+        }
+    }
     uint16_t pending = pending_;
     pending_ = 0;  // only the very next Delete may remove an appended step
     if (a == Action::Delete && pending && pending == cursor_) pending_ = pending;
@@ -1320,7 +1354,17 @@ void Editor::actOne(Action a) {
         case Action::Left:
         case Action::Right:
         case Action::Up:
-        case Action::Down: navigate(a); break;
+        case Action::Down:
+            if (!cursorMode_) navigate(a);
+            else if (a == Action::Left || a == Action::Right) cursorMove(a == Action::Left ? -1 : 1);
+            else cursorLine(a == Action::Up ? -1 : 1);
+            break;
+        case Action::ToggleCursorMode:
+            setCursorMode(!cursorMode_);
+            info(cursorMode_ ? "cursor mode: arrows by token / line (Rec: tree mode)"
+                             : "tree mode: arrows through the tree (Rec: cursor mode)");
+            break;
+        case Action::Backspace: cursorDelete(true); break;
         case Action::WheelUp: wheel(+1, false); break;
         case Action::WheelDown: wheel(-1, false); break;
         case Action::WheelUpFast: wheel(+1, true); break;
@@ -1367,38 +1411,8 @@ void Editor::actOne(Action a) {
         case Action::Quick2: quick(1); break;
         case Action::Quick3: quick(2); break;
         case Action::Quick4: quick(3); break;
-        case Action::Insert: {
-            if (gapSeq_) {
-                insertListCopy();
-                break;
-            }
-            if (!cursor_) break;
-            if (prog_->at(cursor_).kind == Kind::Block) {
-                newBlockArmed_ = true;
-                info("slot pad: a new block for that dN above this one");
-                break;
-            }
-            uint16_t par = prog_->parentOf(cursor_);
-            Kind pk = par ? prog_->at(par).kind : Kind::None;
-            if (pk == Kind::MSeq || pk == Kind::List) {
-                // duplicate this step / element after itself
-                if (!beginEdit()) break;
-                Program* p = prog_;
-                uint16_t c = p->copyTree(*p, cursor_);
-                if (!c) {
-                    abortEdit();
-                    error("out of nodes");
-                    break;
-                }
-                p->at(c).next = p->at(cursor_).next;
-                p->at(cursor_).next = c;
-                if (endEdit(c)) info("inserted a copy");
-            } else {
-                openWrap(WrapMode::Controls);
-            }
-            break;
-        }
-        case Action::Delete: doDelete(); break;
+        case Action::Insert: cursorMode_ ? cursorInsert() : doInsert(); break;
+        case Action::Delete: cursorMode_ ? cursorDelete(false) : doDelete(); break;
         case Action::Unwrap: doUnwrap(); break;
         case Action::Undo:
             uint8_t tag;
@@ -1464,6 +1478,40 @@ void Editor::actOne(Action a) {
             info(trackerMode_ ? "tracker mode on" : "tracker mode off");
             break;
         default: break;
+    }
+}
+
+// Insert (tree mode; cursor mode: cursorInsert): a gap: a copy in; a block's
+// top: arm a new block above; a step / list element: a copy after it; else
+// the # controls menu.
+void Editor::doInsert() {
+    if (gapSeq_) {
+        insertListCopy();
+        return;
+    }
+    if (!cursor_) return;
+    if (prog_->at(cursor_).kind == Kind::Block) {
+        newBlockArmed_ = true;
+        info("slot pad: a new block for that dN above this one");
+        return;
+    }
+    uint16_t par = prog_->parentOf(cursor_);
+    Kind pk = par ? prog_->at(par).kind : Kind::None;
+    if (pk == Kind::MSeq || pk == Kind::List) {
+        // duplicate this step / element after itself
+        if (!beginEdit()) return;
+        Program* p = prog_;
+        uint16_t c = p->copyTree(*p, cursor_);
+        if (!c) {
+            abortEdit();
+            error("out of nodes");
+            return;
+        }
+        p->at(c).next = p->at(cursor_).next;
+        p->at(cursor_).next = c;
+        if (endEdit(c)) info("inserted a copy");
+    } else {
+        openWrap(WrapMode::Controls);
     }
 }
 

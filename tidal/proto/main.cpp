@@ -27,6 +27,8 @@
 //     --panel                     screenshots include the mock panel
 //     --scale N                   window scale (default 1)
 //     --no-tracker-mode           allow host-only functions
+//     --mode cursor|tree          the editing mode at start (default cursor;
+//                                 Rec switches; smoke sessions use tree)
 //     --instruments FILE          instrument slots for the pads, one sample
 //                                 name per line (max 48; blank = empty slot)
 #include <stdio.h>
@@ -182,7 +184,7 @@ int main(int argc, char** argv) {
     std::string osc = "127.0.0.1:57120";
     double latency = 0.1;
     std::vector<std::string> sends;
-    bool window = false, trackerMode = true, panel = true;
+    bool window = false, trackerMode = true, panel = true, cursorMode = true;
     int scale = 1;
     for (int i = 1; i < argc; i++) {
         std::string a = argv[i];
@@ -207,6 +209,7 @@ int main(int argc, char** argv) {
         else if (a == "--no-panel") panel = false;
         else if (a == "--instruments") instruments = next();
         else if (a == "--panel") gPanelShots = true;
+        else if (a == "--mode") cursorMode = next() != "tree";
         else if (a == "-h" || a == "--help") {
             printf("see the comment at the top of tidal/proto/main.cpp or tidal/README.md\n");
             return 0;
@@ -260,6 +263,7 @@ int main(int argc, char** argv) {
         for (int i = 0; i < tc::kInstrumentSlots; i++) ed.setInstrument(i, i < (int)names.size() ? names[i].c_str() : "");
     }
     if (!trackerMode) ed.act(Action::ToggleTrackerMode);
+    ed.setCursorMode(cursorMode);  // cursor mode at boot (UI v3 D); Rec switches
     if (!file.empty()) {
         std::string err;
         if (access(file.c_str(), F_OK) == 0) {

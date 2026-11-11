@@ -3,6 +3,7 @@
 #ifdef TIDAL_EDITOR
 #include "tidal_config.h"
 #include "../../tidal/editor/editor.cpp"
+#include "../../tidal/editor/cursor.cpp"
 #include "../../tidal/editor/controls.cpp"
 #include "../../tidal/editor/layout.cpp"
 #endif

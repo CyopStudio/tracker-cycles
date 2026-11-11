@@ -396,6 +396,88 @@ void testEditorModel(int& pass, int& fail) {
         EXPECT(ef.flashOn(2.01) && !ef.flashOk(), "red flash on a refused block (%s)", ef.message().c_str());
     }
 
+    // UI v3 D: cursor mode. Left / Right visit every token once and come
+    // back the same way; Up / Down go by line, then to the blocks around;
+    // Delete / Backspace / Insert act by token
+    {
+        static Program pc;
+        static Checkpoint cc;
+        static uint8_t uc[64 * 1024];
+        static Editor ec(pc, cc, uc, (int)sizeof uc);
+        RecOutput oc;
+        ec.setOutput(&oc);
+        Label er;
+        auto load = [&](const char* f) {
+            EXPECT(ec.loadText(f, (int)strlen(f), er), "load: %s", er.c_str());
+            ec.setCursorMode(true);
+            ec.gotoSlot(0);
+        };
+        load(kFile);
+        EXPECT(ec.cursorMode() && ec.prog().at(ec.cursor()).kind == Kind::Fn, "cursor mode: d1 starts on `every`");
+        for (int i = 0; i < 4; i++) ec.act(Action::Left);
+        EXPECT(ec.cursor() == ec.prog().block[0], "Left stops at the block's top");
+        struct St {
+            uint16_t n;
+            bool op;
+        };
+        std::vector<St> fwd;
+        for (int i = 0; i < 40; i++) {
+            fwd.push_back({ec.cursor(), ec.onOperator()});
+            ec.act(Action::Right);
+            if (ec.cursor() == fwd.back().n && ec.onOperator() == fwd.back().op) break;
+        }
+        // d1 $ every 4 (fast 2) $ s " bd * 2 [ ~ sd ] bd sd " # gain 1
+        EXPECT(fwd.size() == 21, "d1 has 21 tokens, walked %d", (int)fwd.size());
+        int ops = 0;
+        for (const St& x : fwd) ops += x.op;
+        EXPECT(ops == 2, "two symbols ($ and #): %d", ops);
+        bool same = true;
+        for (int i = (int)fwd.size() - 1; i >= 0; i--) {
+            same = same && ec.cursor() == fwd[i].n && ec.onOperator() == fwd[i].op;
+            ec.act(Action::Left);
+        }
+        EXPECT(same, "Left walks the same tokens back");
+        EXPECT(ec.slot() == 0, "Left / Right stay in the block");
+
+        load("d1 $ s \"bd\"\n    # gain 1\n\nd2 $ s \"hh\"\n");
+        ec.act(Action::Down);  // `s` (line 0) -> line 1: `#`
+        EXPECT(ec.slot() == 0 && ec.onOperator(), "Down: the next line (%s)", ec.cursorInfo().c_str());
+        ec.act(Action::Down);
+        EXPECT(ec.slot() == 1, "Down from the last line: the next block");
+        ec.act(Action::Up);
+        EXPECT(ec.slot() == 0 && ec.onOperator(), "Up: the block above, its last line (%s)", ec.cursorInfo().c_str());
+        ec.act(Action::Up);
+        ec.act(Action::Up);
+        EXPECT(ec.slot() == 0 && ec.prog().at(ec.cursor()).kind == Kind::Block, "Up: line 0's top");
+
+        load(kFile);
+        for (int i = 0; i < 18; i++) ec.act(Action::Right);  // `gain`
+        ec.act(Action::Delete);
+        EXPECT(fileOf(ec).find("bd sd\" # gain") == std::string::npos && fileOf(ec).find("d1 $ every") != std::string::npos,
+               "Delete on a control's name: `# gain 1` goes\n%s", fileOf(ec).c_str());
+        ec.gotoSlot(0);
+        for (int i = 0; i < 10; i++) ec.act(Action::Right);  // `[`
+        ec.act(Action::Delete);
+        EXPECT(fileOf(ec).find("\"bd*2 ~ sd bd sd\"") != std::string::npos, "Delete on `[`: the brackets go\n%s",
+               fileOf(ec).c_str());
+        ec.act(Action::Backspace);  // the token before `~` is `2` (of bd*2): a number can't be a rest
+        ec.act(Action::Undo);
+        ec.act(Action::Undo);
+        ec.act(Action::Undo);
+        EXPECT(fileOf(ec) == fileOf(eager) || fileOf(ec).find("[~ sd] bd sd\" # gain 1") != std::string::npos,
+               "undone\n%s", fileOf(ec).c_str());
+        ec.gotoSlot(0);
+        ec.act(Action::Insert);  // on `every`: the $ functions
+        EXPECT(ec.menuOpen(), "Insert on a function name opens the $ menu");
+        ec.act(Action::Cancel);
+        for (int i = 0; i < 19; i++) ec.act(Action::Right);  // `1` of gain 1
+        ec.act(Action::Insert);
+        EXPECT(ec.menuOpen(), "Insert behind a pattern opens the # menu");
+        ec.act(Action::Cancel);
+        ec.act(Action::ToggleCursorMode);
+        EXPECT(!ec.cursorMode(), "Rec: tree mode");
+    }
+
     // the control mapping (editor/controls.*), shared with the device
     Control c;
     EXPECT(ctlFromId("pad13", c) && c == padCtl(12), "pad13");

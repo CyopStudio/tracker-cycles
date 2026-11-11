@@ -413,6 +413,7 @@ void tidalEditorUpdate(Platform* platform) {
         gEd = new (edRaw) tc::Editor(*p, *cp, undoArena, (int)sizeof undoArena);
         gEd->setOutput(gOut);
         gEd->setLazyMenus(true);  // menu items checked a few per pass (editor bench v1)
+        gEd->setCursorMode(true);  // cursor mode at boot (UI v3 D, user); Rec switches
         memset(gLiveToEd, 0, sizeof gLiveToEd);
         gDirty = true;
         paintStack();

@@ -9,6 +9,7 @@
 
 #include "fixed.h"
 #include "../core/tree.h"
+#include "../core/render.h"
 
 namespace tc {
 
@@ -85,6 +86,8 @@ enum class Action {
     BlockUp, BlockDown,                // Shift+Up / Down: the previous / next block (its top)
     LineBreak,                         // Shift+Screen 5: a line break before the argument / operator (toggle)
     QuickGain, QuickRoom, QuickDelay,  // Shift+Screen 1-3 (UI v3): # gain 0.9 / # room 0.3 / # delay 0.3
+    ToggleCursorMode,                  // Rec (UI v3 D): cursor mode <-> tree mode
+    Backspace,                         // Shift+Delete in cursor mode: the token to the left
 };
 const char* actionName(Action a);
 bool actionFromName(const char* s, Action& out);
@@ -260,8 +263,48 @@ public:
     // Context buttons (Screen 5..8): inside "..." brackets [ ] < > { }%4 (3,8),
     // on a pattern # <last control>, |+, |*, <~. Empty label: nothing here.
     Label quickLabel(int i) const;
+    // Cursor mode (UI v3 D, Rec toggles; on at boot): Left / Right go token
+    // by token through the block's text, Up / Down by line and column (past
+    // the first / last line: the blocks around), Delete / Shift+Delete the
+    // token under the cursor / to its left, Insert by position ($ in front
+    // of a function name or the block's start, # behind anything else).
+    // Edits are the tree mode's (cursor.cpp).
+    bool cursorMode() const { return cursorMode_; }
+    void setCursorMode(bool on);
 
 private:
+    // ---- cursor mode (cursor.cpp) ----
+    bool cursorMode_ = false;
+    enum : uint8_t { kTokNode, kTokSym, kTokTop };
+    struct Tok {
+        uint16_t start, end;  // characters of the rendered block
+        uint16_t node;
+        uint16_t line, col;   // hard line (line breaks) and column of start
+        uint8_t kind;         // kTokNode: select node; kTokSym: its operator symbol; kTokTop: the block's top
+    };
+    static constexpr int kTokText = 4096, kTokMax = 1024;
+    // scratch (SDRAM on the device, with the editor): the current block
+    // rendered with spans, each character's deepest node, the tokens
+    Span tokSpans_[kMaxNodes];
+    char tokText_[kTokText + 1];
+    uint16_t tokOwner_[kTokText];
+    Tok toks_[kTokMax];
+    int tokN_ = 0, tokLines_ = 0;
+    uint16_t tokAt_ = 0xFFFF;  // the current token's first character (tells '[' from ']')
+    int buildTokens();         // the current block's tokens (0: none)
+    void tokOwners(uint16_t n, int len);
+    int tokenIndex();          // the token the cursor is on (-1: none)
+    void setToken(int i);
+    int tokenNear(int line, int col) const;
+    void cursorMove(int dir);  // Left / Right
+    void cursorLine(int dir);  // Up / Down
+    void cursorSettle();       // after an action: onto a token
+    void cursorDelete(bool back);
+    void cursorInsert();
+    bool spliceGroup();
+    uint16_t headOf(uint16_t n) const;  // n is a function name: the application it heads (else 0)
+    uint16_t controlTarget() const;     // where `# ...` goes (the top of the operator chain)
+
     void info(const Label& m) { message_ = m; messageError_ = false; }
     void error(const Label& m) { message_ = m; messageError_ = true; }
     // In-place edits: beginEdit() opens a checkpoint around the current block
@@ -279,6 +322,7 @@ private:
     bool trackerBefore_ = true;  // Tracker mode held before the open edit
     uint16_t exprRoot() const;
     void enterSlot(int s);
+    void gotoSlotTree(int s);
 
     void navigate(Action a);
     bool chordHere() const;
@@ -317,6 +361,7 @@ private:
     void quick(int i);
     void doPaste();
     void doDelete();
+    void doInsert();
     void enterStep(const Text& miniCode, const Text& exprCode, const Label& label);
     void deleteNode();  // remove / hole the cursor node (Delete outside "...")
     void doUnwrap();

@@ -1,7 +1,8 @@
 #!/bin/sh
 # Run each tests/proto/*.keys session against proto/example.tidal and compare
 # what it prints (statements sent + final file) with NAME.expected.
-# NAME.args (optional) adds options, e.g. --backend engine (highlighting).
+# NAME.args (optional) adds options, e.g. --backend engine (highlighting),
+# --mode cursor (sessions run in tree mode unless they say so).
 # Usage: tests/proto/run_smoke.sh build/tidal_proto [--update]
 bin="$1"
 update="$2"
@@ -11,7 +12,7 @@ for keys in tests/proto/*.keys; do
     args=""
     [ -f "${keys%.keys}.args" ] && args=$(cat "${keys%.keys}.args")
     # shellcheck disable=SC2086
-    actual=$("$bin" proto/example.tidal $args --keys "$(tr '\n' ' ' < "$keys")" 2>/dev/null)
+    actual=$("$bin" proto/example.tidal --mode tree $args --keys "$(tr '\n' ' ' < "$keys")" 2>/dev/null)
     if [ "$update" = "--update" ]; then
         printf '%s\n' "$actual" > "$expected"
         echo "updated $expected"

@@ -18,9 +18,11 @@ Notable changes to **Tracker Cycles**, TidalCycles-style live coding for the Ori
   * `# voices 1-3` (Tracker Cycles' own control) gives a track overlapping notes.
   * A load-driven governor keeps at most 16 notes sounding.
 * **Code editor on the Tracker.** A structured editor works on the code tree, so the code is always valid.
-  * Navigation is with the arrows and jog wheel. The pads enter notes, instruments and chords.
+  * Two editing modes, switched with Rec. Cursor mode (the default) moves token by token and line by line, like a text editor that only allows valid code. Tree mode moves through the code tree.
+  * The jog wheel changes values in steps that suit what they mean. The pads enter notes, instruments and chords.
   * The Screen buttons open the structure menus (`$`, `#`, `[ ]`, `< >`, `{ }`, euclid, `|`, operators), which only offer choices that type-check.
-  * Replace, Wrap, Unwrap and Undo; copy, paste and block duplication.
+  * Delete unwraps functions and operators and never leaves a hole. Insert adds a `$` function or a `#` control depending on where the cursor is. Shift + Screen 1–3 add `# gain`, `# room` and `# delay`. Undo, copy, paste and block duplication.
+  * Evaluating flashes the block green (accepted) or red (refused).
   * Several blocks per `dN`, line breaks, and block comments (edited on the Tracker's naming keyboard).
   * Each event's steps light up as they sound.
   * The status view (Shift + Master) shows tempo, audio load, voices and errors.

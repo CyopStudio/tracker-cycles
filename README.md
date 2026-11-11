@@ -47,7 +47,7 @@ The screen shows your code: a `setcps` line and blocks `d1` to `d16`.
 * **d9–d16** send MIDI: d9 on channel 1 through d16 on channel 8 (`# midichan` overrides).
 
 1. **Shift + pad 1** goes to `d1`. On an empty slot, press **Instrument** to start a block with `s "<first instrument>"`, or **Note** for `n "0"`.
-2. Move with the **arrows**. **Left / Right** step through the code; **Up / Down** go to the parent / first child (at a block's top: the previous / next block).
+2. Move with the **arrows**. The editor starts in **cursor mode**: **Left / Right** go token by token, **Up / Down** line by line and on to the blocks around. **Rec** switches to tree mode, where Left / Right step through the code tree and Up / Down go to the parent / first child.
 3. Turn the **jog wheel** to change the value under the cursor (numbers, notes, sample names, functions). **Shift + jog** takes bigger steps; on a sample it changes the file index (`bd` → `bd:1` …).
 4. In a `"..."` sequence the **pads** enter values (notes on the keyboard layout, or the 48 instruments in an `s` pattern). Holding pads together enters a chord.
 5. Press **Pattern** to evaluate the block. Its `dN` turns green.
@@ -61,14 +61,15 @@ The screen shows your code: a `setcps` line and blocks `d1` to `d16`.
 | Shift + pad N | go to dN; the same pad twice in a row: a new dN block |
 | Shift + ↑ / ↓ | previous / next block |
 | Screen 1–8 | structure menus: `$` functions, `#` controls, `[ ]`, `< >`, `{ }`, `( , )` euclid, `\|`, operators |
-| Shift + Screen 1–4 | Replace, Wrap, Unwrap, Undo |
+| Rec | cursor mode / tree mode |
+| Shift + Screen 1–4 | `# gain 0.9`, `# room 0.3`, `# delay 0.3`, Undo |
 | Shift + Screen 5 | line break before the argument / operator at the cursor |
 | Note / Instrument | jump to the block's `n` / `s` pattern (Shift + Note: chord names) |
 | FX1 / FX2 | pattern modifiers (`$` functions) / sound effects (`#` controls) |
 | Song | launch menu (`dN $`, `jumpMod`, `jumpIn`); Shift + Song: tempo (`setcps`) |
 | Copy / Shift + Copy | copy / paste (at a block's top: duplicate the block) |
-| Delete / Shift + Delete | delete (inside `"..."`: a step becomes `~`) / unwrap |
-| Insert / Shift + Insert | insert / the block's top |
+| Delete / Shift + Delete | delete the token (inside `"..."`: a step becomes `~`; on a function, `$` or `#`: unwrap) / the token to the left (tree mode: unwrap) |
+| Insert / Shift + Insert | on a function's name: a `$` function in front; elsewhere a `#` control behind; inside `"..."`: a copy of the step / the block's top |
 | Shift + Sample Loader | load a Tidal sample folder (below) |
 | Shift + Config | edit the block's comment |
 | Shift + File | save the code to the project |

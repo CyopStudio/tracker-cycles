@@ -190,12 +190,17 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
     switch (c) {
         case Control::Left:
             if (shift && ed.canSelect()) return act(Action::SelLeft, "select <");
-            return act(Action::Left, "prev sibling");
+            return act(Action::Left, ed.cursorMode() ? "prev token" : "prev sibling");
         case Control::Right:
             if (shift && ed.canSelect()) return act(Action::SelRight, "select >");
-            return act(Action::Right, "next sibling");
-        case Control::Up: return shift ? act(Action::BlockUp, "block up") : act(Action::Up, "parent");
-        case Control::Down: return shift ? act(Action::BlockDown, "block down") : act(Action::Down, "first child");
+            return act(Action::Right, ed.cursorMode() ? "next token" : "next sibling");
+        case Control::Up:
+            return shift ? act(Action::BlockUp, "block up") : act(Action::Up, ed.cursorMode() ? "line up" : "parent");
+        case Control::Down:
+            return shift ? act(Action::BlockDown, "block down")
+                         : act(Action::Down, ed.cursorMode() ? "line down" : "first child");
+        // Rec: cursor mode <-> tree mode (UI v3 D)
+        case Control::Rec: return act(Action::ToggleCursorMode, ed.cursorMode() ? "tree mode" : "cursor mode");
         case Control::JogUp: return shift ? act(Action::WheelUpFast, "value ++") : act(Action::WheelUp, "value +");
         case Control::JogDown: return shift ? act(Action::WheelDownFast, "value --") : act(Action::WheelDown, "value -");
         // Play acts as a modifier (press / release, see press()); the label
@@ -206,7 +211,9 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
             return k;
         }
         case Control::Insert: return shift ? act(Action::Home, "Home") : act(Action::Insert, "Insert");
-        case Control::Delete: return shift ? act(Action::Unwrap, "Unwrap") : act(Action::Delete, "Delete");
+        case Control::Delete:
+            if (shift) return ed.cursorMode() ? act(Action::Backspace, "Backspace") : act(Action::Unwrap, "Unwrap");
+            return act(Action::Delete, "Delete");
         case Control::Copy: return shift ? act(Action::Paste, "Paste") : act(Action::Copy, "Copy");
         case Control::Note: return shift ? act(Action::MenuChords, "chord") : act(Action::JumpNotes, "n pattern");
         case Control::Instr: return act(Action::JumpSamples, "s pattern");

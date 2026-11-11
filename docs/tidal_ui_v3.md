@@ -58,6 +58,8 @@ The result is written with the decimals the step needs: `1` → `0.95`, not `0.9
 
 ## Stage D: cursor mode (Rec toggles cursor / tree)
 
+Status (2026-11-11, RC11 `PolyendTrac_CyclesRC11.ptf`, not yet run): built. Quick controls (Shift+Screen 1-3) and the tree refinements (`$` / `#` selectable, Delete there unwraps, `<CR>` before them) were done first. Cursor mode: `tidal/editor/cursor.cpp`. Tokens come from the block rendered with spans (each character's deepest node). Left / Right go token to token; Up / Down go by hard line and column, then to the blocks around. Delete / Shift+Delete (Backspace) / Insert follow D3. Keys that wrap, copy or paste take a function's name as its whole application. The mode shows in the info box. Unit checks in `test_editor.cpp`; smoke session 32 (`--mode cursor`). Also fixed: tree mode's Delete on the outer `#` of a block cleared the slot. Delete dropped the "on the symbol" state before it acted, so the whole expression went; now it unwraps.
+
 **D1. Two modes, Rec switches.** The info box and soft keys show which mode is on. Tree mode stays as it is today (the refinements still to be named by the user, see the questions). Cursor mode behaves like a smart text editor that never makes invalid code.
 
 **D2. Cursor mode navigation (token by token).**

@@ -59,6 +59,7 @@ bool mapKey(const SDL_KeyboardEvent& k, bool shift, Key& out) {
         case SDLK_DELETE:
         case SDLK_BACKSPACE: return ctl(Control::Delete);
         case SDLK_t: return ctl(Control::Config);
+        case SDLK_m: return ctl(Control::Rec);  // cursor / tree mode
         case SDLK_s: return ctl(ctrl ? Control::File : Control::Instr);
         case SDLK_n: return ctl(Control::Note);
         case SDLK_l: return ctl(Control::Song);
