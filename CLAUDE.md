@@ -143,6 +143,12 @@ to upstream CE.
     item); cDisplay::update (stock, core/libs/NewDisplay/display.cpp)
     does up to 6 steps per pass while the coprocessor is idle and < 2 ms
     have passed (a swap stops it: the coprocessor waits for the frame).
+    RC7 (user): menus open snappy and the message shows ("checking 0 of
+    N"), but the screen still stalls until checking ends ("it'll do for
+    now"): one trial check while busy is longer than a pass should be.
+    For 1.1: cheaper checks (filter by the node's type code first, full
+    check only for survivors) or menus cached per context. In the 1.0.0
+    known limitations.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

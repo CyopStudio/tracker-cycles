@@ -128,6 +128,7 @@ Copy Tidal-style sample folders to `/Tidal/` on the card, for example `/Tidal/bd
 * WAV files of any common format (8–32 bit PCM or 32-bit float, mono or stereo, 8 kHz and up) are converted to the Tracker's mono 16-bit 44.1 kHz. Refused files and the reasons are listed in `/tidal_folders.txt`.
 * Loading takes about a quarter of a second for a drum folder and a few seconds for large ones. The screen may pause while a folder loads, so load folders before a performance rather than during one.
 * Sample memory is about 7.5 MB (around 89 seconds of mono audio), shared with the project's other instruments.
+* Sample names come from file names (lower case, other characters become `_`, at most 15 characters). A name needs at least one letter: `808 5.wav` won't work in a pattern, `808 kick 5.wav` does.
 
 The [Dirt-Samples](https://github.com/tidalcycles/Dirt-Samples) set used by SuperDirt has no clear licence. You can copy folders from it onto your own card, but they are not distributed with Tracker Cycles. For shareable sounds, see [Clean-Samples](https://github.com/tidalcycles/Clean-Samples) and its sound packs, which give licence information for each pack.
 
