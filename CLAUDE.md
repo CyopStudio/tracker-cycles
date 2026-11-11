@@ -133,6 +133,9 @@ query CPU; plan step 2 timing check). Don't build these before then.
 - Device cost to check first: menus are built by trial (copy program +
   type-check per candidate), fine on the host, too slow / big for the
   MK66 as is.
+- Screen elements on / off (user, 2026-11-11, parked): toggle the cursor
+  info box, the title bar and the d1-d16 slot list on the left, ideally
+  from the Config menu (more room for code). Editor10: "very good".
 
 ## V2 idea: Tidal sample folders (not for V1)
 V1 = 48 instruments loaded the normal Tracker way. V2 could load Tidal-style

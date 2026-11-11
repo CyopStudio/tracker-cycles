@@ -108,3 +108,9 @@ place in front works
 bug - didn't notice before, but highlighting on d1 and d2 misses some highlights unless d3 is running
 
 feature request - can we lower the brightness of the cursor box and the event highlighting to increase contrast with the white code text
+
+*PolyendTrac_TidalEditor10
+
+this is very good! excellent work
+
+feature request (park for now) - would be good to be able to toggle the cursor info box, tidal title bar, d1-d16 indicators on the left > done through the config menu if possible. 
