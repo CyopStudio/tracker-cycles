@@ -195,6 +195,10 @@ moveSampleMemory moved sitar in one memmove (~100s of ms). Editor21
 muted and moved in 32 KB pieces (St::Move, top down when growing, bottom
 up when shrinking), addresses set as moveSampleMemory does, unmuted; a
 new folder prefers a free slot after the last used one (no move).
+Editor21 (user): no audio dropouts; the screen froze during the juno load
+(user: fine, avoid loading folders during performances). Slice choice
+from the s pattern: Shift+jog on a sample step already steps `:n`
+(`bd` -> `bd:0` -> `bd:1` ...; down back to `bd`).
 Earlier notes:
 V1 = 48 instruments loaded the normal Tracker way. V2 could load Tidal-style
 folders listed in the project (e.g. a manifest) on project load.
