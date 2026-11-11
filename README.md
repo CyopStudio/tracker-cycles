@@ -1,177 +1,157 @@
-# Polyend Tracker Community Edition (CE)
+# Tracker Cycles
 
-Welcome to the **Polyend Tracker Community Edition** repository!
+**TidalCycles-style live coding on the Original Polyend Tracker.**
 
-Built directly from the original Polyend firmware source code, Tracker CE opens up the Polyend Tracker platform to musicians, sound designers, and developers around the world. Whether you are here to flash the latest Community Edition firmware, want to build your own idea on the Tracker, design custom themes and fonts, write Sample Editor plugins, or build new synthesizer engines, we are excited to have you here.
+Tracker Cycles turns the Original Polyend Tracker into a standalone live-coding instrument. You write patterns in real Tidal syntax (`d1 $ every 4 (fast 2) $ s "bd*2 [~ sd]" # gain 0.9`), edit them with the pads, jog wheel and buttons, and the Tracker's own sample engine and effects play them. You don't need a computer, SuperCollider or GHC.
 
-### Download Firmware:
+It is a fork of [Polyend Tracker Community Edition (CE)](https://github.com/polyend/tracker-ce). The step sequencer, pattern editor and song mode have been replaced by a Tidal pattern engine and a structured code editor. The sample engine, instruments, sample loader and editor, mixer, effects and MIDI are the Tracker's own.
 
-##### Stable Releases: 
-* See [Releases](https://github.com/polyend/tracker-ce/releases) for the latest official downloads for all devices.
-* See [`CHANGELOG.md`](CHANGELOG.md) for the full list of changes in the official tagged releases.
-
-##### Latest Beta Builds: 
-Automatically built from the latest changes in `main` (for all 3 devices):
-
-* Download the latest [Beta Firmware builds (`.zip`)](https://nightly.link/polyend/tracker-ce/workflows/build.yml/main/polyend-tracker-ce-firmware.zip)
-* Download the latest [Sample Editor Effects (`.zip`)](https://nightly.link/polyend/tracker-ce/workflows/build.yml/main/polyend-tracker-ce-effects.zip)
-* See [`UPCOMING.md`](UPCOMING.md) to find out what's new in these Beta Builds.
+* **Hardware:** Original Polyend Tracker (MK66) only. Tracker+ and Tracker Mini are not supported.
+* **Version:** 1.0.0. See [`CHANGELOG.md`](CHANGELOG.md).
+* Tracker Cycles is inspired by [TidalCycles](https://tidalcycles.org). It is an independent implementation and is not affiliated with the TidalCycles project or with Polyend.
 
 ---
 
-## Notice: Official Support, Warranty & Hardware Disclaimer
+## Disclaimer
 
-> **A Quick Note Before Flashing or Modifying Firmware**
->
-> Thanks to the Tracker's isolated bootloader and hardware emergency recovery button (see [Flashing on Hardware & Emergency Recovery](#4-flashing-on-hardware--emergency-recovery)), experimenting with Community Edition builds is very safe. Even if a custom build fails to boot, you can easily re-flash a stable `.ptf` image from your microSD card. That said, we still need to include the standard legal disclaimer just in case:
->
-> * **Provided "AS IS" Without Support Obligation**: While the foundation of this repository was originally developed and released by **Polyend**, the **Polyend Tracker Community Edition (CE)** firmware, source code, and any community-developed modifications or plugins are provided **"AS IS"**, without warranty of any kind, express or implied. **Polyend has no obligation to provide official technical support, maintenance, bug fixes, or customer service** for Community Edition firmware or custom builds.
-> * **Use at Your Own Risk**: Flashing, modifying, or running custom firmware is done at your own discretion and risk. Polyend is not liable for any data loss, project corruption, malfunction, or hardware damage (including "bricking" a device or issues caused by code modifications) arising from the use of this software.
-> * **Out-of-Warranty Repairs Available**: In the unlikely event that something ever goes wrong with your hardware while using custom firmware, it is **not covered under standard warranty**. However, **Polyend is always happy to help get your instrument back up and running through its official out-of-warranty repair service** (standard service, parts, and shipping fees apply. See [How to Contact Polyend Customer Support](https://backstage.polyend.com/t/how-to-contact-the-polyend-customer-support/15510)).
+Tracker Cycles is provided **"AS IS"**, without warranty of any kind (see [`LICENSE`](LICENSE)). Neither Polyend nor the TidalCycles project supports it. Custom firmware is used at your own risk, and hardware problems caused by it are not covered by Polyend's warranty (Polyend offers out-of-warranty repairs). The Tracker's bootloader is separate from the firmware, so you can always flash a known-good firmware again (see [Recovery](#recovery)).
+
+Back up your SD card before flashing. Tracker Cycles has no patterns or songs: it opens a project's instruments, samples and settings, and adds its code (see [Projects](#projects-and-the-sd-card)).
 
 ---
 
-## Repository Structure
+## Install
 
-This unified codebase powers all three hardware instruments in the Tracker family:
-* **Original Polyend Tracker** (`NXP Kinetis MK66FX1M0`, Cortex-M4F @ 180 MHz)
-* **Polyend Tracker+ & Tracker Mini** (`NXP i.MX RT1051/RT1064`, Cortex-M7 @ 600 MHz)
+1. Download `PolyendTracker_Cycles_<version>.ptf` from [Releases](../../releases).
+2. Copy it to the `/Firmware/` folder on the Tracker's microSD card.
+3. On the Tracker: **Config → Firmware → Firmware update**, select the file and confirm.
+4. After the reboot, **Config → Firmware** shows `tracker-cycles 1.0.0`.
 
+### Recovery
 
-```text
-.
-├── Makefile                # Unified top-level build & version management
-├── version.mk              # Centralized version & build number configuration
-├── CHANGELOG.md            # Stable release history & feature highlights
-├── UPCOMING.md             # Unreleased changes currently in the beta builds
-├── CONTRIBUTING.md         # Contribution rules & hardware testing workflow
-├── LICENSE                 # MIT License (+ No Wholesale Commercial Clones & Precompiled Synth Terms)
-├── NOTICE.md               # Third-party open-source attributions
-├── core/                   # Shared Tracker application, audio engine, UI & open synth engines
-├── platforms/
-│   ├── mk66/               # Original Tracker (Kinetis MK66) HAL, drivers & linker scripts
-│   └── imx/                # Tracker+ & Tracker Mini (i.MX RT1051) HAL, drivers & linker scripts
-├── synth/
-│   ├── include/PolySynth/  # PolySynth public headers & Open Synth SDK (synth/include/PolySynth/sdk/)
-│   └── lib/                # Precompiled libPolySynth.a & libPolyDSP.a + LICENSE-PROPRIETARY.txt
-├── util/                   # Shared C++ utility headers & third-party header libraries (ETL, magic_enum)
-├── editor-fx-sdk/          # .ptfx Sample Editor plugin SDK, builder & effects/ sources
-└── docs/                   # User guides, SDK tutorials & architecture documentation
+If a firmware build ever fails to boot:
+
+1. Put a known-good `.ptf` (Tracker Cycles, CE or Polyend's) alone in `/Firmware/` on the card.
+2. Insert the card and power on the Tracker.
+3. With a paperclip, press the recessed **Reset / bootloader** pinhole on the bottom of the unit. The bootloader flashes the `.ptf` from `/Firmware/`.
+
+`.ptf` file names must start with `PolyendTrac` and be at most 31 characters long, or the updater won't list them.
+
+---
+
+## Quick start
+
+The screen shows your code: a `setcps` line and blocks `d1` to `d16`.
+
+* **d1–d8** play the 8 sample tracks (the project's 48 instruments, chosen by name with `s`).
+* **d9–d16** send MIDI: d9 on channel 1 through d16 on channel 8 (`# midichan` overrides).
+
+1. **Shift + pad 1** goes to `d1`. On an empty slot, press **Instrument** to start a block with `s "<first instrument>"`, or **Note** for `n "0"`.
+2. Move with the **arrows**. **Left / Right** step through the code; **Up / Down** go to the parent / first child (at a block's top: the previous / next block).
+3. Turn the **jog wheel** to change the value under the cursor (numbers, notes, sample names, functions). **Shift + jog** takes bigger steps; on a sample it changes the file index (`bd` → `bd:1` …).
+4. In a `"..."` sequence the **pads** enter values (notes on the keyboard layout, or the 48 instruments in an `s` pattern). Holding pads together enters a chord.
+5. Press **Pattern** to evaluate the block. Its `dN` turns green.
+6. Hold **Play** and press a slot pad to mute / unmute it. **Shift + Play** alone is `hush`.
+
+### Main controls
+
+| Control | Action |
+| :--- | :--- |
+| Pattern | evaluate the block (Shift: silence it) |
+| Shift + pad N | go to dN; the same pad twice in a row: a new dN block |
+| Shift + ↑ / ↓ | previous / next block |
+| Screen 1–8 | structure menus: `$` functions, `#` controls, `[ ]`, `< >`, `{ }`, `( , )` euclid, `\|`, operators |
+| Shift + Screen 1–4 | Replace, Wrap, Unwrap, Undo |
+| Shift + Screen 5 | line break before the argument / operator at the cursor |
+| Note / Instrument | jump to the block's `n` / `s` pattern (Shift + Note: chord names) |
+| FX1 / FX2 | pattern modifiers (`$` functions) / sound effects (`#` controls) |
+| Song | launch menu (`dN $`, `jumpMod`, `jumpIn`); Shift + Song: tempo (`setcps`) |
+| Copy / Shift + Copy | copy / paste (at a block's top: duplicate the block) |
+| Delete / Shift + Delete | delete (inside `"..."`: a step becomes `~`) / unwrap |
+| Insert / Shift + Insert | insert / the block's top |
+| Shift + Sample Loader | load a Tidal sample folder (below) |
+| Shift + Config | edit the block's comment |
+| Shift + File | save the code to the project |
+| Shift + Master | status (tempo, audio load, voices, errors) |
+
+The full control reference is in [`tidal/README.md`](tidal/README.md).
+
+---
+
+## What it plays
+
+Tracker Cycles evaluates real Tidal syntax: function application, `$`, `.`, operators and sections, mini-notation strings, lists and pairs. It supports more than 100 functions and operators. Each one is type-checked like GHC would, and checked against event lists captured from Tidal 1.10.3. The full list is in [`docs/tidal_code_tree.md`](docs/tidal_code_tree.md) (section 7). Highlights:
+
+* **Time:** `fast` `slow` `hurry` `rev` `iter` `ply` `linger` `segment` `every` `every'` `whenmod` `inside` `outside` `within` `within'` `zoom` `compress` `trunc` `fastGap` `swingBy` `press` `rot` `<~` `~>`
+* **Structure:** `struct` `mask` `euclid` (and `Inv` / `Full` / `Off`) `sew` `stitch` `while` `wedge` `bite` `squeeze` `select` `run` `scan` `range`
+* **Random:** `degradeBy` `sometimesBy` (and friends) `someCyclesBy` `shuffle` `scramble` `rand` `irand` `perlin` `choose` `wchoose` `randcat` `wrandcat`
+* **Layering:** `superimpose` `off` `jux` `juxBy` `stut` `echo` `echoWith` `chunk` `chunk'` `plyWith` `layer` `pickF` `selectF`
+* **Harmony:** `scale` `toScale` `arp` `rolled` `rolledBy`, chord names (`"c'maj e'min7"`)
+* **Signals:** `sine` `cosine` `saw` `tri` `square`
+* **Controls:** `s` `n` `note` `gain` `pan` `cutoff` `resonance` `hpf` `bandf` `delay` `room` `crush` `shape` `begin` `end` `speed` `legato` `attack` `release` `cut` and more, plus the MIDI controls on d9–d16
+* **Operators:** `#` and the `|+|` `|-|` `|*|` `|/|` `|%|` `|**|` `|<|` `|>|` families, `+ - * /`
+
+### Differences from TidalCycles
+
+* **Sound:** the Tracker's sample engine replaces SuperDirt.
+  * There are no SuperCollider synths (`superpiano` and so on).
+  * Playback rate (`speed`, `loopAt`) is approximated through tuning.
+  * Reverb and delay sizes are global.
+  * `chop` and `striate` are not available on the device yet: the editor accepts them, but evaluating refuses them.
+* **Voices:** each track plays one note at a time unless you ask for more with `# voices 2` or `# voices 3` (Tracker Cycles' own control). In total at most 16 notes sound, fewer when the CPU is busy.
+* **Samples:** `s` picks one of the project's 48 instruments by name. Sample folders (below) bring back Tidal's `s "bd:3"` folder lookup.
+* **Language:** there are no lambdas, `let`, user-defined functions or type annotations. Tuples are pairs only. `echoWith` and `plyWith` are limited to 8 layers.
+* **Random values:** they follow Tidal's probabilities but differ from Tidal's actual values.
+
+---
+
+## Projects and the SD card
+
+```
+/Projects/<Name>/            a Tracker project (instruments, samples, settings)
+/Projects/<Name>/<Name>.tidal   the project's code
+/Workspace/project.tidal     the working copy (saved ~2 s after every edit)
+/Tidal/<folder>/*.wav        Tidal-style sample folders (optional)
+/tidal_folders.txt           the sample-folder loader's log
+/Firmware/                   firmware files (.ptf)
 ```
 
----
+* **File → Save / Save As** saves the instruments, samples and code. **Shift + File** saves only the code.
+* Opening a project loads its code. A new project starts with an empty editor.
+* Stock projects open with their instruments and samples. Their patterns and songs are not loaded or changed: the files stay in the project folder, so the stock firmware can still open the project.
 
-## Guiding Principles of the Community Edition Firmware
+### Sample folders
 
-This repository prioritizes workflow continuity: our aim is to respect existing muscle memory, introduce features, optimizations and improvements that fit the original vision of the device, while fixing bugs along the way.
+Copy Tidal-style sample folders to `/Tidal/` on the card, for example `/Tidal/bd/`, `/Tidal/hh/` with WAV files inside. **Shift + Sample Loader** lists them, and OK loads one into a free instrument slot:
 
-If you have ideas for major workflow adjustments or structural changes, please open a [GitHub Discussion](https://github.com/polyend/tracker-ce/discussions) or a topic on the [Polyend Backstage Forum](https://backstage.polyend.com/) first, so we can align on direction together with the community.
+* The files are sorted by name and joined into one sliced instrument, so `s "bd:3"` (or `s "bd" # n 3`) plays the fourth file, as in SuperDirt. At most 48 files per folder are used.
+* WAV files of any common format (8–32 bit PCM or 32-bit float, mono or stereo, 8 kHz and up) are converted to the Tracker's mono 16-bit 44.1 kHz. Refused files and the reasons are listed in `/tidal_folders.txt`.
+* Loading takes about a quarter of a second for a drum folder and a few seconds for large ones. The screen may pause while a folder loads, so load folders before a performance rather than during one.
+* Sample memory is about 7.5 MB (around 89 seconds of mono audio), shared with the project's other instruments.
 
-For radical experiments or reimagined interfaces, we actively encourage community forks!
-
----
-
-## Contributing
-
-We welcome community contributions! ❤️
-
-From bug fixes and workflow improvements to new open-source synth engines and `.ptfx` Sample Editor plugins. Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) for our project philosophy, pull request rules, hardware testing workflow, and technical checklist before opening a Pull Request.
+The [Dirt-Samples](https://github.com/tidalcycles/Dirt-Samples) set used by SuperDirt has no clear licence. You can copy folders from it onto your own card, but they are not distributed with Tracker Cycles. For shareable sounds, see [Clean-Samples](https://github.com/tidalcycles/Clean-Samples) and its sound packs, which give licence information for each pack.
 
 ---
 
-## Building Firmware
+## Building from source
 
-### 1. Prerequisites
-* **[GNU Arm Embedded Toolchain `10.3-2021.10`](https://developer.arm.com/downloads/-/gnu-rm)**:
-  * Direct official downloads from Arm:
-    * **Linux (`x86_64`)**: [`gcc-arm-none-eabi-10.3-2021.10-x86_64-linux.tar.bz2`](https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-x86_64-linux.tar.bz2)
-    * **Linux (`aarch64` / ARM64)**: [`gcc-arm-none-eabi-10.3-2021.10-aarch64-linux.tar.bz2`](https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-aarch64-linux.tar.bz2)
-    * **macOS (`x86_64` / Apple Silicon via Rosetta)**: [`gcc-arm-none-eabi-10.3-2021.10-mac.tar.bz2`](https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-mac.tar.bz2)
-    * **Windows (ZIP)**: [`gcc-arm-none-eabi-10.3-2021.10-win32.zip`](https://developer.arm.com/-/media/Files/downloads/gnu-rm/10.3-2021.10/gcc-arm-none-eabi-10.3-2021.10-win32.zip)
-  * Ensure `arm-none-eabi-gcc` is on your `PATH`, extract the toolchain into `./agt/10.3/`, or pass `TOOLCHAIN=/path/to/arm-none-eabi-` to `make`.
-* `make` (for building firmware) and `python3` (used by `make ptfx` to package `.ptfx` Sample Editor plugins and by the `make bump-*` version helpers; standard library only).
-
-### 2. Build Commands
-From the repository root:
+Requirements: GNU Arm Embedded Toolchain 10.3-2021.10 (`arm-none-eabi-gcc`), `make` and `python3`. See [`CLAUDE.md`](CLAUDE.md) for the developer notes.
 
 ```bash
-# Build all three devices (Original Tracker, Tracker+, Tracker Mini)
-make all
-
-# Or build a single target:
-make original   # -> build/PolyendTracker_CE_1.0.0.ptf
-make plus       # -> build/TrackerPlus_CE_1.0.0.ptf
-make mini       # -> build/TrackerMini_CE_1.0.0.ptf
-
-# Build reference .ptfx Sample Editor effects into editor-fx-sdk/build/Effects/:
-make ptfx
-
-# Clean all build directories:
-make clean
+make original              # -> build/PolyendTracker_Cycles_1.0.0.ptf
+make -C tidal test         # host tests: engine, editor, golden cases from Tidal
+make -C tidal smoke        # editor sessions in the desktop prototype
+tidal/run_proto.sh         # the desktop prototype (needs GHC + Tidal + SuperDirt for sound)
 ```
 
-### 3. Version Management (`version.mk`)
-All firmware version numbers are defined in [`version.mk`](version.mk). The **Build** identifier displayed on the hardware under **Config > Firmware > Build** is automatically populated from the short Git commit hash (`git rev-parse --short=7 HEAD`):
-
-```bash
-# Show current version, Git build hash & output filenames
-make version
-
-# Increment patch version (e.g. 1.0.0 -> 1.0.1)
-make bump-patch TARGET=all        # or TARGET=original | TARGET=plus | TARGET=mini
-
-# Increment minor version (e.g. 1.0.x -> 1.1.0)
-make bump-minor TARGET=all        # or TARGET=original | TARGET=plus | TARGET=mini
-```
-
-### 4. Flashing on Hardware & Emergency Recovery
-
-1. Copy the generated `.ptf` file from `build/` (`PolyendTracker_*.ptf`, `TrackerPlus_*.ptf`, or `TrackerMini_*.ptf`) to the `/Firmware/` folder on your Tracker's microSD card.
-   * *Note*: Keep `.ptf` filenames at **31 characters or fewer** so the Original Tracker's 32-byte `/Firmware/_fwinfo` bootloader buffer remains null-terminated.
-2. On the device, open **Config > Firmware > Firmware update**, select the `.ptf` file, and confirm.
-
-> **Bootloader Resilience & Emergency Firmware Recovery**:
-> * The Polyend Tracker bootloader is isolated from the application firmware:
->   * On the **Original Tracker (`MK66`)**, the bootloader runs on a separate dedicated microcontroller (`kBootloaderTrig`).
->   * On **Tracker+ and Tracker Mini (`IMX`)**, the bootloader resides in a protected region at the bottom of QSPI Flash (`0x60000000`–`0x6002FFFF`), while `.ptf` application builds are linked starting at `0x60030000` (do not modify the flash `ORIGIN` address in the linker scripts).
-> * **Emergency Recovery**: If a custom firmware build ever hangs or fails to boot into the UI, you can always recover your device:
->   1. Place a known-good, stable `.ptf` firmware file for your device inside the `/Firmware/` folder on your microSD card (ideally as the only `.ptf` file in `/Firmware/`).
->   2. Insert the microSD card into your Tracker and power it on.
->   3. Use a paperclip or SIM-eject pin to press the **recessed hardware Reset / Emergency Bootloader pinhole button** (located on the bottom of the Original Tracker / Tracker+, or next to the USB-C port on Tracker Mini). The hardware bootloader will automatically pick up the `.ptf` file from `/Firmware/` and flash it.
+* `tidal/`: the portable engine, editor and tests (host build).
+* `core/tidal/`: the firmware glue.
+* `docs/tidal_*.md`: the design documents.
 
 ---
 
-## Documentation & Developer Guides
+## Credits & License
 
-Full user and developer documentation is available in [`docs/`](docs/Home.md) and on the repository **Wiki**:
-
-* **User Guides**:
-  * [Custom Themes & Fonts](docs/custom_themes_and_fonts.md) + [Live Web Editor](https://polyend.github.io/tracker-theme-editor/) ([`polyend/tracker-theme-editor`](https://github.com/polyend/tracker-theme-editor))
-  * [Wavetable Envelopes, LFOs & Step FX](docs/wavetable_envelopes.md)
-  * [SD Card Image Viewer](docs/image_viewer.md)
-* **Developer & Architecture Guides**:
-  * [Firmware Architecture, Hardware Limits & Developer Gotchas](docs/developer_guide.md)
-  * [Custom Synth Engine SDK](docs/custom_synth_sdk.md)
-  * [Modular Sample Editor Effects & `.ptfx` Developer SDK](docs/modular_effects_system.md)
-
----
-
-## Polyend Tracker Open-Source Ecosystem
-
-This repository is part of a growing open-source ecosystem around the Polyend Tracker family:
-
-* **[`polyend/tracker-theme-editor`](https://github.com/polyend/tracker-theme-editor)** ([Live Web App](https://polyend.github.io/tracker-theme-editor/)): Browser-based visual **Theme & Font Editor** with a hardware screen simulator.
-* **[`polyend/tracker-lib`](https://github.com/polyend/tracker-lib)**: Open-source library and tools for reading, writing, and inspecting Polyend Tracker project (`.mt`), pattern (`.mtp`), and instrument (`.pti`) files.
-* **[Polyend Backstage Forum](https://backstage.polyend.com/)**: Community forum for sharing custom themes, fonts, `.ptfx` plugins, synth engines, and discussing workflows.
-* **[The Tracker Overflow (Discord)](https://discord.com/invite/uEPTnwckJV)**: Unofficial Polyend Tracker Discord where users and developers can join, chat, and find like-minded people.
-
----
-
-## License
-
-* **Source Code, SDKs, Open Synth Engines (`core/synth/engines/`), `.ptfx` Sample Editor SDK (`editor-fx-sdk/`), Drivers & Utilities**: Licensed under the **MIT License with a Wholesale Commercial Clone Restriction** (see [`LICENSE`](LICENSE)).
-  * **Musicians & Creators**: Using the firmware for commercial music production, albums, paid live performances/gigs, sample packs, and monetized streaming/YouTube content is **expressly permitted**.
-  * **Developers & Plugin Authors**: Reusing individual source files, drivers, DSP algorithms, UI widgets, or open-source C++ synth engines (`CHIP`, etc.) in your own open-source or commercial projects—and selling `.ptfx` Sample Editor plugins—is **expressly permitted** under the MIT License.
-  * **No Wholesale Commercial Clones**: You may **not** sell compiled `.ptf` firmware builds, manufacture/sell commercial clone hardware running the Tracker firmware, or sell a direct port/wholesale clone of the complete Tracker application as a paid software product.
-* **Precompiled Synth & DSP Libraries (`synth/lib/libPolySynth.a`, `synth/lib/libPolyDSP.a`)**: Provided under the [Polyend Precompiled Synthesizer & DSP Library License](synth/lib/LICENSE-PROPRIETARY.txt), permitting free use on authentic Polyend hardware as well as personal/DIY non-commercial projects (commercial embedding of the precompiled `.a` binaries is prohibited).
-* **Third-Party Components**: See [`NOTICE.md`](NOTICE.md).
+* **Firmware base:** [Polyend Tracker Community Edition](https://github.com/polyend/tracker-ce) by Polyend and contributors, **MIT License with a Wholesale Commercial Clone Restriction** (see [`LICENSE`](LICENSE)). Tracker Cycles is under the same terms. Please don't sell compiled builds.
+* **Inspiration:** [TidalCycles](https://tidalcycles.org) by Alex McLean and contributors. Tracker Cycles implements Tidal's documented behaviour independently and checks it against Tidal's output. No TidalCycles (GPL) or Strudel (AGPL) source code is used.
+* **Third-party components:** see [`NOTICE.md`](NOTICE.md).

@@ -204,7 +204,6 @@ class TcCodeView : public TcControl
 
 // ---- the info box (cursor info / status, message) ------------------------------------------
 
-int gDlBytes = 0;  // our controls' display lists, for the status line
 
 class TcSideView : public TcControl
 {
@@ -222,8 +221,7 @@ class TcSideView : public TcControl
         if (ed) {
             if (tidalEditorStatusOpen()) {  // status (Shift+Master) in place of the cursor info
                 char st[200];
-                const int n = tidalEditorStatusSummary(st, sizeof st);
-                snprintf(st + n, sizeof st - n, "   dl %d B", gDlBytes);
+                tidalEditorStatusSummary(st, sizeof st);
                 API_COLOR(col::accent);
                 API_CMD_TEXT(10, kInfoY, h, 0, st);
             } else {
@@ -241,7 +239,7 @@ class TcSideView : public TcControl
         }
         if (!tidalEditorStatusOpen()) {
             char st[120];
-            snprintf(st, sizeof st, "%s   dl %d B", tidalEditorStatus(), gDlBytes);
+            snprintf(st, sizeof st, "%s", tidalEditorStatus());
             API_COLOR(col::dim);
             API_CMD_TEXT(790, kInfoY, h, OPT_RIGHTX, st);
         }
@@ -521,8 +519,6 @@ void cTidalEditorModule::redraw()
         display.setControlText(label_[i], gLabel[i]);
         display.refreshControl(label_[i]);
     }
-    gDlBytes = 0;
-    for (TcControl* v : TcControl::views) gDlBytes += v ? v->bytes() : 0;
     display.synchronizeRefresh();
 }
 

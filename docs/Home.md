@@ -1,10 +1,24 @@
-# Polyend Tracker Community Edition (CE) - Documentation & Wiki
+# Tracker Cycles - Documentation & Wiki
 
-Welcome to the official documentation for **Polyend Tracker Community Edition (CE)** (`1.0.0`), covering the **Original Polyend Tracker** (`MK66`), **Polyend Tracker+** and **Polyend Tracker Mini** (`IMX`).
+**Tracker Cycles** (`1.0.0`): TidalCycles-style live coding on the **Original Polyend Tracker** (`MK66`), a fork of Polyend Tracker Community Edition (CE).
 
-* **[Release Changelog (`CHANGELOG.md`)](../CHANGELOG.md)** - Full list of new features, improvements, and fixes in each release.
+* **[README](../README.md)**: install, quick start, controls, what it plays, SD card layout, sample folders.
+* **[Release Changelog (`CHANGELOG.md`)](../CHANGELOG.md)**
+
+## Tracker Cycles
+
+* **[Editor controls (`tidal/README.md`)](../tidal/README.md)**: every control in the code editor (and the desktop prototype).
+* **[Functions, syntax and the code tree (`docs/tidal_code_tree.md`)](tidal_code_tree.md)**: the supported language and function list (section 7).
+* **[Control mapping (`docs/tidal_control_mapping.md`)](tidal_control_mapping.md)**: how Tidal controls map onto the Tracker's sound engine.
+* **[Voices (`docs/tidal_voices.md`)](tidal_voices.md)**: polyphony and `# voices`.
+* **[Sample folders (`docs/tidal_sample_folders.md`)](tidal_sample_folders.md)**: `/Tidal/<folder>/` as sliced instruments.
+* Design notes: [scheduler](tidal_scheduler.md), [device editor](tidal_device_editor.md), [UI v2](tidal_ui_v2.md).
 
 ---
+
+## Inherited from CE
+
+Some of these describe CE features this fork removed (the pattern editor and its step FX, songs) or that only exist on Tracker+ / Mini (synth engines).
 
 ## Musician & User Guides
 
