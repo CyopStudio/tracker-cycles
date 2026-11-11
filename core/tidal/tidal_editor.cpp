@@ -141,14 +141,30 @@ uint32_t gChangedMs = 0;         // when changes() last moved
 uint32_t gSeenChanges = 0;
 bool gOpenPending = false, gNewPending = false;
 
-// <project folder>/project.tidal; false for a project never saved to a folder
-bool projectTidalPath(char* buf, int cap) {
+// <project folder>/<project name>.tidal (UI notes, Editor14: named after the
+// project), or with `legacy` the earlier <project folder>/project.tidal;
+// false for a project never saved to a folder
+bool projectTidalPath(char* buf, int cap, bool legacy = false) {
     if ((mtProject.values.projectNotSavedFlag & 2) || !newFileManager.getCurrentProjectName()[0]) return false;
     char dir[PATCH_SIZE];
     newFileManager.getCurrentProjectPathWithName(dir, sizeof dir);
     if (!newFileManager.projectExist(newFileManager.getCurrentProjectPath(), newFileManager.getCurrentProjectName()))
         return false;
-    return snprintf(buf, cap, "%s/project.tidal", dir) < cap;
+    if (legacy) return snprintf(buf, cap, "%s/project.tidal", dir) < cap;
+    return snprintf(buf, cap, "%s/%s.tidal", dir, newFileManager.getCurrentProjectName()) < cap;
+}
+
+// The code into the project folder under the project's name; an earlier
+// project.tidal there goes (a Save As also copies the workspace's one in).
+bool writeProjectTidal(const char* text, int n, char* m, int mCap) {
+    char path[PATCH_SIZE + 48];
+    if (!projectTidalPath(path, sizeof path)) return false;
+    if (!tidalPlayerWriteText(path, text, n, m, mCap)) return false;
+    char old[PATCH_SIZE + 48];
+    if (gPlatform && projectTidalPath(old, sizeof old, true) && strcmp(old, path) != 0 &&
+        gPlatform->getFileSystem()->exists(old))
+        gPlatform->getFileSystem()->remove(old);
+    return true;
 }
 
 // the program as .tidal text in saveText; -1 if it doesn't fit
@@ -231,12 +247,12 @@ bool DeviceOutput::save(const tc::Program& p, tc::Label& msg) {
         return false;
     }
     gSavedChanges = gEd ? gEd->changes() : 0;
-    char path[PATCH_SIZE + 16];
+    char path[PATCH_SIZE + 48];
     if (!projectTidalPath(path, sizeof path)) {
         msg = "kept in the workspace: name the project once with File > Save As";
         return true;
     }
-    const bool ok = tidalPlayerWriteText(path, saveText, n, m, sizeof m);
+    const bool ok = writeProjectTidal(saveText, n, m, sizeof m);
     msg = m;
     return ok;
 }
@@ -256,12 +272,14 @@ bool tidalEditorTakeLitDirty() {
 const char* tidalEditorStatus() { return gStatus; }
 
 void tidalProjectOpened() {
-    // <project>/project.tidal -> the working copy (none: an empty project)
-    char path[PATCH_SIZE + 16];
+    // <project>/<name>.tidal (or the earlier project.tidal) -> the working
+    // copy (none: an empty project)
+    char path[PATCH_SIZE + 48];
     const char* text = nullptr;
     int len = 0;
     char m[96];
-    if (projectTidalPath(path, sizeof path) && tidalPlayerReadText(path, text, len, m, sizeof m))
+    if ((projectTidalPath(path, sizeof path) && tidalPlayerReadText(path, text, len, m, sizeof m)) ||
+        (projectTidalPath(path, sizeof path, true) && tidalPlayerReadText(path, text, len, m, sizeof m)))
         tidalPlayerWriteText(kWorkspaceTidal, text, len, m, sizeof m);
     else if (gPlatform)
         gPlatform->getFileSystem()->remove(kWorkspaceTidal);
@@ -273,9 +291,9 @@ void tidalProjectSaved() {
     if (!gEd) return;
     const int n = renderProgram(*reinterpret_cast<tc::Program*>(progRaw));
     if (n < 0) return;
-    char path[PATCH_SIZE + 16], m[96];
+    char m[96];
     tidalPlayerWriteText(kWorkspaceTidal, saveText, n, m, sizeof m);
-    if (projectTidalPath(path, sizeof path)) tidalPlayerWriteText(path, saveText, n, m, sizeof m);
+    writeProjectTidal(saveText, n, m, sizeof m);
     gSavedChanges = gEd->changes();
 }
 

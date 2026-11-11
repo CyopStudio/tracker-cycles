@@ -64,7 +64,21 @@ to upstream CE.
     Screen 1-8 = the old screen functions, Home = the block's top, Up /
     Down there = previous / next block, Right = into it; step 6 done:
     several blocks per dN, Insert at the top + pad N = new block above,
-    pad again cycles dN's blocks; the parser selects the last dN block).
+    pad again cycles dN's blocks; the parser selects the last dN block;
+    changed by the UI revision, Editor22: see below).
+  - UI revision (Editor22, the user's Editor14 notes): Shift+Up / Down =
+    previous / next block; Left / Right cross into the next / previous
+    block at a block's ends; the empty placeholder has a place in the block
+    list (Editor::emptyRowIndex; Up / Down leave it, starting a block puts
+    it there); deleting all of a block's code removes the block (no ??);
+    the current slot's pad twice in a row = a new dN block below (no more
+    cycling); Copy at a block's top duplicates it; Shift+Screen 5 = `<CR>`
+    line break (kBreak / kBreakOp node flags, parser keeps, file + layout
+    write, statements for GHCi stay on one line; quick1 lost its key);
+    no title bar / d1-d16 list (scroll bar, dN coloured by slot state:
+    CodeStyle::Slot*), slim info box and soft keys; the project's code is
+    <project>/<ProjectName>.tidal (project.tidal still read, removed on
+    save).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

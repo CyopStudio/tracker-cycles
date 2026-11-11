@@ -137,7 +137,9 @@ hardware can't.
 | Tracker control | Editing | In a menu | Key |
 | :--- | :--- | :--- | :--- |
 | ← → | previous / next sibling; on a leaf, or with no sibling on that side: on to the previous / next leaf of the text (into and out of subtrees and `"..."`, whose first / last gap is a stop; within the block); inside `"..."`: step, gap, step, gap … (the gap is a thin bar: pads insert steps there and stay in the gap, Screen 3–7 insert a bracket / alternation / polymeter / Euclid / choice, Delete removes the step before it, ↑ leaves it); inside a Haskell list (`stack [a, b]`, `cat`, `fastcat`, `slowcat`): element, gap, element … (Insert puts a copy of the element before the gap there, Shift+Copy pastes the clipboard there, Shift+Screen 1 opens the Replace list as an "insert" menu, Delete removes the element before the gap (a list keeps one); the new element is selected) | previous / next item | ← → |
-| ↑ ↓ | parent / first child; at a block's top (`dN $`): previous / next block | previous / next item | ↑ ↓ |
+| ↑ ↓ | parent / first child; at a block's top (`dN $`) or on an empty placeholder: previous / next block | previous / next item | ↑ ↓ |
+| Shift + ↑ ↓ | previous / next block (its top; setcps above the first) | | Shift + ↑ ↓ |
+| ← → at a block's first / last item | on into the block above / below (the leaf walk crosses blocks) | | ← → |
 | → at a block's top | into the block's expression | | → |
 | Jog wheel | change value (number, note, sample, function) | move | wheel, `+` `-`, PgUp/PgDn |
 | Shift + jog | bigger step (×10, octave, sample `:n`) | ±8 items | Shift + wheel |
@@ -145,8 +147,9 @@ hardware can't.
 | Shift + Screen 2 | Wrap (`fast 2 $ …`, `# gain 1`, `x*2` …) | | F2 / `w` |
 | Shift + Screen 3 | Unwrap (keep the inner pattern) | | F3 / `u` |
 | Shift + Screen 4 | Undo | | F4 / `z` |
-| Shift + Screen 5–8 inside `"..."` | wrap the step in `[ ]`, `< >`, `{ }%4`, `(3,8)`; on the quotes, the whole sequence (`"[bd sd]"`) | | F5–F8 |
-| Shift + Screen 5–8 on a pattern | `# <last control>`, `\|+ n 12`, `\|* speed 2`, `0.25 <~` | | F5–F8 |
+| Shift + Screen 5 | `<CR>`: a line break before the argument at the cursor, or before the operator / `$` it belongs to (again: removed); kept in the file, statements for GHCi stay on one line | | F5 |
+| Shift + Screen 6–8 inside `"..."` | wrap the step in `< >`, `{ }%4`, `(3,8)` (`[ ]`: Screen 3); on the quotes, the whole sequence (`"[bd sd]"`) | | F5–F8 |
+| Shift + Screen 6–8 on a pattern | `\|+ n 12`, `\|* speed 2`, `0.25 <~` (`# <control>`: Screen 2) | | F6–F8 |
 | Screen 1 `$` | menu: functions applied with `$` (`fast 2 $ …`, `every 4 rev $ …`); from inside `"..."` on the enclosing pattern | | |
 | Screen 2 `#` | menu: `# control` (all) | | |
 | Screen 3–7 inside `"..."` | menus around the step(s): `[ ]` (group, `[x x]`, `[x x x]`, `[x, x]`), `< >` (`<x>`, `<x ~>`, `<x x>`), `{ }` (`{x}%4` …), `( , )` Euclid (`(3,8)`, `(5,8)`, `(3,8,2)`, `(<3 5>,8)`), `\|` random choice (`[x \| ~]` …) | | |
@@ -159,9 +162,9 @@ hardware can't.
 | Delete while Play is held | cancel (releasing Play then does nothing) | | |
 | Insert | copy step / element, or add a `# control`; at a block's top: arm a new block (the next slot pad N adds an empty `dN $ silence` above the current block) | | `i` |
 | Shift + Insert (Home) | jump to the block's top (`dN $` / `jumpMod N k $`) | | Home |
-| Delete | inside `"..."`: a step becomes `~` (timing stays), a `~` is removed, elsewhere: delete (operand, or leave a `??` hole) | | `x` / Del |
+| Delete | inside `"..."`: a step becomes `~` (timing stays), a `~` is removed, elsewhere: delete (operand, or leave a `??` hole); all of a block's code: the block goes (an empty placeholder in its place) | | `x` / Del |
 | Shift + Delete (Backspace) | unwrap (same as Screen 3) | | |
-| Copy | copy the selection (whole pattern on a block) | | Ctrl+C |
+| Copy | copy the selection; at a block's top: duplicate the block below it | | Ctrl+C |
 | Shift + Copy (Paste) | replace the selection with the copy; a step can be pasted as a pattern (`"bd"`); works on an empty slot | | Ctrl+V |
 | Note | jump to the block's `n` / `note` pattern, first step (adds `# n "0"` if there is none): pads then enter notes | | `n` |
 | Shift + Note | chord menu on the note at the cursor (in a gap: the step before it): `e'maj`, `e'min`, `'maj7`, `'dom7`, `'min7`, `'dim`, `'dim7`, `'aug`, `'sus2`, `'sus4`, `'six`, `'five`, root as a note name (Tidal: c5 = 0); on a chord also "single note"; not on a range's end. Adds `# voices 3` to a sample block without `voices` | | |
@@ -176,7 +179,7 @@ hardware can't.
 | Song | launch menu: `dN $` (now), `jumpMod N 2/4/8/16`, `jumpIn N 1/2/4` (when the next evaluation takes effect) | | `l` |
 | Pads in a numeric pattern | enter a number: −12 top left, 0 at the start of the 2nd row, 34, then `~` (rest) bottom right (for `n`/`note`: semitones, a keyboard from c4). Replaces the value, group (`<1 2>`, `0 .. 7`) or quoted pattern at the cursor, then moves to the gap after it, so the next pads insert there (no Delete needed to end entry; Delete in the gap removes the step before). On the quotes this writes a pattern from scratch: pads `0 3 5 7` → `"0 3 5 7"`. On an empty slot, Note / Instrument start a block (`n "0"` / `s "<first instrument>"`) and the pads enter into it. A range fills low, then high. The current value's pad is framed | | click |
 | Pads in an `s` / `sound` pattern | instrument mode: pad N = instrument slot N (48, like the Tracker's instruments; names on the pads). Same entry as numbers (replace, then the gap after it); no rest pad, so pad 48 is slot 48. Default slots are Dirt-Samples folders; `--instruments FILE` (one name per line, blank = empty slot) replaces them | | click |
-| Pads elsewhere, or Shift + pad | 1–8 (top row) select d1..d8, 13–20 (2nd row) d9..d16: dN's playing block, else its first; the same pad again cycles through dN's blocks | | `1`..`8`, Shift+`1`..`8` |
+| Pads elsewhere, or Shift + pad | 1–8 (top row) select d1..d8, 13–20 (2nd row) d9..d16: dN's playing block, else its first; the same pad twice in a row: a new dN block below (an empty placeholder; Replace / Note / Instrument start it, Up / Down leave it); dN's other blocks: Shift+↑ ↓ | | `1`..`8`, Shift+`1`..`8` |
 | | next / previous slot pad | | Tab / Shift+Tab |
 | File | save | | Ctrl+S |
 | Shift + Song | `setcps` (the Tracker's tempo is on its Song screen; Master stays for the master settings): the cursor goes to its first number (the BPM in `setcps (120/60/4)`; a file without one gets `setcps (138/60/4)`, Tidal's default 0.575); jog changes it, Replace offers tempo numbers, Pattern sends it (the setcps bar turns green; amber = edited, not sent), Undo works; Shift+Song again or a slot pad goes back. Left / Right walk its numbers (120, 60, 4), Up = the setcps line (jog there = the BPM, Replace = whole tempos `130/60/4` ...), Down from the line = the first block, Up from the first block's top = the setcps line, Shift+Insert = the line | | Shift+`l` |
