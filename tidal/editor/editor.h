@@ -261,6 +261,8 @@ private:
     void addReplaceItems(MenuList& items, const Label& label, const Text& code,
                          bool mini);
     void ensureBlock();
+    void dropEmptyBlocks();
+    void actOne(Action a);  // blocks with no code once no menu needs them (Cancel, Undo)
     void doCopy();
     void quick(int i);
     void doPaste();

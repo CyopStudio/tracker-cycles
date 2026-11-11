@@ -645,6 +645,18 @@ folders listed in the project (e.g. a manifest) on project load.
      bd_01) and the mapper matches `s` through the same function; a load
      error goes on the message line, the status says "not loaded", the
      cursor info is clipped short of the status. Flash 881,876 B.
+     Editor12 (user): dashed names, spaces / brackets, error display work;
+     one hang: an empty block (no code, no "(empty" hint) evaluated ->
+     "nothing to evaluate", then the unit hung. Such a block comes from
+     ensureBlock() (Note / Instrument / Replace on an empty slot make the
+     block before the edit): a cancelled menu or an undo of the first edit
+     left it, and the file rendered it as a bare "d12" (not Tidal; the
+     autosave would store it). The hang itself did not reproduce on the
+     host (layout, evaluate, navigation fine). Editor13 (2026-11-11,
+     PolyendTrac_TidalEditor13.ptf, not yet run): Editor::act() / gotoSlot
+     drop blocks with no code whenever no menu / keyboard / edit is open
+     (dN is empty again; no undo step holds them), the file renderer skips
+     them; unit check + mutation. Flash 882,260 B.
 
 ## Polyphony (planned)
 - Built (2026-11-10, tick v7, not yet run on the device): design

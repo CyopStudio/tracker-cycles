@@ -178,6 +178,26 @@ void testEditorModel(int& pass, int& fail) {
         eager.setOutput(&out1);
     }
 
+    // a block started on an empty slot and then cancelled / undone leaves no
+    // block without code (Editor12: "d12" alone, evaluate -> device hang)
+    {
+        const std::string before = fileOf(eager);
+        eager.gotoSlot(11);
+        eager.act(Action::Replace);  // ensureBlock + the replace menu
+        EXPECT(eager.menuOpen(), "replace menu on an empty slot");
+        eager.act(Action::Cancel);
+        EXPECT(fileOf(eager) == before && !eager.prog().block[11], "cancel: no empty block left");
+        eager.act(Action::JumpNotes);  // starts d12 $ n "0"
+        EXPECT(fileOf(eager).find("d12 $ n") != std::string::npos, "Note started d12");
+        eager.act(Action::Undo);
+        EXPECT(fileOf(eager) == before && !eager.prog().block[11], "undo: no empty block left");
+        eager.act(Action::Evaluate);
+        EXPECT(eager.messageIsError(), "evaluate on the empty slot: %s", eager.message().c_str());
+        eager.act(Action::JumpNotes);  // and it starts again
+        EXPECT(fileOf(eager).find("d12 $ n") != std::string::npos, "Note starts d12 again");
+        eager.act(Action::Undo);
+    }
+
     // the control mapping (editor/controls.*), shared with the device
     Control c;
     EXPECT(ctlFromId("pad13", c) && c == padCtl(12), "pad13");

@@ -370,6 +370,7 @@ int Renderer::file(const Program& p) {
         any = true;
     }
     for (int i = 0; i < p.blockCount(); i++) {  // file order
+        if (!p.at(p.blockAt(i)).first) continue;  // a block being started (no code yet): not valid Tidal
         if (any) put('\n');
         if (p.blockComment(i)[0]) {
             puts(p.blockComment(i));

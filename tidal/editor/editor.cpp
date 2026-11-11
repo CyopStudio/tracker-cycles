@@ -815,6 +815,7 @@ void Editor::enterStep(const Text& miniCode, const Text& exprCode, const Label& 
 
 void Editor::gotoSlot(int s) {
     if (s < 0 || s >= kSlots) return;
+    dropEmptyBlocks();
     cps_ = false;
     pending_ = 0;
     gapSeq_ = 0;
@@ -933,6 +934,12 @@ Label Editor::cursorInfo() const {
 // actions
 
 void Editor::act(Action a) {
+    dropEmptyBlocks();
+    actOne(a);
+    dropEmptyBlocks();
+}
+
+void Editor::actOne(Action a) {
     if (kbdOpen_) return kbdAction(a);
     if (selSeq_ && !menuOpen_) {  // a selection lives until another kind of key
         switch (a) {
@@ -1477,6 +1484,32 @@ void Editor::ensureBlock() {
     }
     p->block[slot_] = b;
     cursor_ = b;
+}
+
+// ensureBlock() starts a block before the edit that fills it, so a cancelled
+// menu or an undo of that edit leaves a block with no code ("d12" alone:
+// not Tidal, and nothing to evaluate). Drop it: dN is empty again. No undo
+// step holds the block (it was made outside every checkpoint), so it goes
+// without the journal.
+void Editor::dropEmptyBlocks() {
+    if (menuOpen_ || kbdOpen_ || prog_->checkpointOpen()) return;
+    Program* p = prog_;
+    for (int i = p->blockCount() - 1; i >= 0; i--) {
+        const uint16_t b = p->blockAt(i);
+        if (p->at(b).first) continue;
+        const int s = p->blockSlot(b);
+        p->removeBlockAt(i);
+        p->freeTree(b);
+        if (cursor_ == b) cursor_ = 0;
+        if (playing_[s] == b) playing_[s] = 0;
+        if (p->block[s] == b) {
+            p->block[s] = 0;
+            for (int k = 0; k < p->blockCount() && !p->block[s]; k++)  // another block of dN
+                if (p->blockSlot(p->blockAt(k)) == s) p->block[s] = p->blockAt(k);
+            if (s == slot_ && !cursor_) cursor_ = p->block[s];
+            if (!p->block[s] && state_[s] != SlotState::Playing) state_[s] = SlotState::Empty;
+        }
+    }
 }
 
 void Editor::addReplaceItems(MenuList& items, const Label& label, const Text& code,

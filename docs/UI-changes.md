@@ -124,3 +124,12 @@ save and reload works
 new project empty editor works
 
 bug - load a new project with samples already loaded, start a new block, select the s pattern numbers, try to enter a sound using wheel or pads > "606-kick doesn't fit here"
+
+
+*PolyendTrac_TidalEditor12
+
+OK that worked
+
+had one crash, somehow got into a position with an isolated block that had no code and no (empty ...) message. when i evaluated it > nothing to evaluate and system hangs
+
+space and brackets works too 
