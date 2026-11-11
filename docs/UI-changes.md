@@ -113,4 +113,14 @@ feature request - can we lower the brightness of the cursor box and the event hi
 
 this is very good! excellent work
 
-feature request (park for now) - would be good to be able to toggle the cursor info box, tidal title bar, d1-d16 indicators on the left > done through the config menu if possible. 
+feature request (park for now) - would be good to be able to toggle the cursor info box, tidal title bar, d1-d16 indicators on the left > done through the config menu if possible.
+
+*PolyendTrac_TidalEditor11
+
+typo in project.tidal gives parse error but the text overlaps on the status strip
+
+save and reload works
+
+new project empty editor works
+
+bug - load a new project with samples already loaded, start a new block, select the s pattern numbers, try to enter a sound using wheel or pads > "606-kick doesn't fit here"

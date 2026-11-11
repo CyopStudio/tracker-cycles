@@ -396,6 +396,11 @@ static void testTypes() {
     typeCheck("s \"808 909\"");  // digits in a String pattern become words
     typeCheck("s \"808bd 808:3 808bd:2\"");  // digits + letters / :index are words
     typeCheck("n \"808bd\"", "not a note name");  // Tidal splits it into 808 b d
+    // '-' inside words, as GHCi reads them: s "606-kick hi-hat" = two samples,
+    // n "1-2" = 1 and -2
+    roundTrip("s \"606-kick hi-hat 606_kick bd:3\"");
+    typeCheck("s \"606-kick hi-hat\"");
+    roundTrip("n \"1-2\"", "n \"1 -2\"");
     // signatures checked against GHCi :t (golden/types.txt)
     typeCheck("whenmod \"<8 4>\" 1.5 rev $ s \"bd sd\"");  // Pat Time, not Pat Int
     typeCheck("n (scale \"major\" \"0 .. 7\")");

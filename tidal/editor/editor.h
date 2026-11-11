@@ -164,6 +164,8 @@ public:
     int menuSel() const { return menuSel_; }
     const Label& message() const { return message_; }
     bool messageIsError() const { return messageError_; }
+    // A message from outside the model (a file that didn't load ...).
+    void showMessage(const Label& m, bool isError) { message_ = m; messageError_ = isError; }
     SlotState slotState(int s) const { return state_[s]; }
     // Play is a modifier (v2, docs/tidal_ui_v2.md): pads pressed while it is
     // held mute / unmute their dN (Shift+Play: solo); released with no pad

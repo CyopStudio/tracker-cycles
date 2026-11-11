@@ -52,6 +52,8 @@ struct FakeHost : TrackerHost {
         {true, InstrKind::Loop, 0, "pad.wav"},       // 3
         {false, InstrKind::OneShot, 0, "hh.wav"},    // 4 (inactive)
         {true, InstrKind::OneShot, 0, "arpy.1.wav"}, // 5 (dot in the name)
+        {true, InstrKind::OneShot, 0, "606-Kick (2).wav"},          // 6 -> 606-kick__2_
+        {true, InstrKind::OneShot, 0, "a very long sample name.wav"}, // 7 -> a_very_long_sam
     };
     int fallback = -1;
     int instrumentCount() const override { return (int)ins.size(); }
@@ -127,6 +129,17 @@ void testInstruments() {
             o.e.dur);
     o = one(0, "s \"sd\"");
     MEXPECT(o.ok && o.e.chan == 1, "sd -> sd.WAV (case): chan %d", o.e.chan);
+    {
+        char t[16];
+        sampleToken("606-Kick (2).wav", t, sizeof t);
+        MEXPECT(!strcmp(t, "606-kick__2_"), "token %s", t);
+        sampleToken("noext", t, sizeof t);
+        MEXPECT(!strcmp(t, "noext"), "token %s", t);
+    }
+    o = one(0, "s \"606-kick__2_\"");
+    MEXPECT(o.ok && o.e.chan == 6, "606-kick__2_ -> 606-Kick (2).wav: chan %d", o.e.chan);
+    o = one(0, "s \"a_very_long_sam\"");
+    MEXPECT(o.ok && o.e.chan == 7, "15-char token of a long name: chan %d", o.e.chan);
     o = one(0, "s \"arpy.1\"");
     MEXPECT(o.ok && o.e.chan == 5, "arpy.1 -> arpy.1.wav: chan %d", o.e.chan);
     o = one(0, "s \"arpy\"");

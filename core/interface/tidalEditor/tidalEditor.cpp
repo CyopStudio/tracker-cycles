@@ -238,8 +238,14 @@ class TcSideView : public TcControl
                 API_COLOR(col::accent);
                 API_CMD_TEXT(10, kInfoY, h, 0, st);
             } else {
+                // cut short of the status on the right (Regular 12: <= 8 px a glyph)
+                const int statusW = ((int)strlen(tidalEditorStatus()) + 12) * 8;
+                API_SCISSOR_XY(0, kInfoY - 4);
+                API_SCISSOR_SIZE(800 - 10 - statusW > 100 ? 800 - 10 - statusW : 100, 20);
                 API_COLOR(col::dim);
                 API_CMD_TEXT(10, kInfoY, h, 0, ed->cursorInfo().c_str());
+                API_SCISSOR_XY(0, 0);
+                API_SCISSOR_SIZE(800, 480);
             }
             API_COLOR(ed->messageIsError() ? col::err : col::text);
             API_CMD_TEXT(10, kInfoY + 18, h, 0, ed->message().c_str());

@@ -14,6 +14,7 @@
 #include "tidal_config.h"
 #include "tidal_player.h"
 #include "../../tidal/core/engine.h"
+#include "../../tidal/core/mapping.h"
 #include "../../tidal/core/scheduler.h"
 #include "../../tidal/editor/editor.h"
 #include "../../tidal/editor/layout.h"
@@ -164,20 +165,15 @@ double nowSeconds() {
     return (double)us * 1e-6;
 }
 
-// The project's instruments on the pads: the sample file name without its
-// extension, the name `s` uses (the player maps names the same way).
+// The project's instruments on the pads: tc::sampleToken of the sample file
+// name, the name `s` uses (the player matches names the same way).
 // Returns true if a name changed (a sample loaded / removed since).
 bool setInstrumentNames() {
     bool changed = false;
     for (int i = 0; i < tc::kInstrumentSlots && i < kSampleInstrumentsCount; i++) {
         const strInstrument& ins = mtProject.instrument[i];
         char name[16] = "";
-        if (ins.isActive == 1) {
-            snprintf(name, sizeof name, "%s", ins.sample.file_name);
-            if (char* dot = strrchr(name, '.')) *dot = 0;
-            for (char* c = name; *c; c++)
-                if (*c >= 'A' && *c <= 'Z') *c = (char)(*c - 'A' + 'a');
-        }
+        if (ins.isActive == 1) tc::sampleToken(ins.sample.file_name, name, sizeof name);
         if (strcmp(gEd->instrument(i), name)) {
             gEd->setInstrument(i, name);
             changed = true;
@@ -194,8 +190,18 @@ bool loadFile(const char* path) {
     char msg[96];
     if (!tidalPlayerReadText(path, text, len, msg, sizeof msg)) return false;
     tc::Label err;
-    if (gEd->loadText(text, len, err)) snprintf(gStatus, sizeof gStatus, "%s loaded", path);
-    else snprintf(gStatus, sizeof gStatus, "%s: %s", path, err.c_str());
+    // the status line (right of the cursor info) stays short; a load error
+    // goes on the message line below it, which has the whole width
+    const char* base = strrchr(path, '/');
+    base = base ? base + 1 : path;
+    if (gEd->loadText(text, len, err)) {
+        snprintf(gStatus, sizeof gStatus, "%s loaded", base);
+    } else {
+        snprintf(gStatus, sizeof gStatus, "%s: not loaded", base);
+        tc::Label m;
+        m.printf("%s: %s", path, err.c_str());
+        gEd->showMessage(m, true);
+    }
     return true;
 }
 

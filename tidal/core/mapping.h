@@ -84,6 +84,12 @@ const char* trackerLibIssue(int libId, int slot);
 // 'cutoff' has no effect on MIDI slots (d9-d16)") and err.node.
 bool trackerCheck(const Program& p, int slot, Error& err);
 
+// The `s` name of a sample file: the name without its extension, lower
+// case, characters other than letters, digits and - _ . as _ ("BD 01" -> "bd_01")
+// as '_', at most 15 characters (the code tree's word limit). The pads
+// enter these names and the mapper matches `s` against them.
+int sampleToken(const char* file, char* out, int cap);
+
 class TrackerMapper : public Mapper {
 public:
     void init(const TrackerHost* host, float sampleRate);

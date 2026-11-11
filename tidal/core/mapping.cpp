@@ -9,6 +9,7 @@
 
 #include "library.h"
 
+#include <ctype.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -37,13 +38,33 @@ int lowerc(int c) { return c >= 'A' && c <= 'Z' ? c + 32 : c; }
 // `name` equals the file name without its extension, ignoring case.
 bool stemMatches(const char* name, const char* file) {
     if (!file) return false;
+    char tok[16];
+    sampleToken(file, tok, sizeof tok);
     int i = 0;
     for (; name[i]; i++)
-        if (lowerc((unsigned char)name[i]) != lowerc((unsigned char)file[i])) return false;
-    if (file[i] == 0) return true;
-    if (file[i] != '.') return false;
-    return strchr(file + i + 1, '.') == nullptr;  // only the last dot starts the extension
+        if (lowerc((unsigned char)name[i]) != tok[i]) return false;
+    return tok[i] == 0 && i > 0;
 }
+
+}  // namespace
+
+int sampleToken(const char* file, char* out, int cap) {
+    if (cap <= 0) return 0;
+    int n = 0;
+    if (file) {
+        const char* dot = strrchr(file, '.');  // only the last dot starts the extension
+        const char* end = dot && dot != file ? dot : file + strlen(file);
+        const int max = cap - 1 < 15 ? cap - 1 : 15;
+        for (const char* c = file; c < end && n < max; c++) {
+            const int ch = lowerc((unsigned char)*c);
+            out[n++] = (char)(isalnum(ch) || ch == '-' || ch == '_' || ch == '.' ? ch : '_');
+        }
+    }
+    out[n] = 0;
+    return n;
+}
+
+namespace {
 
 uint32_t hashName(const char* s) {
     uint32_t h = 2166136261u;

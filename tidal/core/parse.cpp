@@ -78,6 +78,11 @@ struct MiniParser {
     bool wordChar(int at) const {
         char c = at < len ? s[at] : 0;
         if (isalnum((unsigned char)c) || c == '\'' || c == '_' || c == '#') return true;
+        // '-' inside a word, as Tidal reads it: "606-kick", "hi-hat"
+        if (c == '-' && at > 0 && at < len) {
+            const char p = s[at - 1];
+            if (isalnum((unsigned char)p) || p == '_' || p == '-') return true;
+        }
         // '.' inside a word only when followed by an alphanumeric ("bd.x")
         if (c == '.' && at + 1 < len && isalnum((unsigned char)s[at + 1])) return true;
         return false;
@@ -187,6 +192,8 @@ struct MiniParser {
             int j = i;
             while (j < len && isdigit((unsigned char)s[j])) j++;
             if (j < len && isalpha((unsigned char)s[j])) return word();
+            // "606-kick", "606_kick": a word (but "1-2" stays two numbers)
+            if (j + 1 < len && (s[j] == '-' || s[j] == '_') && isalpha((unsigned char)s[j + 1])) return word();
             if (j + 1 < len && s[j] == ':' && isdigit((unsigned char)s[j + 1])) return word();
             return number();
         }

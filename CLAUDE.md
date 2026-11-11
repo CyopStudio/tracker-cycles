@@ -634,6 +634,17 @@ folders listed in the project (e.g. a manifest) on project load.
      working copy); a never-saved project keeps it in the workspace until
      File > Save As. Instruments / settings still save from the File
      screen, which now writes the code as well. Flash 881,484 B.
+     Editor11 (user): save / reload and New (empty editor) work; a parse
+     error ran over the status line; a sample named "606-kick" "doesn't
+     fit" (our mini parser ended words at '-', Tidal doesn't: GHCi reads
+     s "606-kick hi-hat" as two samples, n "1-2" as 1 and -2). Editor12
+     (2026-11-11, PolyendTrac_TidalEditor12.ptf, not yet run): '-' inside
+     words and digit-led "606-kick" / "606_kick" parse as words;
+     tc::sampleToken (mapping.h) makes the pad names from the file name
+     (lower case, other characters -> '_', 15 chars: "BD 01.wav" ->
+     bd_01) and the mapper matches `s` through the same function; a load
+     error goes on the message line, the status says "not loaded", the
+     cursor info is clipped short of the status. Flash 881,876 B.
 
 ## Polyphony (planned)
 - Built (2026-11-10, tick v7, not yet run on the device): design
