@@ -47,12 +47,17 @@ constexpr uint32_t lit = 0x553810;
 constexpr uint32_t litSel = 0x6E4A18;
 constexpr uint32_t muted = 0x5A7FD0;
 }  // namespace col
-const uint32_t kStyle[] = {col::text, col::fn, col::num, col::word, col::quote, col::hole};
+// the last four: a block's dN by its slot's state (playing, edited, error, muted)
+const uint32_t kStyle[] = {col::text, col::fn, col::num,    col::word, col::quote,
+                           col::hole, col::ok, col::edited, col::err,  col::muted};
 
-// screen geometry (800 x 480; the title bar above, soft keys below)
-constexpr int kCodeX = 76, kCodeW = 800 - kCodeX - 10;
-constexpr int kAreaTop = 34, kAreaBottom = 372;
-constexpr int kInfoY = 378;
+// screen geometry (800 x 480): no title bar and no d1-d16 list (UI notes,
+// Editor14): the code from the top left, a slim scroll bar at the left
+// edge, a slim info box and slim soft keys below
+constexpr int kCodeX = 16, kCodeW = 800 - kCodeX - 10;
+constexpr int kAreaTop = 6, kAreaBottom = 410;
+constexpr int kInfoY = 415, kInfoLine2 = kInfoY + 15;
+constexpr int kKeysY = 449, kKeysH = 31;
 
 const strFont& codeFont() { return fonts[2]; }   // Roboto Mono Regular 14 (the default font set)
 const strFont& smallFont() { return fonts[4]; }  // Regular 12
@@ -121,6 +126,12 @@ class TcCodeView : public TcControl
         // backgrounds: the current block, bars, selection / lit / gap
         API_BEGIN(RECTS);
         if (!half && s.box.on) rect(kCodeX - 6, kAreaTop + s.box.y - 2, kCodeW + 12, s.box.h - 4, col::current);
+        const int areaH = kAreaBottom - kAreaTop;
+        if (!half && s.contentH > areaH) {  // the scroll bar
+            const int th = areaH * areaH / s.contentH < 12 ? 12 : areaH * areaH / s.contentH;
+            rect(4, kAreaTop, 3, areaH, col::panel);
+            rect(4, kAreaTop + (areaH - th) * s.scroll / (s.contentH - areaH), 3, th, col::dim);
+        }
         for (int li = from; li < to; li++) {
             const tc::CodeLine& L = s.line[li];
             const int y = kAreaTop + L.y;
@@ -191,16 +202,7 @@ class TcCodeView : public TcControl
     }
 };
 
-// ---- slot list, status lines -----------------------------------------------------------
-uint32_t stateColor(tc::SlotState s)
-{
-    switch (s) {
-        case tc::SlotState::Playing: return col::ok;
-        case tc::SlotState::Edited: return col::edited;
-        case tc::SlotState::Error: return col::err;
-        default: return col::dim;
-    }
-}
+// ---- the info box (cursor info / status, message) ------------------------------------------
 
 int gDlBytes = 0;  // our controls' display lists, for the status line
 
@@ -213,24 +215,10 @@ class TcSideView : public TcControl
         const tc::Editor* ed = tidalEditorModel();
         API_SAVE_CONTEXT();
         API_BEGIN(RECTS);
-        rect(0, kInfoY - 4, 800, 424 - (kInfoY - 4), col::panel);
-        if (ed) {
-            for (int s = 0; s < tc::kSlots; s++) {
-                const int y = kAreaTop + s * 20;
-                if (s == ed->slot() && !ed->onCps()) rect(0, y - 2, 64, 20, col::current);
-                rect(8, y + 6, 6, 6, ed->muted(s) ? col::muted : stateColor(ed->slotState(s)));
-                if (s == tc::kSampleSlots - 1) rect(4, y + 18, 56, 1, col::dim);
-            }
-        }
+        rect(0, kInfoY - 3, 800, kKeysY - (kInfoY - 3), col::panel);
         API_END();
-        const int16_t h = smallFont().handle, hc = codeFont().handle;
+        const int16_t h = smallFont().handle;
         if (ed) {
-            char name[8];
-            for (int s = 0; s < tc::kSlots; s++) {
-                snprintf(name, sizeof name, "d%d", s + 1);
-                API_COLOR(s == ed->slot() ? col::text : col::dim);
-                API_CMD_TEXT(20, kAreaTop + s * 20, hc, 0, name);
-            }
             if (tidalEditorStatusOpen()) {  // status (Shift+Master) in place of the cursor info
                 char st[200];
                 const int n = tidalEditorStatusSummary(st, sizeof st);
@@ -241,14 +229,14 @@ class TcSideView : public TcControl
                 // cut short of the status on the right (Regular 12: <= 8 px a glyph)
                 const int statusW = ((int)strlen(tidalEditorStatus()) + 12) * 8;
                 API_SCISSOR_XY(0, kInfoY - 4);
-                API_SCISSOR_SIZE(800 - 10 - statusW > 100 ? 800 - 10 - statusW : 100, 20);
+                API_SCISSOR_SIZE(800 - 10 - statusW > 100 ? 800 - 10 - statusW : 100, 16);
                 API_COLOR(col::dim);
                 API_CMD_TEXT(10, kInfoY, h, 0, ed->cursorInfo().c_str());
                 API_SCISSOR_XY(0, 0);
                 API_SCISSOR_SIZE(800, 480);
             }
             API_COLOR(ed->messageIsError() ? col::err : col::text);
-            API_CMD_TEXT(10, kInfoY + 18, h, 0, ed->message().c_str());
+            API_CMD_TEXT(10, kInfoLine2, h, 0, ed->message().c_str());
         }
         if (!tidalEditorStatusOpen()) {
             char st[120];
@@ -463,8 +451,7 @@ void cTidalEditorModule::start(uint32_t)
     for (uint8_t b = 0; b <= (uint8_t)Control::Right; b++) ip->setButtonObj(b, functButton);
     ip->setPadsGlobal(functPads);
     ip->setPotObj(interfacePot0, functPot, false);
-    titleBar->show();
-    titleBar->setTitle("Tidal");
+    titleBar->hide();  // no title bar: more room for the code (UI notes, Editor14)
     display.refreshControl(bg_);
     tidalEditorSetDirty();
     redraw();
@@ -546,9 +533,9 @@ void cTidalEditorModule::initDisplayControls()
         prop.text = (char*)"";
         prop.style = (controlStyleShow | controlStyleCenterX | controlStyleCenterY | controlStyleFont3);
         prop.x = (800 / 8) * i + (800 / 16);
-        prop.y = 424;
+        prop.y = kKeysY;
         prop.w = 800 / 8 - 6;
-        prop.h = 55;
+        prop.h = kKeysH;
         prop.value = 0;
         label_[i] = display.createControl<cLabel>(&prop);
     }
@@ -557,8 +544,8 @@ void cTidalEditorModule::initDisplayControls()
     p2.style = controlStyleNoTransparency | controlStyleShow;
     p2.x = 0;
     p2.w = 800;
-    p2.y = 425;
-    p2.h = 54;
+    p2.y = kKeysY;
+    p2.h = 480 - kKeysY;
     bg_ = display.createControl<cBgLabel>(&p2);
 
     // the display draws lower-numbered controls last (on top): the overlay

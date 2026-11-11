@@ -38,62 +38,28 @@ constexpr uint32_t litSel = 0x6E4A18;  // the same inside the cursor's selection
 }  // namespace col
 
 
-static uint32_t stateColor(SlotState s) {
-    switch (s) {
-        case SlotState::Playing: return col::ok;
-        case SlotState::Edited: return col::edited;
-        case SlotState::Error: return col::err;
-        default: return col::dim;
-    }
-}
-
 void drawEditor(const Editor& ed, Framebuffer& fb) {
-    const Program& p = ed.prog();
     fb.clear(col::bg);
-
-    // header
-    fb.rect(0, 0, kW, 28, col::panel);
-    fb.text(10, 3, "TRACKER CYCLES", col::accent, FontId::MonoBold17);
-    std::string right;
-    if (ed.trackerMode()) right += "tracker mode   ";
-    if (appBackend()) {
-        right += std::string(appBackend()->name()) + (appBackend()->alive() ? " ok" : " not running");
-    } else {
-        right += "no backend";
-    }
-    fb.text(kW - 10 - fb.textWidth(right.c_str(), FontId::Sans12), 7, right.c_str(), col::dim, FontId::Sans12);
-    if (p.cpsExpr) {
-        char buf[64];
-        Renderer r(buf, sizeof buf);
-        buf[0] = 0;
-        r.expr(p, p.cpsExpr);
-        std::string cps = std::string("cps ") + buf;
-        fb.text(260, 7, cps.c_str(), col::dim, FontId::Sans12);
-    }
-
-    // slot list
-    const int top = 34, rowH = 20;
-    for (int s = 0; s < kSlots; s++) {
-        int y = top + s * rowH;
-        if (s == ed.slot()) fb.rect(0, y - 2, 64, rowH, col::current);
-        char name[8];
-        snprintf(name, sizeof name, "d%d", s + 1);
-        fb.rect(8, y + 6, 6, 6, ed.muted(s) ? 0x5A7FD0 : stateColor(ed.slotState(s)));  // blue = muted
-        fb.text(20, y, name, s == ed.slot() ? col::text : col::dim);
-        if (s == kSampleSlots - 1) fb.rect(4, y + rowH - 2, 56, 1, col::dim);
-    }
-    fb.text(8, top + kSlots * rowH + 2, "smp|midi", col::dim, FontId::Sans12);
 
     // code area: tidal/editor/layout.* (shared with the device's view)
     const Font& f = fb.font(FontId::Mono14);
     const int adv = f.widths['m'] ? f.widths['m'] : f.width;  // monospace advance
-    const int cx = 76, cw = kW - cx - 10, lineH = f.height + 3;
-    const int areaTop = 34, areaBottom = 376;
+    // no title bar and no d1-d16 list (UI notes, Editor14): the code from
+    // the top left, a slim scroll bar at the left edge, each block's dN in
+    // its slot's state colour
+    const int cx = 16, cw = kW - cx - 10, lineH = f.height + 3;
+    const int areaTop = 6, areaBottom = 410;
     static CodeScreen scr;
     static LayoutScratch scratch;
     layoutCode(ed, steadySeconds(), CodeGeometry{cw / adv, lineH, 8, areaBottom - areaTop}, scr, scratch);
     if (scr.box.on) fb.rect(cx - 6, areaTop + scr.box.y - 2, cw + 12, scr.box.h - 4, col::current);
-    static const uint32_t kStyle[] = {col::text, col::fn, col::num, col::word, col::quote, col::hole};
+    if (scr.contentH > areaBottom - areaTop) {  // scroll bar
+        const int ah = areaBottom - areaTop, th = ah * ah / scr.contentH < 12 ? 12 : ah * ah / scr.contentH;
+        fb.rect(4, areaTop, 3, ah, col::panel);
+        fb.rect(4, areaTop + (ah - th) * scr.scroll / (scr.contentH - ah), 3, th, col::dim);
+    }
+    static const uint32_t kStyle[] = {col::text, col::fn,    col::num, col::word, col::quote,
+                                      col::hole, col::ok,    col::edited, col::err, 0x5A7FD0};
     for (int li = 0; li < scr.n; li++) {
         const CodeLine& L = scr.line[li];
         const int yy = areaTop + L.y;
@@ -128,30 +94,28 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
         }
     }
 
-    // bottom panel
-    fb.rect(0, 380, kW, kH - 380, col::panel);
-    fb.text(10, 383, ed.cursorInfo().c_str(), col::dim, FontId::Sans12);
-    fb.text(10, 399, ed.message().c_str(), ed.messageIsError() ? col::err : col::text, FontId::Sans12);
-    if (appBackend() && !appBackend()->log.empty()) {
-        const auto& log = appBackend()->log;
-        size_t n = log.size() < 2 ? log.size() : 2;
-        for (size_t i = 0; i < n; i++) {
-            const std::string& l = log[log.size() - n + i];
-            fb.text(10, 417 + (int)i * 15, l.c_str(), col::dim, FontId::Sans12, 120);
-        }
+    // bottom panel: the cursor info and the message (two slim lines), the
+    // backend's state on the right
+    fb.rect(0, 412, kW, 36, col::panel);
+    fb.text(10, 414, ed.cursorInfo().c_str(), col::dim, FontId::Sans12, 90);
+    fb.text(10, 429, ed.message().c_str(), ed.messageIsError() ? col::err : col::text, FontId::Sans12, 110);
+    {
+        std::string right;
+        if (ed.trackerMode()) right += "tracker mode   ";
+        if (appBackend()) right += std::string(appBackend()->name()) + (appBackend()->alive() ? " ok" : " not running");
+        else right += "no backend";
+        fb.text(kW - 10 - fb.textWidth(right.c_str(), FontId::Sans12), 414, right.c_str(), col::dim, FontId::Sans12);
     }
 
-    // soft-key bar: labels for the 8 screen buttons below the display
-    const int sy = kH - 26;
-    fb.rect(0, sy - 2, kW, 1, col::dim);
+    // soft-key bar: labels for the 8 screen buttons below the display (slim)
+    const int sy = kH - 30;
     for (int i = 0; i < 8; i++) {
         Command k = controlCommand(ed, (Control)i, false);
         int x = i * 100;
-        if (i) fb.rect(x, sy, 1, 26, col::dim);
         if (k.label.empty()) continue;
-        fb.rect(x + 4, sy + 2, 92, 20, col::current);
+        fb.rect(x + 4, sy + 3, 92, 24, col::current);
         int w = fb.textWidth(k.label.c_str(), FontId::Sans12);
-        fb.text(x + (100 - w) / 2, sy + 5, k.label.c_str(), col::text, FontId::Sans12);
+        fb.text(x + (100 - w) / 2, sy + 7, k.label.c_str(), col::text, FontId::Sans12);
     }
 
     // menu overlay

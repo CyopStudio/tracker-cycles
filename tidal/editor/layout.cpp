@@ -57,6 +57,22 @@ int layoutText(const Editor& ed, uint16_t blk, bool cps, bool cur, bool lit, int
         s.flags[i] = 0;
     }
     paint(p, cps ? p.cpsExpr : blk, s, n);
+    if (!cps && blk) {  // the block's "dN" (its first word) by the slot's state
+        // dN's playing block (or its selected one when nothing plays) shows
+        // the slot's state; dN's other blocks stay plain
+        CodeStyle st = CodeStyle::Text;
+        const uint16_t playing = ed.playingBlock(slot);
+        if (blk == playing || (!playing && blk == p.block[slot])) {
+            switch (ed.slotState(slot)) {
+                case SlotState::Playing: st = ed.muted(slot) ? CodeStyle::SlotMuted : CodeStyle::SlotPlay; break;
+                case SlotState::Edited: st = CodeStyle::SlotEdit; break;
+                case SlotState::Error: st = CodeStyle::SlotErr; break;
+                default: break;
+            }
+            if (playing && ed.muted(slot)) st = CodeStyle::SlotMuted;
+        }
+        for (int i = 0; i < n && s.text[i] != ' '; i++) s.style[i] = st;
+    }
     if (lit)  // steps whose events sound now (only on the slot's playing block)
         for (const Editor::LitStep& l : ed.litSteps()) {
             if (l.slot != slot || !(l.on <= now && now < l.off) || !l.node || l.node >= kMaxNodes) continue;
@@ -185,6 +201,8 @@ void layoutCode(const Editor& ed, double now, const CodeGeometry& g, CodeScreen&
         y += h;
     }
     const int scroll = curY + curH > g.areaH ? curY + curH - g.areaH : 0;
+    out.scroll = (int16_t)scroll;
+    out.contentH = (int16_t)(y < 32767 ? y : 32767);
 
     // the lines of the blocks that reach the area
     y = -scroll;

@@ -13,7 +13,9 @@ namespace tc {
 constexpr int kCodeCols = 128;  // cells per line (a comment line holds its whole text)
 constexpr int kCodeLines = 40;  // lines kept (those of blocks that reach the area)
 
-enum class CodeStyle : uint8_t { Text, Fn, Num, Word, Quote, Hole };
+// Slot*: the block's "dN" by its slot's state (the d1-d16 list is gone, UI
+// notes Editor14): playing, edited (not sent), error, muted.
+enum class CodeStyle : uint8_t { Text, Fn, Num, Word, Quote, Hole, SlotPlay, SlotEdit, SlotErr, SlotMuted };
 constexpr uint8_t kCellSel = 1;  // inside the cursor's selection
 constexpr uint8_t kCellLit = 2;  // a sounding step (per-event highlighting)
 constexpr uint8_t kCellGap = 4;  // the gap cursor's bar is just before this cell
@@ -51,6 +53,8 @@ struct CodeScreen {
     int n;
     CodeLine line[kCodeLines];
     CodeBox box;
+    int16_t scroll;    // px the content is scrolled up (for a scroll bar)
+    int16_t contentH;  // px of all the blocks
 };
 
 struct CodeGeometry {
