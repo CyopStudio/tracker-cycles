@@ -102,7 +102,13 @@ to upstream CE.
     stays valid); the jog wheel and pads work as in tree mode.
     New-block bug detail: the device said "can't start a block with
     n "0" # s "808-bd-5"" (the first instrument); RC2's message adds the
-    edit's own reason, the status view shows nodes / words in use.
+    edit's own reason, the status view shows nodes / words in use. Cause
+    found: the instrument was "808 - kick 5.wav" -> s name 808_-_kick_5,
+    and the mini parser only took digit-led words when a letter followed
+    the first - / _. Now digits + a run of alphanumerics / _ / - / ' with a
+    letter in it is a word (golden name_digits; "1-2" stays numbers;
+    letter-less names like 808_5 still don't parse: Tidal's parser is
+    type-directed, ours isn't). RC3 (PolyendTrac_CyclesRC3.ptf).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

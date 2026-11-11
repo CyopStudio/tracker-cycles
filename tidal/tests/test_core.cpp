@@ -420,6 +420,9 @@ static void testTypes() {
     // '-' inside words, as GHCi reads them: s "606-kick hi-hat" = two samples,
     // n "1-2" = 1 and -2
     roundTrip("s \"606-kick hi-hat 606_kick bd:3\"");
+    roundTrip("s \"808_-_kick_5 808-bd-5 808_kick:2\"");  // 1.0.0 device pass: "808 - kick 5.wav"
+    typeCheck("n \"0\" # s \"808_-_kick_5\"");
+    roundTrip("n \"1-2 3\"", "n \"1 -2 3\"");
     typeCheck("s \"606-kick hi-hat\"");
     roundTrip("n \"1-2\"", "n \"1 -2\"");
     // signatures checked against GHCi :t (golden/types.txt)

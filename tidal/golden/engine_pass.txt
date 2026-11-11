@@ -214,3 +214,4 @@ compress
 compress_bad
 wchoose
 wrandcat
+name_digits

@@ -192,8 +192,20 @@ struct MiniParser {
             int j = i;
             while (j < len && isdigit((unsigned char)s[j])) j++;
             if (j < len && isalpha((unsigned char)s[j])) return word();
-            // "606-kick", "606_kick": a word (but "1-2" stays two numbers)
-            if (j + 1 < len && (s[j] == '-' || s[j] == '_') && isalpha((unsigned char)s[j + 1])) return word();
+            // digits, then - _ ' and alphanumerics with a letter among them:
+            // a sample name ("606-kick", "808_-_kick_5", from "808 - kick 5.wav";
+            // 1.0.0 device pass). Without a letter ("1-2") they stay numbers, as
+            // Tidal reads number patterns (in sound patterns Tidal also takes
+            // "808_5" as a name; we can't tell the type while parsing)
+            {
+                int k = j;
+                bool letter = false;
+                while (k < len && (isalnum((unsigned char)s[k]) || s[k] == '_' || s[k] == '-' || s[k] == '\'')) {
+                    letter |= isalpha((unsigned char)s[k]) != 0;
+                    k++;
+                }
+                if (letter) return word();
+            }
             if (j + 1 < len && s[j] == ':' && isdigit((unsigned char)s[j + 1])) return word();
             return number();
         }

@@ -261,3 +261,4 @@ compress          2  compress (0.25, 0.75) $ s "a b"
 compress_bad      1  compress (0.5, 1.5) $ s "a b"
 wchoose           2  n (segment 4 $ wchoose [(0, 0.25), (2, 0.5), (7, 0.25)])
 wrandcat          4  wrandcat [(s "a*2", 0.5), (s "b*3", 0.5)]
+name_digits       1  s "808_-_kick_5 808-bd-5 606-kick:1"
