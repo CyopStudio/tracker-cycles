@@ -2629,6 +2629,10 @@ bool Editor::pollHighlights(double now) {
                 lit_.push_back(l);
                 if (litSeen_.full()) litSeen_.erase_at(0);
                 litSeen_.push_back(l);
+                // the record arrives after its onset (often after the poll
+                // that would have seen it turn on): a new step that is still
+                // lit always redraws (Editor9: d1 / d2 missed highlights)
+                if (l.off > now) changed = true;
             }
         }
     }

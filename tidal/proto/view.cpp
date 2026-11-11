@@ -27,14 +27,14 @@ constexpr uint32_t fn = 0x79B8FF;
 constexpr uint32_t num = 0xFFB86B;
 constexpr uint32_t word = 0x9FE08F;
 constexpr uint32_t quote = 0x6FA868;
-constexpr uint32_t cursor = 0x2F5FA8;
+constexpr uint32_t cursor = 0x22426E;  // darker (Editor9: contrast with the text)
 constexpr uint32_t hole = 0xFF6B6B;
 constexpr uint32_t err = 0xFF6B6B;
 constexpr uint32_t ok = 0x7BD88F;
 constexpr uint32_t edited = 0xF0C060;
 constexpr uint32_t accent = 0xFF9F1C;
-constexpr uint32_t lit = 0x8A5A12;     // a step whose event is sounding
-constexpr uint32_t litSel = 0xC07818;  // the same inside the cursor's selection
+constexpr uint32_t lit = 0x553810;     // a step whose event is sounding
+constexpr uint32_t litSel = 0x6E4A18;  // the same inside the cursor's selection
 }  // namespace col
 
 

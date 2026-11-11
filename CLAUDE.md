@@ -606,6 +606,14 @@ folders listed in the project (e.g. a manifest) on project load.
      "<0 12>"`, `x * 2`); Note / Instrument find the pattern through such
      operators (the structure side: +| right, |+ left). Smoke session 27,
      session 23 updated (the walk now stops on `#`). Flash 880,292 B.
+     Editor9 (user): status in the info box, operator select / change and
+     front-of-pattern operators work; d1 / d2 missed some highlights unless
+     d3 played (records arrive after their onset, often after the poll that
+     would have seen the step turn on, so no redraw: a newly arrived step
+     that is still lit now always redraws); darker cursor / highlight boxes
+     for contrast (cursor 0x22426E, lit 0x553810, lit+cursor 0x6E4A18, also
+     in the prototype). Editor10 (2026-11-11, PolyendTrac_TidalEditor10.ptf,
+     not yet run).
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)

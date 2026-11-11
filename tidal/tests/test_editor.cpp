@@ -172,6 +172,8 @@ void testEditorModel(int& pass, int& fail) {
         for (const auto& l : eager.litSteps()) lit += std::to_string(l.slot) + ":" + std::to_string(l.node) + " ";
         EXPECT(lit == "1:201 0:102 0:103 ", "lit after d1's next onset: %s", lit.c_str());
         EXPECT(!eager.pollHighlights(2.2), "nothing turned on or off: no redraw");
+        lo.q = {{1, 202, 2.15, 9.0}};  // arrives after the poll that passed its onset
+        EXPECT(eager.pollHighlights(2.3), "a late record still redraws");
         EXPECT(eager.pollHighlights(9.5) && eager.litSteps().empty(), "all off at 9.5");
         eager.setOutput(&out1);
     }

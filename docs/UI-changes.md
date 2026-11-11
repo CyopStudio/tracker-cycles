@@ -82,7 +82,7 @@ at the lowest level, left and right should make the curser should continue navig
 
  feature request - shift arrows should in mini-notation pattern should select a group of numbers to be able to wrap them in [] etc
 
- *PolyendTrac_TidalEditor7
+ *PolyendTrac_TidalEditor8
 
  highlights work as they should
 
@@ -96,3 +96,15 @@ to
 n "0,7,10" +| "0 1 2 3 4 5 6 7"
 
 feature request - cursor should be able to select # etc to change it to |< |+ etc
+
+ *PolyendTrac_TidalEditor9
+
+ status works better here, nice one
+
+operator select and change works well now
+
+place in front works
+
+bug - didn't notice before, but highlighting on d1 and d2 misses some highlights unless d3 is running
+
+feature request - can we lower the brightness of the cursor box and the event highlighting to increase contrast with the white code text
