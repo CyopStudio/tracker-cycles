@@ -134,6 +134,15 @@ to upstream CE.
     controls whose fingerprint changed (FNV of the layout / info strings /
     menu state / label text; forceAll_ on start). Menu checking itself is
     ~0.1-0.15 s (editor bench); caching menus per context is a 1.1 idea.
+    RC6 (user): highlights run under an open menu, but while it opens
+    everything stalls. Cause: the lazy check ran 3 trial edits per pass
+    (each copies, applies, type-checks the block, rolls back: tens of ms
+    while busy) and the display got one step per pass in between. RC7
+    (PolyendTrac_CyclesRC7.ptf, not yet run): checking waits 150 ms after
+    a menu opens (it's drawn first), then ~3 ms per pass (at least one
+    item); cDisplay::update (stock, core/libs/NewDisplay/display.cpp)
+    does up to 6 steps per pass while the coprocessor is idle and < 2 ms
+    have passed (a swap stops it: the coprocessor waits for the frame).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

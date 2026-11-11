@@ -471,12 +471,31 @@ void tidalEditorUpdate(Platform* platform) {
     // (RC3: ">= 0" was always true, so an open menu asked for a full redraw
     // every pass; with patterns playing the display never caught up and
     // froze)
-    if (gEd->menuOpen()) {
+    // RC6: checking ran 3 items per pass right away and stalled the screen
+    // while a menu opened; now the menu is drawn first (checking waits
+    // 150 ms), then items are checked ~3 ms per pass (at least one)
+    {
+        static bool wasOpen = false;
+        static uint32_t openedMs = 0;
         static int lastLeft = -1, lastSize = -1;
-        const int left = gEd->checkMenu(3), size = gEd->menu().size();
-        if (left != lastLeft || size != lastSize) gDirty = true;
-        lastLeft = left;
-        lastSize = size;
+        const uint32_t now = platform->getTimer()->millis();
+        const bool open = gEd->menuOpen();
+        if (open && !wasOpen) openedMs = now;
+        wasOpen = open;
+        if (open && now - openedMs >= 150) {
+            const uint32_t t0 = platform->getTimer()->micros();
+            int left;
+            do left = gEd->checkMenu(1);
+            while (left > 0 && gEd->menuOpen() && platform->getTimer()->micros() - t0 < 3000);
+        }
+        if (gEd->menuOpen()) {
+            const int left = gEd->checkMenu(0), size = gEd->menu().size();
+            if (left != lastLeft || size != lastSize) gDirty = true;
+            lastLeft = left;
+            lastSize = size;
+        } else {
+            lastLeft = lastSize = -1;
+        }
     }
     if (gEd->pollHighlights(nowSeconds())) gLitDirty = true;  // the code view alone, at a lower rate
 }
