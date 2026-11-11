@@ -4,7 +4,7 @@ setcps (120/60/4)
 d1 $ s "bd*2 ~ sd bd sd"
 
 -- hats
-d2 $ s "hh*8" # gain 0.8 # pan sine # pan sine
+d2 $ s "hh*8" # (slow 2 $ gain 0.8) # pan sine
 
 d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
 
@@ -17,7 +17,7 @@ setcps (120/60/4)
 d1 $ s "bd*2 ~ sd bd sd"
 
 -- hats
-d2 $ s "hh*8" # gain 0.8 # pan sine # pan sine
+d2 $ s "hh*8" # (slow 2 $ gain 0.8) # pan sine
 
 d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
 

@@ -30,6 +30,26 @@ void Editor::tokOwners(uint16_t n, int len) {
     for (uint16_t c = p.at(n).first; c; c = p.at(c).next) tokOwners(c, len);
 }
 
+// The gaps of the "..." sequences under n (steps, not a modifier's argument
+// such as `bd*2`'s 2), in tree order.
+void Editor::tokGaps(uint16_t n) {
+    const Program& p = *prog_;
+    const Node& x = p.at(n);
+    if (x.kind == Kind::MSeq && !(x.flags & kDots) && x.first) {
+        const uint16_t par = p.parentOf(n);
+        if (!par || !isMiniModifier(p.at(par).kind)) {
+            const int count = p.childCount(n);
+            for (int i = 0; i <= count && gapN_ < kGapMax; i++) {
+                const uint16_t c = i < count ? p.child(n, i) : p.child(n, count - 1);
+                const Span& sp = tokSpans_[c];
+                if (sp.end <= sp.start) continue;
+                gaps_[gapN_++] = Gap{i < count ? sp.start : sp.end, n, (uint16_t)i};
+            }
+        }
+    }
+    for (uint16_t c = x.first; c; c = p.at(c).next) tokGaps(c);
+}
+
 static bool exprContainer(Kind k) {
     return k == Kind::App || k == Kind::Op || k == Kind::SectionL || k == Kind::SectionR || k == Kind::Compose ||
            k == Kind::Block || k == Kind::List;
@@ -51,18 +71,33 @@ int Editor::buildTokens() {
     tokOwners(b, n);
     const uint16_t e = p.at(b).first;
     const int eStart = e && tokSpans_[e].end > tokSpans_[e].start ? tokSpans_[e].start : n;
-    int line = 0, col = 0, i = 0;
-    auto add = [&](int start, int end, uint16_t node, uint8_t kind) {
+    // the gaps between steps (user, RC11: the spaces in "..." are stops too),
+    // by character; a gap goes before the token starting at its character
+    gapN_ = 0;
+    tokGaps(b);
+    for (int a = 1; a < gapN_; a++)  // insertion sort: mostly in order already
+        for (int k = a; k > 0 && gaps_[k - 1].at > gaps_[k].at; k--) {
+            const Gap t = gaps_[k];
+            gaps_[k] = gaps_[k - 1];
+            gaps_[k - 1] = t;
+        }
+    int line = 0, col = 0, i = 0, gi = 0;
+    auto add = [&](int start, int end, uint16_t node, uint8_t kind, uint16_t pos = 0) {
         if (tokN_ >= kTokMax) return;
         Tok& t = toks_[tokN_++];
         t.start = (uint16_t)start;
         t.end = (uint16_t)end;
         t.node = node;
         t.kind = kind;
+        t.pos = pos;
         t.line = (uint16_t)line;
         t.col = (uint16_t)col;
     };
     while (i < n) {
+        while (gi < gapN_ && gaps_[gi].at <= i) {
+            add(gaps_[gi].at, gaps_[gi].at, gaps_[gi].seq, kTokGap, gaps_[gi].pos);
+            gi++;
+        }
         const char ch = tokText_[i];
         if (ch == '\n') {
             line++;
@@ -96,17 +131,23 @@ int Editor::buildTokens() {
         col += j - i;
         i = j;
     }
+    for (; gi < gapN_; gi++) add(gaps_[gi].at, gaps_[gi].at, gaps_[gi].seq, kTokGap, gaps_[gi].pos);
     tokLines_ = line + 1;
     return tokN_;
 }
 
 int Editor::tokenIndex() {
+    if (gapSeq_) {
+        for (int i = 0; i < tokN_; i++)
+            if (toks_[i].kind == kTokGap && toks_[i].node == gapSeq_ && toks_[i].pos == gapPos_) return i;
+        return -1;
+    }
     if (!tokN_ || !cursor_) return -1;
     const bool sym = onOperator();
     int best = -1;
     for (int i = 0; i < tokN_; i++) {
         const Tok& t = toks_[i];
-        if (t.node != cursor_ || (t.kind == kTokSym) != sym) continue;
+        if (t.node != cursor_ || t.kind == kTokGap || (t.kind == kTokSym) != sym) continue;
         if (t.start == tokAt_) return i;
         if (best < 0) best = i;
     }
@@ -117,7 +158,8 @@ void Editor::setToken(int i) {
     const Tok& t = toks_[i];
     cursor_ = t.node;
     onOp_ = t.kind == kTokSym;
-    gapSeq_ = 0;
+    gapSeq_ = t.kind == kTokGap ? t.node : 0;
+    gapPos_ = t.pos;
     tokAt_ = t.start;
 }
 
@@ -125,7 +167,7 @@ int Editor::tokenNear(int line, int col) const {
     int best = -1, bestD = 0x7FFF;
     for (int i = 0; i < tokN_; i++) {
         const Tok& t = toks_[i];
-        if (t.line != line) continue;
+        if (t.line != line || t.kind == kTokGap) continue;  // Up / Down land on tokens
         const int a = t.col, z = t.col + (t.end - t.start);
         const int d = col < a ? a - col : col >= z ? col - z + 1 : 0;
         if (d < bestD) {
@@ -147,7 +189,10 @@ void Editor::cursorMove(int dir) {
     if (cps_ || (!cursor_ && !gapSeq_)) return navigate(dir < 0 ? Action::Left : Action::Right);
     if (!buildTokens()) return;
     int i = -1;
-    if (gapSeq_) {
+    const int at = tokenIndex();
+    if (at >= 0) {
+        i = at + dir;
+    } else if (gapSeq_) {  // a list gap (not a stop of its own): the tokens either side
         const int g = gapChar(*prog_, tokSpans_, gapSeq_, gapPos_);
         if (dir > 0) {
             for (int k = 0; k < tokN_ && i < 0; k++)
@@ -157,8 +202,7 @@ void Editor::cursorMove(int dir) {
                 if (toks_[k].end <= g) i = k;
         }
     } else {
-        const int c = tokenIndex();
-        i = c < 0 ? 0 : c + dir;
+        i = 0;
     }
     if (i >= 0 && i < tokN_) setToken(i);  // else the block's end: Left / Right stay in the block
     info(cursorInfo());
@@ -174,7 +218,11 @@ void Editor::cursorLine(int dir) {
     } else {
         if (!buildTokens()) return;
         int line = 0;
-        if (gapSeq_) {  // the gap's column
+        const int c0 = tokenIndex();
+        if (c0 >= 0) {
+            line = toks_[c0].line;
+            col = toks_[c0].col;
+        } else if (gapSeq_) {  // a list gap's column
             const int g = gapChar(*prog_, tokSpans_, gapSeq_, gapPos_);
             for (int k = 0; k < g && k < kTokText; k++) {
                 if (tokText_[k] == '\n') {
@@ -183,12 +231,6 @@ void Editor::cursorLine(int dir) {
                 } else {
                     col++;
                 }
-            }
-        } else {
-            const int c = tokenIndex();
-            if (c >= 0) {
-                line = toks_[c].line;
-                col = toks_[c].col;
             }
         }
         const int to = line + dir;
@@ -233,6 +275,13 @@ uint16_t Editor::headOf(uint16_t n) const {
 
 void Editor::cursorDelete(bool back) {
     if (back && gapSeq_) return deleteAtGap();  // the bar: the step before it
+    if (!back && gapSeq_ && !listGap()) {     // the bar: the token after it (a step: ~)
+        buildTokens();
+        const int c = tokenIndex();
+        if (c < 0 || c + 1 >= tokN_ || toks_[c + 1].kind == kTokGap || toks_[c + 1].start != toks_[c].start)
+            return error("nothing to the right in this sequence (Shift+Delete: the step before)");
+        setToken(c + 1);
+    }
     if (selSeq_) return doDelete();
     if (back) {
         if (!buildTokens()) return;
@@ -292,6 +341,19 @@ bool Editor::spliceGroup() {
 }
 
 void Editor::cursorInsert() {
+    if (gapSeq_ && !listGap()) {  // a gap in "...": a copy of the step before it (the first: after it)
+        const uint16_t seq = gapSeq_;
+        const uint16_t src = prog_->child(seq, gapPos_ > 0 ? gapPos_ - 1 : 0);
+        if (!src) return;
+        if (!beginEdit()) return;
+        Program* q = prog_;
+        const uint16_t c = q->copyTree(*q, src);
+        if (!c) return abortEdit(), error("out of nodes");
+        if (!linkAtGap(*q, c, seq, gapPos_)) return abortEdit(), error("can't insert here");
+        gapSeq_ = 0;
+        if (endEdit(c)) info("inserted a copy (jog changes it)");
+        return;
+    }
     if (gapSeq_ || !cursor_ || cps_) return doInsert();
     const Program& p = *prog_;
     const Kind k = p.at(cursor_).kind;

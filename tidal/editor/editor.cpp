@@ -1196,6 +1196,11 @@ Label Editor::cursorInfo() const {
     if (gapSeq_) {
         const int count = prog_->childCount(gapSeq_);
         Label m;
+        if (cursorMode_)
+            return m.printf("gap %d of %d: pads / Screen 3-7 / Insert add a step; Delete: the step after, "
+                            "Shift+Delete: the one before",
+                            gapPos_, count),
+                   m;
         return m.printf("gap %d of %d: pads / Screen 3-7 insert, Delete removes the step before", gapPos_, count), m;
     }
     if (!cursor_)
@@ -1311,7 +1316,10 @@ void Editor::actOne(Action a) {
             case Action::Struct4: case Action::Struct5: case Action::Struct6: case Action::Struct7:
             case Action::Struct8: case Action::MenuModifiers: case Action::MenuFx:
             case Action::PlayCancel: case Action::Evaluate: case Action::Hush: case Action::MenuChords:
-            case Action::SilenceSlot:
+            case Action::SilenceSlot: case Action::Backspace: case Action::ToggleCursorMode:
+                break;
+            case Action::Insert:  // cursor mode: a step into the gap
+                if (!cursorMode_) leaveGap();
                 break;
             default: leaveGap(); break;  // act on the whole sequence
         }

@@ -275,12 +275,14 @@ public:
 private:
     // ---- cursor mode (cursor.cpp) ----
     bool cursorMode_ = false;
-    enum : uint8_t { kTokNode, kTokSym, kTokTop };
+    enum : uint8_t { kTokNode, kTokSym, kTokTop, kTokGap };
     struct Tok {
         uint16_t start, end;  // characters of the rendered block
         uint16_t node;
         uint16_t line, col;   // hard line (line breaks) and column of start
-        uint8_t kind;         // kTokNode: select node; kTokSym: its operator symbol; kTokTop: the block's top
+        uint16_t pos;         // kTokGap: the gap's position in its sequence (node)
+        uint8_t kind;         // kTokNode: select node; kTokSym: its operator symbol; kTokTop: the block's
+                              // top; kTokGap: a gap between steps of "..." (node = the sequence)
     };
     static constexpr int kTokText = 4096, kTokMax = 1024;
     // scratch (SDRAM on the device, with the editor): the current block
@@ -289,6 +291,13 @@ private:
     char tokText_[kTokText + 1];
     uint16_t tokOwner_[kTokText];
     Tok toks_[kTokMax];
+    struct Gap {
+        uint16_t at, seq, pos;  // the character it stands before
+    };
+    static constexpr int kGapMax = 512;
+    Gap gaps_[kGapMax];
+    int gapN_ = 0;
+    void tokGaps(uint16_t n);
     int tokN_ = 0, tokLines_ = 0;
     uint16_t tokAt_ = 0xFFFF;  // the current token's first character (tells '[' from ']')
     int buildTokens();         // the current block's tokens (0: none)

@@ -61,6 +61,7 @@ struct CodeScreen {
     CodeFlash flash;
     int16_t scroll;    // px the content is scrolled up (for a scroll bar)
     int16_t contentH;  // px of all the blocks
+    bool tokenMode;    // cursor mode (its own cursor colour) or tree mode
 };
 
 struct CodeGeometry {

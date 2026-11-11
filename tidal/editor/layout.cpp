@@ -166,6 +166,7 @@ struct Row {
 void layoutCode(const Editor& ed, double now, const CodeGeometry& g, CodeScreen& out, LayoutScratch& s) {
     const Program& p = ed.prog();
     out.n = 0;
+    out.tokenMode = ed.cursorMode();
     out.box.on = false;
     out.flash.on = false;
     Row rows[kMaxBlocks + 2];

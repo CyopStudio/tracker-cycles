@@ -45,6 +45,8 @@ constexpr uint32_t edited = 0xF0C060;
 constexpr uint32_t accent = 0xFF9F1C;
 constexpr uint32_t lit = 0x553810;
 constexpr uint32_t litSel = 0x6E4A18;
+constexpr uint32_t cursorTok = 0x52306E;  // cursor mode's cursor (tree mode: cursor; user, RC11)
+constexpr uint32_t litTok = 0x6E3A40;
 constexpr uint32_t muted = 0x5A7FD0;
 }  // namespace col
 // the last four: a block's dN by its slot's state (playing, edited, error, muted)
@@ -167,7 +169,7 @@ class TcCodeView : public TcControl
             if (L.kind == tc::LineKind::Hint) {
                 // the empty current slot: a cursor box behind "dN"
                 for (int i = 0; i < L.n && (L.cell[i].flags & tc::kCellSel); i++)
-                    if (afford(12)) rect(kCodeX + i * adv, y - 1, adv, lh, col::cursor);
+                    if (afford(12)) rect(kCodeX + i * adv, y - 1, adv, lh, s.tokenMode ? col::cursorTok : col::cursor);
                 continue;
             }
             if (L.kind != tc::LineKind::Code && L.kind != tc::LineKind::Cps) continue;
@@ -175,6 +177,7 @@ class TcCodeView : public TcControl
             auto bgOf = [&](const tc::CodeCell& c) -> uint32_t {
                 // highlights stay on under an open menu (RC4 user ask); the budget keeps the frame safe
                 const bool sel = c.flags & tc::kCellSel, lit = c.flags & tc::kCellLit;
+                if (sel && s.tokenMode) return lit ? col::litTok : col::cursorTok;
                 return sel ? (lit ? col::litSel : col::cursor) : lit ? col::lit : 0;
             };
             for (int i = 0; i < L.n;) {
@@ -567,6 +570,7 @@ void cTidalEditorModule::redraw()
         f.num(scr.scroll);
         f.num(scr.flash.on | scr.flash.ok << 1 | scr.flash.y << 2);
         f.num(overlay);
+        f.num(scr.tokenMode);  // the cursor colour follows the mode
         for (int i = 0; i < scr.n; i++) {
             const tc::CodeLine& L = scr.line[i];
             f.num(L.y);

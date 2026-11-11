@@ -35,6 +35,8 @@ constexpr uint32_t edited = 0xF0C060;
 constexpr uint32_t accent = 0xFF9F1C;
 constexpr uint32_t lit = 0x553810;     // a step whose event is sounding
 constexpr uint32_t litSel = 0x6E4A18;  // the same inside the cursor's selection
+constexpr uint32_t cursorTok = 0x52306E;  // cursor mode's cursor (tree mode: cursor; user, RC11)
+constexpr uint32_t litTok = 0x6E3A40;     // lit inside cursor mode's cursor
 }  // namespace col
 
 
@@ -72,7 +74,7 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
             t[L.n] = 0;
             int sel = 0;  // the empty current slot: "dN" under the cursor
             while (sel < L.n && (L.cell[sel].flags & kCellSel)) sel++;
-            if (sel) fb.rect(cx, yy - 1, sel * adv, lineH, col::cursor);
+            if (sel) fb.rect(cx, yy - 1, sel * adv, lineH, scr.tokenMode ? col::cursorTok : col::cursor);
             fb.text(cx, yy, t, col::dim);
             for (int i = 0; i < sel; i++) {
                 char ch[2] = {L.cell[i].ch, 0};
@@ -89,7 +91,7 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
             const CodeCell& c = L.cell[i];
             const int px = cx + L.col[i] * adv;
             const bool sel = c.flags & kCellSel, lit = c.flags & kCellLit;
-            if (sel) fb.rect(px, yy - 1, adv, lineH, lit ? col::litSel : col::cursor);
+            if (sel) fb.rect(px, yy - 1, adv, lineH, scr.tokenMode ? (lit ? col::litTok : col::cursorTok) : lit ? col::litSel : col::cursor);
             else if (lit) fb.rect(px, yy - 1, adv, lineH, col::lit);
             if (c.flags & kCellGap) fb.rect(px - 2, yy - 1, 3, lineH, col::accent);  // gap cursor
             char ch[2] = {c.ch, 0};
