@@ -247,6 +247,12 @@ error).
   Delete there removes the block and selects dN's other one. A new dN
   (Replace on an empty slot) goes in slot order. Loading plays nothing.
   `session16.keys` covers it.
+- **Selecting steps**: Shift+Left / Right inside `"..."` select a run of
+  steps (the first press takes the cursor's step and its neighbour, from
+  a gap the step on that side). Screen 3-7 wrap the run (`[0 3 5]`,
+  `<0 3 5>`, `{0 3 5}%4`, `[0 3 5](3,8)`, `[0 3 5 | ~]`), Delete removes
+  it, Copy copies it as one step; any other key ends the selection.
+  `session26.keys`.
 - **Structure keys on a plain number** (`fast 2`, `every 4`): Screen 3-7
   turn it into a pattern: `"[2 2]"`, `"<2 2>"`, `"{2 2 2}%4"`, `"2(3,8)"`,
   `"[2 | ~]"` (type-checked, so only where a pattern fits).

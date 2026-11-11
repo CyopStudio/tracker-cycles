@@ -69,3 +69,15 @@ Instrument parameters button needs to be kept free. currently opens comments. th
 currently no way to make chords. what do you suggest?
 
 at the lowest level, left and right should make the curser should continue navigating across the code
+
+*PolyendTrac_TidalEditor7
+
+ highlighting works, steps light at the right time, even when editing
+
+ the steps seem to light for too long, e.g. d5 in the test pattern, 2 of the chord steps light at a time, old one doesn't unlight when the next one plays
+
+ status view shows fine although one on the lines extends off the end of the menu box slightly
+
+ bug - Loading a new sample to the tracker's list doesn't add it to the list of available samples in the editor
+
+ feature request - shift arrows should in mini-notation pattern should select a group of numbers to be able to wrap them in [] etc

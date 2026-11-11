@@ -297,7 +297,7 @@ class TcMenuView : public TcControl
     void drawStatus()
     {
         const char* text = tidalEditorStatusLines();
-        const int sx = 300, sy = 40, sw = 490, rh = 16;
+        const int sx = 200, sy = 40, sw = 590, rh = 16;
         int rows = 1;
         for (const char* c = text; *c; c++) rows += *c == '\n';
         const int sh = rows * rh + 30 > kAreaBottom - sy ? kAreaBottom - sy : rows * rh + 30;
@@ -312,7 +312,12 @@ class TcMenuView : public TcControl
         for (const char* c = text; *c && y + rh <= sy + sh;) {
             const char* e = strchr(c, '\n');
             const int len = e ? (int)(e - c) : (int)strlen(c);
-            snprintf(line, sizeof line, "%.*s", len, c);
+            // as much as fits in the box (Editor7: a long line ran past it)
+            const strFont& f = smallFont();
+            int fit = 0, w = 0;
+            while (fit < len && fit < (int)sizeof line - 1 && w + f.data[(uint8_t)c[fit] & 127] <= sw - 20)
+                w += f.data[(uint8_t)c[fit++] & 127];
+            snprintf(line, sizeof line, "%.*s", fit, c);
             API_COLOR(strstr(line, "error") ? col::err : col::text);
             API_CMD_TEXT(sx + 10, y, smallFont().handle, 0, line);
             y += rh;

@@ -151,6 +151,31 @@ void testEditorModel(int& pass, int& fail) {
     for (auto& c : out1.calls) calls += c + ";";
     EXPECT(calls == "cps;eval 1;mute 2;hush;", "output calls: %s", calls.c_str());
 
+    // highlights: a slot's new onset ends its earlier steps; steps with the
+    // same onset (a chord) stay lit together
+    {
+        struct LitOut : RecOutput {
+            std::vector<Lit> q;
+            int litSteps(Lit* out, int cap) override {
+                int n = 0;
+                while (n < cap && !q.empty()) out[n++] = q.front(), q.erase(q.begin());
+                return n;
+            }
+        } lo;
+        eager.setOutput(&lo);
+        eager.pollHighlights(0.0);
+        lo.q = {{0, 101, 1.0, 9.0}, {1, 201, 1.0, 9.0}};
+        eager.pollHighlights(1.1);
+        lo.q = {{0, 102, 2.0, 9.0}, {0, 103, 2.0, 9.0}};  // d1's next onset: a two-note chord
+        eager.pollHighlights(2.1);
+        std::string lit;
+        for (const auto& l : eager.litSteps()) lit += std::to_string(l.slot) + ":" + std::to_string(l.node) + " ";
+        EXPECT(lit == "1:201 0:102 0:103 ", "lit after d1's next onset: %s", lit.c_str());
+        EXPECT(!eager.pollHighlights(2.2), "nothing turned on or off: no redraw");
+        EXPECT(eager.pollHighlights(9.5) && eager.litSteps().empty(), "all off at 9.5");
+        eager.setOutput(&out1);
+    }
+
     // the control mapping (editor/controls.*), shared with the device
     Control c;
     EXPECT(ctlFromId("pad13", c) && c == padCtl(12), "pad13");

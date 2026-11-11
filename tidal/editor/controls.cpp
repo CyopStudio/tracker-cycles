@@ -188,8 +188,12 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         }
     }
     switch (c) {
-        case Control::Left: return act(Action::Left, "prev sibling");
-        case Control::Right: return act(Action::Right, "next sibling");
+        case Control::Left:
+            if (shift && ed.canSelect()) return act(Action::SelLeft, "select <");
+            return act(Action::Left, "prev sibling");
+        case Control::Right:
+            if (shift && ed.canSelect()) return act(Action::SelRight, "select >");
+            return act(Action::Right, "next sibling");
         case Control::Up: return act(Action::Up, "parent");
         case Control::Down: return act(Action::Down, "first child");
         case Control::JogUp: return shift ? act(Action::WheelUpFast, "value ++") : act(Action::WheelUp, "value +");

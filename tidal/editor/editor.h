@@ -62,6 +62,7 @@ enum class Action {
     MenuModifiers, MenuFx,
     JumpNotes, JumpSamples,            // Note / Instrument: the block's n / s pattern
     PlayCancel,                        // Delete while Play is held
+    SelLeft, SelRight,                 // Shift+Left / Right inside "...": select a run of steps
     JumpCps,                           // Shift+Song: to `setcps` (created if missing) and back
     EditComment,                       // Shift+Config: the block's comment on the keyboard screen
     KbdType, KbdOk, KbdCancel, KbdClear,  // keyboard screen (Screen 1 / 8 / 7 / 2)
@@ -85,6 +86,7 @@ enum class EditKind : uint8_t {
     InsertGap,   // a one-step mini code into the "..." gap (seq, pos)
     InsertList,  // an expression into the list gap (seq, pos)
     Launch,      // block target: launch mode / cycles
+    ReplaceRun,  // steps pos .. pos+count-1 of "..." seq := the one-step mini code ("" = remove them)
 };
 struct EditSpec {
     EditKind kind = EditKind::Replace;
@@ -170,6 +172,11 @@ public:
     // Gap cursor (v2 step 5): between the steps of a "..." sequence; 0 = on
     // a node (cursor()). gapPos 0 = before the first step, count = after the last.
     uint16_t gapSeq() const { return gapSeq_; }
+    // A run of steps selected with Shift+Left / Right (Shift+arrows inside
+    // "..."): from selFirst() to selLast(), siblings in one sequence; 0 = none.
+    uint16_t selFirst() const;
+    uint16_t selLast() const;
+    bool canSelect() const;  // the cursor (or the gap) is on a step of a "..." sequence
     // Several blocks per dN (v2 step 6): the block dN last evaluated (0 = none)
     uint16_t playingBlock(int s) const { return playing_[s]; }
     // Per-event highlighting: steps of playing blocks lit while their
@@ -298,6 +305,7 @@ private:
     bool muted_[kSlots] = {};
     uint16_t playing_[kSlots] = {};
     FixVec<LitStep, 256> lit_;
+    double litPolled_ = 0;  // the last pollHighlights() time
     bool cps_ = false;
     void jumpCps();
     bool kbdOpen_ = false, kbdCaps_ = false;
@@ -311,6 +319,11 @@ private:
     void newBlockAbove(int slot);
     uint16_t gapSeq_ = 0;
     int gapPos_ = 0;
+    uint16_t selA_ = 0, selB_ = 0;  // selection: anchor / moving end (steps of selSeq_)
+    uint16_t selSeq_ = 0;
+    void selectMove(int dir);
+    int selRange(int& pos) const;  // steps selected (0 = none), pos = the first one's index
+    Text selText() const;          // the selected steps as mini-notation, "0 3 5"
     void leaveGap();
     // a copy of the program with the one-step mini `code` inserted at the
     // gap (nullptr if it doesn't parse / type-check)

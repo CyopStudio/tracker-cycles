@@ -151,7 +151,9 @@ double nowSeconds() {
 
 // The project's instruments on the pads: the sample file name without its
 // extension, the name `s` uses (the player maps names the same way).
-void setInstrumentNames() {
+// Returns true if a name changed (a sample loaded / removed since).
+bool setInstrumentNames() {
+    bool changed = false;
     for (int i = 0; i < tc::kInstrumentSlots && i < kSampleInstrumentsCount; i++) {
         const strInstrument& ins = mtProject.instrument[i];
         char name[16] = "";
@@ -161,9 +163,14 @@ void setInstrumentNames() {
             for (char* c = name; *c; c++)
                 if (*c >= 'A' && *c <= 'Z') *c = (char)(*c - 'A' + 'a');
         }
-        gEd->setInstrument(i, name);
+        if (strcmp(gEd->instrument(i), name)) {
+            gEd->setInstrument(i, name);
+            changed = true;
+        }
     }
+    return changed;
 }
+uint32_t gNamesCheckMs = 0;
 
 }  // namespace
 
@@ -278,6 +285,13 @@ void tidalEditorUpdate(Platform* platform) {
             snprintf(gStatus, sizeof gStatus, "%s (a new file is made on Shift+File)", msg);
         }
         gDirty = true;
+    }
+    // samples loaded on the Tracker's sample screens since: their names
+    // (Editor7: a new sample didn't show up in the editor)
+    const uint32_t ms = platform->getTimer()->millis();
+    if (gLoaded && ms - gNamesCheckMs >= 1000) {
+        gNamesCheckMs = ms;
+        if (setInstrumentNames()) gDirty = true;
     }
     if (gEd->menuOpen() && gEd->checkMenu(3) >= 0) gDirty = true;  // lazily checked menus fill in
     if (gEd->pollHighlights(nowSeconds())) gLitDirty = true;  // the code view alone, at a lower rate

@@ -69,6 +69,9 @@ int layoutText(const Editor& ed, uint16_t blk, bool cps, bool cur, bool lit, int
         if (pos < count) gapAt = s.spans[p.child(seq, pos)].start;
         else if (count) gapAt = s.spans[p.child(seq, count - 1)].end;
         if (gapAt >= 0 && gapAt < n) s.flags[gapAt] |= kCellGap;
+    } else if (cur && !cps && ed.selFirst()) {  // a selected run of steps
+        const int a = s.spans[ed.selFirst()].start, b = s.spans[ed.selLast()].end;
+        for (int i = a; i < b && i < n; i++) s.flags[i] |= kCellSel;
     } else if (cur && ed.cursor()) {
         const Span& sp = s.spans[ed.cursor()];
         for (int i = sp.start; i < sp.end && i < n; i++) s.flags[i] |= kCellSel;

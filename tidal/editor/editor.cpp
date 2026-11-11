@@ -35,7 +35,7 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"modifiers", Action::MenuModifiers}, {"fx", Action::MenuFx},
     {"jumpn", Action::JumpNotes}, {"jumps", Action::JumpSamples},
     {"playcancel", Action::PlayCancel},
-    {"cps", Action::JumpCps},     {"comment", Action::EditComment},
+    {"cps", Action::JumpCps},     {"selleft", Action::SelLeft}, {"selright", Action::SelRight},     {"comment", Action::EditComment},
     {"kbdtype", Action::KbdType}, {"kbdok", Action::KbdOk},       {"kbdcancel", Action::KbdCancel},
     {"kbdclear", Action::KbdClear},
 };
@@ -372,6 +372,42 @@ uint16_t Editor::applySpec(const EditSpec& s) {
         case EditKind::Launch:
             setBlockLaunch(P.at(t), (Launch)s.launch, s.cycles);
             return t;
+        case EditKind::ReplaceRun: {
+            const uint16_t seq = s.seq;
+            const int count = s.cycles, total = P.childCount(seq);
+            if (count < 1 || s.pos < 0 || s.pos + count > total) return 0;
+            uint16_t step = 0;
+            if (!s.code.empty()) {
+                const uint16_t sq = parseMini(P, s.code.c_str(), s.code.size(), e);
+                if (!sq) return 0;
+                Node& one = P.at(sq);
+                if (!one.first || P.at(one.first).next || (one.flags & kDots)) return 0;
+                step = one.first;
+                one.first = 0;
+                P.freeTree(sq);
+            } else if (count == total) {
+                return 0;  // a sequence keeps one step
+            }
+            // unlink the run, put the new step in its place, free the run
+            const uint16_t prev = s.pos ? P.child(seq, s.pos - 1) : 0;
+            uint16_t first = prev ? P.at(prev).next : P.at(seq).first, last = first;
+            for (int k = 1; k < count; k++) last = P.at(last).next;
+            const uint16_t after = P.at(last).next;
+            P.at(last).next = 0;
+            uint16_t link = after;
+            if (step) {
+                P.at(step).next = after;
+                link = step;
+            }
+            if (prev) P.at(prev).next = link;
+            else P.at(seq).first = link;
+            for (uint16_t c = first; c;) {
+                const uint16_t nx = P.at(c).next;
+                P.freeTree(c);
+                c = nx;
+            }
+            return step ? step : seq;
+        }
     }
     return 0;
 }
@@ -892,6 +928,16 @@ Label Editor::cursorInfo() const {
 
 void Editor::act(Action a) {
     if (kbdOpen_) return kbdAction(a);
+    if (selSeq_ && !menuOpen_) {  // a selection lives until another kind of key
+        switch (a) {
+            case Action::SelLeft: case Action::SelRight: case Action::Struct3: case Action::Struct4:
+            case Action::Struct5: case Action::Struct6: case Action::Struct7: case Action::Delete:
+            case Action::Copy: case Action::Evaluate: case Action::PlayCancel:
+                break;
+            default: selA_ = selB_ = selSeq_ = 0; break;
+        }
+    }
+    if (a == Action::SelLeft || a == Action::SelRight) return selectMove(a == Action::SelLeft ? -1 : 1);
     if (a != Action::Insert) newBlockArmed_ = false;  // only the very next slot pad
     if (cps_ && !menuOpen_) {
         switch (a) {
@@ -1449,6 +1495,14 @@ void Editor::openSamples() {
 }
 
 void Editor::doCopy() {
+    int selPos;
+    if (selRange(selPos)) {  // the run, as one step
+        clip_ = "[";
+        clip_ += selText();
+        clip_ += ']';
+        clipMini_ = true;
+        return info("copied " + clip_);
+    }
     if (!cursor_) return error("nothing to copy");
     uint16_t n = prog_->at(cursor_).kind == Kind::Block ? exprRoot() : cursor_;
     if (!n) return error("nothing to copy");
@@ -1858,6 +1912,39 @@ static const char* const kMiniTitle[5] = {"[ ]", "< >", "{ }", "( , )", "|"};
 // item of each is what the old one-touch buttons did.
 void Editor::openMini(int k) {
     if (k < 0 || k > 4) k = 4;
+    int selPos;
+    const int selN = selRange(selPos);
+    if (selN > 0) {  // the selected run, wrapped as one step
+        static const char* const kRunPats[5][4] = {
+            {"[$]", nullptr, nullptr, nullptr},
+            {"<$>", nullptr, nullptr, nullptr},
+            {"{$}%4", "{$}%8", nullptr, nullptr},
+            {"@(3,8)", "@(5,8)", "@(3,8,2)", nullptr},
+            {"[$ | ~]", nullptr, nullptr, nullptr},
+        };
+        const Text t = selText();
+        Text step = "[";
+        step += t;
+        step += ']';
+        MenuList& items = menuBuild();
+        for (const char* pat : kRunPats[k]) {
+            if (!pat || !items.push_back(MenuItem{})) continue;
+            MenuItem& it = items.back();
+            it.spec.kind = EditKind::ReplaceRun;
+            it.spec.mini = true;
+            it.spec.seq = selSeq_;
+            it.spec.pos = selPos;
+            it.spec.cycles = (uint32_t)selN;
+            if (!fillPattern(it.spec.code, pat, t, step, false)) {
+                items.pop_back();
+                continue;
+            }
+            it.label = it.spec.code;
+        }
+        Label title = kMiniTitle[k];
+        title += " (selection)";
+        return (void)openMenu(title);
+    }
     if (gapSeq_) {
         // at a gap: insert, built from the neighbouring step
         const Program& p = *prog_;
@@ -2141,6 +2228,28 @@ void Editor::openWrap(WrapMode mode) {
 // Delete inside "...": a step becomes a rest (timing stays), a rest is
 // removed, and the step pad entry just appended is removed (ends entry).
 void Editor::doDelete() {
+    int selPos;
+    const int selN = selRange(selPos);
+    if (selN > 0) {  // remove the run (all of the steps: a rest stays)
+        EditSpec sp;
+        sp.kind = EditKind::ReplaceRun;
+        sp.mini = true;
+        sp.seq = selSeq_;
+        sp.pos = selPos;
+        sp.cycles = (uint32_t)selN;
+        if (selN == prog_->childCount(selSeq_)) sp.code = "~";
+        const uint16_t seq = selSeq_;
+        selA_ = selB_ = selSeq_ = 0;
+        uint16_t nn;
+        if (!doSpec(sp, nn)) return error("can't remove these steps");
+        if (sp.code.empty()) {  // to the gap where they were
+            gapSeq_ = seq;
+            gapPos_ = selPos;
+            cursor_ = seq;
+        }
+        Label m;
+        return info(m.printf("removed %d step%s", selN, selN == 1 ? "" : "s"));
+    }
     if (gapSeq_) return deleteAtGap();
     if (!cursor_) return;
     Kind k = prog_->at(cursor_).kind;
@@ -2381,21 +2490,99 @@ bool Editor::pollHighlights(double now) {
                 const EditorOutput::Lit& g = got[i];
                 // short events still show: at least 80 ms
                 LitStep l{g.slot, g.node, g.on, g.off > g.on + 0.08 ? g.off : g.on + 0.08};
+                // a new onset ends the slot's earlier steps (a note held by
+                // legato / a long sample doesn't keep its step lit over the
+                // next one); steps with the same onset (chords, stacks) stay
+                for (LitStep& o : lit_)
+                    if (o.slot == l.slot && o.on < l.on - 0.001 && o.off > l.on) o.off = l.on;
                 if (lit_.full()) lit_.erase_at(0);
                 lit_.push_back(l);
                 if (litSeen_.full()) litSeen_.erase_at(0);
                 litSeen_.push_back(l);
             }
-            changed = true;
         }
     }
-    const int before = lit_.size();
-    for (int i = lit_.size() - 1; i >= 0; i--)
-        if (lit_[i].off < now) lit_.erase_at(i);
-    if (lit_.size() != before) changed = true;
-    for (const LitStep& l : lit_)
-        if (l.on <= now) changed = true;  // something is lit: keep redrawing (on / off edges)
+    // a redraw only when a step turns on or off since the last poll
+    for (int i = lit_.size() - 1; i >= 0; i--) {
+        const LitStep& l = lit_[i];
+        if ((l.on > litPolled_ && l.on <= now) || l.off <= now) changed = true;
+        if (l.off <= now) lit_.erase_at(i);
+    }
+    litPolled_ = now;
     return changed;
+}
+
+// ---------------------------------------------------------------------------
+// selecting a run of steps (Shift+Left / Right inside "...")
+
+bool Editor::canSelect() const {
+    if (gapSeq_) return prog_->at(gapSeq_).kind == Kind::MSeq && prog_->childCount(gapSeq_) > 0;
+    if (!cursor_ || !isMiniKind(prog_->at(cursor_).kind)) return false;
+    const uint16_t st = stepOf(*prog_, cursor_), par = prog_->parentOf(st);
+    return par && prog_->at(par).kind == Kind::MSeq;
+}
+
+int Editor::selRange(int& pos) const {
+    if (!selSeq_) return 0;
+    int ia = -1, ib = -1, i = 0;
+    for (uint16_t c = prog_->at(selSeq_).first; c; c = prog_->at(c).next, i++) {
+        if (c == selA_) ia = i;
+        if (c == selB_) ib = i;
+    }
+    if (ia < 0 || ib < 0) return 0;
+    pos = ia < ib ? ia : ib;
+    return (ia < ib ? ib - ia : ia - ib) + 1;
+}
+
+uint16_t Editor::selFirst() const {
+    int pos;
+    return selRange(pos) ? prog_->child(selSeq_, pos) : 0;
+}
+
+uint16_t Editor::selLast() const {
+    int pos;
+    const int n = selRange(pos);
+    return n ? prog_->child(selSeq_, pos + n - 1) : 0;
+}
+
+Text Editor::selText() const {
+    int pos;
+    const int n = selRange(pos);
+    Text t;
+    for (int k = 0; k < n; k++) {
+        if (k) t += ' ';
+        t += renderNode(*prog_, prog_->child(selSeq_, pos + k));
+    }
+    return t;
+}
+
+void Editor::selectMove(int dir) {
+    if (!selSeq_) {
+        if (!canSelect()) return error("Shift + arrows select steps inside \"...\"");
+        if (gapSeq_) {  // from a gap: start at the step on that side
+            const int count = prog_->childCount(gapSeq_);
+            int k = dir > 0 ? gapPos_ : gapPos_ - 1;
+            if (k < 0 || k >= count) return error("no step on that side of the gap");
+            selSeq_ = gapSeq_;
+            selA_ = selB_ = prog_->child(gapSeq_, k);
+            gapSeq_ = 0;
+        } else {
+            const uint16_t st = stepOf(*prog_, cursor_);
+            selSeq_ = prog_->parentOf(st);
+            selA_ = selB_ = st;
+            // the first press selects the step and the one next to it
+            const uint16_t nb = dir > 0 ? prog_->at(st).next : prog_->prevSibling(st);
+            if (nb) selB_ = nb;
+        }
+    } else {
+        const uint16_t nb = dir > 0 ? prog_->at(selB_).next : prog_->prevSibling(selB_);
+        if (nb) selB_ = nb;
+    }
+    cursor_ = selB_;
+    int pos;
+    const int n = selRange(pos);
+    Label m;
+    info(m.printf("%d step%s selected: Screen 3-7 wrap them, Delete removes, Copy copies", n, n == 1 ? "" : "s"));
 }
 
 // ---------------------------------------------------------------------------

@@ -580,6 +580,20 @@ folders listed in the project (e.g. a manifest) on project load.
      view, at most ~16 / s. The engine's internal working set grew 25.6 ->
      27.7 KB (fastMem 26 -> 28 KB). Flash 873,756 B (83.3 %), internal RAM
      188,392 B.
+     Editor7 (user): highlighting works and keeps time, also while editing;
+     but steps stayed lit too long (a held / legato note kept its step lit
+     over the next), the status view's long lines ran past its box, and a
+     sample loaded on the Tracker didn't reach the editor's instrument
+     list. Editor8 (2026-11-11, PolyendTrac_TidalEditor8.ptf, not yet run):
+     a slot's new onset ends its earlier lit steps (same-onset steps, e.g.
+     a chord, stay; pollHighlights reports a change only on on / off
+     edges); the status box is wider and lines are cut to it; instrument
+     names are re-read every second; Shift+Left / Right inside "..."
+     select a run of steps (user's ask): Screen 3-7 wrap it (`[0 3 5]`,
+     `<..>`, `{..}%4`, `(3,8)`, `| ~`; EditKind::ReplaceRun), Delete removes
+     it (a rest if it was all of them), Copy copies it as one step; any
+     other key ends it. Smoke session 26, unit checks in test_editor.cpp.
+     Flash 877,548 B (83.7 %).
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)
