@@ -12,6 +12,8 @@
 #include "mtStructs.h"
 #include "tidal_config.h"
 #include "tidal_player.h"
+#include "../../tidal/core/engine.h"
+#include "../../tidal/core/scheduler.h"
 #include "../../tidal/editor/editor.h"
 #include "../../tidal/editor/layout.h"
 
@@ -25,6 +27,13 @@ __NOINIT(EXTERNAL_RAM) unsigned char scrRaw[sizeof(tc::CodeScreen)] __attribute_
 __NOINIT(EXTERNAL_RAM) unsigned char scratchRaw[sizeof(tc::LayoutScratch)] __attribute__((aligned(8)));
 __NOINIT(EXTERNAL_RAM) uint8_t undoArena[128 * 1024];
 __NOINIT(EXTERNAL_RAM) char saveText[16384];
+// highlighting: live program node -> the editor's node (set at evaluate:
+// a block and its live copy list their steps in the same order)
+__NOINIT(EXTERNAL_RAM) uint16_t gLiveToEd[tc::kMaxNodes];
+constexpr int kMaxSteps = 512;
+__NOINIT(EXTERNAL_RAM) uint16_t gLiveSteps[kMaxSteps];
+__NOINIT(EXTERNAL_RAM) uint16_t gEdSteps[kMaxSteps];
+bool gLitDirty = false;
 
 double nowSeconds();
 
@@ -58,9 +67,47 @@ class DeviceOutput : public tc::EditorOutput {
 public:
     bool evaluate(const tc::Program& p, int slot, tc::Label& msg) override {
         char m[96];
-        if (tidalPlayerEvaluate(p, slot, m, sizeof m)) return true;
-        msg = m;
-        return false;
+        uint16_t liveRoot = 0;
+        if (!tidalPlayerEvaluate(p, slot, m, sizeof m, &liveRoot)) {
+            msg = m;
+            return false;
+        }
+        const tc::Program* live = tidalPlayerLive();
+        if (live && liveRoot && p.block[slot]) {
+            const int nl = tc::atomOrder(*live, liveRoot, gLiveSteps, kMaxSteps);
+            const int ne = tc::atomOrder(p, p.at(p.block[slot]).first, gEdSteps, kMaxSteps);
+            for (int k = 0; k < nl && k < ne; k++)
+                if (gLiveSteps[k] < tc::kMaxNodes) gLiveToEd[gLiveSteps[k]] = gEdSteps[k];
+        }
+        return true;
+    }
+    // Steps of the entries the scheduler played, on nowSeconds()' clock.
+    int litSteps(Lit* out, int cap) override {
+#if TC_EVENT_SRC
+        tc::LitRecord recs[16];
+        int want = cap / tc::kLitSrc;
+        if (want > 16) want = 16;
+        if (want < 1) return 0;
+        int64_t nowSample = 0;
+        const int n = tidalPlayerTakeLit(recs, want, nowSample);
+        const double now = nowSeconds();
+        int w = 0;
+        for (int i = 0; i < n; i++) {
+            const tc::LitRecord& r = recs[i];
+            const int64_t at = (int64_t)r.block * tc::kBlockSamples + r.offset;
+            const double on = now + (double)(at - nowSample) / kTidalSampleRate;
+            const double off = on + (r.dur ? r.dur / kTidalSampleRate : 0.25);  // plays out: a short flash
+            for (int k = 0; k < r.n && w < cap; k++) {
+                const uint16_t live = r.src[k];
+                const uint16_t ed = live < tc::kMaxNodes ? gLiveToEd[live] : 0;
+                if (ed) out[w++] = Lit{(int)r.slot, ed, on, off};
+            }
+        }
+        return w;
+#else
+        (void)out, (void)cap;
+        return 0;
+#endif
     }
     void silence(int slot) override { tidalPlayerSilence(slot); }
     void hush() override { tidalPlayerHush(); }
@@ -91,7 +138,16 @@ Platform* gPlatform = nullptr;
 bool gLoaded = false, gDirty = true;
 char gStatus[96] = "waiting for the project";
 
-double nowSeconds() { return gPlatform ? gPlatform->getTimer()->micros() * 1e-6 : 0; }
+// micros() wraps every ~71 min: keep a 64-bit running count (main loop only)
+double nowSeconds() {
+    static uint32_t last = 0;
+    static uint64_t us = 0;
+    if (!gPlatform) return 0;
+    const uint32_t m = gPlatform->getTimer()->micros();
+    us += (uint32_t)(m - last);
+    last = m;
+    return (double)us * 1e-6;
+}
 
 // The project's instruments on the pads: the sample file name without its
 // extension, the name `s` uses (the player maps names the same way).
@@ -118,6 +174,11 @@ bool tidalEditorTakeDirty() {
     return d;
 }
 void tidalEditorSetDirty() { gDirty = true; }
+bool tidalEditorTakeLitDirty() {
+    const bool d = gLitDirty;
+    gLitDirty = false;
+    return d;
+}
 const char* tidalEditorStatus() { return gStatus; }
 
 int tidalStackDeepest() {
@@ -199,6 +260,7 @@ void tidalEditorUpdate(Platform* platform) {
         gEd = new (edRaw) tc::Editor(*p, *cp, undoArena, (int)sizeof undoArena);
         gEd->setOutput(gOut);
         gEd->setLazyMenus(true);  // menu items checked a few per pass (editor bench v1)
+        memset(gLiveToEd, 0, sizeof gLiveToEd);
         gDirty = true;
         paintStack();
     }
@@ -218,6 +280,6 @@ void tidalEditorUpdate(Platform* platform) {
         gDirty = true;
     }
     if (gEd->menuOpen() && gEd->checkMenu(3) >= 0) gDirty = true;  // lazily checked menus fill in
-    if (gEd->pollHighlights(nowSeconds())) gDirty = true;
+    if (gEd->pollHighlights(nowSeconds())) gLitDirty = true;  // the code view alone, at a lower rate
 }
 #endif

@@ -56,7 +56,9 @@ COMPILER_OPTIONS+=-mcpu=cortex-m4 -mfpu=fpv4-sp-d16
 # Tracker Cycles: the device Tidal editor is the normal firmware (plan 4d);
 # the tick / bench test images own the Tidal runtime themselves
 ifeq ($(filter -DTIDAL_TICK -DTIDAL_BENCH -DTIDAL_EDITOR_BENCH,$(CUSTOM_DEFINES)),)
-DEFINES += -DTIDAL_EDITOR
+# TC_EVENT_SRC: events carry their source steps (the editor's highlighting).
+# It changes tc::Event's size, so it is set here for every file, never in a header.
+DEFINES += -DTIDAL_EDITOR -DTC_EVENT_SRC=1
 endif
 else ifeq ($(PLATFORM), IMX)
 COMPILER_OPTIONS+=-mcpu=cortex-m7 -mfpu=fpv5-sp-d16 -mfp16-format=ieee

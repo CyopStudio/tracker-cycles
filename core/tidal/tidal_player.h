@@ -40,11 +40,19 @@ int tidalPlayerCap();                  // the load-driven polyphony cap now
 // file is only read at start-up, for the editor.
 namespace tc {
 class Program;
+struct LitRecord;
 }
 bool tidalPlayerReadFile(const char*& text, int& len, char* msg, int msgLen);  // /project.tidal
 bool tidalPlayerWriteFile(const char* text, int len, char* msg, int msgLen);
 bool tidalPlayerWriteText(const char* path, const char* text, int len, char* msg, int msgLen);  // any file
-bool tidalPlayerEvaluate(const tc::Program& p, int slot, char* msg, int msgLen);  // checked block
+// checked block; liveRoot: its copy's root in the live program (highlighting)
+bool tidalPlayerEvaluate(const tc::Program& p, int slot, char* msg, int msgLen, uint16_t* liveRoot = nullptr);
+const tc::Program* tidalPlayerLive();  // the program the scheduler plays (live node ids)
+// Steps of played entries since the last call (TC_EVENT_SRC builds; live node
+// ids); `nowSample` gets the scheduler's current sample position, the clock
+// their onsets are on. Returns how many records were written.
+int tidalPlayerTakeLit(tc::LitRecord* out, int cap, int64_t& nowSample);
+constexpr double kTidalSampleRate = 750000.0 / 17.0;
 void tidalPlayerSilence(int slot);
 void tidalPlayerMute(int slot, bool on);
 void tidalPlayerUnmuteAll();

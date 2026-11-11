@@ -35,7 +35,14 @@ __NOINIT(EXTERNAL_RAM) unsigned char bufRaw[sizeof(tc::Event) * kQueryCap] __att
 __NOINIT(EXTERNAL_RAM) char fileText[16384];
 // the engine's query working set in internal RAM (bench v6: up to 2x faster)
 constexpr int kFastEvents = 256, kFastCtls = 1024, kFastParams = 128;
-unsigned char fastMem[26 * 1024] __attribute__((aligned(8)));
+// 25,616 B with 52-B events; 27,664 B with TC_EVENT_SRC (60-B events)
+unsigned char fastMem[28 * 1024] __attribute__((aligned(8)));
+#if TC_EVENT_SRC
+// lit steps (the editor's highlighting): source steps of queued entries, and
+// the records of played ones
+__NOINIT(EXTERNAL_RAM) uint16_t litSrc[tc::Scheduler::kLitSrcWords];
+__NOINIT(EXTERNAL_RAM) unsigned char litRingRaw[sizeof(tc::LitRecord) * tc::kLitRing] __attribute__((aligned(8)));
+#endif
 
 constexpr uint32_t kUpdateBudgetUs = 4000;  // per main-loop pass
 constexpr uint32_t kStartMs = 3000, kStartLatestMs = 60000;
@@ -127,6 +134,9 @@ void start() {
                 tc::Scheduler::Hooks{irqOff, irqOn});
     sched->setSampleRate(750000, 17);  // 180 MHz * 16 / 255 / 256
     sched->setSlotPlayers(DeviceVoice::kPlayers);
+#if TC_EVENT_SRC
+    sched->setLitStorage(litSrc, reinterpret_cast<tc::LitRecord*>(litRingRaw));
+#endif
     memset(gSlotError, 0, sizeof gSlotError);
     gInstrumentSig = instrumentSignature();
     publishSnap();
@@ -199,14 +209,22 @@ void tidalPlayerSetCps(const tc::Program& p) {
     }
 }
 
-bool tidalPlayerEvaluate(const tc::Program& p, int slot, char* msg, int msgLen) {
+bool tidalPlayerEvaluate(const tc::Program& p, int slot, char* msg, int msgLen, uint16_t* liveRoot) {
     if (!gStarted) return snprintf(msg, msgLen, "the player isn't running yet"), false;
     const bool wasPlaying = tidalPlayerAnyPlaying();
     tc::Error err;
-    if (!sched->evaluate(p, slot, err)) return snprintf(msg, msgLen, "%s", err.msg), false;
+    if (!sched->evaluate(p, slot, err, liveRoot)) return snprintf(msg, msgLen, "%s", err.msg), false;
     gSlotError[slot][0] = 0;
     armClockIfStarting(wasPlaying);
     return true;
+}
+
+const tc::Program* tidalPlayerLive() { return gStarted ? live : nullptr; }
+
+int tidalPlayerTakeLit(tc::LitRecord* out, int cap, int64_t& nowSample) {
+    if (!gStarted) return 0;
+    nowSample = (int64_t)sched->block() * tc::kBlockSamples;
+    return sched->takeLit(out, cap);
 }
 
 void tidalPlayerSilence(int slot) {

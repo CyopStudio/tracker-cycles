@@ -502,9 +502,21 @@ void cTidalEditorModule::update()
         tidalEditorSetDirty();
     }
     if (ms - lastDrawMs_ < 30) return;  // at most ~33 redraws a second (one display frame each)
-    if (!tidalEditorTakeDirty()) return;
-    lastDrawMs_ = ms;
-    redraw();
+    if (tidalEditorTakeDirty()) {
+        lastDrawMs_ = lastLitMs_ = ms;
+        tidalEditorTakeLitDirty();
+        redraw();
+        return;
+    }
+    // highlights only: the code view, at most ~16 times a second (each
+    // redraw is a display frame and 3.5-5.7 ms of main loop, editor bench v1)
+    if (ms - lastLitMs_ >= 60 && tidalEditorTakeLitDirty()) {
+        lastDrawMs_ = lastLitMs_ = ms;
+        const tc::CodeScreen& scr = tidalEditorLayout(geometry());
+        display.setControlData(code_, (void*)&scr);
+        display.refreshControl(code_);
+        display.synchronizeRefresh();
+    }
 }
 
 void cTidalEditorModule::redraw()

@@ -568,6 +568,18 @@ folders listed in the project (e.g. a manifest) on project load.
      on Shift+Master, also /tidal_status.txt; stack measured by painting
      the heap-stack gap), Shift+Pattern = silence dN, pad lights
      (tc::padLight, shared).
+     Editor7 (2026-11-11, PolyendTrac_TidalEditor7.ptf, not yet run):
+     per-event highlighting on the device. core/makefile sets
+     -DTC_EVENT_SRC=1 with TIDAL_EDITOR (it changes tc::Event's size: a
+     flag for every file, never a header); the scheduler keeps each queued
+     entry's steps (setLitStorage, SDRAM) and records played ones; the
+     editor glue maps live node ids to its own at evaluate (atomOrder of
+     the block and of its live copy) and turns the records into lit steps
+     (onset from the scheduler's sample clock, end = the note's length, or
+     0.25 s for notes that play out); lit-only changes redraw just the code
+     view, at most ~16 / s. The engine's internal working set grew 25.6 ->
+     27.7 KB (fastMem 26 -> 28 KB). Flash 873,756 B (83.3 %), internal RAM
+     188,392 B.
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)

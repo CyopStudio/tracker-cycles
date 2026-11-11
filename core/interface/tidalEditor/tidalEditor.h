@@ -24,7 +24,7 @@ class cTidalEditorModule : public ModuleBase
   private:
     hControl code_ = -1, side_ = -1, menu_ = -1, bg_ = -1;
     hControl label_[8] = {};
-    uint32_t lastDrawMs_ = 0, lastStatusMs_ = 0;
+    uint32_t lastDrawMs_ = 0, lastStatusMs_ = 0, lastLitMs_ = 0;
 };
 
 extern cTidalEditorModule tidalEditorModule;

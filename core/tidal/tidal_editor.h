@@ -19,6 +19,8 @@ tc::Editor* tidalEditorModel();  // null until created
 // Something changed that the screen should show (consumes the flag).
 bool tidalEditorTakeDirty();
 void tidalEditorSetDirty();
+// The sounding steps changed (highlighting): only the code view needs a redraw.
+bool tidalEditorTakeLitDirty();
 // The code area laid out for `g` (SDRAM; valid until the next call).
 const tc::CodeScreen& tidalEditorLayout(const tc::CodeGeometry& g);
 const char* tidalEditorStatus();  // load message / "" when fine
