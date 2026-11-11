@@ -137,6 +137,44 @@ The answer decides whether on-demand loading at evaluate feels instant,
 needs a "loading" state of a second or more, or wants pre-converted files
 (section 3).
 
+### 7.1 Results v1 (2026-11-11, docs/tidal_folder_bench.txt)
+
+5 folders, 63 .wav files (53 read, 10 rejected), 9.9 MB read -> 7.7 MB
+mono (89 s of audio).
+
+| | run 1 (stopped) | run 2 (playing) |
+| :--- | ---: | ---: |
+| total | 2.16 s | 2.68 s |
+| read (SD) | 1055 ms, 4.5 MB/s | 1334 ms, 3.6 MB/s |
+| convert | 920 ms | 1143 ms |
+| open + header | 141 ms (2.7 ms / file) | 150 ms |
+| audio load during the run | 8 % | 26 % (max 35) |
+
+Per folder (run 1 / run 2): bd (24 short files, 578 KB, some at another
+rate) 0.24 / 0.31 s; hh (13 stereo, 3.3 MB) 0.49 / 0.64 s; sitar (8 mono,
+4.6 MB) 0.90 / 1.05 s; slowest single file 146 / 166 ms.
+
+Reading:
+- Speed is fine for on-demand loading: a typical drum folder takes a
+  quarter of a second, a big one about a second. A short silent gap
+  before a new name plays is acceptable; it must not block the main
+  loop, so the loader works in steps (a chunk per main-loop pass, as the
+  stock file manager operations do) instead of one 2 s run.
+- Loading barely touches the audio interrupt (run 2's audio load stays
+  where the playing project puts it).
+- Converting files that are already mono 16-bit 44.1 kHz cost as much
+  as reading them (sitar: 385 ms read, 492 ms "convert", a copy into
+  uncached SDRAM): the loader reads those straight into the sample pool.
+- Memory is the real limit: these five folders alone are 7.7 MB, more
+  than the whole ~7.5 MB pool (sitar 4.6 MB). Eviction, a clear "no room"
+  message, and reclaiming SAMPLE_MEMORY_SIZE (~125 s) matter more than
+  speed. Stereo folders halve when converted; a host pre-convert tool
+  would also halve their read time.
+- 10 of 63 files were rejected by readHeader / checkSampleValid (5 in
+  808, 5 in juno); the bench did not record why (likely
+  WAVE_FORMAT_EXTENSIBLE or a depth the stock import refuses). The loader
+  reports each refused file and its header.
+
 ## 8. Steps after the bench
 
 1. Loader as a file manager operation (folder -> sliced instrument in a

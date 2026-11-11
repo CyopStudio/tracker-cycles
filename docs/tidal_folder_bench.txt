@@ -1,0 +1,26 @@
+Tracker Cycles folder bench v1 (docs/tidal_sample_folders.md 7)
+per folder: list = listDirContents (+ sort), open = open + WAV header, read = SD reads (16 KB chunks), conv = convertAudioData to mono 16-bit 44.1 kHz; times in ms
+fmt: m = mono 16-bit 44.1 kHz already, s = stereo, r = other rate, d = other depth / float
+
+=== run 1 of 2, 15 s after boot, should be stopped
+audio load during the run (Profiler): avg 8 %, max 5 %
+5 folders (root list 4 ms), 53 files (10 failed), 9910 KB read -> 7698 KB out (89 s of audio)
+total 2162 ms: list 13, open 141, read 1055, conv 920; 4.47 MB/s read overall; 40.8 ms per file avg, 145.9 ms slowest file
+folder                 files fail      KB    list     open     read     conv slowest  fmt
+808                        1    5      21    2.1    2.2        2        2       6 m---
+bd                        24    0     578    3.2   65.4       59      115      36 m-r-
+hh                        13    0    3257    2.8   33.8      277      178      59 -s--
+juno                       7    5    1404    3.0   19.7      329      131     104 -s-d
+sitar                      8    0    4648    2.6   20.4      385      492     145 m---
+
+=== run 2 of 2, 75 s after boot, should be playing a project
+audio load during the run (Profiler): avg 26 %, max 35 %
+5 folders (root list 4 ms), 53 files (10 failed), 9910 KB read -> 7698 KB out (89 s of audio)
+total 2677 ms: list 15, open 150, read 1334, conv 1143; 3.61 MB/s read overall; 50.5 ms per file avg, 165.7 ms slowest file
+folder                 files fail      KB    list     open     read     conv slowest  fmt
+808                        1    5      21    2.4    2.4        2        3       8 m---
+bd                        24    0     578    4.2   66.5       80      157      47 m-r-
+hh                        13    0    3257    3.0   37.9      365      238      78 -s--
+juno                       7    5    1404    3.2   22.8      435      163     135 -s-d
+sitar                      8    0    4648    2.8   20.3      450      580     165 m---
+

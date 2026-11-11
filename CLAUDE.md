@@ -145,6 +145,13 @@ the project; `begin` / `end` per slice). Folder bench built
 (`-DFOLDER_BENCH`, PolyendTrac_FolderBench1.ptf, core/tidal/README.md,
 not yet run): times list / open / read / convert of every /Tidal/ folder,
 report /tidal_folder_bench.txt.
+Bench v1 results (2026-11-11, docs/tidal_folder_bench.txt; analysis in the
+design doc 7.1): 5 folders / 53 files / 9.9 MB in 2.2 s stopped, 2.7 s
+playing (4.5 / 3.6 MB/s); bd folder 0.24 s, sitar (4.6 MB) 0.9 s; audio
+load unaffected; converting already-mono-44.1 files costs as much as
+reading (read them straight in); memory is the limit (these 5 folders =
+7.7 MB > the pool); 10 of 63 files refused by the stock header check
+(reason not recorded).
 Earlier notes:
 V1 = 48 instruments loaded the normal Tracker way. V2 could load Tidal-style
 folders listed in the project (e.g. a manifest) on project load.
