@@ -105,7 +105,9 @@ to upstream CE.
     moves the text cursor, Screen 2 Clear, 7 Cancel, 8 OK; edits the last
     comment line above the block). Free: Params (reserved: instrument
     parameters), Perform, Master (reserved: master settings), Smp Play /
-    Edit / Rec, Rec. Smp Load = Tidal sample folders (loader step 1).
+    Edit / Rec, Rec. Shift+Smp Load = Tidal sample folders (loader step 1;
+    Smp Load alone = the stock Sample Loader, as the Sample keys leave the
+    editor: Editor17 had the menu on plain Smp Load, unreachable).
 - Launch: tidal/run_proto.sh (rebuilds, opens tidal/work.tidal, gitignored)
   or `make -C tidal run`; `--install-shortcut` makes Windows Desktop +
   Start menu shortcuts via wslg.exe (WSLg doesn't list .desktop apps here).
@@ -153,7 +155,7 @@ load unaffected; converting already-mono-44.1 files costs as much as
 reading (read them straight in); memory is the limit (these 5 folders =
 7.7 MB > the pool); 10 of 63 files refused by the stock header check
 (reason not recorded).
-Loader step 1 (2026-11-11, PolyendTrac_TidalEditor17.ptf, not yet run):
+Loader step 1 (2026-11-11, PolyendTrac_TidalEditor18.ptf, not yet run):
 core/tidal/tidal_folders.* (normal build): Smp Load opens a menu of the
 /Tidal/ folders (EditorOutput::folders / folderName / loadFolder, menu
 items are names: no check, no edit); a main-loop job, one step per pass

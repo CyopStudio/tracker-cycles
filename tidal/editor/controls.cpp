@@ -219,7 +219,11 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         // Shift+Config
         // Song: launch menu; Shift+Song: setcps (the Tracker's tempo is on
         // its Song screen); Master stays for the master settings
-        case Control::SmpLoad: return act(Action::MenuFolders, "Tidal folders");
+        // Sample Loader opens the stock loader (the device leaves the editor);
+        // Shift+Sample Loader: the Tidal sample folders
+        case Control::SmpLoad:
+            if (shift) return act(Action::MenuFolders, "Tidal folders");
+            return {};
         case Control::Song:
             if (shift) return act(Action::JumpCps, ed.onCps() ? "back" : "setcps");
             return act(Action::MenuLaunch, "launch");

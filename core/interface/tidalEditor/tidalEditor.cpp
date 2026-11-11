@@ -409,10 +409,10 @@ void functButton(uint8_t button, uint8_t state)
     }
     // keys that leave the editor: Params (the instrument parameters), Perform,
     // Master, the Sample keys, Config and File (Shift+Config = the block's
-    // comment, Shift+File saves)
+    // comment, Shift+File saves, Shift+Sample Loader = the Tidal folders)
     const bool leave = c == Control::Params || c == Control::Perform || c == Control::Master ||
-                       (c >= Control::SmpLoad && c <= Control::SmpRec) || (c == Control::Config && !shift) ||
-                       (c == Control::File && !shift);
+                       (c >= Control::SmpLoad && c <= Control::SmpRec && !(c == Control::SmpLoad && shift)) ||
+                       (c == Control::Config && !shift) || (c == Control::File && !shift);
     if (leave) {
         if (state == buttonPress) tidalEditorModule.eventFunct(eventSwitchModule, &tidalEditorModule, &button, 0);
         return;

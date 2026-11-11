@@ -237,7 +237,8 @@ void testEditorModel(int& pass, int& fail) {
         fo.names = {"bd", "hi-hat", "jvbass"};
         const std::string before = fileOf(eager);
         eager.setOutput(&fo);
-        EXPECT(press(eager, Control::SmpLoad, false), "Sample Loader pressed");
+        EXPECT(!press(eager, Control::SmpLoad, false), "Sample Loader alone: the stock loader (not the editor)");
+        EXPECT(press(eager, Control::SmpLoad, true), "Shift+Sample Loader pressed");
         EXPECT(eager.menuOpen() && eager.menu().size() == 3, "folder menu: %d items", eager.menu().size());
         eager.act(Action::WheelUp);
         eager.act(Action::Confirm);
