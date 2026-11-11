@@ -197,3 +197,15 @@ We need to refine the cursor. I left Rec free for this as I had a feeling we wou
 Tree mode works like it does now (with some refinement)
 Cursor mode will act like a smart text editor. delete will erase to the right. shift delete will backspace. delete/backspace on a function will unwrap. insert will add # or wrap $ depending on position.
 I realise this is a big job at this point. I hope we can achieve this without breaking too much
+
+currently no way to edit # gain 1 to be 0.8, wheel goes up in 1s, shift wheel goes up in 10s. can we have a context aware value increment for the wheel?
+
+deleting a playing pattern can leave it playing. need to send silence on delete
+
+critical -- scrollwheel too fast causes audio drops
+
+let's have a short flash highlight of the code block on evaluation
+
+on adding a # or $, cursor should go to the parameters of the function after insertion
+
+I don't like replace wrap unwrap. should be done based on context

@@ -149,6 +149,12 @@ to upstream CE.
     For 1.1: cheaper checks (filter by the node's type code first, full
     check only for survivors) or menus cached per context. In the 1.0.0
     known limitations.
+  - Not released yet (user, 2026-11-11): bugs and UI polish first, and the
+    cursor mode comes into 1.0.0. Staged plan: docs/tidal_ui_v3.md (A
+    audio / correctness: fast jog drops audio, a deleted playing block
+    keeps playing, menu checking stalls; B jog steps by meaning, cursor to
+    the new function's parameter; C flash on evaluate; D cursor mode on
+    Rec; E release), with open questions for the user.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
