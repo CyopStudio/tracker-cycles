@@ -55,8 +55,8 @@ const uint32_t kStyle[] = {col::text, col::fn, col::num,    col::word, col::quot
 // Editor14): the code from the top left, a slim scroll bar at the left
 // edge, a slim info box and slim soft keys below
 constexpr int kCodeX = 16, kCodeW = 800 - kCodeX - 10;
-constexpr int kAreaTop = 6, kAreaBottom = 410;
-constexpr int kInfoY = 415, kInfoLine2 = kInfoY + 15;
+constexpr int kAreaTop = 6, kAreaBottom = 404;
+constexpr int kInfoY = 410, kInfoLine2 = kInfoY + 17;  // Editor22: the first line's bottom 4 px were cut
 constexpr int kKeysY = 449, kKeysH = 31;
 
 const strFont& codeFont() { return fonts[2]; }   // Roboto Mono Regular 14 (the default font set)
@@ -125,7 +125,7 @@ class TcCodeView : public TcControl
         API_SCISSOR_SIZE(800, kAreaBottom - kAreaTop);
         // backgrounds: the current block, bars, selection / lit / gap
         API_BEGIN(RECTS);
-        if (!half && s.box.on) rect(kCodeX - 6, kAreaTop + s.box.y - 2, kCodeW + 12, s.box.h - 4, col::current);
+        // no current-block strip (Editor22 notes: the cursor shows where you are; keep the screen dark)
         const int areaH = kAreaBottom - kAreaTop;
         if (!half && s.contentH > areaH) {  // the scroll bar
             const int th = areaH * areaH / s.contentH < 12 ? 12 : areaH * areaH / s.contentH;
@@ -215,7 +215,8 @@ class TcSideView : public TcControl
         const tc::Editor* ed = tidalEditorModel();
         API_SAVE_CONTEXT();
         API_BEGIN(RECTS);
-        rect(0, kInfoY - 3, 800, kKeysY - (kInfoY - 3), col::panel);
+        // the soft keys' colour (Editor22 notes)
+        rect(0, kInfoY - 4, 800, kKeysY - (kInfoY - 4), display.getTheme().activeLabelsColors[1]);
         API_END();
         const int16_t h = smallFont().handle;
         if (ed) {
@@ -229,7 +230,7 @@ class TcSideView : public TcControl
                 // cut short of the status on the right (Regular 12: <= 8 px a glyph)
                 const int statusW = ((int)strlen(tidalEditorStatus()) + 12) * 8;
                 API_SCISSOR_XY(0, kInfoY - 4);
-                API_SCISSOR_SIZE(800 - 10 - statusW > 100 ? 800 - 10 - statusW : 100, 16);
+                API_SCISSOR_SIZE(800 - 10 - statusW > 100 ? 800 - 10 - statusW : 100, 20);
                 API_COLOR(col::dim);
                 API_CMD_TEXT(10, kInfoY, h, 0, ed->cursorInfo().c_str());
                 API_SCISSOR_XY(0, 0);

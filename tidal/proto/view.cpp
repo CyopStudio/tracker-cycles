@@ -48,11 +48,11 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     // the top left, a slim scroll bar at the left edge, each block's dN in
     // its slot's state colour
     const int cx = 16, cw = kW - cx - 10, lineH = f.height + 3;
-    const int areaTop = 6, areaBottom = 410;
+    const int areaTop = 6, areaBottom = 404;
     static CodeScreen scr;
     static LayoutScratch scratch;
     layoutCode(ed, steadySeconds(), CodeGeometry{cw / adv, lineH, 8, areaBottom - areaTop}, scr, scratch);
-    if (scr.box.on) fb.rect(cx - 6, areaTop + scr.box.y - 2, cw + 12, scr.box.h - 4, col::current);
+    // no current-block strip (Editor22 notes: the cursor shows where you are)
     if (scr.contentH > areaBottom - areaTop) {  // scroll bar
         const int ah = areaBottom - areaTop, th = ah * ah / scr.contentH < 12 ? 12 : ah * ah / scr.contentH;
         fb.rect(4, areaTop, 3, ah, col::panel);
@@ -96,15 +96,15 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
 
     // bottom panel: the cursor info and the message (two slim lines), the
     // backend's state on the right
-    fb.rect(0, 412, kW, 36, col::panel);
-    fb.text(10, 414, ed.cursorInfo().c_str(), col::dim, FontId::Sans12, 90);
-    fb.text(10, 429, ed.message().c_str(), ed.messageIsError() ? col::err : col::text, FontId::Sans12, 110);
+    fb.rect(0, 406, kW, 42, col::current);  // the soft keys' colour (Editor22 notes)
+    fb.text(10, 410, ed.cursorInfo().c_str(), col::dim, FontId::Sans12, 90);
+    fb.text(10, 427, ed.message().c_str(), ed.messageIsError() ? col::err : col::text, FontId::Sans12, 110);
     {
         std::string right;
         if (ed.trackerMode()) right += "tracker mode   ";
         if (appBackend()) right += std::string(appBackend()->name()) + (appBackend()->alive() ? " ok" : " not running");
         else right += "no backend";
-        fb.text(kW - 10 - fb.textWidth(right.c_str(), FontId::Sans12), 414, right.c_str(), col::dim, FontId::Sans12);
+        fb.text(kW - 10 - fb.textWidth(right.c_str(), FontId::Sans12), 410, right.c_str(), col::dim, FontId::Sans12);
     }
 
     // soft-key bar: labels for the 8 screen buttons below the display (slim)

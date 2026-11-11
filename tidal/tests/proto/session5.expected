@@ -1,13 +1,12 @@
 > setcps (120/60/4)
-> d2 $ 0.26 <~ (s "<hh*8>" # gain 0.8 # pan sine)
 > d3 $ n "<0 .. 7>" |+ n 12 # s "arpy" # speed "<1 2>"
 setcps (120/60/4)
 
 -- kick and snare
-d1 $ every 4 (fast 2) $ sound "bd*2 [~ sd] bd sd" # gain 1 |+ n 12
+d1 $ 0.26 <~ ((every 4 (fast 2) $ sound "bd*2 [~ sd] bd sd" # gain 1 |+ n 12) |+ n 11)
 
 -- hats
-d2 $ 0.26 <~ (s "<hh*8>" # gain 0.8 # pan sine) # gain 1
+d2 $ s "hh*8" # gain 0.8 # pan sine # pan sine # pan sine
 
 d3 $ n "<0 .. 7>" |+ n 12 # s "arpy" # speed "<1 2>"
 

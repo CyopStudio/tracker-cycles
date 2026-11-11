@@ -79,6 +79,11 @@ to upstream CE.
     CodeStyle::Slot*), slim info box and soft keys; the project's code is
     <project>/<ProjectName>.tidal (project.tidal still read, removed on
     save).
+    Editor22 (user: "very close now!"): info box 6 px taller (the first
+    line's bottom was cut) and in the soft keys' colour (theme
+    activeLabelsColors[1]); no current-block strip (keep the screen dark);
+    Left / Right never leave the block (only Up / Down and Shift+Up / Down
+    change blocks; the crossing is gone). Editor23.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

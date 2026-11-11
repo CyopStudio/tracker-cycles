@@ -1469,15 +1469,9 @@ bool Editor::flow(bool right, uint16_t from) {
     uint16_t c = from;
     for (;;) {
         const uint16_t par = p.parentOf(c);
-        if (!par) return false;
-        if (p.at(par).kind == Kind::Block) {  // the block's end: on into the next / previous block
-            const int i = p.blockIndex(par) + (right ? 1 : -1);
-            if (i < 0 || i >= p.blockCount()) return false;
-            const uint16_t nb = p.blockAt(i);
-            selectBlock(nb);
-            if (p.at(nb).first) flowInto(right, p.at(nb).first);
-            return true;
-        }
+        // the block's end: Left / Right stay in the block (Editor22 notes:
+        // only Up / Down and Shift+Up / Down change blocks)
+        if (!par || p.at(par).kind == Kind::Block) return false;
         const Kind pk = p.at(par).kind;
         if (pk == Kind::MSeq || pk == Kind::List) {
             int idx = 0;

@@ -171,3 +171,16 @@ rename project.tidal with the saved project name when it's saved
 *PolyendTrac_TidalEditor18
 
 folder importing when lots of things playing - menu won't load with 8 patterns playing, with 6 playing can just open but is sluggish. loading sitar caused audio hangs but eventually loaded
+
+
+*PolyendTrac_TidalEditor22
+
+very close now!
+
+status bar is slighly too slim, curs off the bottom 4 pixels of the font on the top line
+
+status bar should be same colour as the screen buttons
+
+highlight strip is redundant. can see where the cursor is without it so get rid to keep the screen as dark as possible.
+
+I think I wasn't clear about the left/right behaviour. I want L / R to navigate up / down the tree within the block, but never to move up or down the code blocks themselves. only up/down or shift+Up/Down should
