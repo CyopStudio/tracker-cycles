@@ -25,6 +25,11 @@ class cTidalEditorModule : public ModuleBase
     hControl code_ = -1, side_ = -1, menu_ = -1, bg_ = -1;
     hControl label_[8] = {};
     uint32_t lastDrawMs_ = 0, lastStatusMs_ = 0, lastLitMs_ = 0;
+    // what each control showed last (redraw refreshes only changed ones: the
+    // display does one step per main-loop pass, and a full redraw of every
+    // control took ~1 s while patterns played, RC5)
+    uint32_t codeHash_ = 0, sideHash_ = 0, menuHash_ = 0, labelHash_[8] = {};
+    bool forceAll_ = true, menuShown_ = false;
 };
 
 extern cTidalEditorModule tidalEditorModule;

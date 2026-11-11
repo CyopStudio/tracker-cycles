@@ -124,6 +124,16 @@ to upstream CE.
     "<title>: checking N items ..." / "checking k of N ..." until done
     (Editor::menuChecking_); highlights stay on under an open menu (the
     display-list budget keeps the frame safe).
+    RC5 (user): highlights still stalled under menus and the checking
+    message didn't show. Cause: the display does ONE step per main-loop
+    pass (cDisplay::update: draw a control / copy it to RAM_G / swap), and
+    every editor change redrew all 13 controls (8 soft keys, bg, menu, code
+    x2 stages, info box) = ~30 steps, ~1 s at 20-40 ms per busy pass; the
+    lit refresh and the message waited behind it. RC6
+    (PolyendTrac_CyclesRC6.ptf, not yet run): redraw() refreshes only the
+    controls whose fingerprint changed (FNV of the layout / info strings /
+    menu state / label text; forceAll_ on start). Menu checking itself is
+    ~0.1-0.15 s (editor bench); caching menus per context is a 1.1 idea.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

@@ -485,6 +485,7 @@ void cTidalEditorModule::start(uint32_t)
     ip->setPadsGlobal(functPads);
     ip->setPotObj(interfacePot0, functPot, false);
     titleBar->hide();  // no title bar: more room for the code (UI notes, Editor14)
+    forceAll_ = true;  // every control once
     display.refreshControl(bg_);
     tidalEditorSetDirty();
     redraw();
@@ -527,20 +528,92 @@ void cTidalEditorModule::update()
     }
 }
 
+namespace {
+// FNV-1a over a few inputs: a control's "what I show" fingerprint
+struct Fnv {
+    uint32_t h = 2166136261u;
+    void bytes(const void* p, size_t n) {
+        const uint8_t* b = static_cast<const uint8_t*>(p);
+        for (size_t i = 0; i < n; i++) h = (h ^ b[i]) * 16777619u;
+    }
+    void str(const char* s) { bytes(s, strlen(s) + 1); }
+    void num(int v) { bytes(&v, sizeof v); }
+};
+}  // namespace
+
+// Refresh only the controls whose content changed: the display works one
+// step per main-loop pass (draw / copy a control, swap the frame), so a
+// full redraw of the 13 controls took ~1 s while patterns played (RC5: the
+// highlights stalled behind it, a menu's jog step waited for it).
 void cTidalEditorModule::redraw()
 {
     tc::Editor* ed = tidalEditorModel();
     const tc::CodeScreen& scr = tidalEditorLayout(geometry());
-    display.setControlData(code_, (void*)&scr);
-    display.setControlShow(code_);
-    display.refreshControl(code_);
-    display.setControlShow(side_);
-    display.refreshControl(side_);
-    if (ed && (ed->menuOpen() || ed->keyboardOpen())) {
+    const bool overlay = ed && (ed->menuOpen() || ed->keyboardOpen());
+    bool any = false;
+    auto refresh = [&](hControl c) {
+        display.refreshControl(c);
+        any = true;
+    };
+    {  // the code view (its budget depends on an open overlay)
+        Fnv f;
+        f.num(scr.n);
+        f.num(scr.scroll);
+        f.num(overlay);
+        for (int i = 0; i < scr.n; i++) {
+            const tc::CodeLine& L = scr.line[i];
+            f.num(L.y);
+            f.num((int)L.kind | (int)L.bar << 8 | (int)L.dim << 16);
+            f.bytes(L.cell, L.n * sizeof L.cell[0]);
+            f.bytes(L.col, L.n);
+        }
+        display.setControlData(code_, (void*)&scr);
+        display.setControlShow(code_);
+        if (forceAll_ || f.h != codeHash_) {
+            codeHash_ = f.h;
+            refresh(code_);
+        }
+    }
+    {  // the info box
+        Fnv f;
+        if (ed) {
+            f.str(ed->cursorInfo().c_str());
+            f.str(ed->message().c_str());
+            f.num(ed->messageIsError());
+        }
+        f.num(tidalEditorStatusOpen());
+        if (tidalEditorStatusOpen()) {
+            char st[200];
+            tidalEditorStatusSummary(st, sizeof st);
+            f.str(st);
+        } else {
+            f.str(tidalEditorStatus());
+        }
+        display.setControlShow(side_);
+        if (forceAll_ || f.h != sideHash_) {
+            sideHash_ = f.h;
+            refresh(side_);
+        }
+    }
+    if (overlay) {  // the menu / keyboard
+        Fnv f;
+        f.num(ed->menuOpen());
+        f.str(ed->menuTitle().c_str());
+        f.num(ed->menuSel());
+        f.num(ed->menu().size());
+        f.num(ed->keyboardOpen());
+        f.str(ed->kbdText().c_str());
+        f.num(ed->kbdPos() | ed->kbdSel() << 8 | (int)ed->kbdCaps() << 16);
         display.setControlShow(menu_);
-        display.refreshControl(menu_);
-    } else {
+        if (forceAll_ || !menuShown_ || f.h != menuHash_) {
+            menuHash_ = f.h;
+            refresh(menu_);
+        }
+        menuShown_ = true;
+    } else if (menuShown_ || forceAll_) {
         display.setControlHide(menu_);
+        menuShown_ = false;
+        any = true;  // the frame without it
     }
     gShiftShown = shiftHeld();
     if (ed) updatePads(*ed, gShiftShown);
@@ -550,10 +623,16 @@ void cTidalEditorModule::redraw()
             const tc::Command k = tc::controlCommand(*ed, (Control)i, gShiftShown);
             snprintf(gLabel[i], sizeof gLabel[i], "%s", k.label.c_str());
         }
-        display.setControlText(label_[i], gLabel[i]);
-        display.refreshControl(label_[i]);
+        Fnv f;
+        f.str(gLabel[i]);
+        if (forceAll_ || f.h != labelHash_[i]) {
+            labelHash_[i] = f.h;
+            display.setControlText(label_[i], gLabel[i]);
+            refresh(label_[i]);
+        }
     }
-    display.synchronizeRefresh();
+    forceAll_ = false;
+    if (any) display.synchronizeRefresh();
 }
 
 void cTidalEditorModule::initDisplayControls()
