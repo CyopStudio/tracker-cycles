@@ -3,6 +3,7 @@
 #include "TrackerImpl.h"
 #include "../tidal/audio_profile.h"
 #include "../tidal/reverb_bench.h"
+#include "../tidal/folder_bench.h"
 #include "../tidal/editor_bench.h"
 #include "../tidal/tidal_editor.h"
 #include "../tidal/tidal_bench.h"
@@ -187,6 +188,7 @@ void TrackerImpl::update()
     tidalEditorUpdate(platform);   // the device editor (-DTIDAL_EDITOR)
     audioProfileUpdate(platform);  // no-op unless built with -DAUDIO_PROFILE
     reverbBenchUpdate(platform);   // no-op unless built with -DREVERB_BENCH
+    folderBenchUpdate(platform);   // no-op unless built with -DFOLDER_BENCH
 }
 
 void TrackerImpl::updateAudioBuffers(void* left, void* right, int length)

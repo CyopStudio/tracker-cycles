@@ -138,6 +138,14 @@ query CPU; plan step 2 timing check). Don't build these before then.
   from the Config menu (more room for code). Editor10: "very good".
 
 ## V2 idea: Tidal sample folders (not for V1)
+Design draft (2026-11-11, user: separate `/Tidal/` root; write-up, then a
+timing bench): docs/tidal_sample_folders.md (one folder = one sliced
+instrument, built on demand from the `s` names at evaluate, saved with
+the project; `begin` / `end` per slice). Folder bench built
+(`-DFOLDER_BENCH`, PolyendTrac_TidalFolderBench1.ptf, core/tidal/README.md,
+not yet run): times list / open / read / convert of every /Tidal/ folder,
+report /tidal_folder_bench.txt.
+Earlier notes:
 V1 = 48 instruments loaded the normal Tracker way. V2 could load Tidal-style
 folders listed in the project (e.g. a manifest) on project load.
 - Folder of short files -> ONE sliced instrument: files sorted by name (as

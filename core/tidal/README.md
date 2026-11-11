@@ -195,6 +195,28 @@ all three captures (playback doesn't slow the SDRAM rows): 0 stock 17.1,
 + mix), 5 diffusers internal 15.6, 6 half rate 10.4, 7 half rate +
 diffusers 8.9, 8 half rate all internal 6.0.
 
+## Folder bench (Tidal sample folders, docs/tidal_sample_folders.md)
+
+```bash
+make clean
+make original CUSTOM_DEFINES="-DFOLDER_BENCH"
+cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_TidalFolderBench1.ptf
+```
+
+Put Dirt-Samples-style folders on the card first: `/Tidal/<name>/*.wav`
+(a few dozen folders of mixed formats is a good test). `folder_bench.cpp`
+runs 15 s after boot (leave the Tracker stopped) and again at 75 s (start
+a project playing in between), once the file manager is idle. Each run
+lists `/Tidal/`, then per folder lists and sorts its `.wav` files (first
+48), opens each, reads its header and data (16 KB chunks) and converts it
+with the stock `convertAudioData` to mono 16-bit 44.1 kHz into the shared
+SDRAM scratch buffer (wrapping; never used). Nothing is loaded into
+instruments. Report: `/tidal_folder_bench.txt` (per folder: files, KB,
+list / open / read / convert ms, slowest file, source formats; totals and
+MB/s). The main loop is blocked during a run (screen and SD streaming
+pause; audio keeps running). Cost: flash +3.6 KB, SDRAM +40 KB (buffers),
+internal RAM +160 B.
+
 ## Device tick test (plan step 4b)
 
 ```bash
