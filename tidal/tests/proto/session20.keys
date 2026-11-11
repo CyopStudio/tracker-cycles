@@ -6,7 +6,7 @@ hw:jog+
 hw:up
 msg
 hw:jog+
-hw:shift+s1
+replace
 menulist
 hw:s1
 hw:down

@@ -2,7 +2,7 @@
 > d1 $ s "hh*8" # gain 0.8
 msg: d1 evaluated
 msg: d1 block 1 of 2 (playing): Shift+Up / Down: the others, the pad again: a new one
-msg: new d1 block: Replace / Note / Instrument / Screen 1-8 start it, Up / Down leave it
+msg: new d1 block: Note / Instrument / Screen 1-8 start it, Up / Down leave it
 msg: d1 block 1 of 2 (playing) (Up / Down: blocks, Right: into it, Insert + pad: new block above)
 msg: d1 block 2 of 2 (Up / Down: blocks, Right: into it, Insert + pad: new block above)
 msg: d1 block 1 of 2 (playing) (Up / Down: blocks, Right: into it, Insert + pad: new block above)

@@ -84,6 +84,7 @@ enum class Action {
     MenuFolders,                       // Sample Loader: Tidal sample folders (/Tidal/) to load
     BlockUp, BlockDown,                // Shift+Up / Down: the previous / next block (its top)
     LineBreak,                         // Shift+Screen 5: a line break before the argument / operator (toggle)
+    QuickGain, QuickRoom, QuickDelay,  // Shift+Screen 1-3 (UI v3): # gain 0.9 / # room 0.3 / # delay 0.3
 };
 const char* actionName(Action a);
 bool actionFromName(const char* s, Action& out);
@@ -298,6 +299,7 @@ private:
     void blockStep(int dir);
     void duplicateBlock();
     void toggleBreak();
+    void quickControl(const char* rhs);
     uint16_t addedValue(const EditSpec& s, uint16_t nn) const;
     int jogMul_ = 1;  // jog(): detents folded into one numeric step
     bool tryUnwrap();

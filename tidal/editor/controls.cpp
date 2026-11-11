@@ -247,9 +247,11 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         default: break;
     }
     switch (c) {
-        case Control::Screen0: return act(Action::Replace, "Replace");
-        case Control::Screen1: return act(Action::Wrap, "Wrap");
-        case Control::Screen2: return act(Action::Unwrap, "Unwrap");
+        // Replace / Wrap / Unwrap retired (UI v3: by context instead: the jog
+        // and menus replace, Insert / the Screen menus wrap, Delete unwraps)
+        case Control::Screen0: return act(Action::QuickGain, "# gain 0.9");
+        case Control::Screen1: return act(Action::QuickRoom, "# room 0.3");
+        case Control::Screen2: return act(Action::QuickDelay, "# delay 0.3");
         case Control::Screen3: return act(Action::Undo, "Undo");
         case Control::Screen4: return act(Action::LineBreak, "<CR>");  // a line break (UI notes, Editor14)
         case Control::Screen5:

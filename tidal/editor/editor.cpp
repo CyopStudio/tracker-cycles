@@ -29,6 +29,7 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"notes", Action::MenuNotes}, {"samples", Action::MenuSamples}, {"chords", Action::MenuChords},
     {"silence", Action::SilenceSlot}, {"folders", Action::MenuFolders},
     {"blockup", Action::BlockUp}, {"blockdown", Action::BlockDown}, {"linebreak", Action::LineBreak},
+    {"qgain", Action::QuickGain}, {"qroom", Action::QuickRoom}, {"qdelay", Action::QuickDelay},
     {"functions", Action::MenuFunctions}, {"controls", Action::MenuControls},
     {"quick1", Action::Quick1},   {"quick2", Action::Quick2},     {"quick3", Action::Quick3},
     {"quick4", Action::Quick4},   {"launch", Action::MenuLaunch},
@@ -953,7 +954,7 @@ void Editor::gotoSlot(int s) {
             cursor_ = 0;
             emptyPos_ = at;
             Label m;
-            return info(m.printf("new d%d block: Replace / Note / Instrument / Screen 1-8 start it, Up / Down leave it",
+            return info(m.printf("new d%d block: Note / Instrument / Screen 1-8 start it, Up / Down leave it",
                                  s + 1));
         }
         enterSlot(s);
@@ -1047,6 +1048,43 @@ void Editor::toggleBreak() {
     info(on ? "line break (Shift+Screen 5 again removes it)" : "line break removed");
 }
 
+// Shift+Screen 1-3 (UI v3, user's choice): `# gain 0.9`, `# room 0.3`,
+// `# delay 0.3` on the pattern around the cursor (out of a "..." string or
+// an argument until it fits); the cursor lands on the new value for the jog.
+void Editor::quickControl(const char* rhs) {
+    if (cps_ || !cursor_) return error("go to a block's pattern first");
+    const Program& p = *prog_;
+    uint16_t t = cursor_;
+    if (p.at(t).kind == Kind::Block) t = p.at(t).first;
+    while (t && (isMiniKind(p.at(t).kind) || p.at(t).kind == Kind::Mini)) t = p.parentOf(t);
+    // out of a function's arguments (the 0.3 of `room 0.3`), then to the top
+    // of the operator chain it is in: the control goes at the chain's end
+    // (`s "bd" # gain 1 # room 0.3`, not `s "bd" # (room 0.3 ...)`)
+    for (;;) {
+        const uint16_t up = t ? p.parentOf(t) : 0;
+        if (!up) break;
+        const Node& un = p.at(up);
+        const bool arg = un.kind == Kind::App && un.first != t && !((un.flags & kDollar) && !p.at(t).next);
+        if (arg || un.kind == Kind::Op || un.kind == Kind::Tuple || un.kind == Kind::List) t = up;
+        else break;
+    }
+    for (; t && p.at(t).kind != Kind::Block; t = p.parentOf(t)) {
+        EditSpec sp = spec(EditKind::WrapOp, t, rhs);
+        sp.op = "#";
+        sp.left = true;
+        uint16_t nn;
+        if (!trySpec(sp, nn)) continue;
+        if (!doSpec(sp, nn)) return;
+        if (const uint16_t v = addedValue(sp, nn)) cursor_ = v;
+        gapSeq_ = 0;
+        onOp_ = false;
+        Text c = rhs;
+        lastControl_ = c.c_str();
+        return info("# " + c + ": jog changes it");
+    }
+    error(Text("# ") + rhs + " doesn't fit here");
+}
+
 // Copy at a block's top: a copy of the block below it (UI notes, Editor14).
 void Editor::duplicateBlock() {
     const uint16_t b = prog_->block[slot_];
@@ -1129,7 +1167,7 @@ Label Editor::cursorInfo() const {
         return m.printf("gap %d of %d: pads / Screen 3-7 insert, Delete removes the step before", gapPos_, count), m;
     }
     if (!cursor_)
-        return "empty: Replace, Instrument, Note, Screen 1-8 or FX start a block; Up / Down leave";
+        return "empty: Instrument, Note, Screen 1-8 or FX start a block; Up / Down leave";
     if (cps_ && cursor_ == prog_->cpsExpr && prog_->at(cursor_).kind != Kind::Num)
         return "setcps (Right: its numbers, Down: the blocks, jog: the BPM, Pattern sends it)";
     const Node& n = prog_->at(cursor_);
@@ -1210,7 +1248,8 @@ void Editor::actOne(Action a) {
             case Action::Struct5: case Action::Struct6: case Action::Struct7: case Action::Struct8:
             case Action::MenuModifiers: case Action::MenuFx: case Action::Wrap: case Action::Insert:
             case Action::Quick1: case Action::Quick2: case Action::Quick3: case Action::Quick4:
-            case Action::MenuFunctions: case Action::MenuControls:
+            case Action::MenuFunctions: case Action::MenuControls: case Action::QuickGain:
+            case Action::QuickRoom: case Action::QuickDelay:
                 return openReplace();
             default: break;
         }
@@ -1287,6 +1326,9 @@ void Editor::actOne(Action a) {
         case Action::BlockUp: blockStep(-1); break;
         case Action::BlockDown: blockStep(1); break;
         case Action::LineBreak: toggleBreak(); break;
+        case Action::QuickGain: quickControl("gain 0.9"); break;
+        case Action::QuickRoom: quickControl("room 0.3"); break;
+        case Action::QuickDelay: quickControl("delay 0.3"); break;
         case Action::Struct1:
         case Action::Struct2:
         case Action::Struct3:

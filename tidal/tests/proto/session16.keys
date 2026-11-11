@@ -2,7 +2,7 @@ hw:shift+pad1
 hw:shift+insert
 hw:insert
 hw:shift+pad1
-hw:shift+s1
+replace
 menu:1
 hw:pattern
 hw:pattern

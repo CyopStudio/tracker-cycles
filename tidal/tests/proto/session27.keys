@@ -12,7 +12,7 @@ hw:jog+
 msg
 hw:jog-
 msg
-hw:shift+s1
+replace
 menulist
 hw:s1
 hw:right

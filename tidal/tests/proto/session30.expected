@@ -4,7 +4,7 @@ msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Pattern sends i
 msg: d2 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
 msg: gap 1 of 1: pads / Screen 3-7 insert, Delete removes the step before
 msg: MAlt : Pat Double
-msg: new d2 block: Replace / Note / Instrument / Screen 1-8 start it, Up / Down leave it
+msg: new d2 block: Note / Instrument / Screen 1-8 start it, Up / Down leave it
 msg: d3 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
 msg: n pattern: pads enter notes
 setcps (120/60/4)

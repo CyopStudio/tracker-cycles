@@ -223,7 +223,7 @@ void layoutCode(const Editor& ed, double now, const CodeGeometry& g, CodeScreen&
             if (!rw.blk && rw.idx != -2) {
                 if (CodeLine* l = newLine(out, yy, LineKind::Hint)) {
                     char hint[64];
-                    snprintf(hint, sizeof hint, "d%d   (empty: Replace / Instrument / Note start a block)", rw.slot + 1);
+                    snprintf(hint, sizeof hint, "d%d   (empty: Instrument / Note / Screen 1-8 start a block)", rw.slot + 1);
                     setText(*l, hint);
                     if (cur)  // the cursor is on this empty slot: "dN" selected
                         for (int i = 0; i < l->n && l->cell[i].ch != ' '; i++) l->cell[i].flags |= kCellSel;

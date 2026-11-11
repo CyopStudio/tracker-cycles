@@ -11,7 +11,7 @@ hw:insert
 msg
 hw:left
 msg
-hw:shift+s1
+replace
 menu:13
 hw:pattern
 msg

@@ -4,7 +4,7 @@ hw:jog+
 hw:jog+
 hw:shift+jog+
 msg
-hw:shift+s1
+replace
 menulist
 menu:6
 hw:pattern

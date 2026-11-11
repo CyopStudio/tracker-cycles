@@ -25,7 +25,7 @@ hw:shift+pad3
 hw:shift+insert
 hw:insert
 hw:shift+pad3
-hw:shift+s1
+replace
 menu:1
 hw:pattern
 hw:shift+config
