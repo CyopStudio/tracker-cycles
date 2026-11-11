@@ -1080,9 +1080,14 @@ folders listed in the project (e.g. a manifest) on project load.
   effect_shortDelay.cpp.
 
 ## Git
-- main mirrors upstream (ff-only), develop branches off main (exists on
-  origin only; no local branch), feature/tidal is the working branch,
-  branched from develop. Commit small and often.
+- Until 1.0.0: main mirrored upstream (ff-only), develop branched off
+  main (origin only), feature/tidal is the working branch. Decided
+  (2026-11-11, user): this is a real fork, main stops mirroring upstream.
+  Release flow: feature/tidal -> develop, release/1.0.0 off develop, after
+  the user's device pass merge it into main + tag v1.0.0 (the workflow
+  publishes the GitHub release), merge back into develop. Commit small
+  and often. CI (build.yml) fails PRs whose commits carry AI
+  Co-authored-by trailers (CE's rule, kept; local merges aren't checked).
 - origin: https://github.com/CyopStudio/tracker-cycles.git (the user's fork,
   not Polyend's). Pushing uses Git Credential Manager from Git for Windows.
 
