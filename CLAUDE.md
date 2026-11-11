@@ -94,7 +94,15 @@ to upstream CE.
     (prototype, lazy menus, pad releases all fine); waiting for the message
     shown. (3) User wants a second, text-editor-like cursor mode on Rec
     (Delete right, Shift+Delete left, on a function unwrap, Insert adds #
-    or wraps $ by position) next to the tree mode: design pending.
+    or wraps $ by position) next to the tree mode. Decided (user,
+    2026-11-11): 1.0.0 is released once RC2's menu fix and the new-block
+    bug are confirmed; the cursor mode is 1.1 (develop): Left / Right move
+    token by token (words, numbers, operators, brackets, steps), Up / Down
+    by line and column, edits act on the token under the cursor (the code
+    stays valid); the jog wheel and pads work as in tree mode.
+    New-block bug detail: the device said "can't start a block with
+    n "0" # s "808-bd-5"" (the first instrument); RC2's message adds the
+    edit's own reason, the status view shows nodes / words in use.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
