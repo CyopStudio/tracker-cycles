@@ -185,6 +185,9 @@ the old file, data at sizeof(strInstrumentFile)) written in 8 KB pieces;
 every step only while tidalPlayerAheadSeconds() >= 0.15 s (scheduler
 horizon over the playing slots), 3 ms per pass while playing, 12 ms when
 idle. Flash 928,668 B.
+Editor19 (user): every file refused: the hand-built strWavFileHeader
+passed to checkSampleValid lacked waveId (it checks it). Editor20
+(PolyendTrac_TidalEditor20.ptf, not yet run): waveId / chunkId set.
 Earlier notes:
 V1 = 48 instruments loaded the normal Tracker way. V2 could load Tidal-style
 folders listed in the project (e.g. a manifest) on project load.

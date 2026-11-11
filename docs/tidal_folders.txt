@@ -36,3 +36,75 @@
   -> 8 files (0 refused), 2380386 frames (53.9 s), gap 78, slot 14
   done: instrument 14, 4649 KB, 38.3 s
 
+== 808 (s "808"), 6 .wav files listed
+  refused CB.WAV: not a plain WAV (no fmt / data chunk where expected)
+  refused CH.WAV: not a plain WAV (no fmt / data chunk where expected)
+  refused CL.WAV: not a plain WAV (no fmt / data chunk where expected)
+  refused CP.WAV: not a plain WAV (no fmt / data chunk where expected)
+  refused MA.WAV: not a plain WAV (no fmt / data chunk where expected)
+   0 RS.WAV                         1 ch 16 bit  44100 Hz    11026 frames
+  -> 1 files (5 refused), 11026 frames (0.2 s), gap 6, slot 13
+  done: instrument 13, 21 KB, 0.6 s
+
+== 808 (s "808"), 6 .wav files listed
+  refused CB.WAV: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused CH.WAV: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused CL.WAV: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused CP.WAV: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused MA.WAV: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused RS.WAV: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+FAILED: 808: no usable WAV files (see /tidal_folders.txt)
+
+== bd (s "bd"), 24 .wav files listed
+  refused BT0A0A7.wav: format 1, 1 ch, 16 bit, 44101 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT0A0D0.wav: format 1, 1 ch, 16 bit, 44101 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT0A0D3.wav: format 1, 1 ch, 16 bit, 44101 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT0A0DA.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT0AAD0.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT0AADA.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT3A0D0.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT3A0D3.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT3A0D7.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT3A0DA.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT3AAD0.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT3AADA.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT7A0D0.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT7A0D3.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT7A0D7.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT7A0DA.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT7AAD0.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BT7AADA.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BTAA0D0.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BTAA0D3.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BTAA0D7.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BTAA0DA.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BTAAAD0.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused BTAAADA.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+FAILED: bd: no usable WAV files (see /tidal_folders.txt)
+
+== juno (s "juno"), 12 .wav files listed
+  refused 00_juno_raw_low.wav: format 1, 1 ch, 24 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 01_juno_raw_mid.wav: format 1, 1 ch, 24 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 02_juno_raw_high.wav: format 1, 1 ch, 24 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 03_juno_chorus_low.wav: format 1, 1 ch, 24 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 04_juno_chorus_mid.wav: format 1, 1 ch, 24 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 05_juno_chorus_high.wav: format 1, 1 ch, 24 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 06_juno_release_low.wav: format 1, 1 ch, 24 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 07_juno_release_mid.wav: format 1, 1 ch, 24 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 08_juno_release_high.wav: format 1, 1 ch, 24 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 09_juno_pad_c_minor_filter.wav: format 1, 1 ch, 24 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 10_juno_pad_c_minor_no_filter.wav: format 1, 1 ch, 24 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 11_juno_pad_c_minor_noise.wav: format 1, 2 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+FAILED: juno: no usable WAV files (see /tidal_folders.txt)
+
+== sitar (s "sitar"), 8 .wav files listed
+  refused 000_d_maj_sitar_chorda.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 001_d_maj_sitar_chordb.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 002_d_maj_sitar_chordc.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 003_d_maj_sitar_chordd.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 004_d_maj_sitar_chorde.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 005_d_minor_sitar_chorda.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 006_d_minor_sitar_chordb.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+  refused 007_d_minor_sitar_chordc.wav: format 1, 1 ch, 16 bit, 44100 Hz (supported: PCM / float, 1-2 ch, >= 8000 Hz)
+FAILED: sitar: no usable WAV files (see /tidal_folders.txt)
+

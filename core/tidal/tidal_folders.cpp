@@ -200,7 +200,9 @@ void stepScan(Platform* platform) {
         gRefused++;
         return;
     }
-    strWavFileHeader h{};  // the stock converter's formats
+    strWavFileHeader h{};  // the stock converter's formats (checkSampleValid also wants the WAVE id)
+    h.chunkId = 0x46464952;  // "RIFF"
+    h.waveId = WAVEID;
     h.AudioFormat = f.format;
     h.numChannels = f.channels;
     h.sampleRate = f.rate;
@@ -208,7 +210,9 @@ void stepScan(Platform* platform) {
     h.blockAlign = f.align;
     h.byteRate = f.rate * f.align;
     if (!checkSampleValid(h) || f.channels < 1 || f.channels > 2 || f.rate < kMinRate) {
-        logf("  refused %s: format %u, %u ch, %u bit, %lu Hz (supported: PCM / float, 1-2 ch, >= %lu Hz)\n", name,
+        logf("  refused %s: format %u, %u ch, %u bit, %lu Hz (supported: PCM 8/16/24/32-bit or float 32-bit, "
+             "1-2 ch, >= %lu Hz)\n",
+             name,
              f.format, f.channels, f.bits, (unsigned long)f.rate, (unsigned long)kMinRate);
         gRefused++;
         return;
