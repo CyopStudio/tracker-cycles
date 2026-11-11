@@ -8,7 +8,7 @@ Each stage ends with a device build (`PolyendTrac_CyclesRCn.ptf`), host tests an
 
 ## Stage A: audio and correctness (critical)
 
-Status: A1 + A2 in RC8; A3, B1, B2 added in RC9 (2026-11-11, not yet run). No `??` holes (question 2) also done.
+Status: A1 + A2 in RC8; A3, B1, B2 added in RC9; C in RC10 (2026-11-11, not yet run; the user tests through C before D). No `??` holes (question 2) also done.
 
 **A1. A fast jog drops audio.**
 * Cause (from the code): every jog detent is a complete edit (checkpoint, apply, type-check, Tracker check, undo step), and `functPot` runs up to 16 of them per encoder event. Nothing waits for the scheduler, which queries on the same main loop.
@@ -90,7 +90,15 @@ The user's device pass on the last RC, then the release flow in CLAUDE.md (devel
 
 ---
 
-## Questions for the user
+## Answers (user, 2026-11-11)
+
+1. Shift+Screen 1-3: `# gain 0.9`, `# room 0.3`, `# delay 0.3` (quick controls). Undo stays on Shift+Screen 4.
+2. Never a `??` hole (done).
+3. Tree mode refinements: `$` (and `#` and the other operators) selectable as tokens, so Delete unwraps them and Shift+Screen 5 puts a line break before them.
+4. Cursor mode at boot.
+5. Jog step table: fine as is.
+
+## Questions for the user (as first asked)
 
 1. **Freed keys:** with Replace / Wrap / Unwrap gone, what should Shift+Screen 1-3 do (Undo stays on Shift+Screen 4)? For example, Shift+Screen 1 could open the Replace menu of values for the token (still useful for picking a function by name), and Shift+Screen 2-3 could become two more quick buttons.
 2. ~~Delete on a function argument~~ **Decided:** never a `??` hole ("very hard to fix"). Where a delete would leave one, what the node belongs to is unwrapped; if that can't be unwrapped, it is deleted instead (an operand: the other side stays), never the whole block. Done in both modes (Editor::deleteNode / tryUnwrap).

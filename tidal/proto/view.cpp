@@ -52,7 +52,10 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
     static CodeScreen scr;
     static LayoutScratch scratch;
     layoutCode(ed, steadySeconds(), CodeGeometry{cw / adv, lineH, 8, areaBottom - areaTop}, scr, scratch);
-    // no current-block strip (Editor22 notes: the cursor shows where you are)
+    // no current-block strip (Editor22 notes: the cursor shows where you are);
+    // the evaluate flash (UI v3 C): green accepted, red refused
+    if (scr.flash.on)
+        fb.rect(cx - 6, areaTop + scr.flash.y - 2, cw + 12, scr.flash.h - 4, scr.flash.ok ? 0x1E4A2A : 0x5A1E1E);
     if (scr.contentH > areaBottom - areaTop) {  // scroll bar
         const int ah = areaBottom - areaTop, th = ah * ah / scr.contentH < 12 ? 12 : ah * ah / scr.contentH;
         fb.rect(4, areaTop, 3, ah, col::panel);

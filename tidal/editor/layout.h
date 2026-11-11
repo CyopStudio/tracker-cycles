@@ -49,10 +49,16 @@ struct CodeBox {  // the current block's background
     int16_t y, h;  // px from the area's top: the block's top and height
 };
 
+struct CodeFlash {  // the evaluate flash behind a block (UI v3 C)
+    bool on, ok;      // ok: accepted (green), else refused (red)
+    int16_t y, h;     // px from the area's top
+};
+
 struct CodeScreen {
     int n;
     CodeLine line[kCodeLines];
     CodeBox box;
+    CodeFlash flash;
     int16_t scroll;    // px the content is scrolled up (for a scroll bar)
     int16_t contentH;  // px of all the blocks
 };

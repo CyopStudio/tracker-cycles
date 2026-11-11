@@ -372,6 +372,30 @@ void testEditorModel(int& pass, int& fail) {
         em.act(Action::Cancel);
     }
 
+    // UI v3 C: the evaluate flash: green when accepted, red when refused,
+    // starting at the next pollHighlights and over after kFlashSeconds
+    {
+        static Program pf;
+        static Checkpoint cf;
+        static uint8_t uf[16 * 1024];
+        static Editor ef(pf, cf, uf, (int)sizeof uf);
+        RecOutput of;
+        ef.setOutput(&of);
+        const char* f = "d1 $ s \"bd\"\n\nd2 $ chop 2 $ s \"hh\"\n";  // chop: refused in Tracker mode
+        Label er;
+        ef.loadText(f, (int)strlen(f), er);
+        ef.gotoSlot(0);
+        ef.act(Action::Evaluate);
+        EXPECT(!ef.flashOn(1.0), "the flash waits for the poll");
+        EXPECT(ef.pollHighlights(1.0) && ef.flashOn(1.05) && ef.flashOk() && ef.flashBlock() == ef.prog().block[0],
+               "green flash on d1");
+        EXPECT(!ef.flashOn(1.0 + Editor::kFlashSeconds + 0.01) && ef.pollHighlights(1.2), "over (a redraw)");
+        ef.gotoSlot(1);
+        ef.act(Action::Evaluate);  // chop: Tracker mode refuses it
+        ef.pollHighlights(2.0);
+        EXPECT(ef.flashOn(2.01) && !ef.flashOk(), "red flash on a refused block (%s)", ef.message().c_str());
+    }
+
     // the control mapping (editor/controls.*), shared with the device
     Control c;
     EXPECT(ctlFromId("pad13", c) && c == padCtl(12), "pad13");

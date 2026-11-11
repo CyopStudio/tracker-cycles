@@ -168,6 +168,7 @@ void layoutCode(const Editor& ed, double now, const CodeGeometry& g, CodeScreen&
     const Program& p = ed.prog();
     out.n = 0;
     out.box.on = false;
+    out.flash.on = false;
     Row rows[kMaxBlocks + 2];
     int nrows = 0;
     // the empty placeholder (a slot with no block, a new dN block not started
@@ -212,6 +213,8 @@ void layoutCode(const Editor& ed, double now, const CodeGeometry& g, CodeScreen&
         const bool cur = isCur(rw);
         if (y + h >= 0 && y < g.areaH) {
             if (cur) out.box = CodeBox{true, (int16_t)y, (int16_t)h};
+            if (rw.blk && rw.blk == ed.flashBlock() && ed.flashOn(now))
+                out.flash = CodeFlash{true, ed.flashOk(), (int16_t)y, (int16_t)h};
             int yy = y;
             if (rw.idx >= 0 && p.blockComment(rw.idx)[0]) {
                 if (CodeLine* l = newLine(out, yy, LineKind::Comment)) setText(*l, p.blockComment(rw.idx));

@@ -172,6 +172,12 @@ to upstream CE.
     no thirds); B2 after a menu wrap the cursor is on the added value
     (Editor::addedValue). Careful: stepFor(numberOwner(.., arg), arg) had
     unspecified argument order (arg read before it was set).
+    RC10 (PolyendTrac_CyclesRC10.ptf, not yet run): C, the evaluate flash
+    (Editor::flash / flashOn, timed by pollHighlights, 150 ms; layout
+    CodeScreen::flash; green 0x1E4A2A accepted, red 0x5A1E1E refused).
+    Answers for D (user): Shift+Screen 1-3 = # gain 0.9 / # room 0.3 /
+    # delay 0.3; tree mode: $ / # / operators selectable (Delete unwraps,
+    <CR> before); cursor mode at boot; step table fine.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

@@ -222,6 +222,12 @@ public:
         double on, off;  // steadySeconds()
     };
     bool pollHighlights(double now);
+    // The evaluate flash (UI v3 C): the block flashed (green: accepted, red:
+    // refused) and whether it shows at `now` (pollHighlights times it).
+    static constexpr double kFlashSeconds = 0.15;
+    uint16_t flashBlock() const { return flashBlk_; }
+    bool flashOk() const { return flashOk_; }
+    bool flashOn(double now) const { return flashBlk_ && flashStart_ >= 0 && now - flashStart_ < kFlashSeconds; }
     const FixVec<LitStep, 256>& litSteps() const { return lit_; }
     // every step lit since the last clearLitSeen() (headless reports)
     const FixVec<LitStep, 1024>& litSeen() const { return litSeen_; }
@@ -362,6 +368,14 @@ private:
     uint16_t playing_[kSlots] = {};
     FixVec<LitStep, 256> lit_;
     double litPolled_ = 0;  // the last pollHighlights() time
+    uint16_t flashBlk_ = 0;
+    bool flashOk_ = true, flashPending_ = false, flashShown_ = false;
+    double flashStart_ = -1;
+    void flash(uint16_t blk, bool ok) {
+        flashBlk_ = blk;
+        flashOk_ = ok;
+        flashPending_ = true;
+    }
     bool cps_ = false;
     uint32_t changes_ = 0;
     void jumpCps();

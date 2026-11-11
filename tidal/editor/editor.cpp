@@ -3155,10 +3155,11 @@ void Editor::evaluate() {
     int holes = 0;
     if (!checkBlock(*prog_, slot_, e, &holes)) {
         state_[slot_] = SlotState::Error;
+        flash(b, false);
         return error(e.msg);
     }
-    if (holes) return error("fill in the ?? first");
-    if (trackerMode_ && !trackerCheck(*prog_, slot_, e)) return error(e.msg);
+    if (holes) return flash(b, false), error("fill in the ?? first");
+    if (trackerMode_ && !trackerCheck(*prog_, slot_, e)) return flash(b, false), error(e.msg);
     if (prog_->cpsExpr && out_) {  // a changed setcps goes first
         const Text cps = cpsText(*prog_);
         if (cps != lastCps_) {
@@ -3167,14 +3168,24 @@ void Editor::evaluate() {
         }
     }
     Label msg;
-    if (out_ && !out_->evaluate(*prog_, slot_, msg)) return error(msg);
+    if (out_ && !out_->evaluate(*prog_, slot_, msg)) return flash(b, false), error(msg);
     state_[slot_] = SlotState::Playing;
     playing_[slot_] = b;
+    flash(b, true);
     info("d" + tnum(slot_ + 1) + " evaluated");
 }
 
 bool Editor::pollHighlights(double now) {
     bool changed = false;
+    if (flashPending_) {  // the evaluate flash starts now ...
+        flashPending_ = false;
+        flashStart_ = now;
+        flashShown_ = true;
+        changed = true;
+    } else if (flashShown_ && !flashOn(now)) {  // ... and is over
+        flashShown_ = false;
+        changed = true;
+    }
     if (out_) {
         EditorOutput::Lit got[64];
         int n;

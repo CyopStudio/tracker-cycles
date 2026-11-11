@@ -148,7 +148,10 @@ class TcCodeView : public TcControl
         API_SCISSOR_SIZE(800, kAreaBottom - kAreaTop);
         // backgrounds: the current block, bars, selection / lit / gap
         API_BEGIN(RECTS);
-        // no current-block strip (Editor22 notes: the cursor shows where you are; keep the screen dark)
+        // no current-block strip (Editor22 notes: the cursor shows where you are; keep the screen dark);
+        // the evaluate flash (UI v3 C): green accepted, red refused
+        if (!half && s.flash.on && afford(12))
+            rect(kCodeX - 6, kAreaTop + s.flash.y - 2, kCodeW + 12, s.flash.h - 4, s.flash.ok ? 0x1E4A2A : 0x5A1E1E);
         const int areaH = kAreaBottom - kAreaTop;
         if (!half && s.contentH > areaH) {  // the scroll bar
             const int th = areaH * areaH / s.contentH < 12 ? 12 : areaH * areaH / s.contentH;
@@ -559,6 +562,7 @@ void cTidalEditorModule::redraw()
         Fnv f;
         f.num(scr.n);
         f.num(scr.scroll);
+        f.num(scr.flash.on | scr.flash.ok << 1 | scr.flash.y << 2);
         f.num(overlay);
         for (int i = 0; i < scr.n; i++) {
             const tc::CodeLine& L = scr.line[i];
