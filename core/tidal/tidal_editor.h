@@ -15,6 +15,8 @@ struct CodeGeometry;
 // Main loop: creates the editor, loads /project.tidal once the player runs
 // (loading plays nothing), checks menu items a few per pass.
 void tidalEditorUpdate(Platform* platform);
+// Jog detents from the wheel (collected, applied once per main-loop pass).
+void tidalEditorJog(int detents, bool shift);
 tc::Editor* tidalEditorModel();  // null until created
 // Something changed that the screen should show (consumes the flag).
 bool tidalEditorTakeDirty();

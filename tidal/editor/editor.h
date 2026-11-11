@@ -180,6 +180,10 @@ public:
     const MenuList& menu() const { return menu_; }
     int menuSel() const { return menuSel_; }
     const Label& message() const { return message_; }
+    // n jog detents at once (the device folds a fast spin into one call per
+    // main-loop pass): a number moves n steps in ONE edit; lists (samples,
+    // functions, menus ...) move n places (at most 8 per call)
+    void jog(int n, bool fast);
     // The empty placeholder ("dN (empty ...)": a slot with no block, a new
     // dN block not started yet, a block whose code was deleted): its row in
     // the block list (it goes before block i), or -1 when the cursor isn't on one.
@@ -288,6 +292,7 @@ private:
     void blockStep(int dir);
     void duplicateBlock();
     void toggleBreak();
+    int jogMul_ = 1;  // jog(): detents folded into one numeric step
     bool tryUnwrap();
     Text joinSteps(uint16_t seq, int pos, int n, const char* sep) const;
     void actOne(Action a);  // blocks with no code once no menu needs them (Cancel, Undo)

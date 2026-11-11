@@ -66,6 +66,8 @@ uintptr_t deepestAddr() {
 }
 
 Platform* gPlatform = nullptr;
+int gJog = 0;  // jog detents not applied yet (tidalEditorJog)
+bool gJogShift = false;
 
 // The editor's results go to the Tidal player.
 class DeviceOutput : public tc::EditorOutput {
@@ -258,6 +260,13 @@ bool DeviceOutput::save(const tc::Program& p, tc::Label& msg) {
 }
 
 tc::Editor* tidalEditorModel() { return gEd; }
+void tidalEditorJog(int detents, bool shift) {
+    if (shift != gJogShift) gJog = 0;  // a new direction of steps
+    gJogShift = shift;
+    gJog += detents;
+    if (gJog > 64) gJog = 64;
+    if (gJog < -64) gJog = -64;
+}
 bool tidalEditorTakeDirty() {
     const bool d = gDirty;
     gDirty = false;
@@ -456,6 +465,14 @@ void tidalEditorUpdate(Platform* platform) {
     if (gLoaded && ms - gNamesCheckMs >= 1000) {
         gNamesCheckMs = ms;
         if (setInstrumentNames()) gDirty = true;
+    }
+    // jog detents collected since the last pass: one edit, and only while the
+    // scheduler is comfortably ahead (it queries on this main loop)
+    if (gJog && tidalPlayerAheadSeconds() >= 0.15f) {
+        const int n = gJog;
+        gJog = 0;
+        gEd->jog(n, gJogShift);
+        gDirty = true;
     }
     // a sample folder loading in the background: a step, and its messages
     tidalFoldersUpdate(platform);

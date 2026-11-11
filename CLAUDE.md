@@ -155,6 +155,13 @@ to upstream CE.
     keeps playing, menu checking stalls; B jog steps by meaning, cursor to
     the new function's parameter; C flash on evaluate; D cursor mode on
     Rec; E release), with open questions for the user.
+    No ?? holes (user): Delete unwraps what the node belongs to, or deletes
+    that (operand rules), never the whole block (Editor::tryUnwrap).
+    RC8 (PolyendTrac_CyclesRC8.ptf, not yet run): A1 jog detents collected
+    (tidalEditorJog) and applied once per pass as one edit (Editor::jog:
+    numbers n steps in one edit, lists up to 8 places) only while the
+    scheduler is >= 150 ms ahead; A2 a deleted / dropped playing block
+    silences dN even when edited since.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

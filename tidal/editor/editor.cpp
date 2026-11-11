@@ -1013,6 +1013,21 @@ void Editor::duplicateBlock() {
     info("block duplicated (the copy is selected; Up / Down: the blocks)");
 }
 
+void Editor::jog(int n, bool fast) {
+    if (!n) return;
+    const int dir = n > 0 ? 1 : -1, count = n > 0 ? n : -n;
+    const Action a = dir > 0 ? (fast ? Action::WheelUpFast : Action::WheelUp)
+                             : (fast ? Action::WheelDownFast : Action::WheelDown);
+    const Kind k = cursor_ && !menuOpen_ && !kbdOpen_ ? prog_->at(cursor_).kind : Kind::None;
+    if (k == Kind::Num || k == Kind::MNum || k == Kind::MNote) {
+        jogMul_ = count;  // one edit of count steps
+        act(a);
+        jogMul_ = 1;
+        return;
+    }
+    for (int i = 0; i < count && i < 8; i++) act(a);
+}
+
 void Editor::selectBlock(uint16_t b) {
     cps_ = false;
     const int s = prog_->blockSlot(b);
@@ -1561,7 +1576,7 @@ void Editor::wheel(int dir, bool fast) {
             int64_t scale = 1;
             for (int k = 0; k < dec; k++) scale *= 10;
             Rational r = nodeRational(n);
-            int64_t step = fast ? 10 : 1;
+            int64_t step = (fast ? 10 : 1) * (int64_t)jogMul_;
             // value + dir*step/scale
             int64_t num = (int64_t)r.num * scale + dir * step * (int64_t)r.den;
             Rational nr = makeRational(num, (int64_t)r.den * scale);
@@ -1571,7 +1586,7 @@ void Editor::wheel(int dir, bool fast) {
             break;
         }
         case Kind::MNote:
-            m.a = (uint32_t)((int32_t)m.a + dir * (fast ? 12 : 1));
+            m.a = (uint32_t)((int32_t)m.a + dir * (fast ? 12 : 1) * jogMul_);
             m.b = 0;
             break;
         case Kind::MBool: m.a = !m.a; break;
@@ -1665,7 +1680,11 @@ void Editor::dropEmptyBlocks() {
             cursor_ = 0;
             emptyPos_ = i;  // the placeholder stays where the block was
         }
-        if (playing_[s] == b) playing_[s] = 0;
+        if (playing_[s] == b) {  // e.g. undone back to nothing while it played
+            playing_[s] = 0;
+            if (out_) out_->silence(s);
+            state_[s] = SlotState::Empty;
+        }
         if (p->block[s] == b) {
             p->block[s] = 0;
             for (int k = 0; k < p->blockCount() && !p->block[s]; k++)  // another block of dN
@@ -2705,7 +2724,9 @@ void Editor::deleteNode() {
             emptyPos_ = at;     // the empty placeholder where the block was
             const bool wasPlaying = playing_[slot_] == b;
             if (wasPlaying) playing_[slot_] = 0;
-            if (out_ && wasPlaying && state_[slot_] == SlotState::Playing) out_->silence(slot_);
+            // the playing block went: dN stops, also when it was edited since
+            // (1.0.0 device pass: an edited playing block kept playing)
+            if (out_ && wasPlaying) out_->silence(slot_);
             if (!prog_->block[slot_]) state_[slot_] = SlotState::Empty;
             else if (wasPlaying) state_[slot_] = SlotState::Edited;
             info(prog_->block[slot_] ? "block deleted (Up / Down: the blocks around)" : "slot cleared");

@@ -470,10 +470,10 @@ void functPot(int16_t value)
 {
     tc::Editor* ed = tidalEditorModel();
     if (!ed || !value) return;
-    const bool shift = shiftHeld();
-    const int n = value > 0 ? value : -value;
-    for (int i = 0; i < n && i < 16; i++) tc::press(*ed, value > 0 ? Control::JogUp : Control::JogDown, shift);
-    tidalEditorSetDirty();
+    // collected and applied once per main-loop pass (tidalEditorUpdate): a
+    // fast spin ran up to 16 full edits per event and dropped audio
+    // (1.0.0 device pass)
+    tidalEditorJog(value, shiftHeld());
 }
 
 }  // namespace

@@ -256,6 +256,28 @@ void testEditorModel(int& pass, int& fail) {
         lazy.setOutput(&out2);
     }
 
+    // jog(n): a fast spin folded into one edit (device: one per main-loop pass)
+    {
+        static Program pj;
+        static Checkpoint cj;
+        static uint8_t uj[16 * 1024];
+        static Editor ej(pj, cj, uj, (int)sizeof uj);
+        const char* f = "d1 $ s \"bd\" # gain 1\n";
+        Label er;
+        ej.loadText(f, (int)strlen(f), er);
+        ej.gotoSlot(0);
+        ej.act(Action::Home);
+        ej.act(Action::Right);  // the # expression
+        ej.act(Action::Down);   // s "bd"
+        ej.act(Action::Right);  // gain 1
+        ej.act(Action::Down);   // gain
+        ej.act(Action::Right);  // 1
+        ej.jog(4, false);
+        EXPECT(fileOf(ej).find("gain 5") != std::string::npos, "jog(4): %s", fileOf(ej).c_str());
+        ej.act(Action::Undo);
+        EXPECT(fileOf(ej).find("gain 1") != std::string::npos, "one undo step: %s", fileOf(ej).c_str());
+    }
+
     // the control mapping (editor/controls.*), shared with the device
     Control c;
     EXPECT(ctlFromId("pad13", c) && c == padCtl(12), "pad13");
