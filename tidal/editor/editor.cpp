@@ -515,13 +515,20 @@ int Editor::checkMenu(int n) {
         menuOpen_ = false;
         error("nothing fits here");
     }
+    if (menuOpen_ && !menuTouched_ && menu_.size() == 1 && menuNext_ == 1) {
+        applyMenuItem(0, onOperator());  // one item left: as if it had been the only one
+        return 0;
+    }
     return menu_.size() - menuNext_;
 }
 
+// A menu with one item that fits applies it at once (user, after
+// Editor14): no menu to confirm. Lazily checked menus (the device) do the
+// same when checking leaves one item before the user touched the menu.
 bool Editor::openMenu(const Label& title) {
     buildOnly_ = false;
     menuNext_ = 0;
-    if (!lazyMenus_) checkMenu(menu_.size());
+    if (!lazyMenus_ || menu_.size() == 1) checkMenu(menu_.size());
     if (menu_.empty()) {
         error("nothing fits here");
         return false;
@@ -529,8 +536,27 @@ bool Editor::openMenu(const Label& title) {
     menuTitle_ = title;
     menuSel_ = 0;
     menuOpen_ = true;
+    menuTouched_ = false;
+    if (menu_.size() == 1 && menuNext_ == 1) {
+        applyMenuItem(0, onOperator());
+        return true;
+    }
     info(title + ": wheel to choose, ok to apply, cancel to close");
     return true;
+}
+
+void Editor::applyMenuItem(int i, bool wasOnOp) {
+    MenuItem& it = menu_[i];
+    if (it.label.startsWith("# ")) lastControl_ = it.label.substr(2);
+    menuOpen_ = false;
+    uint16_t nn = 0;
+    if (!doSpec(it.spec, nn)) return error("can't apply " + it.label);
+    cursor_ = it.checked ? it.cursor : nn;
+    gapSeq_ = 0;
+    onOp_ = wasOnOp && it.spec.kind == EditKind::SetOp;
+    state_[slot_] = SlotState::Edited;
+    if (menuVoices_ && !it.label.startsWith("single")) ensureVoices();
+    info(menuTitle_ + ": " + it.label);
 }
 
 bool Editor::padNumeric() const {
@@ -1013,6 +1039,7 @@ void Editor::actOne(Action a) {
     pending_ = 0;  // only the very next Delete may remove an appended step
     if (a == Action::Delete && pending && pending == cursor_) pending_ = pending;
     if (menuOpen_) {
+        menuTouched_ = true;  // a lazily checked menu down to one item no longer applies itself
         switch (a) {
             case Action::WheelUp:
             case Action::Down:
@@ -1023,20 +1050,7 @@ void Editor::actOne(Action a) {
             case Action::WheelUpFast: menuSel_ = std::min((int)menu_.size() - 1, menuSel_ + 8); return;
             case Action::WheelDownFast: menuSel_ = std::max(0, menuSel_ - 8); return;
             case Action::Confirm:
-            case Action::Evaluate: {
-                MenuItem& it = menu_[menuSel_];
-                if (it.label.startsWith("# ")) lastControl_ = it.label.substr(2);
-                menuOpen_ = false;
-                uint16_t nn = 0;
-                if (!doSpec(it.spec, nn)) return error("can't apply " + it.label);
-                cursor_ = it.checked ? it.cursor : nn;
-                gapSeq_ = 0;
-                onOp_ = wasOnOp && it.spec.kind == EditKind::SetOp;
-                state_[slot_] = SlotState::Edited;
-                if (menuVoices_ && !it.label.startsWith("single")) ensureVoices();
-                info(menuTitle_ + ": " + it.label);
-                return;
-            }
+            case Action::Evaluate: return applyMenuItem(menuSel_, wasOnOp);
             case Action::Cancel: menuOpen_ = false; info("cancelled"); return;
             default: return;
         }

@@ -668,7 +668,12 @@ folders listed in the project (e.g. a manifest) on project load.
      side) and `a | b | c` (| between all the sequence's steps; a `[..]`
      group becomes `[a | b | c]` itself); a selection of 2+ steps becomes
      `[a | b | c]` at once (no menu). One neighbour / one step: the old
-     insert items. Smoke sessions 28-29. Flash 884,868 B.
+     insert items. Smoke sessions 28-29. Also in Editor14 (user, general
+     rule): a menu with one item that fits applies it at once
+     (Editor::openMenu -> applyMenuItem); lazily checked menus (device)
+     apply when checking leaves one item, unless a key already reached
+     the menu (menuTouched_). Unit check lazy = eager; smoke 4 / 26 / 29
+     lost their OK keys. Flash 885,188 B.
 
 ## Polyphony (planned)
 - Built (2026-11-10, tick v7, not yet run on the device): design

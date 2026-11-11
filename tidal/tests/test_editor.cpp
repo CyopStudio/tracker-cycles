@@ -178,6 +178,28 @@ void testEditorModel(int& pass, int& fail) {
         eager.setOutput(&out1);
     }
 
+    // a menu with one item applies it at once, lazily checked or not:
+    // | at the gap inside [~ sd] -> [~ | sd]
+    {
+        static Program p3, p4;
+        static Checkpoint c3, c4;
+        static uint8_t u3[16 * 1024], u4[16 * 1024];
+        static Editor e3(p3, c3, u3, (int)sizeof u3), e4(p4, c4, u4, (int)sizeof u4);
+        e4.setLazyMenus(true);
+        const char* f = "d1 $ s \"bd [~ sd]\"\n";
+        for (Editor* e : {&e3, &e4}) {
+            const char* who = e == &e4 ? "lazy" : "eager";
+            Label er;
+            EXPECT(e->loadText(f, (int)strlen(f), er), "load: %s", er.c_str());
+            e->gotoSlot(0);
+            e->act(Action::JumpSamples);  // bd
+            for (Action a : {Action::Right, Action::Right, Action::Down, Action::Down, Action::Right}) e->act(a);
+            e->act(Action::Struct7);
+            EXPECT(!e->menuOpen(), "one-item menu applied (%s): %s", who, e->message().c_str());
+            EXPECT(fileOf(*e) == "d1 $ s \"bd [~ | sd]\"\n", "%s: %s", who, fileOf(*e).c_str());
+        }
+    }
+
     // a block started on an empty slot and then cancelled / undone leaves no
     // block without code (Editor12: "d12" alone, evaluate -> device hang)
     {

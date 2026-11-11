@@ -311,6 +311,8 @@ private:
     int chordPos_ = 0;
     MenuList menu_;
     int menuSel_ = 0;
+    bool menuTouched_ = false;  // a key reached the open menu
+    void applyMenuItem(int i, bool wasOnOp);
     Label message_;
     bool messageError_ = false;
     SlotState state_[kSlots];

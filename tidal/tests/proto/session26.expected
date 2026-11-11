@@ -1,5 +1,5 @@
 msg: 3 steps selected: Screen 3-7 wrap them, Delete removes, Copy copies
-menu [ ] (selection): [[bd*2 [~ sd] bd]]
+menu: (closed)
 msg: [ ] (selection): [bd*2 [~ sd] bd]
 setcps (120/60/4)
 

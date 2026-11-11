@@ -5,7 +5,6 @@ hw:shift+right
 msg
 hw:s3
 menulist
-hw:s8
 msg
 print
 hw:shift+s4

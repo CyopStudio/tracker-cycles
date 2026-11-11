@@ -1,7 +1,7 @@
 hw:down hw:right hw:right hw:right hw:copy
 hw:shift+pad2 hw:down hw:shift+copy
 hw:shift+insert hw:right notes menu:1 hw:shift+s8
-hw:shift+pad3 hw:down hw:down hw:down hw:right hw:down samples menu:4 hw:pattern
+hw:shift+pad3 hw:down hw:down hw:down hw:right hw:down samples menu:4
 hw:shift+insert hw:right functions menu:0 hw:pattern
 hw:down hw:down hw:down controls menu:5 hw:pattern
 hw:shift+delete hw:shift+copy
