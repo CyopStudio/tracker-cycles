@@ -1,5 +1,6 @@
 // Tracker Cycles (plan 4a): pattern files are copied as files; progress weight
 static constexpr uint32_t kPatternFileBytes = 8192;
+#include "../tidal/tidal_editor.h"
 #include "ProjectOpen.h"
 
 #include "fileManager.h"
@@ -335,6 +336,7 @@ bool ProjectOpen::copySamples(int idx, uint8_t& copyState)
 void ProjectOpen::openProjectFinish()
 {
     clearInstrumentList();
+    tidalProjectOpened();  // Tracker Cycles (plan 4e): the project's code into the workspace
 
     //------------ patterns metadata
     char srcFilePath[PATCH_SIZE];

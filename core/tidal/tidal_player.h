@@ -43,6 +43,7 @@ class Program;
 struct LitRecord;
 }
 bool tidalPlayerReadFile(const char*& text, int& len, char* msg, int msgLen);  // /project.tidal
+bool tidalPlayerReadText(const char* path, const char*& text, int& len, char* msg, int msgLen);  // any file
 bool tidalPlayerWriteFile(const char* text, int len, char* msg, int msgLen);
 bool tidalPlayerWriteText(const char* path, const char* text, int len, char* msg, int msgLen);  // any file
 // checked block; liveRoot: its copy's root in the live program (highlighting)

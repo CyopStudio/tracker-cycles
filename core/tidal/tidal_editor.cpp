@@ -9,6 +9,7 @@
 
 #include "Platform.h"
 #include "cr_section_macros.h"
+#include "fileManager.h"
 #include "mtStructs.h"
 #include "tidal_config.h"
 #include "tidal_player.h"
@@ -114,22 +115,36 @@ public:
     void mute(int slot, bool on) override { tidalPlayerMute(slot, on); }
     void unmuteAll() override { tidalPlayerUnmuteAll(); }
     void setCps(const tc::Program& p) override { tidalPlayerSetCps(p); }
-    bool save(const tc::Program& p, tc::Label& msg) override {
-        tc::Renderer r(saveText, sizeof saveText);
-        saveText[0] = 0;
-        const int n = r.file(p);
-        char m[96];
-        bool ok;
-        if (r.overflow()) {
-            snprintf(m, sizeof m, "file over %u bytes: not saved", (unsigned)sizeof saveText);
-            ok = false;
-        } else {
-            ok = tidalPlayerWriteFile(saveText, n, m, sizeof m);
-        }
-        msg = m;
-        return ok;
-    }
+    // Shift+File: the code into the project folder and the working copy
+    // (instruments and settings save from the File screen, which writes the
+    // code too: tidalProjectSaved)
+    bool save(const tc::Program& p, tc::Label& msg) override;
 };
+
+// ---- project files (plan 4e) -----------------------------------------------------
+constexpr const char* kWorkspaceTidal = "Workspace/project.tidal";
+uint32_t gSavedChanges = 0;      // the editor's changes() when the working copy was written
+uint32_t gChangedMs = 0;         // when changes() last moved
+uint32_t gSeenChanges = 0;
+bool gOpenPending = false, gNewPending = false;
+
+// <project folder>/project.tidal; false for a project never saved to a folder
+bool projectTidalPath(char* buf, int cap) {
+    if ((mtProject.values.projectNotSavedFlag & 2) || !newFileManager.getCurrentProjectName()[0]) return false;
+    char dir[PATCH_SIZE];
+    newFileManager.getCurrentProjectPathWithName(dir, sizeof dir);
+    if (!newFileManager.projectExist(newFileManager.getCurrentProjectPath(), newFileManager.getCurrentProjectName()))
+        return false;
+    return snprintf(buf, cap, "%s/project.tidal", dir) < cap;
+}
+
+// the program as .tidal text in saveText; -1 if it doesn't fit
+int renderProgram(const tc::Program& p) {
+    tc::Renderer r(saveText, sizeof saveText);
+    saveText[0] = 0;
+    const int n = r.file(p);
+    return r.overflow() ? -1 : n;
+}
 
 DeviceOutput* gOut = nullptr;  // built with the rest (it has a vtable)
 __NOINIT(EXTERNAL_RAM) unsigned char outRaw[sizeof(DeviceOutput)] __attribute__((aligned(8)));
@@ -172,7 +187,42 @@ bool setInstrumentNames() {
 }
 uint32_t gNamesCheckMs = 0;
 
+// Load the editor from a .tidal file; false if it isn't there (or unreadable).
+bool loadFile(const char* path) {
+    const char* text = nullptr;
+    int len = 0;
+    char msg[96];
+    if (!tidalPlayerReadText(path, text, len, msg, sizeof msg)) return false;
+    tc::Label err;
+    if (gEd->loadText(text, len, err)) snprintf(gStatus, sizeof gStatus, "%s loaded", path);
+    else snprintf(gStatus, sizeof gStatus, "%s: %s", path, err.c_str());
+    return true;
+}
+
 }  // namespace
+
+bool DeviceOutput::save(const tc::Program& p, tc::Label& msg) {
+    const int n = renderProgram(p);
+    char m[128];
+    if (n < 0) {
+        snprintf(m, sizeof m, "file over %u bytes: not saved", (unsigned)sizeof saveText);
+        msg = m;
+        return false;
+    }
+    if (!tidalPlayerWriteText(kWorkspaceTidal, saveText, n, m, sizeof m)) {
+        msg = m;
+        return false;
+    }
+    gSavedChanges = gEd ? gEd->changes() : 0;
+    char path[PATCH_SIZE + 16];
+    if (!projectTidalPath(path, sizeof path)) {
+        msg = "kept in the workspace: name the project once with File > Save As";
+        return true;
+    }
+    const bool ok = tidalPlayerWriteText(path, saveText, n, m, sizeof m);
+    msg = m;
+    return ok;
+}
 
 tc::Editor* tidalEditorModel() { return gEd; }
 bool tidalEditorTakeDirty() {
@@ -187,6 +237,32 @@ bool tidalEditorTakeLitDirty() {
     return d;
 }
 const char* tidalEditorStatus() { return gStatus; }
+
+void tidalProjectOpened() {
+    // <project>/project.tidal -> the working copy (none: an empty project)
+    char path[PATCH_SIZE + 16];
+    const char* text = nullptr;
+    int len = 0;
+    char m[96];
+    if (projectTidalPath(path, sizeof path) && tidalPlayerReadText(path, text, len, m, sizeof m))
+        tidalPlayerWriteText(kWorkspaceTidal, text, len, m, sizeof m);
+    else if (gPlatform)
+        gPlatform->getFileSystem()->remove(kWorkspaceTidal);
+    gOpenPending = true;  // the editor reloads once the file manager is idle
+}
+
+void tidalProjectSaved() {
+    // the code into the project folder (and the working copy)
+    if (!gEd) return;
+    const int n = renderProgram(*reinterpret_cast<tc::Program*>(progRaw));
+    if (n < 0) return;
+    char path[PATCH_SIZE + 16], m[96];
+    tidalPlayerWriteText(kWorkspaceTidal, saveText, n, m, sizeof m);
+    if (projectTidalPath(path, sizeof path)) tidalPlayerWriteText(path, saveText, n, m, sizeof m);
+    gSavedChanges = gEd->changes();
+}
+
+void tidalProjectNew() { gNewPending = true; }
 
 int tidalStackDeepest() {
     const uintptr_t a = deepestAddr();
@@ -297,17 +373,44 @@ void tidalEditorUpdate(Platform* platform) {
     if (!gLoaded && tidalPlayerStarted()) {
         gLoaded = true;
         setInstrumentNames();
-        const char* text = nullptr;
-        int len = 0;
-        char msg[96];
-        if (tidalPlayerReadFile(text, len, msg, sizeof msg)) {
-            tc::Label err;
-            if (gEd->loadText(text, len, err)) snprintf(gStatus, sizeof gStatus, "%s loaded", kTidalPlayerFile);
-            else snprintf(gStatus, sizeof gStatus, "%s: %s", kTidalPlayerFile, err.c_str());
-        } else {
-            snprintf(gStatus, sizeof gStatus, "%s (a new file is made on Shift+File)", msg);
-        }
+        // the working copy; before plan 4e the code lived in /project.tidal
+        if (!loadFile(kWorkspaceTidal) && loadFile(kTidalPlayerFile)) gSavedChanges = gEd->changes() - 1;
         gDirty = true;
+    }
+    if (gLoaded && gOpenPending && newFileManager.getCurrentOperation() == fmNoOperation) {
+        gOpenPending = false;  // a project was opened: its code (copied to the workspace) replaces ours
+        tidalPlayerHush();
+        if (!loadFile(kWorkspaceTidal)) {
+            tc::Label err;
+            gEd->loadText("", 0, err);
+            snprintf(gStatus, sizeof gStatus, "%s: no code yet", newFileManager.getCurrentProjectName());
+        }
+        gSavedChanges = gEd->changes();
+        gDirty = true;
+    }
+    if (gLoaded && gNewPending) {
+        gNewPending = false;  // a new project: empty
+        tidalPlayerHush();
+        tc::Label err;
+        gEd->loadText("", 0, err);
+        gSavedChanges = gEd->changes();
+        snprintf(gStatus, sizeof gStatus, "new project");
+        gDirty = true;
+    }
+    // the working copy follows the edits (~2 s after the last one)
+    {
+        const uint32_t now = platform->getTimer()->millis();
+        if (gEd->changes() != gSeenChanges) {
+            gSeenChanges = gEd->changes();
+            gChangedMs = now;
+        }
+        if (gLoaded && gEd->changes() != gSavedChanges && now - gChangedMs >= 2000 &&
+            newFileManager.getCurrentOperation() == fmNoOperation) {
+            const int n = renderProgram(*reinterpret_cast<tc::Program*>(progRaw));
+            char m[96];
+            if (n >= 0 && tidalPlayerWriteText(kWorkspaceTidal, saveText, n, m, sizeof m)) gSavedChanges = gEd->changes();
+            else gSavedChanges = gEd->changes();  // don't retry every pass; Shift+File reports problems
+        }
     }
     // samples loaded on the Tracker's sample screens since: their names
     // (Editor7: a new sample didn't show up in the editor)

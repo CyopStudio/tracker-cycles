@@ -618,6 +618,22 @@ folders listed in the project (e.g. a manifest) on project load.
      in the prototype). Editor10 (2026-11-11, PolyendTrac_TidalEditor10.ptf,
      not yet run).
    - 4e. Project files: .tidal file + sample banks load/save on SD.
+     Built (2026-11-11, PolyendTrac_TidalEditor11.ptf, not yet run): the
+     code lives in <project folder>/project.tidal, the working copy in
+     Workspace/project.tidal (next to the stock Workspace/project.mt). The
+     editor loads the working copy at boot (else /project.tidal once, the
+     pre-4e file) and writes it ~2 s after each change (Editor::changes(),
+     when the file manager is idle), so a power-off keeps the code. File
+     manager hooks (core/tidal/tidal_editor.h): ProjectOpen::
+     openProjectFinish -> tidalProjectOpened (the project's file into the
+     workspace, or none: an empty editor; the editor hushes and reloads
+     once the file manager is idle), ProjectSave::saveProjectFinish ->
+     tidalProjectSaved (after projectNotSavedFlag clears, so a first Save
+     As gets the code too), createNewProjectInWorkspace -> tidalProjectNew
+     (empty). Shift+File writes the code to the project folder (and the
+     working copy); a never-saved project keeps it in the workspace until
+     File > Save As. Instruments / settings still save from the File
+     screen, which now writes the code as well. Flash 881,484 B.
 
 ## Polyphony (planned)
 - Built (2026-11-10, tick v7, not yet run on the device): design

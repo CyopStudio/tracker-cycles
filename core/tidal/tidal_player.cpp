@@ -153,21 +153,26 @@ void setTempoFromCps() {
 
 // ---- API ----------------------------------------------------------------------------
 
-bool tidalPlayerReadFile(const char*& text, int& len, char* msg, int msgLen) {
+bool tidalPlayerReadText(const char* path, const char*& text, int& len, char* msg, int msgLen) {
     msg[0] = 0;
-    if (!gStarted) return snprintf(msg, msgLen, "the player isn't running yet"), false;
+    if (!gPlatform) return snprintf(msg, msgLen, "the player isn't running yet"), false;
     FileSystem* fs = gPlatform->getFileSystem();
-    if (!fs->exists(kTidalPlayerFile)) return snprintf(msg, msgLen, "no %s on the card", kTidalPlayerFile), false;
-    auto [ok, fh] = fs->openFile(kTidalPlayerFile, FileSystem::kRead);
+    if (!fs->exists(path)) return snprintf(msg, msgLen, "no %s on the card", path), false;
+    auto [ok, fh] = fs->openFile(path, FileSystem::kRead);
     int32_t n = (ok && fh) ? fs->readFile(fileText, sizeof fileText - 1, fh) : -1;
     if (ok && fh) fs->closeFile(fh);
-    if (n < 0) return snprintf(msg, msgLen, "can't read %s", kTidalPlayerFile), false;
+    if (n < 0) return snprintf(msg, msgLen, "can't read %s", path), false;
     if (n >= (int32_t)sizeof fileText - 1)
-        return snprintf(msg, msgLen, "%s is over %u bytes", kTidalPlayerFile, (unsigned)sizeof fileText - 1), false;
+        return snprintf(msg, msgLen, "%s is over %u bytes", path, (unsigned)sizeof fileText - 1), false;
     fileText[n] = 0;
     text = fileText;
     len = (int)n;
     return true;
+}
+
+bool tidalPlayerReadFile(const char*& text, int& len, char* msg, int msgLen) {
+    if (!gStarted) return snprintf(msg, msgLen, "the player isn't running yet"), false;
+    return tidalPlayerReadText(kTidalPlayerFile, text, len, msg, msgLen);
 }
 
 bool tidalPlayerWriteText(const char* path, const char* text, int len, char* msg, int msgLen) {

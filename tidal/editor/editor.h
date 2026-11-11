@@ -117,6 +117,9 @@ public:
     Editor(Program& prog, Checkpoint& cp, uint8_t* undoArena, int undoBytes);
     bool loadText(const char* text, int len, Label& err);
     int fileText(char* buf, int cap) const;  // the .tidal file; returns its length
+    // Counts every change to the program (edits, undo, comments, loads): the
+    // device saves its working copy when it moves (plan 4e).
+    uint32_t changes() const { return changes_; }
     void setOutput(EditorOutput* o) { out_ = o; }
 
     void act(Action a);
@@ -311,6 +314,7 @@ private:
     FixVec<LitStep, 256> lit_;
     double litPolled_ = 0;  // the last pollHighlights() time
     bool cps_ = false;
+    uint32_t changes_ = 0;
     void jumpCps();
     bool kbdOpen_ = false, kbdCaps_ = false;
     Label kbdText_, kbdTitle_;

@@ -1,3 +1,4 @@
+#include "../tidal/tidal_editor.h"
 #include "fileManagerDefs.h"
 #include "mtStructs.h"
 
@@ -29,6 +30,7 @@ bool cFileManager::createNewProjectInWorkspace()
     changesFlags.project = 1;
     saveProjectFileToWorkspace();
     currentOperationStep = 0;
+    tidalProjectNew();  // Tracker Cycles (plan 4e): the editor starts empty
 
     return true;
 }

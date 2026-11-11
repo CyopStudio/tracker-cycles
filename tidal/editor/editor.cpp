@@ -114,6 +114,7 @@ bool Editor::loadText(const char* text, int len, Label& err) {
         return false;
     }
     undoHead_ = undoBytes_ = undoCount_ = 0;
+    changes_++;
     for (int s = 0; s < kSlots; s++) state_[s] = prog_->block[s] ? SlotState::Edited : SlotState::Empty;
     slot_ = 0;
     for (int s = 0; s < kSlots; s++)
@@ -262,6 +263,7 @@ bool Editor::endEdit(uint16_t cursor, bool check) {
     }
     prog_->commitCheckpoint();
     if (uint8_t* d = reserveUndo('C', checkpointPackedSize(*cp_))) packCheckpoint(*cp_, d);
+    changes_++;
     cursor_ = cursor;
     messageError_ = false;  // callers test it after an edit; an earlier error must not stick
     if (cps_) return true;  // setcps: no slot state
@@ -1126,6 +1128,7 @@ void Editor::act(Action a) {
                     unpackCheckpoint(st, *cp_);
                     prog_->rollback(*cp_);
                 }
+                changes_++;
                 if (cps_ && prog_->cpsExpr) {  // stay on setcps
                     cursor_ = prog_->cpsExpr;
                     info("undone");
@@ -2847,6 +2850,7 @@ void Editor::kbdAction(Action a) {
                 memcpy(d + 4, all.c_str(), (size_t)all.size() + 1);
             }
             memcpy(prog_->blockComment(kbdBlock_), out.c_str(), out.size() + 1);
+            changes_++;
             return info(text.empty() ? "comment removed" : "comment: " + text);
         }
         default: return;  // nothing else while the keyboard is up

@@ -38,6 +38,16 @@ const char* tidalEditorStatusLines();            // the same, in the editor's ow
 // interrupts) is the lowest overwritten word.
 int tidalStackDeepest();  // bytes below the top of RAM (0 = not painted)
 int tidalHeapGap();       // bytes between the heap end and that deepest point
+// Project files (plan 4e): the code lives in <project folder>/project.tidal,
+// the working copy in Workspace/project.tidal (written ~2 s after a change,
+// read at boot). The file manager calls these when a project open / save
+// finishes or a new project is made.
+void tidalProjectOpened();
+void tidalProjectSaved();
+void tidalProjectNew();
 #else
 inline void tidalEditorUpdate(Platform*) {}
+inline void tidalProjectOpened() {}
+inline void tidalProjectSaved() {}
+inline void tidalProjectNew() {}
 #endif
