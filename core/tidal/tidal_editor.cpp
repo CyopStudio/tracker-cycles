@@ -367,6 +367,9 @@ int tidalEditorStatusSummary(char* buf, int cap) {
         (int)(cps * 240.0f + 0.5f), tidalPlayerAudioLoad(), tidalPlayerSounding(), tidalPlayerCap());
     const int gap = tidalHeapGap();
     if (tidalStackDeepest()) add("   stack %d.%d KB spare", gap / 1024, gap % 1024 * 10 / 1024);
+    if (gEd)  // the editor's program pools (a full one refuses edits)
+        add("   nodes %d/%d words %d/%d", gEd->prog().liveNodes(), tc::kMaxNodes - 1, gEd->prog().stringCount(),
+            tc::kMaxStrings);
     for (int s = 0; s < tc::kSlots; s++)  // the first problem, if any
         if (const char* err = tidalPlayerSlotError(s)) {
             add("   d%d: %s", s + 1, err);

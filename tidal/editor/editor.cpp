@@ -1984,7 +1984,10 @@ void Editor::jumpControl(bool notes) {
         ensureBlock();
         uint16_t nn;
         EditSpec sp = spec(EditKind::Replace, cursor_, code);
-        if (!cursor_ || !doSpec(sp, nn)) return error(Label("can't start a block with ") + code.c_str());
+        if (!cursor_ || !doSpec(sp, nn)) {  // the edit's own reason too (1.0.0 device pass: hidden)
+            const Label why = messageError_ ? message_ : Label("");
+            return error(Label("can't start a block with ") + code.c_str() + (why.empty() ? "" : ": ") + why.c_str());
+        }
     }
     uint16_t b = prog_->block[slot_];
     if (!b || !exprRoot()) return error("empty slot: replace to start a pattern");
