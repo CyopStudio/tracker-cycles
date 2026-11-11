@@ -338,6 +338,7 @@ private:
     MenuList menu_;
     int menuSel_ = 0;
     bool menuTouched_ = false;  // a key reached the open menu
+    bool menuChecking_ = false; // a lazily checked menu has unchecked items (message says so)
     bool menuFolders_ = false;  // the items are folder names for out_->loadFolder (no edit)
     void openFolders();
     void applyMenuItem(int i, bool wasOnOp);

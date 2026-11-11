@@ -118,6 +118,12 @@ to upstream CE.
     made progress; the code view also keeps a display-list budget per half
     (3500 B, 1800 B under a menu / keyboard: a control's RAM_G slot is
     8 KB and the frame ~8 KB with the overlay appended last).
+    RC4 (user): menus show (after about a second when busy); asked for a
+    "loading" message and highlights under menus. RC5
+    (PolyendTrac_CyclesRC5.ptf, not yet run): a lazily checked menu says
+    "<title>: checking N items ..." / "checking k of N ..." until done
+    (Editor::menuChecking_); highlights stay on under an open menu (the
+    display-list budget keeps the frame safe).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

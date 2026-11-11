@@ -536,6 +536,13 @@ int Editor::checkMenu(int n) {
         applyMenuItem(0, onOperator());  // one item left: as if it had been the only one
         return 0;
     }
+    if (menuOpen_ && menuChecking_ && menuNext_ >= menu_.size()) {  // lazily checked: done
+        menuChecking_ = false;
+        info(menuTitle_ + ": wheel to choose, ok to apply, cancel to close");
+    } else if (menuOpen_ && menuChecking_) {
+        Label m;
+        info(m.printf("%s: checking %d of %d ...", menuTitle_.c_str(), menuNext_, menu_.size()));
+    }
     return menu_.size() - menuNext_;
 }
 
@@ -558,7 +565,15 @@ bool Editor::openMenu(const Label& title) {
         applyMenuItem(0, onOperator());
         return true;
     }
-    info(title + ": wheel to choose, ok to apply, cancel to close");
+    // lazily checked (the device): say so until every item is checked (RC4:
+    // with patterns playing it takes a moment)
+    menuChecking_ = menuNext_ < menu_.size();
+    if (menuChecking_) {
+        Label m;
+        info(m.printf("%s: checking %d items ...", title.c_str(), menu_.size()));
+    } else {
+        info(title + ": wheel to choose, ok to apply, cancel to close");
+    }
     return true;
 }
 

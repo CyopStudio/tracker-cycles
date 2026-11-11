@@ -170,7 +170,8 @@ class TcCodeView : public TcControl
             if (L.kind != tc::LineKind::Code && L.kind != tc::LineKind::Cps) continue;
             // backgrounds as runs: adjacent cells (same row, next column) of one colour
             auto bgOf = [&](const tc::CodeCell& c) -> uint32_t {
-                const bool sel = c.flags & tc::kCellSel, lit = (c.flags & tc::kCellLit) && !menu && !kbd;
+                // highlights stay on under an open menu (RC4 user ask); the budget keeps the frame safe
+                const bool sel = c.flags & tc::kCellSel, lit = c.flags & tc::kCellLit;
                 return sel ? (lit ? col::litSel : col::cursor) : lit ? col::lit : 0;
             };
             for (int i = 0; i < L.n;) {
