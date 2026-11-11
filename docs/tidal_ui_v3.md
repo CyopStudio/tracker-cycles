@@ -69,7 +69,7 @@ The result is written with the decimals the step needs: `1` → `0.95`, not `0.9
 * Pads: enter values where the cursor is (as in tree mode).
 * Delete: remove the token to the right / under the cursor.
   * A step becomes `~`; on a `~` it's removed.
-  * An argument becomes a hole to fill, or the default.
+  * An argument: what it belongs to is unwrapped (never a `??` hole, see the questions).
   * On a function's name or a `$` / `#`: unwrap (keep the pattern, drop the function / control).
 * Shift+Delete: the same for the token to the left (backspace).
 * Insert, by position:
@@ -91,7 +91,7 @@ The user's device pass on the last RC, then the release flow in CLAUDE.md (devel
 ## Questions for the user
 
 1. **Freed keys:** with Replace / Wrap / Unwrap gone, what should Shift+Screen 1-3 do (Undo stays on Shift+Screen 4)? For example, Shift+Screen 1 could open the Replace menu of values for the token (still useful for picking a function by name), and Shift+Screen 2-3 could become two more quick buttons.
-2. **Delete on a function argument:** a `??` hole to fill, or put back the argument's default value (`fast 2`)?
+2. ~~Delete on a function argument~~ **Decided:** never a `??` hole ("very hard to fix"). Where a delete would leave one, what the node belongs to is unwrapped; if that can't be unwrapped, it is deleted instead (an operand: the other side stays), never the whole block. Done in both modes (Editor::deleteNode / tryUnwrap).
 3. **Tree mode refinements:** which ones, specifically?
 4. **Default mode:** cursor mode or tree mode at boot (the last one used is remembered)?
 5. **B1 steps:** any values in the table you'd change?

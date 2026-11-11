@@ -3,9 +3,6 @@
 > d9 $ (n "0 c'maj e'min" # legato 0.5) |< s "midi" |< midichan 0
 setcps (120/60/4)
 
--- kick and snare
-d1 $ every 4 (fast 2) $ s "bd*2 ~ bd sd" # gain 1
-
 -- hats
 d2 $ s "hh*8" # gain 0.8 # pan sine
 

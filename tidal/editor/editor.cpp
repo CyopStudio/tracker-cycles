@@ -2717,6 +2717,23 @@ void Editor::deleteNode() {
         cursor_ = par;
         return deleteNode();
     }
+    // Never a ?? hole (user, UI v3: "very hard to fix"): where the delete
+    // would leave one (a function's argument, a section's operand, a lone
+    // list element ...), the nearest enclosing function / operator /
+    // modifier that can be unwrapped goes instead
+    const bool leavesHole = !((pk == Kind::MSeq || pk == Kind::List) && cur.childCount(par) > 1) &&
+                            pk != Kind::MSeq && pk != Kind::Op;
+    if (leavesHole) {
+        // unwrap what it belongs to; if that can't be unwrapped, delete that
+        // instead (an operand: the other side stays), never the whole block
+        const uint16_t from = cursor_;
+        cursor_ = par;
+        if (tryUnwrap()) return info("deleted: unwrapped what it belonged to");
+        const uint16_t gp = cur.parentOf(par);
+        if (gp && cur.at(gp).kind != Kind::Block) return deleteNode();
+        cursor_ = from;
+        return error("can't delete this (it would leave a gap): change it with the jog or Replace");
+    }
     if (!beginEdit()) return;
     Program* p = prog_;
     uint16_t newCursor = par;
@@ -2744,23 +2761,19 @@ void Editor::deleteNode() {
         p->freeTree(par);
         p->freeTree(gone);
         newCursor = other;
-    } else if (pk == Kind::Block) {
-        uint16_t h = p->alloc(Kind::Hole);
-        p->replace(cursor_, h);
-        p->freeTree(cursor_);
-        newCursor = h;
-    } else {
-        uint16_t h = p->alloc(Kind::Hole);
-        p->replace(cursor_, h);
-        p->freeTree(cursor_);
-        newCursor = h;
     }
     while (isTransparent(*p, newCursor)) newCursor = p->at(newCursor).first;
     if (endEdit(newCursor)) info("deleted");
 }
 
 void Editor::doUnwrap() {
-    if (!cursor_) return;
+    if (!tryUnwrap()) error("can't unwrap this");
+}
+
+// Unwrap the node at the cursor (keep the pattern it wraps) if the result
+// type-checks; false (nothing changed, no message) if it can't.
+bool Editor::tryUnwrap() {
+    if (!cursor_) return false;
     const Node& n = prog_->at(cursor_);
     NodeList tries;
     switch (n.kind) {
@@ -2786,7 +2799,7 @@ void Editor::doUnwrap() {
     }
     for (uint16_t keep : tries) {
         if (!keep) continue;
-        if (!beginEdit()) return;
+        if (!beginEdit()) return false;
         Program* p = prog_;
         // detach `keep` from its parent, then put it where the cursor is
         uint16_t kp = p->parentOf(keep);
@@ -2804,9 +2817,9 @@ void Editor::doUnwrap() {
         uint16_t c = keep;
         while (isTransparent(*p, c)) c = p->at(c).first;
         if (endEdit(c)) info("unwrapped");
-        return;
+        return true;
     }
-    error("can't unwrap this");
+    return false;
 }
 
 // "d3", "jumpMod 3 4" or "jumpIn 3 2" for the slot's launch mode.

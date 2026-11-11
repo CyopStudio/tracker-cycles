@@ -288,6 +288,7 @@ private:
     void blockStep(int dir);
     void duplicateBlock();
     void toggleBreak();
+    bool tryUnwrap();
     Text joinSteps(uint16_t seq, int pos, int n, const char* sep) const;
     void actOne(Action a);  // blocks with no code once no menu needs them (Cancel, Undo)
     void doCopy();
