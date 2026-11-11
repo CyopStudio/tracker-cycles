@@ -13,9 +13,6 @@ d9 $ n "c'maj e'min" # legato 0.5
 > setcps (122/60/4)
 setcps (122/60/4)
 
--- kick and snare
-d1 ??
-
 -- hats
 d2 $ stack [s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine]
 

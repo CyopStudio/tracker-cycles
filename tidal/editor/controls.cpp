@@ -194,8 +194,8 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         case Control::Right:
             if (shift && ed.canSelect()) return act(Action::SelRight, "select >");
             return act(Action::Right, "next sibling");
-        case Control::Up: return act(Action::Up, "parent");
-        case Control::Down: return act(Action::Down, "first child");
+        case Control::Up: return shift ? act(Action::BlockUp, "block up") : act(Action::Up, "parent");
+        case Control::Down: return shift ? act(Action::BlockDown, "block down") : act(Action::Down, "first child");
         case Control::JogUp: return shift ? act(Action::WheelUpFast, "value ++") : act(Action::WheelUp, "value +");
         case Control::JogDown: return shift ? act(Action::WheelDownFast, "value --") : act(Action::WheelDown, "value -");
         // Play acts as a modifier (press / release, see press()); the label

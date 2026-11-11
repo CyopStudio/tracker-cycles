@@ -1,5 +1,4 @@
 > setcps (120/60/4)
-> d2 $ s "bd hh 808bd wind hh*8" # gain 0.8 # pan sine
 > d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
 setcps (120/60/4)
 

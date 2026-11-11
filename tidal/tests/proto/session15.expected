@@ -4,8 +4,8 @@ msg: removed the step before the gap
 menu insert [ ]: [insert [bd bd]] [insert [bd bd bd]] [insert [bd, bd]]
 msg: insert [ ]: insert [bd bd]
 msg: Fn n : function
-msg: empty slot: Replace, Instrument, Note, Screen 1-8 or FX start a block
-msg: empty slot: Replace, Instrument, Note, Screen 1-8 or FX start a block
+msg: empty: Replace, Instrument, Note, Screen 1-8 or FX start a block; Up / Down leave
+msg: d9 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
 setcps (120/60/4)
 
 -- kick and snare

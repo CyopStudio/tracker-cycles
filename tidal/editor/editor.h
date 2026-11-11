@@ -82,6 +82,7 @@ enum class Action {
     KbdType, KbdOk, KbdCancel, KbdClear,  // keyboard screen (Screen 1 / 8 / 7 / 2)
     SilenceSlot,                       // Shift+Pattern: the current dN stops (its code stays)
     MenuFolders,                       // Sample Loader: Tidal sample folders (/Tidal/) to load
+    BlockUp, BlockDown,                // Shift+Up / Down: the previous / next block (its top)
 };
 const char* actionName(Action a);
 bool actionFromName(const char* s, Action& out);
@@ -178,6 +179,10 @@ public:
     const MenuList& menu() const { return menu_; }
     int menuSel() const { return menuSel_; }
     const Label& message() const { return message_; }
+    // The empty placeholder ("dN (empty ...)": a slot with no block, a new
+    // dN block not started yet, a block whose code was deleted): its row in
+    // the block list (it goes before block i), or -1 when the cursor isn't on one.
+    int emptyRowIndex() const;
     bool messageIsError() const { return messageError_; }
     // A message from outside the model (a file that didn't load ...).
     void showMessage(const Label& m, bool isError) { message_ = m; messageError_ = isError; }
@@ -277,6 +282,10 @@ private:
                          bool mini);
     void ensureBlock();
     void dropEmptyBlocks();
+    int emptyPos_ = -1;     // where the empty placeholder row sits (block list index; -1: slot order)
+    int padAgain_ = -1;     // the slot pad pressed last, if nothing else came after it
+    void blockStep(int dir);
+    void duplicateBlock();
     Text joinSteps(uint16_t seq, int pos, int n, const char* sep) const;
     void actOne(Action a);  // blocks with no code once no menu needs them (Cancel, Undo)
     void doCopy();

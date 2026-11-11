@@ -147,11 +147,17 @@ void layoutCode(const Editor& ed, double now, const CodeGeometry& g, CodeScreen&
     out.box.on = false;
     Row rows[kMaxBlocks + 2];
     int nrows = 0;
+    // the empty placeholder (a slot with no block, a new dN block not started
+    // yet, a deleted block's place) sits where the editor says
+    const int empty = ed.emptyRowIndex();
     if (p.cpsExpr) rows[nrows++] = Row{0, -1, -2};
-    for (int i = 0; i < p.blockCount(); i++) rows[nrows++] = Row{p.blockAt(i), p.blockSlot(p.blockAt(i)), i};
-    if (!p.block[ed.slot()] && !ed.onCps()) rows[nrows++] = Row{0, ed.slot(), -1};
-    const uint16_t curBlk = ed.onCps() ? 0xFFFF : p.block[ed.slot()];
-    auto isCur = [&](const Row& rw) { return rw.idx == -2 ? ed.onCps() : rw.blk ? rw.blk == curBlk : !ed.onCps(); };
+    for (int i = 0; i < p.blockCount(); i++) {
+        if (i == empty) rows[nrows++] = Row{0, ed.slot(), -1};
+        rows[nrows++] = Row{p.blockAt(i), p.blockSlot(p.blockAt(i)), i};
+    }
+    if (empty >= p.blockCount()) rows[nrows++] = Row{0, ed.slot(), -1};
+    const uint16_t curBlk = ed.onCps() || empty >= 0 ? 0xFFFF : p.block[ed.slot()];
+    auto isCur = [&](const Row& rw) { return rw.idx == -2 ? ed.onCps() : rw.blk ? rw.blk == curBlk : empty >= 0; };
     auto litFor = [&](const Row& rw) { return rw.blk && rw.blk == ed.playingBlock(rw.slot); };
 
     // heights (a layout pass per block), then the scroll

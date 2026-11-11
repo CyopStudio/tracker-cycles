@@ -26,6 +26,7 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"copy", Action::Copy},       {"paste", Action::Paste},       {"home", Action::Home},
     {"notes", Action::MenuNotes}, {"samples", Action::MenuSamples}, {"chords", Action::MenuChords},
     {"silence", Action::SilenceSlot}, {"folders", Action::MenuFolders},
+    {"blockup", Action::BlockUp}, {"blockdown", Action::BlockDown},
     {"functions", Action::MenuFunctions}, {"controls", Action::MenuControls},
     {"quick1", Action::Quick1},   {"quick2", Action::Quick2},     {"quick3", Action::Quick3},
     {"quick4", Action::Quick4},   {"launch", Action::MenuLaunch},
@@ -200,7 +201,18 @@ uint16_t Editor::exprRoot() const {
     return b ? prog_->at(b).first : 0;
 }
 
+int Editor::emptyRowIndex() const {
+    if (cps_ || cursor_ || kbdOpen_) return -1;
+    const Program& p = *prog_;
+    if (emptyPos_ >= 0) return emptyPos_ < p.blockCount() ? emptyPos_ : p.blockCount();
+    int pos = 0;  // slot order: after the last block of a lower or equal dN
+    for (int i = 0; i < p.blockCount(); i++)
+        if (p.blockSlot(p.blockAt(i)) <= slot_) pos = i + 1;
+    return pos;
+}
+
 void Editor::enterSlot(int s) {
+    emptyPos_ = -1;
     slot_ = s;
     cps_ = false;
     uint16_t b = prog_->block[s];
@@ -616,6 +628,7 @@ static uint16_t valueOf(const Program& p, uint16_t step) {
 }
 
 void Editor::enterNumber(int v, bool rest) {
+    padAgain_ = -1;
     if (!padNumeric()) return error("pads enter numbers inside a numeric pattern");
     Text n = tnum(v);
     if (rest) return enterStep("~", "", "~");
@@ -652,6 +665,7 @@ int Editor::cursorInstrument() const {
 }
 
 void Editor::enterInstrument(int i) {
+    padAgain_ = -1;
     if (!padInstruments()) return error("pads pick instruments inside an s pattern");
     if (i < 0 || i >= kInstrumentSlots || !samples_[i][0])
         return error("instrument slot " + tnum(i + 1) + " is empty");
@@ -863,15 +877,29 @@ void Editor::gotoSlot(int s) {
         return newBlockAbove(s);
     }
     const Program& p = *prog_;
-    // dN's blocks in file order; the same pad again cycles through them
+    // the pad of the dN the cursor is in, again: a new dN block below this one
+    // (the empty placeholder; Replace / Note / Instrument start it, Up / Down
+    // leave it); on the placeholder, back to the block (UI notes, Editor14)
+    const bool again = s == padAgain_;
+    padAgain_ = s;
+    if (again && s == slot_ && !cps_ && p.block[s]) {
+        if (cursor_) {
+            const int at = p.blockIndex(p.block[s]) + 1;
+            cursor_ = 0;
+            emptyPos_ = at;
+            Label m;
+            return info(m.printf("new d%d block: Replace / Note / Instrument / Screen 1-8 start it, Up / Down leave it",
+                                 s + 1));
+        }
+        enterSlot(s);
+        return info(cursorInfo());
+    }
+    // dN's blocks in file order
     FixVec<uint16_t, kMaxBlocks> mine;
     for (int i = 0; i < p.blockCount(); i++)
         if (p.blockSlot(p.blockAt(i)) == s) mine.push_back(p.blockAt(i));
     uint16_t target = 0;
-    if (s == slot_ && p.block[s] && mine.size() > 1) {
-        for (int k = 0; k < mine.size(); k++)
-            if (mine[k] == p.block[s]) target = mine[(k + 1) % mine.size()];
-    } else if (!mine.empty()) {
+    if (!mine.empty()) {
         target = mine[0];
         for (uint16_t b : mine)
             if (b == playing_[s]) target = b;  // the playing one first
@@ -882,11 +910,55 @@ void Editor::gotoSlot(int s) {
         int k = 0;
         while (k < (int)mine.size() && mine[k] != prog_->block[s]) k++;
         Label m;
-        info(m.printf("d%d block %d of %d%s: the pad again = next", s + 1, k + 1, mine.size(),
+        info(m.printf("d%d block %d of %d%s: Shift+Up / Down: the others, the pad again: a new one", s + 1, k + 1,
+                      mine.size(),
                       prog_->block[s] == playing_[s] ? " (playing)" : ""));
     } else {
         info(cursorInfo());
     }
+}
+
+// Shift+Up / Down (and Up / Down on the empty placeholder): the previous /
+// next block's top; above the first block, the setcps line.
+void Editor::blockStep(int dir) {
+    const Program& p = *prog_;
+    gapSeq_ = 0;
+    onOp_ = false;
+    pending_ = 0;
+    if (cps_) {
+        if (dir > 0 && p.blockCount()) selectBlock(p.blockAt(0));
+        return info(cursorInfo());
+    }
+    int target;
+    const int empty = emptyRowIndex();
+    if (empty >= 0) target = dir < 0 ? empty - 1 : empty;
+    else target = p.blockIndex(p.block[slot_]) + dir;
+    if (target >= 0 && target < p.blockCount()) {
+        selectBlock(p.blockAt(target));
+    } else if (target < 0 && p.cpsExpr) {
+        cps_ = true;
+        cursor_ = p.cpsExpr;
+    } else {
+        return info(cursorInfo());
+    }
+    emptyPos_ = -1;
+    info(cursorInfo());
+}
+
+// Copy at a block's top: a copy of the block below it (UI notes, Editor14).
+void Editor::duplicateBlock() {
+    const uint16_t b = prog_->block[slot_];
+    if (!b || cursor_ != b) return;
+    if (!beginEdit()) return;
+    Program* p = prog_;
+    const uint16_t c = p->copyTree(*p, b);
+    if (!c || !p->insertBlock(p->blockIndex(b) + 1, c)) {
+        abortEdit();
+        return error("too many blocks (max " + tnum(kMaxBlocks) + ")");
+    }
+    p->block[slot_] = c;
+    if (!endEdit(c, false)) return;
+    info("block duplicated (the copy is selected; Up / Down: the blocks)");
 }
 
 void Editor::selectBlock(uint16_t b) {
@@ -940,7 +1012,7 @@ Label Editor::cursorInfo() const {
         return m.printf("gap %d of %d: pads / Screen 3-7 insert, Delete removes the step before", gapPos_, count), m;
     }
     if (!cursor_)
-        return prog_->block[slot_] ? "" : "empty slot: Replace, Instrument, Note, Screen 1-8 or FX start a block";
+        return "empty: Replace, Instrument, Note, Screen 1-8 or FX start a block; Up / Down leave";
     if (cps_ && cursor_ == prog_->cpsExpr && prog_->at(cursor_).kind != Kind::Num)
         return "setcps (Right: its numbers, Down: the blocks, jog: the BPM, Pattern sends it)";
     const Node& n = prog_->at(cursor_);
@@ -973,6 +1045,7 @@ Label Editor::cursorInfo() const {
 // actions
 
 void Editor::act(Action a) {
+    padAgain_ = -1;  // a slot pad twice in a row only
     dropEmptyBlocks();
     actOne(a);
     dropEmptyBlocks();
@@ -1006,14 +1079,15 @@ void Editor::actOne(Action a) {
             case Action::Replace: case Action::Undo: case Action::Evaluate: case Action::Hush:
             case Action::Save: case Action::Copy: case Action::Paste: case Action::JumpCps:
             case Action::ToggleTrackerMode: case Action::PlayCancel: case Action::Confirm: case Action::Cancel:
-            case Action::NextSlot: case Action::PrevSlot: case Action::Home:
+            case Action::NextSlot: case Action::PrevSlot: case Action::Home: case Action::BlockUp:
+            case Action::BlockDown:
                 break;
             default: return error("on setcps: jog / Replace change it, Pattern sends it; Shift+Song or a slot pad goes back");
         }
     }
     // an empty slot: the keys that would wrap or add something start a block
     // (the starter patterns); Note / Instrument make one themselves
-    if (!menuOpen_ && !cps_ && !prog_->block[slot_]) {
+    if (!menuOpen_ && !cps_ && emptyRowIndex() >= 0) {
         switch (a) {
             case Action::Struct1: case Action::Struct2: case Action::Struct3: case Action::Struct4:
             case Action::Struct5: case Action::Struct6: case Action::Struct7: case Action::Struct8:
@@ -1093,6 +1167,8 @@ void Editor::actOne(Action a) {
         case Action::MenuControls: openWrap(WrapMode::Controls); break;
         case Action::MenuLaunch: openLaunch(); break;
         case Action::MenuFolders: openFolders(); break;
+        case Action::BlockUp: blockStep(-1); break;
+        case Action::BlockDown: blockStep(1); break;
         case Action::Struct1:
         case Action::Struct2:
         case Action::Struct3:
@@ -1267,7 +1343,10 @@ void Editor::navigate(Action a) {
         info(cursorInfo());
         return;
     }
-    if (!cursor_) return;
+    if (!cursor_) {  // the empty placeholder: Up / Down to the blocks around it (it goes)
+        if (a == Action::Up || a == Action::Down) blockStep(a == Action::Up ? -1 : 1);
+        return;
+    }
     // a step of a "..." sequence: Left / Right go to the gap before / after it
     if (a == Action::Left || a == Action::Right) {
         const uint16_t par = p.parentOf(cursor_);
@@ -1352,7 +1431,15 @@ bool Editor::flow(bool right, uint16_t from) {
     uint16_t c = from;
     for (;;) {
         const uint16_t par = p.parentOf(c);
-        if (!par || p.at(par).kind == Kind::Block) return false;  // the block's end
+        if (!par) return false;
+        if (p.at(par).kind == Kind::Block) {  // the block's end: on into the next / previous block
+            const int i = p.blockIndex(par) + (right ? 1 : -1);
+            if (i < 0 || i >= p.blockCount()) return false;
+            const uint16_t nb = p.blockAt(i);
+            selectBlock(nb);
+            if (p.at(nb).first) flowInto(right, p.at(nb).first);
+            return true;
+        }
         const Kind pk = p.at(par).kind;
         if (pk == Kind::MSeq || pk == Kind::List) {
             int idx = 0;
@@ -1502,10 +1589,9 @@ void Editor::ensureBlock() {
     Program* p = prog_;  // part of the edit that follows (or of nothing: an empty block)
     uint16_t b = p->alloc(Kind::Block);
     p->at(b).a = (uint32_t)slot_;
-    // a new dN goes in slot order: after the last block of a lower or equal dN
-    int pos = 0;
-    for (int i = 0; i < p->blockCount(); i++)
-        if (p->blockSlot(p->blockAt(i)) <= slot_) pos = i + 1;
+    // where the placeholder is (slot order unless it was put somewhere)
+    const int pos = emptyRowIndex() >= 0 ? emptyRowIndex() : p->blockCount();
+    emptyPos_ = -1;
     if (!b || !p->insertBlock(pos, b)) {
         if (b) p->freeTree(b);
         return error("too many blocks (max " + tnum(kMaxBlocks) + ")");
@@ -1528,13 +1614,16 @@ void Editor::dropEmptyBlocks() {
         const int s = p->blockSlot(b);
         p->removeBlockAt(i);
         p->freeTree(b);
-        if (cursor_ == b) cursor_ = 0;
+        if (cursor_ == b) {
+            cursor_ = 0;
+            emptyPos_ = i;  // the placeholder stays where the block was
+        }
         if (playing_[s] == b) playing_[s] = 0;
         if (p->block[s] == b) {
             p->block[s] = 0;
             for (int k = 0; k < p->blockCount() && !p->block[s]; k++)  // another block of dN
                 if (p->blockSlot(p->blockAt(k)) == s) p->block[s] = p->blockAt(k);
-            if (s == slot_ && !cursor_) cursor_ = p->block[s];
+            if (s == slot_ && !cursor_ && emptyPos_ < 0) cursor_ = p->block[s];
             if (!p->block[s] && state_[s] != SlotState::Playing) state_[s] = SlotState::Empty;
         }
     }
@@ -1612,7 +1701,8 @@ void Editor::doCopy() {
         return info("copied " + clip_);
     }
     if (!cursor_) return error("nothing to copy");
-    uint16_t n = prog_->at(cursor_).kind == Kind::Block ? exprRoot() : cursor_;
+    if (prog_->at(cursor_).kind == Kind::Block) return duplicateBlock();
+    uint16_t n = cursor_;
     if (!n) return error("nothing to copy");
     clip_ = renderNode(*prog_, n);
     clipMini_ = isMiniKind(prog_->at(n).kind);
@@ -1786,6 +1876,7 @@ void Editor::playUp() {
 }
 
 void Editor::mutePad(int slot) {
+    padAgain_ = -1;
     if (!playHeld_ || slot < 0 || slot >= kSlots) return;
     playUsed_ = true;
     const Text d = "d" + tnum(slot + 1);
@@ -1846,8 +1937,8 @@ static uint16_t findControlMini(const Program& p, uint16_t n, const char* name, 
 void Editor::jumpControl(bool notes) {
     const char* what = notes ? "n" : "s";
     if (!notes && slot_ >= kSampleSlots) return error("MIDI blocks (d9-d16) have no s pattern");
-    if (!prog_->block[slot_]) {
-        // an empty slot: start the block with the pattern this key jumps to
+    if (emptyRowIndex() >= 0) {
+        // the empty placeholder: start the block with the pattern this key jumps to
         const char* firstIns = "bd";
         for (int i = 0; i < kInstrumentSlots; i++)
             if (samples_[i][0]) {
@@ -2554,22 +2645,28 @@ void Editor::deleteNode() {
             if (!beginEdit()) return;
             Program* p = prog_;
             uint16_t b = p->block[slot_];
-            p->removeBlockAt(p->blockIndex(b));
+            const int at = p->blockIndex(b);
+            p->removeBlockAt(at);
             p->freeTree(b);
             p->block[slot_] = 0;
             for (int i = 0; i < p->blockCount() && !p->block[slot_]; i++)  // another block of dN
                 if (p->blockSlot(p->blockAt(i)) == slot_) p->block[slot_] = p->blockAt(i);
-            endEdit(prog_->block[slot_], false);  // no check: the other block is as it was
+            endEdit(0, false);  // no check: the other block is as it was
+            emptyPos_ = at;     // the empty placeholder where the block was
             const bool wasPlaying = playing_[slot_] == b;
             if (wasPlaying) playing_[slot_] = 0;
             if (out_ && wasPlaying && state_[slot_] == SlotState::Playing) out_->silence(slot_);
             if (!prog_->block[slot_]) state_[slot_] = SlotState::Empty;
             else if (wasPlaying) state_[slot_] = SlotState::Edited;
-            info(prog_->block[slot_] ? "block deleted (dN's other block selected)" : "slot cleared");
+            info(prog_->block[slot_] ? "block deleted (Up / Down: the blocks around)" : "slot cleared");
         }
         return;
     }
     Kind pk = cur.at(par).kind;
+    if (pk == Kind::Block) {  // all of the block's code: the block goes, not a ?? (UI notes, Editor14)
+        cursor_ = par;
+        return deleteNode();
+    }
     if (!beginEdit()) return;
     Program* p = prog_;
     uint16_t newCursor = par;
@@ -2719,7 +2816,7 @@ void Editor::evaluate() {
         return info("tempo sent: setcps (" + lastCps_ + ")");
     }
     uint16_t b = prog_->block[slot_];
-    if (!b || !prog_->at(b).first) return error("nothing to evaluate");
+    if (!b || !prog_->at(b).first || emptyRowIndex() >= 0) return error("nothing to evaluate");
     Error e;
     int holes = 0;
     if (!checkBlock(*prog_, slot_, e, &holes)) {

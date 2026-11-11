@@ -15,6 +15,7 @@ msg: gap 4 of 4: pads / Screen 3-7 insert, Delete removes the step before
 msg: Op # : ControlPattern
 msg: Fn gain : function
 msg: Num : Pat Double
+msg: Fn s : function
 msg: Num : Pat Double
 msg: Fn gain : function
 msg: Op # : ControlPattern
@@ -31,7 +32,6 @@ msg: Fn s : function
 msg: Num : Pat Time
 msg: Fn fast : function
 msg: Num : Pat Int
-msg: Fn every : function
 msg: Fn every : function
 msg: MSeq : Pat String
 msg: gap 2 of 4: pads / Screen 3-7 insert, Delete removes the step before

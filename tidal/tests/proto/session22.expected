@@ -1,4 +1,4 @@
-msg: empty slot: Replace, Instrument, Note, Screen 1-8 or FX start a block
+msg: empty: Replace, Instrument, Note, Screen 1-8 or FX start a block; Up / Down leave
 msg: s pattern: pads pick instruments
 msg: + bd  (gap: more pads insert more)
 msg: removed the step before the gap
