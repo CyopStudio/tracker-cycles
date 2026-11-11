@@ -109,6 +109,15 @@ to upstream CE.
     letter in it is a word (golden name_digits; "1-2" stays numbers;
     letter-less names like 808_5 still don't parse: Tidal's parser is
     type-directed, ours isn't). RC3 (PolyendTrac_CyclesRC3.ptf).
+    RC3 (user): name bug fixed; menus still missing when busy, and the
+    screen froze while audio went on. Cause found: tidalEditorUpdate set
+    gDirty every pass while a menu was open (checkMenu(3) >= 0 is always
+    true), each a full redraw + synchronizeRefresh; with patterns playing
+    the display queue never caught up and no frame was swapped. RC4
+    (PolyendTrac_CyclesRC4.ptf, not yet run): dirty only when checking
+    made progress; the code view also keeps a display-list budget per half
+    (3500 B, 1800 B under a menu / keyboard: a control's RAM_G slot is
+    8 KB and the frame ~8 KB with the overlay appended last).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

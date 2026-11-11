@@ -467,7 +467,17 @@ void tidalEditorUpdate(Platform* platform) {
             gDirty = true;
         }
     }
-    if (gEd->menuOpen() && gEd->checkMenu(3) >= 0) gDirty = true;  // lazily checked menus fill in
+    // lazily checked menus fill in: a redraw only when checking made progress
+    // (RC3: ">= 0" was always true, so an open menu asked for a full redraw
+    // every pass; with patterns playing the display never caught up and
+    // froze)
+    if (gEd->menuOpen()) {
+        static int lastLeft = -1, lastSize = -1;
+        const int left = gEd->checkMenu(3), size = gEd->menu().size();
+        if (left != lastLeft || size != lastSize) gDirty = true;
+        lastLeft = left;
+        lastSize = size;
+    }
     if (gEd->pollHighlights(nowSeconds())) gLitDirty = true;  // the code view alone, at a lower rate
 }
 #endif

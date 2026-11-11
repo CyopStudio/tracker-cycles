@@ -132,6 +132,17 @@ class TcCodeView : public TcControl
             if (menu) return x >= 420 - adv && y >= 40 - lh && y < 40 + 13 * 22 + 34;
             return false;
         };
+        // A hard display-list budget per half: a control's slot in RAM_G is
+        // 8 KB (an overrun corrupts the next control's list), and the whole
+        // frame must stay under ~8 KB with the menu / keyboard appended last.
+        // Past it the remaining lines are left out (never a broken frame).
+        const int budget = (menu || kbd) ? 1800 : 3500;  // bytes per half (2 halves)
+        int used = 64;                                    // context, scissor, begin / end
+        auto afford = [&](int bytes) {
+            if (used + bytes > budget) return false;
+            used += bytes;
+            return true;
+        };
         API_SAVE_CONTEXT();
         API_SCISSOR_XY(0, kAreaTop);
         API_SCISSOR_SIZE(800, kAreaBottom - kAreaTop);
@@ -148,13 +159,12 @@ class TcCodeView : public TcControl
             const tc::CodeLine& L = s.line[li];
             const int y = kAreaTop + L.y;
             if (y < kAreaTop - lh || y > kAreaBottom) continue;  // scrolled out: no display list for it
-            if (L.bar == tc::LineBar::Playing) rect(kCodeX - 4, y, 2, lh, col::ok);
-            if (L.bar == tc::LineBar::CpsSent) rect(kCodeX - 4, y, 2, lh, col::ok);
-            if (L.bar == tc::LineBar::CpsEdited) rect(kCodeX - 4, y, 2, lh, col::edited);
+            if (L.bar != tc::LineBar::None && afford(12))
+                rect(kCodeX - 4, y, 2, lh, L.bar == tc::LineBar::CpsEdited ? col::edited : col::ok);
             if (L.kind == tc::LineKind::Hint) {
                 // the empty current slot: a cursor box behind "dN"
                 for (int i = 0; i < L.n && (L.cell[i].flags & tc::kCellSel); i++)
-                    rect(kCodeX + i * adv, y - 1, adv, lh, col::cursor);
+                    if (afford(12)) rect(kCodeX + i * adv, y - 1, adv, lh, col::cursor);
                 continue;
             }
             if (L.kind != tc::LineKind::Code && L.kind != tc::LineKind::Cps) continue;
@@ -168,11 +178,11 @@ class TcCodeView : public TcControl
                 int j = i + 1;
                 while (bg && j < L.n && L.col[j] == L.col[j - 1] + 1 && bgOf(L.cell[j]) == bg) j++;
                 const int x = kCodeX + L.col[i] * adv;
-                if (bg && !covered(x, y)) rect(x, y - 1, (L.col[j - 1] - L.col[i] + 1) * adv, lh, bg);
+                if (bg && !covered(x, y) && afford(12)) rect(x, y - 1, (L.col[j - 1] - L.col[i] + 1) * adv, lh, bg);
                 for (int k = i; k < j; k++)
                     if (L.cell[k].flags & tc::kCellGap) {
                         const int gx = kCodeX + L.col[k] * adv;
-                        if (!covered(gx, y)) rect(gx - 2, y - 1, 3, lh, col::accent);
+                        if (!covered(gx, y) && afford(12)) rect(gx - 2, y - 1, 3, lh, col::accent);
                     }
                 i = j;
             }
@@ -188,11 +198,12 @@ class TcCodeView : public TcControl
         int tx = 0;
         auto glyph = [&](int x, int y, char ch, uint32_t c) {
             if (ch <= ' ' || ch < first || ch > 126 || y < 0 || y > 479 || covered(x, y)) return;
+            const int want = x >= 512 ? 256 : 0;
+            if (!afford(4 + (c != colour ? 4 : 0) + (want != tx ? 4 : 0))) return;  // vertex, colour, translate
             if (c != colour) {
                 API_COLOR(c);
                 colour = c;
             }
-            const int want = x >= 512 ? 256 : 0;
             if (want != tx) {
                 API_VERTEX_TRANSLATE_X((uint32_t)(want * 16));
                 tx = want;
