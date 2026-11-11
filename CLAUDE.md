@@ -187,7 +187,14 @@ horizon over the playing slots), 3 ms per pass while playing, 12 ms when
 idle. Flash 928,668 B.
 Editor19 (user): every file refused: the hand-built strWavFileHeader
 passed to checkSampleValid lacked waveId (it checks it). Editor20
-(PolyendTrac_TidalEditor20.ptf, not yet run): waveId / chunkId set.
+(PolyendTrac_TidalEditor20.ptf): waveId / chunkId set. User: works;
+sitar loaded fine while playing, but loading juno dropped audio: juno
+(slot 13) was reloaded with sitar (4.6 MB) after it, and the stock
+moveSampleMemory moved sitar in one memmove (~100s of ms). Editor21
+(PolyendTrac_TidalEditor21.ptf, not yet run): the later instruments are
+muted and moved in 32 KB pieces (St::Move, top down when growing, bottom
+up when shrinking), addresses set as moveSampleMemory does, unmuted; a
+new folder prefers a free slot after the last used one (no move).
 Earlier notes:
 V1 = 48 instruments loaded the normal Tracker way. V2 could load Tidal-style
 folders listed in the project (e.g. a manifest) on project load.

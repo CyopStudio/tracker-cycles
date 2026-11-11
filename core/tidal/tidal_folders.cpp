@@ -52,7 +52,7 @@ __NOINIT(EXTERNAL_RAM) uint8_t gIn[kChunk] __attribute__((aligned(4)));
 __NOINIT(EXTERNAL_RAM) int16_t gOut[kOutCap] __attribute__((aligned(4)));
 __NOINIT(EXTERNAL_RAM) char gLog[6 * 1024];
 
-enum class St : uint8_t { Idle, Scan, Plan, Write, Save, SaveData };
+enum class St : uint8_t { Idle, Scan, Plan, Move, Write, Save, SaveData };
 St gSt = St::Idle;
 int gFolderCount = 0;
 char gFolder[kMaxName + 1];  // folder name as on the card
@@ -62,6 +62,19 @@ uint32_t gGap = 0, gTotal = 0, gPos[kMaxFiles];
 FileSystem::FileHandle gSrc = nullptr, gDst = nullptr;
 uint32_t gLeft = 0, gWritten = 0, gStartMs = 0, gSaved = 0, gWaitedPasses = 0;
 bool gBlocked = false;
+// the instruments after the slot, moved in pieces when its size changes
+// (Editor20: the stock moveSampleMemory moved them in one go, a few hundred
+// ms for a big sample, and the scheduler starved)
+constexpr uint32_t kMovePiece = 32 * 1024;
+int gMoveFirst = 0, gMoveLast = -1;
+uint8_t *gMoveBegin = nullptr, *gMoveEnd = nullptr;
+int32_t gMoveDelta = 0;
+uint32_t gMoveDone = 0;
+
+uint32_t ramFramesOf(int idx) {
+    const strSampleMemory& m = mtProject.sampleMemory[idx];
+    return m.isStreamed ? m.ramFrames : (m.ramFrames > 0 ? m.ramFrames : mtProject.instrument[idx].sample.length);
+}
 int gLogLen = 0;
 char gMsg[96];
 bool gMsgNew = false, gMsgErr = false;
@@ -252,6 +265,12 @@ void stepPlan(Platform* platform) {
         if (mtProject.instrument[i].isActive == 1 && !strcmp(tok, gToken)) gSlot = i;
     }
     const bool reload = gSlot >= 0;
+    if (gSlot < 0) {  // a free slot after the last used one needs no memory move; else the first free one
+        int last = -1;
+        for (int i = 0; i < kSampleInstrumentsCount; i++)
+            if (mtProject.instrument[i].isActive == 1) last = i;
+        if (last + 1 < kSampleInstrumentsCount) gSlot = last + 1;
+    }
     for (int i = 0; i < kSampleInstrumentsCount && gSlot < 0; i++)
         if (mtProject.instrument[i].isActive != 1) gSlot = i;
     if (gSlot < 0) return fail(platform, "%s: no free instrument slot (48 in use)", gFolder);
@@ -278,15 +297,59 @@ void stepPlan(Platform* platform) {
     newFileManager.setInstrumentSampleAddress(gSlot, 1, gTotal);
     ins.setStreamPreferred(false);
     const uint32_t newSize = newFileManager.getSampleMemorySize(gSlot, gSlot);
-    newFileManager.moveSampleMemory(newFileManager.calcFirstSlotToMoveInMemory(gSlot + 1),
-                                    (int32_t)newSize - (int32_t)oldSize);
     mtProject.used_memory = newFileManager.getSampleMemorySize(0, kSampleInstrumentsCount - 1);
+    gMoveDelta = (int32_t)newSize - (int32_t)oldSize;
+    gMoveFirst = newFileManager.calcFirstSlotToMoveInMemory(gSlot + 1);
+    gMoveLast = -1;
+    for (int i = gMoveFirst; i < kSampleInstrumentsCount; i++)
+        if (mtProject.instrument[i].isActive == 1) {
+            engine.setBlockedInstrument(i);  // muted while they move
+            gMoveLast = i;
+        }
+    gMoveDone = 0;
+    if (gMoveDelta != 0 && gMoveLast >= 0) {
+        const strInstrument& lastIns = mtProject.instrument[gMoveLast];
+        gMoveBegin = reinterpret_cast<uint8_t*>(mtProject.instrument[gMoveFirst].sample.address);
+        gMoveEnd = reinterpret_cast<uint8_t*>(lastIns.sample.address) +
+                   ramFramesOf(gMoveLast) * 2 * (mtProject.sampleMemory[gMoveLast].isStereo ? 2 : 1);
+        logf("  moving instruments %d-%d by %ld bytes (%lu KB)\n", gMoveFirst + 1, gMoveLast + 1, (long)gMoveDelta,
+             (unsigned long)((gMoveEnd - gMoveBegin) / 1024));
+    } else {
+        gMoveBegin = gMoveEnd = nullptr;
+    }
 
     gIdx = 0;
     gFiles = gUsed;
     gUsed = 0;  // counts again while writing: the slice index of each file
     gWritten = 0;
     gSrc = nullptr;
+    gSt = St::Move;
+}
+
+// move: the instruments after the slot, a piece per call (top down when
+// growing, bottom up when shrinking, so nothing is overwritten unread), then
+// their addresses as moveSampleMemory sets them, unmuted
+void stepMove(Platform* platform) {
+    (void)platform;
+    const uint32_t total = gMoveBegin ? (uint32_t)(gMoveEnd - gMoveBegin) : 0;
+    if (gMoveDone < total) {
+        const uint32_t n = total - gMoveDone < kMovePiece ? total - gMoveDone : kMovePiece;
+        uint8_t* src = gMoveDelta > 0 ? gMoveEnd - gMoveDone - n : gMoveBegin + gMoveDone;
+        memmove(src + gMoveDelta, src, n);
+        gMoveDone += n;
+        return;
+    }
+    for (int idx = gMoveFirst; idx <= gMoveLast; idx++) {
+        if (!mtProject.instrument[idx].isActive) continue;
+        if (total) {
+            strInstrument& ins = mtProject.instrument[idx];
+            strSampleMemory& m = mtProject.sampleMemory[idx];
+            ins.sample.address = reinterpret_cast<int16_t*>(reinterpret_cast<uint8_t*>(ins.sample.address) + gMoveDelta);
+            m.address[strSampleMemory::Channel::kLeft] = ins.sample.address;
+            m.address[strSampleMemory::Channel::kRight] = m.isStereo ? ins.sample.address + ramFramesOf(idx) : ins.sample.address;
+        }
+        engine.clearBlockedInstrument(idx);
+    }
     gSt = St::Write;
 }
 
@@ -473,6 +536,7 @@ void tidalFoldersUpdate(Platform* platform) {
         switch (gSt) {
             case St::Scan: stepScan(platform); break;
             case St::Plan: stepPlan(platform); break;
+            case St::Move: stepMove(platform); break;
             case St::Write: stepWrite(platform); break;
             case St::Save: stepSave(platform); break;
             case St::SaveData: stepSaveData(platform); break;
