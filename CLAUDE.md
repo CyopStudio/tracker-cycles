@@ -1086,8 +1086,9 @@ folders listed in the project (e.g. a manifest) on project load.
   Release flow: feature/tidal -> develop, release/1.0.0 off develop, after
   the user's device pass merge it into main + tag v1.0.0 (the workflow
   publishes the GitHub release), merge back into develop. Commit small
-  and often. CI (build.yml) fails PRs whose commits carry AI
-  Co-authored-by trailers (CE's rule, kept; local merges aren't checked).
+  and often. AI Co-authored-by trailers are allowed (user, 2026-11-11: CE's
+  check removed from build.yml, CONTRIBUTING.md says so; not merged back
+  into CE).
 - origin: https://github.com/CyopStudio/tracker-cycles.git (the user's fork,
   not Polyend's). Pushing uses Git Credential Manager from Git for Windows.
 
