@@ -1020,7 +1020,7 @@ folders listed in the project (e.g. a manifest) on project load.
 - Needs make, python3 (stdlib only).
 
 ## Build
-- `make original` -> build/PolyendTracker_CE_<ver>.ptf (the editor
+- `make original` -> build/PolyendTracker_Cycles_<ver>.ptf (the editor
   firmware; test images: CUSTOM_DEFINES=-DTIDAL_TICK etc.)
   (version in version.mk, ORIGINAL_VER_*; currently 1.0.0)
 - `make clean`, `make version`

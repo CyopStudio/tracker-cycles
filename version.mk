@@ -1,6 +1,7 @@
-# Polyend Tracker Community Edition (CE) Centralized Version Configuration
+# Tracker Cycles (a fork of Polyend Tracker Community Edition) Centralized Version Configuration
 
-EDITION_NAME := CE
+# PolyendTracker_Cycles_<ver>.ptf (31 characters: the updater's limit)
+EDITION_NAME := Cycles
 VER_ROOT_DIR := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 BUILD_TAG    ?= $(shell git -C "$(VER_ROOT_DIR)" rev-parse --short=7 HEAD 2>/dev/null || date +"%Y%m%d")
 

@@ -24,8 +24,13 @@ static const uint16_t framesPlacesConfigGridScreen[3][4] = {
 };
 
 const char creditsText[] = {
-    "Polyend Tracker Community Edition (CE)"
-    "\nLicensed under the MIT License"
+    "Tracker Cycles: TidalCycles-style live coding for the Polyend Tracker"
+    "\ngithub.com/CyopStudio/tracker-cycles"
+    "\nInspired by TidalCycles (tidalcycles.org); an independent implementation,"
+    "\nnot affiliated with the TidalCycles project."
+    "\n"
+    "\nBased on Polyend Tracker Community Edition (CE),"
+    "\nlicensed under the MIT License"
     "\n(No Wholesale Commercial Clones; see LICENSE)."
     "\n"
     "\nAll provided demo projects and samples are under a CC BY-NC 4.0 license."

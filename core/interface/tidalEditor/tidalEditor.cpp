@@ -216,7 +216,7 @@ class TcSideView : public TcControl
         API_SAVE_CONTEXT();
         API_BEGIN(RECTS);
         // the soft keys' colour (Editor22 notes)
-        rect(0, kInfoY - 4, 800, kKeysY - (kInfoY - 4), display.getTheme().activeLabelsColors[1]);
+        rect(0, kInfoY - 4, 800, kKeysY - (kInfoY - 4), display.getTheme().bottomButtonsBgColors[1]);
         API_END();
         const int16_t h = smallFont().handle;
         if (ed) {
