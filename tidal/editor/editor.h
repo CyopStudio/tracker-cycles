@@ -346,6 +346,12 @@ private:
     int menuSel_ = 0;
     bool menuTouched_ = false;  // a key reached the open menu
     bool menuChecking_ = false; // a lazily checked menu has unchecked items (message says so)
+    // The last fully checked lazy menu (UI v3 A3): reopened at the same place
+    // with no edit in between, its surviving items need no checking again.
+    uint32_t menuKey_ = 0, cacheKey_ = 0;
+    int cacheCount_ = 0;
+    uint32_t cacheLabel_[kMenuMax];
+    uint32_t menuKeyNow() const;
     bool menuFolders_ = false;  // the items are folder names for out_->loadFolder (no edit)
     void openFolders();
     void applyMenuItem(int i, bool wasOnOp);

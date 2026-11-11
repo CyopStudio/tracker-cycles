@@ -162,6 +162,16 @@ to upstream CE.
     numbers n steps in one edit, lists up to 8 places) only while the
     scheduler is >= 150 ms ahead; A2 a deleted / dropped playing block
     silences dN even when edited since.
+    RC9 (PolyendTrac_CyclesRC9.ptf, not yet run; user tests A3 + B
+    together): A3 menu checking paced (idle: ~3 ms per pass; playing: one
+    item at a time, 15 ms apart, only while the scheduler is >= 200 ms
+    ahead) and a fully checked lazy menu remembered (Editor::cacheKey_:
+    title, cursor, gap, slot, changes_, item labels; survivors by label
+    hash) so reopening it unchanged is instant; B1 jog steps by meaning
+    (numberOwner / stepFor / steppedValue in editor.cpp; decimal ladder,
+    no thirds); B2 after a menu wrap the cursor is on the added value
+    (Editor::addedValue). Careful: stepFor(numberOwner(.., arg), arg) had
+    unspecified argument order (arg read before it was set).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

@@ -343,6 +343,35 @@ void testEditorModel(int& pass, int& fail) {
         }
     }
 
+    // UI v3 A3: a fully checked lazy menu, reopened at the same place with no
+    // edit in between, needs no checking; after an edit it's checked again
+    {
+        static Program pm;
+        static Checkpoint cm;
+        static uint8_t um[32 * 1024];
+        static Editor em(pm, cm, um, (int)sizeof um);
+        em.setLazyMenus(true);
+        Label er;
+        em.loadText(kFile, (int)strlen(kFile), er);
+        em.gotoSlot(0);
+        em.act(Action::Home);
+        em.act(Action::Right);
+        em.act(Action::Replace);
+        while (em.checkMenu(5) > 0) {}
+        const std::vector<std::string> first = labels(em);
+        em.act(Action::Cancel);
+        em.act(Action::Replace);
+        EXPECT(em.menuOpen() && em.checkMenu(0) == 0, "reopened: nothing left to check");
+        EXPECT(labels(em) == first, "reopened: the same %zu items", first.size());
+        em.act(Action::Cancel);
+        em.act(Action::Down);
+        em.act(Action::WheelUp);  // an edit
+        em.act(Action::Up);
+        em.act(Action::Replace);
+        EXPECT(em.menuOpen() && em.checkMenu(0) > 0, "after an edit: checked again");
+        em.act(Action::Cancel);
+    }
+
     // the control mapping (editor/controls.*), shared with the device
     Control c;
     EXPECT(ctlFromId("pad13", c) && c == padCtl(12), "pad13");

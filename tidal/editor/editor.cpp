@@ -512,6 +512,15 @@ MenuList& Editor::menuBuild() {
     return menu_;
 }
 
+static uint32_t fnvStr(uint32_t h, const char* s) {
+    for (; *s; s++) h = (h ^ (uint8_t)*s) * 16777619u;
+    return (h ^ 0xFF) * 16777619u;
+}
+static uint32_t fnvNum(uint32_t h, uint32_t v) {
+    for (int i = 0; i < 4; i++) h = (h ^ ((v >> (8 * i)) & 0xFF)) * 16777619u;
+    return h;
+}
+
 int Editor::checkMenu(int n) {
     if (menuFolders_) {  // names, not edits: nothing to check
         for (MenuItem& it : menu_) it.checked = true;
@@ -538,6 +547,11 @@ int Editor::checkMenu(int n) {
         applyMenuItem(0, onOperator());  // one item left: as if it had been the only one
         return 0;
     }
+    if (menuOpen_ && menuKey_ && menuNext_ >= menu_.size() && cacheKey_ != menuKey_) {  // remember the survivors
+        cacheKey_ = menuKey_;
+        cacheCount_ = menu_.size();
+        for (int i = 0; i < cacheCount_; i++) cacheLabel_[i] = fnvStr(2166136261u, menu_[i].label.c_str());
+    }
     if (menuOpen_ && menuChecking_ && menuNext_ >= menu_.size()) {  // lazily checked: done
         menuChecking_ = false;
         info(menuTitle_ + ": wheel to choose, ok to apply, cancel to close");
@@ -551,9 +565,40 @@ int Editor::checkMenu(int n) {
 // A menu with one item that fits applies it at once (user, after
 // Editor14): no menu to confirm. Lazily checked menus (the device) do the
 // same when checking leaves one item before the user touched the menu.
+// What decides a menu's checked contents: its title, where the cursor is,
+// the code version (changes_), and the items it was built with.
+uint32_t Editor::menuKeyNow() const {
+    uint32_t h = fnvStr(2166136261u, menuTitle_.c_str());
+    h = fnvNum(h, cursor_);
+    h = fnvNum(h, gapSeq_);
+    h = fnvNum(h, (uint32_t)gapPos_);
+    h = fnvNum(h, (uint32_t)onOp_ | (uint32_t)cps_ << 1 | (uint32_t)slot_ << 2);
+    h = fnvNum(h, changes_);
+    h = fnvNum(h, (uint32_t)menu_.size());
+    for (const MenuItem& it : menu_) h = fnvStr(h, it.label.c_str());
+    return h ? h : 1;
+}
+
 bool Editor::openMenu(const Label& title) {
     buildOnly_ = false;
     menuNext_ = 0;
+    menuTitle_ = title;
+    menuKey_ = lazyMenus_ && !menuFolders_ ? menuKeyNow() : 0;
+    if (menuKey_ && menuKey_ == cacheKey_) {  // checked before, nothing changed: its survivors
+        int w = 0;
+        for (int i = 0; i < menu_.size(); i++) {
+            const uint32_t lh = fnvStr(2166136261u, menu_[i].label.c_str());
+            bool keep = false;
+            for (int k = 0; k < cacheCount_ && !keep; k++) keep = cacheLabel_[k] == lh;
+            if (!keep) continue;
+            if (w != i) menu_[w] = menu_[i];
+            menu_[w].checked = true;  // its cursor comes from applying it (cursor 0)
+            menu_[w].cursor = 0;
+            w++;
+        }
+        while (menu_.size() > w) menu_.pop_back();
+        menuNext_ = menu_.size();
+    }
     if (!lazyMenus_ || menu_.size() == 1) checkMenu(menu_.size());
     if (menu_.empty()) {
         error("nothing fits here");

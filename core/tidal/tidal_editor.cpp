@@ -499,11 +499,21 @@ void tidalEditorUpdate(Platform* platform) {
         const bool open = gEd->menuOpen();
         if (open && !wasOpen) openedMs = now;
         wasOpen = open;
+        // nothing playing: ~3 ms of checking per pass; playing: one item at
+        // a time, 15 ms apart, and only while the scheduler is >= 200 ms
+        // ahead (UI v3 A3: the screen and highlights keep their share)
+        static uint32_t lastCheckMs = 0;
+        const float ahead = tidalPlayerAheadSeconds();
         if (open && now - openedMs >= 150) {
-            const uint32_t t0 = platform->getTimer()->micros();
-            int left;
-            do left = gEd->checkMenu(1);
-            while (left > 0 && gEd->menuOpen() && platform->getTimer()->micros() - t0 < 3000);
+            if (ahead > 100.0f) {
+                const uint32_t t0 = platform->getTimer()->micros();
+                int left;
+                do left = gEd->checkMenu(1);
+                while (left > 0 && gEd->menuOpen() && platform->getTimer()->micros() - t0 < 3000);
+            } else if (ahead >= 0.2f && now - lastCheckMs >= 15) {
+                gEd->checkMenu(1);
+                lastCheckMs = now;
+            }
         }
         if (gEd->menuOpen()) {
             const int left = gEd->checkMenu(0), size = gEd->menu().size();

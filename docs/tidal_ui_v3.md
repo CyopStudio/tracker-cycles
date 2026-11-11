@@ -8,7 +8,7 @@ Each stage ends with a device build (`PolyendTrac_CyclesRCn.ptf`), host tests an
 
 ## Stage A: audio and correctness (critical)
 
-Status: A1 + A2 built in RC8 (2026-11-11, not yet run); A3 next.
+Status: A1 + A2 in RC8; A3, B1, B2 added in RC9 (2026-11-11, not yet run). No `??` holes (question 2) also done.
 
 **A1. A fast jog drops audio.**
 * Cause (from the code): every jog detent is a complete edit (checkpoint, apply, type-check, Tracker check, undo step), and `functPot` runs up to 16 of them per encoder event. Nothing waits for the scheduler, which queries on the same main loop.
