@@ -104,7 +104,8 @@ to upstream CE.
     arrows + Screen 1 / Insert type the lit key, Delete = Backspace, jog
     moves the text cursor, Screen 2 Clear, 7 Cancel, 8 OK; edits the last
     comment line above the block). Free: Params (reserved: instrument
-    parameters), Perform, Master (reserved: master settings), Sample *, Rec.
+    parameters), Perform, Master (reserved: master settings), Smp Play /
+    Edit / Rec, Rec. Smp Load = Tidal sample folders (loader step 1).
 - Launch: tidal/run_proto.sh (rebuilds, opens tidal/work.tidal, gitignored)
   or `make -C tidal run`; `--install-shortcut` makes Windows Desktop +
   Start menu shortcuts via wslg.exe (WSLg doesn't list .desktop apps here).
@@ -152,6 +153,18 @@ load unaffected; converting already-mono-44.1 files costs as much as
 reading (read them straight in); memory is the limit (these 5 folders =
 7.7 MB > the pool); 10 of 63 files refused by the stock header check
 (reason not recorded).
+Loader step 1 (2026-11-11, PolyendTrac_TidalEditor17.ptf, not yet run):
+core/tidal/tidal_folders.* (normal build): Smp Load opens a menu of the
+/Tidal/ folders (EditorOutput::folders / folderName / loadFolder, menu
+items are names: no check, no edit); a main-loop job, one step per pass
+while the file manager is idle: scan headers (refusals + header fields to
+/tidal_folders.txt), plan (gap of 2*ceil(L/65535)+4 frames of silence
+before each file so slice points land in it; room check; slot = the
+instrument of that s name, else the first free), write one mono 16-bit
+44.1 kHz WAV /Tidal/.cache/<token>.wav (already-Tracker-format files
+copied as they are), stock importSampleToProject into the slot, then
+Slice play mode + slices + struct saved; messages on the editor's line.
+Flash 924,164 B (+7.6 KB), RAM +444 B, SDRAM +125 KB.
 Earlier notes:
 V1 = 48 instruments loaded the normal Tracker way. V2 could load Tidal-style
 folders listed in the project (e.g. a manifest) on project load.

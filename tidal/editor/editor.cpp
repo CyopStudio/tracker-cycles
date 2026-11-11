@@ -25,7 +25,7 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"save", Action::Save},       {"tracker", Action::ToggleTrackerMode},
     {"copy", Action::Copy},       {"paste", Action::Paste},       {"home", Action::Home},
     {"notes", Action::MenuNotes}, {"samples", Action::MenuSamples}, {"chords", Action::MenuChords},
-    {"silence", Action::SilenceSlot},
+    {"silence", Action::SilenceSlot}, {"folders", Action::MenuFolders},
     {"functions", Action::MenuFunctions}, {"controls", Action::MenuControls},
     {"quick1", Action::Quick1},   {"quick2", Action::Quick2},     {"quick3", Action::Quick3},
     {"quick4", Action::Quick4},   {"launch", Action::MenuLaunch},
@@ -491,6 +491,7 @@ bool Editor::tryWrapOp(const char* op, const Text& rhs, bool xOnLeft, uint16_t& 
 MenuList& Editor::menuBuild() {
     menuOpen_ = false;
     menuVoices_ = false;
+    menuFolders_ = false;
     menu_.clear();
     menuNext_ = 0;
     buildOnly_ = true;
@@ -498,6 +499,10 @@ MenuList& Editor::menuBuild() {
 }
 
 int Editor::checkMenu(int n) {
+    if (menuFolders_) {  // names, not edits: nothing to check
+        for (MenuItem& it : menu_) it.checked = true;
+        menuNext_ = menu_.size();
+    }
     while (n-- > 0 && menuNext_ < menu_.size()) {
         MenuItem& it = menu_[menuNext_];
         uint16_t nn = 0;
@@ -547,6 +552,14 @@ bool Editor::openMenu(const Label& title) {
 
 void Editor::applyMenuItem(int i, bool wasOnOp) {
     MenuItem& it = menu_[i];
+    if (menuFolders_) {
+        menuOpen_ = menuFolders_ = false;
+        Label msg;
+        if (!out_) return error("no output");
+        if (out_->loadFolder(it.label.c_str(), msg)) info(msg);
+        else error(msg);
+        return;
+    }
     if (it.label.startsWith("# ")) lastControl_ = it.label.substr(2);
     menuOpen_ = false;
     uint16_t nn = 0;
@@ -1079,6 +1092,7 @@ void Editor::actOne(Action a) {
         case Action::MenuFunctions: openWrap(WrapMode::Functions); break;
         case Action::MenuControls: openWrap(WrapMode::Controls); break;
         case Action::MenuLaunch: openLaunch(); break;
+        case Action::MenuFolders: openFolders(); break;
         case Action::Struct1:
         case Action::Struct2:
         case Action::Struct3:
@@ -1524,6 +1538,18 @@ void Editor::dropEmptyBlocks() {
             if (!p->block[s] && state_[s] != SlotState::Playing) state_[s] = SlotState::Empty;
         }
     }
+}
+
+// Sample Loader: the Tidal folders on the card; OK loads one (the output
+// builds a sliced instrument in the background).
+void Editor::openFolders() {
+    MenuList& items = menuBuild();
+    if (!out_) return error("no output");
+    const int n = out_->folders();
+    if (n <= 0) return error("no sample folders (put them in /Tidal/<name>/ on the card)");
+    for (int i = 0; i < n && items.push_back(MenuItem{}); i++) items.back().label = out_->folderName(i);
+    menuFolders_ = true;
+    openMenu("load a Tidal folder");
 }
 
 void Editor::addReplaceItems(MenuList& items, const Label& label, const Text& code,

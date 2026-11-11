@@ -175,6 +175,21 @@ Reading:
   WAVE_FORMAT_EXTENSIBLE or a depth the stock import refuses). The loader
   reports each refused file and its header.
 
+## 7.2 Loader step 1 (built 2026-11-11)
+
+core/tidal/tidal_folders.*: Smp Load opens a menu of the folders; OK
+starts a background job (main loop, one step per pass, only while the
+file manager is idle): scan each WAV header (refused files and their
+header fields go to /tidal_folders.txt), plan the layout (silence before
+each file, longer than a slice step, so `pos = v * len / 65535` lands in
+it), pick the slot (the instrument of that `s` name is reloaded, else the
+first free one), check the room, write `/Tidal/.cache/<token>.wav` (mono
+16-bit 44.1 kHz; files already in that format are copied, not converted),
+import it with the stock `importSampleToProject` (memory placement,
+workspace save, instrument named `<token>`), then set Slice play mode,
+the slices and save the instrument. Progress and the result show on the
+editor's message line. Files past the 48th are skipped (logged).
+
 ## 8. Steps after the bench
 
 1. Loader as a file manager operation (folder -> sliced instrument in a

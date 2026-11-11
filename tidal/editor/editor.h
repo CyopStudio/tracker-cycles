@@ -38,6 +38,20 @@ public:
         (void)out, (void)cap;
         return 0;
     }
+    // Tidal sample folders (docs/tidal_sample_folders.md): their names, and
+    // loading one into an instrument (in the background; msg says what
+    // happens or why not).
+    // folders(): list them again and say how many; folderName(i) after it
+    virtual int folders() { return 0; }
+    virtual const char* folderName(int i) {
+        (void)i;
+        return "";
+    }
+    virtual bool loadFolder(const char* name, Label& msg) {
+        (void)name;
+        msg = "sample folders are a Tracker feature";
+        return false;
+    }
 };
 
 constexpr int kInstrumentSlots = 48;
@@ -67,6 +81,7 @@ enum class Action {
     EditComment,                       // Shift+Config: the block's comment on the keyboard screen
     KbdType, KbdOk, KbdCancel, KbdClear,  // keyboard screen (Screen 1 / 8 / 7 / 2)
     SilenceSlot,                       // Shift+Pattern: the current dN stops (its code stays)
+    MenuFolders,                       // Sample Loader: Tidal sample folders (/Tidal/) to load
 };
 const char* actionName(Action a);
 bool actionFromName(const char* s, Action& out);
@@ -312,6 +327,8 @@ private:
     MenuList menu_;
     int menuSel_ = 0;
     bool menuTouched_ = false;  // a key reached the open menu
+    bool menuFolders_ = false;  // the items are folder names for out_->loadFolder (no edit)
+    void openFolders();
     void applyMenuItem(int i, bool wasOnOp);
     Label message_;
     bool messageError_ = false;

@@ -220,6 +220,41 @@ void testEditorModel(int& pass, int& fail) {
         eager.act(Action::Undo);
     }
 
+    // Sample Loader: the output's folders as a menu; OK hands the name to
+    // loadFolder (no edit, no type check); one folder loads at once
+    {
+        struct FolderOut : RecOutput {
+            std::vector<std::string> names;
+            std::string loaded;
+            int folders() override { return (int)names.size(); }
+            const char* folderName(int i) override { return names[i].c_str(); }
+            bool loadFolder(const char* name, Label& msg) override {
+                loaded = name;
+                msg = "loading";
+                return true;
+            }
+        } fo;
+        fo.names = {"bd", "hi-hat", "jvbass"};
+        const std::string before = fileOf(eager);
+        eager.setOutput(&fo);
+        EXPECT(press(eager, Control::SmpLoad, false), "Sample Loader pressed");
+        EXPECT(eager.menuOpen() && eager.menu().size() == 3, "folder menu: %d items", eager.menu().size());
+        eager.act(Action::WheelUp);
+        eager.act(Action::Confirm);
+        EXPECT(fo.loaded == "hi-hat" && !eager.menuOpen() && fileOf(eager) == before, "loaded '%s'",
+               fo.loaded.c_str());
+        lazy.setOutput(&fo);
+        fo.names = {"bd"};
+        fo.loaded.clear();
+        lazy.act(Action::MenuFolders);  // one folder: no menu (lazy menus too)
+        EXPECT(fo.loaded == "bd" && !lazy.menuOpen(), "single folder loaded at once: '%s'", fo.loaded.c_str());
+        fo.names.clear();
+        eager.act(Action::MenuFolders);
+        EXPECT(eager.messageIsError() && !eager.menuOpen(), "no folders: %s", eager.message().c_str());
+        eager.setOutput(&out1);
+        lazy.setOutput(&out2);
+    }
+
     // the control mapping (editor/controls.*), shared with the device
     Control c;
     EXPECT(ctlFromId("pad13", c) && c == padCtl(12), "pad13");

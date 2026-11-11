@@ -12,6 +12,7 @@
 #include "fileManager.h"
 #include "mtStructs.h"
 #include "tidal_config.h"
+#include "tidal_folders.h"
 #include "tidal_player.h"
 #include "../../tidal/core/engine.h"
 #include "../../tidal/core/mapping.h"
@@ -64,6 +65,8 @@ uintptr_t deepestAddr() {
     return (uintptr_t)w;
 }
 
+Platform* gPlatform = nullptr;
+
 // The editor's results go to the Tidal player.
 class DeviceOutput : public tc::EditorOutput {
 public:
@@ -82,6 +85,15 @@ public:
                 if (gLiveSteps[k] < tc::kMaxNodes) gLiveToEd[gLiveSteps[k]] = gEdSteps[k];
         }
         return true;
+    }
+    // Tidal sample folders (/Tidal/<name>/ -> a sliced instrument, tidal_folders.h)
+    int folders() override { return tidalFolderCount(gPlatform); }
+    const char* folderName(int i) override { return tidalFolderName(i); }
+    bool loadFolder(const char* name, tc::Label& msg) override {
+        char m[96];
+        const bool ok = tidalFolderLoad(gPlatform, name, m, sizeof m);
+        msg = m;
+        return ok;
     }
     // Steps of the entries the scheduler played, on nowSeconds()' clock.
     int litSteps(Lit* out, int cap) override {
@@ -150,7 +162,6 @@ int renderProgram(const tc::Program& p) {
 DeviceOutput* gOut = nullptr;  // built with the rest (it has a vtable)
 __NOINIT(EXTERNAL_RAM) unsigned char outRaw[sizeof(DeviceOutput)] __attribute__((aligned(8)));
 tc::Editor* gEd = nullptr;
-Platform* gPlatform = nullptr;
 bool gLoaded = false, gDirty = true;
 char gStatus[96] = "waiting for the project";
 
@@ -424,6 +435,16 @@ void tidalEditorUpdate(Platform* platform) {
     if (gLoaded && ms - gNamesCheckMs >= 1000) {
         gNamesCheckMs = ms;
         if (setInstrumentNames()) gDirty = true;
+    }
+    // a sample folder loading in the background: a step, and its messages
+    tidalFoldersUpdate(platform);
+    {
+        char m[96];
+        bool err = false;
+        if (tidalFoldersMessage(m, sizeof m, err)) {
+            gEd->showMessage(m, err);
+            gDirty = true;
+        }
     }
     if (gEd->menuOpen() && gEd->checkMenu(3) >= 0) gDirty = true;  // lazily checked menus fill in
     if (gEd->pollHighlights(nowSeconds())) gLitDirty = true;  // the code view alone, at a lower rate

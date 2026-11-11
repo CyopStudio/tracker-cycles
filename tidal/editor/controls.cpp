@@ -219,6 +219,7 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         // Shift+Config
         // Song: launch menu; Shift+Song: setcps (the Tracker's tempo is on
         // its Song screen); Master stays for the master settings
+        case Control::SmpLoad: return act(Action::MenuFolders, "Tidal folders");
         case Control::Song:
             if (shift) return act(Action::JumpCps, ed.onCps() ? "back" : "setcps");
             return act(Action::MenuLaunch, "launch");
