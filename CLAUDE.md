@@ -142,7 +142,7 @@ Design draft (2026-11-11, user: separate `/Tidal/` root; write-up, then a
 timing bench): docs/tidal_sample_folders.md (one folder = one sliced
 instrument, built on demand from the `s` names at evaluate, saved with
 the project; `begin` / `end` per slice). Folder bench built
-(`-DFOLDER_BENCH`, PolyendTrac_TidalFolderBench1.ptf, core/tidal/README.md,
+(`-DFOLDER_BENCH`, PolyendTrac_FolderBench1.ptf, core/tidal/README.md,
 not yet run): times list / open / read / convert of every /Tidal/ folder,
 report /tidal_folder_bench.txt.
 Earlier notes:

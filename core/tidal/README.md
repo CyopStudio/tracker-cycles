@@ -200,7 +200,7 @@ diffusers 8.9, 8 half rate all internal 6.0.
 ```bash
 make clean
 make original CUSTOM_DEFINES="-DFOLDER_BENCH"
-cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_TidalFolderBench1.ptf
+cp build/PolyendTracker_CE_*.ptf build/PolyendTrac_FolderBench1.ptf
 ```
 
 Put Dirt-Samples-style folders on the card first: `/Tidal/<name>/*.wav`
