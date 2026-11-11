@@ -957,8 +957,8 @@ void Editor::toggleBreak() {
     uint16_t target = 0, flag = 0;
     const uint16_t par = p.parentOf(n);
     const Kind pk = par ? p.at(par).kind : Kind::None;
-    if (onOperator() || ((k == Kind::Op || k == Kind::Compose) && pk == Kind::Block)) {
-        target = n;  // the operator itself: before its symbol
+    if (onOperator() || k == Kind::Op || k == Kind::Compose) {
+        target = n;  // an operator expression: before its own symbol
         flag = kBreakOp;
     } else if (pk == Kind::Op || pk == Kind::Compose) {
         target = par;  // an operand: before the operator's symbol

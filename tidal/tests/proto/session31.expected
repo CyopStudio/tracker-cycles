@@ -1,40 +1,60 @@
-msg: gap 0 of 1: pads / Screen 3-7 insert, Delete removes the step before
-msg: ERROR no line breaks inside "..." (on the quotes: before the whole string)
+msg: Op # : ControlPattern
+msg: line break (Shift+Screen 5 again removes it)
 setcps (120/60/4)
 
 -- kick and snare
 d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
 
 -- hats
-d2 $ s "hh*8" # gain 0.8 # pan sine
+d2 $ s "hh*8" # gain 0.8
+    # pan sine
 
 d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
 
 -- MIDI channel 1
 d9 $ n "c'maj e'min" # legato 0.5
-msg: Fn fast : function
-msg: ERROR a line break goes before an argument or an operator
+msg: Op # : ControlPattern
+msg: line break (Shift+Screen 5 again removes it)
 setcps (120/60/4)
 
 -- kick and snare
 d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
 
 -- hats
-d2 $ s "hh*8" # gain 0.8 # pan sine
+d2 $ s "hh*8"
+    # gain 0.8
+    # pan sine
 
 d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
 
 -- MIDI channel 1
 d9 $ n "c'maj e'min" # legato 0.5
-msg: ERROR a line break goes before an argument or an operator
-msg: ERROR nothing to undo
+msg: line break removed
+msg: undone
 setcps (120/60/4)
 
 -- kick and snare
 d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
 
 -- hats
-d2 $ s "hh*8" # gain 0.8 # pan sine
+d2 $ s "hh*8"
+    # gain 0.8
+    # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5
+msg: Fn n : function
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "hh*8"
+    # gain 0.8
+    # pan sine
 
 d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
 

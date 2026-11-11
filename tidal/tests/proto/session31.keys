@@ -1,16 +1,11 @@
 hw:shift+pad2
-hw:right
+hw:shift+insert
 hw:right
 msg
 hw:shift+s5
 msg
 print
-hw:shift+pad1
-hw:shift+insert
-hw:right
 hw:down
-hw:right
-hw:right
 msg
 hw:shift+s5
 msg
@@ -19,4 +14,9 @@ hw:shift+s5
 msg
 hw:shift+s4
 msg
+print
+hw:shift+pad3
+hw:right
+msg
+hw:shift+s5
 print
