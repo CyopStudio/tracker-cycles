@@ -24,9 +24,12 @@ bool tidalEditorTakeLitDirty();
 // The code area laid out for `g` (SDRAM; valid until the next call).
 const tc::CodeScreen& tidalEditorLayout(const tc::CodeGeometry& g);
 const char* tidalEditorStatus();  // load message / "" when fine
-// Status view (Shift+Master): tempo, audio load, voices, stack, per-slot
-// state. Opening it also writes the text to /tidal_status.txt.
+// Status (Shift+Master): the info box above the screen buttons shows the
+// summary line instead of the cursor info (Editor8 note: no overlay). Opening
+// it also writes the full text (per-slot state) to /tidal_status.txt.
 void tidalEditorToggleStatus();
+// One line for the info box: tempo, audio load, voices, stack, the first error.
+int tidalEditorStatusSummary(char* buf, int cap);
 bool tidalEditorStatusOpen();
 int tidalEditorStatusText(char* buf, int cap);  // lines separated by '\n'; returns the length
 const char* tidalEditorStatusLines();            // the same, in the editor's own buffer

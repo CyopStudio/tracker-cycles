@@ -241,6 +241,29 @@ int tidalEditorStatusText(char* buf, int cap) {
     return n;
 }
 
+int tidalEditorStatusSummary(char* buf, int cap) {
+    int n = 0;
+    auto add = [&](const char* fmt, auto... a) {
+        if (n < cap - 1) n += snprintf(buf + n, cap - n, fmt, a...);
+        if (n > cap - 1) n = cap - 1;
+    };
+    if (!tidalPlayerStarted()) {
+        add("waiting for the project");
+        return n;
+    }
+    const float cps = tidalPlayerCps();
+    add("cps %d.%03d (%d BPM)   audio %d %%   voices %d/%d", (int)cps, (int)(cps * 1000.0f + 0.5f) % 1000,
+        (int)(cps * 240.0f + 0.5f), tidalPlayerAudioLoad(), tidalPlayerSounding(), tidalPlayerCap());
+    const int gap = tidalHeapGap();
+    if (tidalStackDeepest()) add("   stack %d.%d KB spare", gap / 1024, gap % 1024 * 10 / 1024);
+    for (int s = 0; s < tc::kSlots; s++)  // the first problem, if any
+        if (const char* err = tidalPlayerSlotError(s)) {
+            add("   d%d: %s", s + 1, err);
+            break;
+        }
+    return n;
+}
+
 void tidalEditorToggleStatus() {
     gStatusOpen = !gStatusOpen;
     gDirty = true;

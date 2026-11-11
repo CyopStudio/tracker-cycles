@@ -594,6 +594,18 @@ folders listed in the project (e.g. a manifest) on project load.
      it (a rest if it was all of them), Copy copies it as one step; any
      other key ends it. Smoke session 26, unit checks in test_editor.cpp.
      Flash 877,548 B (83.7 %).
+     Editor8 (user): highlights and step selection work; status could go
+     in the info box. Editor9 (2026-11-11, PolyendTrac_TidalEditor9.ptf,
+     not yet run): status (Shift+Master) replaces the cursor-info line of
+     the info box (tempo, load, voices, stack, first error; no overlay);
+     Left / Right stop on an operator's symbol between its operands
+     (onOperator(): just the symbol highlighted), jog cycles the operators
+     that type-check, Replace lists them (EditKind::SetOp); Screen 8 on a
+     number pattern offers operators in front (`"0,7,10" +| x`, `"0,4,7"
+     +| x`, `"<0 3 5>" + x`, `"<0 12>" |+ x`) and behind (`x |+ 12`, `x +
+     "<0 12>"`, `x * 2`); Note / Instrument find the pattern through such
+     operators (the structure side: +| right, |+ left). Smoke session 27,
+     session 23 updated (the walk now stops on `#`). Flash 880,292 B.
    - 4e. Project files: .tidal file + sample banks load/save on SD.
 
 ## Polyphony (planned)

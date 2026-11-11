@@ -372,6 +372,10 @@ uint16_t Editor::applySpec(const EditSpec& s) {
         case EditKind::Launch:
             setBlockLaunch(P.at(t), (Launch)s.launch, s.cycles);
             return t;
+        case EditKind::SetOp:
+            if (!t || P.at(t).kind != Kind::Op) return 0;
+            P.at(t).a = (uint32_t)s.launch;
+            return t;
         case EditKind::ReplaceRun: {
             const uint16_t seq = s.seq;
             const int count = s.cycles, total = P.childCount(seq);
@@ -938,6 +942,14 @@ void Editor::act(Action a) {
         }
     }
     if (a == Action::SelLeft || a == Action::SelRight) return selectMove(a == Action::SelLeft ? -1 : 1);
+    const bool wasOnOp = onOperator();
+    switch (a) {  // these keep the cursor on the operator's symbol; the rest leave it
+        case Action::WheelUp: case Action::WheelDown: case Action::WheelUpFast: case Action::WheelDownFast:
+        case Action::Replace: case Action::Left: case Action::Right: case Action::Up:
+        case Action::Evaluate: case Action::PlayCancel: case Action::Confirm: case Action::Cancel:
+            break;
+        default: onOp_ = false; break;
+    }
     if (a != Action::Insert) newBlockArmed_ = false;  // only the very next slot pad
     if (cps_ && !menuOpen_) {
         switch (a) {
@@ -1010,6 +1022,7 @@ void Editor::act(Action a) {
                 if (!doSpec(it.spec, nn)) return error("can't apply " + it.label);
                 cursor_ = it.checked ? it.cursor : nn;
                 gapSeq_ = 0;
+                onOp_ = wasOnOp && it.spec.kind == EditKind::SetOp;
                 state_[slot_] = SlotState::Edited;
                 if (menuVoices_ && !it.label.startsWith("single")) ensureVoices();
                 info(menuTitle_ + ": " + it.label);
@@ -1248,6 +1261,18 @@ void Editor::navigate(Action a) {
         info(cursorInfo());
         return;
     }
+    // on an operator's symbol: Left / Right into the operand on that side
+    if (onOp_ && p.at(cursor_).kind == Kind::Op && (a == Action::Left || a == Action::Right)) {
+        const uint16_t l = p.at(cursor_).first, r = l ? p.at(l).next : 0;
+        onOp_ = false;
+        if (a == Action::Right && r) flowInto(true, r);
+        else if (a == Action::Left && l) flowInto(false, l);
+        return info(cursorInfo());
+    }
+    if (a == Action::Up && onOp_) {  // from the symbol: the whole operator expression
+        onOp_ = false;
+        return info(cursorInfo());
+    }
     // a leaf, or a node with no sibling on that side: Left / Right go on to
     // the previous / next leaf of the text (into and out of subtrees and
     // "..." sequences, within the block)
@@ -1300,6 +1325,12 @@ bool Editor::flow(bool right, uint16_t from) {
             return true;
         }
         const uint16_t sib = right ? p.at(c).next : p.prevSibling(c);
+        if (sib && pk == Kind::Op) {  // between an operator's operands: stop on its symbol
+            gapSeq_ = 0;
+            cursor_ = par;
+            onOp_ = true;
+            return true;
+        }
         if (sib) {
             flowInto(right, sib);
             return true;
@@ -1346,6 +1377,7 @@ void Editor::wheel(int dir, bool fast) {
         return info(cursorInfo());
     }
     if (prog_->at(cursor_).kind == Kind::Fn) return wheelFn(dir);
+    if (prog_->at(cursor_).kind == Kind::Op) return wheelOp(dir);
     if (!beginEdit()) return;
     Program* p = prog_;
     Node& n = prog_->at(cursor_);
@@ -1702,13 +1734,30 @@ void Editor::mutePad(int slot) {
 
 // The quoted pattern of the first `name "..."` (or `alt "..."`) in the tree
 // under `n`, preorder; 0 if none.
+// The "..." of a control's argument; through operators (`"0,7,10" +| "0 1 2"`)
+// it follows the side the structure comes from: +| the right operand, |+
+// the left, + / |+| the left.
+static uint16_t structMini(const Program& p, uint16_t n) {
+    for (int depth = 0; n && depth < 16; depth++) {
+        const Node& x = p.at(n);
+        if (x.kind == Kind::Mini) return n;
+        if (x.kind != Kind::Op || !x.first) return 0;
+        const char* op = lib((int)x.a).name;
+        const int len = (int)strlen(op);
+        const bool right = len >= 2 && op[len - 1] == '|' && op[0] != '|';
+        n = right ? p.at(x.first).next : x.first;
+    }
+    return 0;
+}
+
 static uint16_t findControlMini(const Program& p, uint16_t n, const char* name, const char* alt) {
     if (!n) return 0;
     const Node& x = p.at(n);
     if (x.kind == Kind::App && x.first && p.at(x.first).kind == Kind::Fn) {
         const char* fn = lib((int)p.at(x.first).a).name;
         uint16_t arg = p.at(x.first).next;
-        if ((!strcmp(fn, name) || !strcmp(fn, alt)) && arg && p.at(arg).kind == Kind::Mini) return arg;
+        if ((!strcmp(fn, name) || !strcmp(fn, alt)) && arg)
+            if (const uint16_t m = structMini(p, arg)) return m;
     }
     for (uint16_t c = x.first; c; c = p.at(c).next)
         if (uint16_t f = findControlMini(p, c, name, alt)) return f;
@@ -2015,7 +2064,55 @@ void Editor::openMini(int k) {
     if (!openMenu(title)) cursor_ = oldCursor;
 }
 
+void Editor::wheelOp(int dir) {
+    int ok[48];
+    int n = 0;
+    const int cur = (int)prog_->at(cursor_).a;
+    for (int id = 0; id < libCount() && n < 48; id++) {
+        if (!libIsOp(id)) continue;
+        if (id == cur) {
+            ok[n++] = id;
+            continue;
+        }
+        EditSpec s;
+        s.kind = EditKind::SetOp;
+        s.target = cursor_;
+        s.launch = id;
+        uint16_t nn;
+        if (trySpec(s, nn)) ok[n++] = id;
+    }
+    int at = 0;
+    for (int i = 0; i < n; i++)
+        if (ok[i] == cur) at = i;
+    if (n < 2) return info("no other operator fits here");
+    const int next = ok[(at + dir + n) % n];
+    EditSpec s;
+    s.kind = EditKind::SetOp;
+    s.target = cursor_;
+    s.launch = next;
+    uint16_t nn;
+    if (doSpec(s, nn)) {
+        onOp_ = true;
+        info(lib(next).name);
+    }
+}
+
+void Editor::openOps() {
+    MenuList& items = menuBuild();
+    const int cur = (int)prog_->at(cursor_).a;
+    for (int id = 0; id < libCount(); id++) {
+        if (!libIsOp(id) || id == cur || !items.push_back(MenuItem{})) continue;
+        MenuItem& it = items.back();
+        it.spec.kind = EditKind::SetOp;
+        it.spec.target = cursor_;
+        it.spec.launch = id;
+        it.label = lib(id).name;
+    }
+    (void)openMenu("operator");
+}
+
 void Editor::openReplace() {
+    if (cursor_ && prog_->at(cursor_).kind == Kind::Op && onOp_) return openOps();
     MenuList& items = menuBuild();
     auto add = [&](const Text& label, const Text& code, bool mini) {
         addReplaceItems(items, label, code, mini);
@@ -2081,6 +2178,18 @@ void Editor::openWrap(WrapMode mode) {
     bool controlsOnly = mode == WrapMode::Controls || mode == WrapMode::Fx;
     const bool patternLevel = controlsOnly || mode == WrapMode::Dollar || mode == WrapMode::Modifiers ||
                               mode == WrapMode::Ops;
+    // the "..." the cursor is in (or on), for numeric operators (Screen 8)
+    uint16_t numMini = 0;
+    if (mode == WrapMode::Ops) {
+        uint16_t m = cursor_;
+        while (m && isMiniKind(prog_->at(m).kind)) m = prog_->parentOf(m);
+        if (m && prog_->at(m).kind == Kind::Mini) {
+            const uint8_t ty = prog_->at(m).type;
+            if (ty == kTyPatBase + (int)Base::Time || ty == kTyPatBase + (int)Base::Double ||
+                ty == kTyPatBase + (int)Base::Int || ty == kTyPatBase + (int)Base::Note)
+                numMini = m;
+        }
+    }
     if (patternLevel) {
         // from inside "..." a control goes on the enclosing pattern
         uint16_t up = cursor_;
@@ -2171,6 +2280,27 @@ void Editor::openWrap(WrapMode mode) {
         return (void)openMenu("FX");
     }
     if (mode == WrapMode::Ops) {  // |+ |- |* |/ |< |> with a control
+        if (numMini) {
+            // on a number pattern: operators in front (`"0,7,10" +| x`) and behind
+            const uint16_t keep = cursor_;
+            cursor_ = numMini;
+            static const struct {
+                const char* op;
+                const char* other;
+                bool xLeft;
+            } kNum[] = {
+                {"+|", "\"0,7,10\"", false}, {"+|", "\"0,4,7\"", false}, {"+", "\"<0 3 5>\"", false},
+                {"|+", "\"<0 12>\"", false}, {"|+", "12", true},             {"+", "\"<0 12>\"", true},
+                {"*", "2", true},
+            };
+            for (const auto& o : kNum) {
+                Text label;
+                if (o.xLeft) label.printf("x %s %s", o.op, o.other);
+                else label.printf("%s %s x", o.other, o.op);
+                addOp(o.op, o.other, o.xLeft, label);
+            }
+            cursor_ = keep;
+        }
         for (const char* op : {"|+", "|-", "|*", "|/", "|<", "|>"})
             for (const char* rhs : {"n 12", "note 7", "speed 2", "gain 0.8", "pan 0.5", "cutoff 1000"})
                 addOp(op, rhs, true, Text(op) + " " + rhs);

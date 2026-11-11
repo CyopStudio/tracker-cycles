@@ -231,15 +231,25 @@ class TcSideView : public TcControl
                 API_COLOR(s == ed->slot() ? col::text : col::dim);
                 API_CMD_TEXT(20, kAreaTop + s * 20, hc, 0, name);
             }
-            API_COLOR(col::dim);
-            API_CMD_TEXT(10, kInfoY, h, 0, ed->cursorInfo().c_str());
+            if (tidalEditorStatusOpen()) {  // status (Shift+Master) in place of the cursor info
+                char st[200];
+                const int n = tidalEditorStatusSummary(st, sizeof st);
+                snprintf(st + n, sizeof st - n, "   dl %d B", gDlBytes);
+                API_COLOR(col::accent);
+                API_CMD_TEXT(10, kInfoY, h, 0, st);
+            } else {
+                API_COLOR(col::dim);
+                API_CMD_TEXT(10, kInfoY, h, 0, ed->cursorInfo().c_str());
+            }
             API_COLOR(ed->messageIsError() ? col::err : col::text);
             API_CMD_TEXT(10, kInfoY + 18, h, 0, ed->message().c_str());
         }
-        char st[120];
-        snprintf(st, sizeof st, "%s   dl %d B", tidalEditorStatus(), gDlBytes);
-        API_COLOR(col::dim);
-        API_CMD_TEXT(790, kInfoY, h, OPT_RIGHTX, st);
+        if (!tidalEditorStatusOpen()) {
+            char st[120];
+            snprintf(st, sizeof st, "%s   dl %d B", tidalEditorStatus(), gDlBytes);
+            API_COLOR(col::dim);
+            API_CMD_TEXT(790, kInfoY, h, OPT_RIGHTX, st);
+        }
         API_RESTORE_CONTEXT();
     }
 };
@@ -256,7 +266,6 @@ class TcMenuView : public TcControl
         API_SAVE_CONTEXT();
         if (ed->keyboardOpen()) drawKeyboard(*ed);
         else if (ed->menuOpen()) drawMenu(*ed);
-        else if (tidalEditorStatusOpen()) drawStatus();
         API_RESTORE_CONTEXT();
     }
 
@@ -290,38 +299,6 @@ class TcMenuView : public TcControl
             const tc::MenuItem& it = m[first + i];
             API_COLOR(first + i == ed.menuSel() ? 0xFFFFFF : it.checked ? col::text : col::dim);
             API_CMD_TEXT(mx + 10, my + 28 + i * rh, codeFont().handle, 0, it.label.c_str());
-        }
-    }
-
-    // Status view (Shift+Master): one line per row, small font
-    void drawStatus()
-    {
-        const char* text = tidalEditorStatusLines();
-        const int sx = 200, sy = 40, sw = 590, rh = 16;
-        int rows = 1;
-        for (const char* c = text; *c; c++) rows += *c == '\n';
-        const int sh = rows * rh + 30 > kAreaBottom - sy ? kAreaBottom - sy : rows * rh + 30;
-        API_BEGIN(RECTS);
-        rect(sx, sy, sw, sh, 0x101216);
-        frame(sx, sy, sw, sh, col::dim);
-        API_END();
-        API_COLOR(col::accent);
-        API_CMD_TEXT(sx + 10, sy + 6, smallFont().handle, 0, "status  (Shift+Master closes)");
-        char line[128];
-        int y = sy + 26;
-        for (const char* c = text; *c && y + rh <= sy + sh;) {
-            const char* e = strchr(c, '\n');
-            const int len = e ? (int)(e - c) : (int)strlen(c);
-            // as much as fits in the box (Editor7: a long line ran past it)
-            const strFont& f = smallFont();
-            int fit = 0, w = 0;
-            while (fit < len && fit < (int)sizeof line - 1 && w + f.data[(uint8_t)c[fit] & 127] <= sw - 20)
-                w += f.data[(uint8_t)c[fit++] & 127];
-            snprintf(line, sizeof line, "%.*s", fit, c);
-            API_COLOR(strstr(line, "error") ? col::err : col::text);
-            API_CMD_TEXT(sx + 10, y, smallFont().handle, 0, line);
-            y += rh;
-            c += len + (e ? 1 : 0);
         }
     }
 
@@ -533,7 +510,7 @@ void cTidalEditorModule::redraw()
     display.refreshControl(code_);
     display.setControlShow(side_);
     display.refreshControl(side_);
-    if (ed && (ed->menuOpen() || ed->keyboardOpen() || tidalEditorStatusOpen())) {
+    if (ed && (ed->menuOpen() || ed->keyboardOpen())) {
         display.setControlShow(menu_);
         display.refreshControl(menu_);
     } else {

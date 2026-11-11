@@ -247,6 +247,12 @@ error).
   Delete there removes the block and selects dN's other one. A new dN
   (Replace on an empty slot) goes in slot order. Loading plays nothing.
   `session16.keys` covers it.
+- **Operators**: Left / Right stop on an operator's symbol (`#`, `|+`
+  ...) between its operands, with just the symbol highlighted; the jog
+  cycles through the operators that type-check there, Replace lists them.
+  Screen 8 on a number pattern (`n "..."`) adds operators in front
+  (`"0,7,10" +| x` ...) or behind (`x |+ 12` ...); Note / Instrument still
+  find the pattern inside them. `session27.keys`.
 - **Selecting steps**: Shift+Left / Right inside `"..."` select a run of
   steps (the first press takes the cursor's step and its neighbour, from
   a gap the step on that side). Screen 3-7 wrap the run (`[0 3 5]`,

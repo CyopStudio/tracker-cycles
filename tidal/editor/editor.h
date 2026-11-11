@@ -87,6 +87,7 @@ enum class EditKind : uint8_t {
     InsertList,  // an expression into the list gap (seq, pos)
     Launch,      // block target: launch mode / cycles
     ReplaceRun,  // steps pos .. pos+count-1 of "..." seq := the one-step mini code ("" = remove them)
+    SetOp,       // operator node target: another operator (library id in launch)
 };
 struct EditSpec {
     EditKind kind = EditKind::Replace;
@@ -177,6 +178,9 @@ public:
     uint16_t selFirst() const;
     uint16_t selLast() const;
     bool canSelect() const;  // the cursor (or the gap) is on a step of a "..." sequence
+    // The cursor is on an operator's symbol (`#`, `|+` ...: Left / Right stop
+    // there between its operands); jog / Replace change the operator.
+    bool onOperator() const { return onOp_ && cursor_ && prog_->at(cursor_).kind == Kind::Op; }
     // Several blocks per dN (v2 step 6): the block dN last evaluated (0 = none)
     uint16_t playingBlock(int s) const { return playing_[s]; }
     // Per-event highlighting: steps of playing blocks lit while their
@@ -321,6 +325,9 @@ private:
     int gapPos_ = 0;
     uint16_t selA_ = 0, selB_ = 0;  // selection: anchor / moving end (steps of selSeq_)
     uint16_t selSeq_ = 0;
+    bool onOp_ = false;  // see onOperator()
+    void wheelOp(int dir);
+    void openOps();      // Replace on an operator: the operators that fit
     void selectMove(int dir);
     int selRange(int& pos) const;  // steps selected (0 = none), pos = the first one's index
     Text selText() const;          // the selected steps as mini-notation, "0 3 5"

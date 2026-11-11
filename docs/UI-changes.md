@@ -81,3 +81,18 @@ at the lowest level, left and right should make the curser should continue navig
  bug - Loading a new sample to the tracker's list doesn't add it to the list of available samples in the editor
 
  feature request - shift arrows should in mini-notation pattern should select a group of numbers to be able to wrap them in [] etc
+
+ *PolyendTrac_TidalEditor7
+
+ highlights work as they should
+
+ status looks ok, could be slightly smaller, or even better would be to replace the info box above the screen buttons with status
+
+ selecting steps now works
+
+feature request - there's currently no way to add something at the front of a mininotation pattern. e.g. I'd like to be able to change
+n "0 1 2 3 4 5 6 7"
+to
+n "0,7,10" +| "0 1 2 3 4 5 6 7"
+
+feature request - cursor should be able to select # etc to change it to |< |+ etc
