@@ -73,6 +73,59 @@ static const LibEntry kLib[] = {
     // ---- harmony ------------------------------------------------------------
     FN("scale", "Frac a => Pat String -> Pat Int -> Pat a", Harmony, Full, "\"major\""),
     FN("arp", "Pat String -> Pat a -> Pat a", Harmony, Full, "\"up\""),
+    // ---- batch 2 (2026-11-11): signatures from :t in GHCi, Tidal 1.10.3 -----
+    // (Integral / Ord / Enum constraints dropped, Ratio Integer as Time)
+    FN("every'", "Pat Int -> Pat Int -> (Pat a -> Pat a) -> Pat a -> Pat a", Time, Full, "3 0 rev"),
+    FN("inside", "Pat Time -> (Pat b -> Pat a) -> Pat b -> Pat a", Time, Full, "2 rev"),
+    FN("outside", "Pat Time -> (Pat b -> Pat a) -> Pat b -> Pat a", Time, Full, "2 rev"),
+    FN("trunc", "Pat Time -> Pat a -> Pat a", Time, Full, "0.75"),
+    FN("discretise", "Pat Time -> Pat a -> Pat a", Time, Full, "4"),
+    FN("fastGap", "Pat Time -> Pat a -> Pat a", Time, Full, "2"),
+    FN("swingBy", "Pat Time -> Pat Time -> Pat a -> Pat a", Time, Full, "(1/3) 4"),
+    FN("swing", "Pat Time -> Pat a -> Pat a", Time, Full, "4"),
+    FN("press", "Pat a -> Pat a", Time, Full, nullptr),
+    FN("pressBy", "Pat Time -> Pat a -> Pat a", Time, Full, "0.25"),
+    FN("rot", "Pat Int -> Pat a -> Pat a", Structure, Full, "1"),
+    FN("inv", "Pat Bool -> Pat Bool", Structure, Full, nullptr),
+    FN("sew", "Pat Bool -> Pat a -> Pat a -> Pat a", Structure, Full, nullptr),
+    FN("stitch", "Pat Bool -> Pat a -> Pat a -> Pat a", Structure, Full, nullptr),
+    FN("while", "Pat Bool -> (Pat a -> Pat a) -> Pat a -> Pat a", Structure, Full, "\"1 0\" (fast 2)"),
+    FN("euclidOff", "Pat Int -> Pat Int -> Pat Int -> Pat a -> Pat a", Structure, Full, "3 8 2"),
+    FN("eoff", "Pat Int -> Pat Int -> Pat Int -> Pat a -> Pat a", Structure, Full, "3 8 2"),
+    FN("wedge", "Pat Time -> Pat a -> Pat a -> Pat a", Structure, Full, nullptr),
+    FN("bite", "Pat Int -> Pat Int -> Pat a -> Pat a", Structure, Full, "4 \"0 2*2\""),
+    FN("squeeze", "Pat Int -> [Pat a] -> Pat a", Core, Full, nullptr),
+    FN("select", "Pat Double -> [Pat a] -> Pat a", Core, Full, nullptr),
+    FN("run", "Num a => Pat a -> Pat a", Signal, Full, "4"),
+    FN("scan", "Num a => Pat a -> Pat a", Signal, Full, "4"),
+    FN("chunk'", "Pat Int -> (Pat a -> Pat a) -> Pat a -> Pat a", Layer, Full, "4 (fast 2)"),
+    FN("echoWith", "Pat Int -> Pat Time -> (Pat a -> Pat a) -> Pat a -> Pat a", Layer, Full, "3 (1/8) (|* speed 2)"),
+    FN("stutWith", "Pat Int -> Pat Time -> (Pat a -> Pat a) -> Pat a -> Pat a", Layer, Full, "3 (1/8) (|* speed 2)"),
+    // Tidal: (Ord t, Num t) => Pattern t, which GHC defaults; Double here
+    FN("plyWith", "Pat Double -> (Pat a -> Pat a) -> Pat a -> Pat a", Layer, Full, "3 (|* gain 0.8)"),
+    FN("juxBy", "Pat Double -> (Pat Control -> Pat Control) -> Pat Control -> Pat Control", Layer, Approx, "0.5 rev"),
+    FN("layer", "[Pat a -> Pat b] -> Pat a -> Pat b", Layer, Full, "[rev, fast 2]"),
+    FN("pickF", "Pat Int -> [Pat a -> Pat a] -> Pat a -> Pat a", Layer, Full, "\"<0 1>\" [rev, fast 2]"),
+    FN("selectF", "Pat Double -> [Pat a -> Pat a] -> Pat a -> Pat a", Layer, Full, "\"<0 0.5>\" [rev, fast 2]"),
+    FN("rolled", "Pat a -> Pat a", Harmony, Full, nullptr),
+    FN("rolledBy", "Pat Time -> Pat a -> Pat a", Harmony, Full, "0.25"),
+    // Tidal: [a] and Int; numeric literals are patterns here, so the list's
+    // and the octave's values are read at time 0
+    FN("toScale", "Num a => [Pat a] -> Pat Int -> Pat a", Harmony, Full, nullptr),
+    FN("degrade", "Pat a -> Pat a", Random, Full, nullptr),
+    FN("unDegradeBy", "Pat Double -> Pat a -> Pat a", Random, Full, "0.5"),
+    FN("sometimesBy'", "Pat Double -> (Pat a -> Pat a) -> Pat a -> Pat a", Random, Full, "0.5 rev"),
+    FN("someCycles", "(Pat a -> Pat a) -> Pat a -> Pat a", Random, Full, "rev"),
+    FN("somecycles", "(Pat a -> Pat a) -> Pat a -> Pat a", Random, Full, "rev"),
+    FN("shuffle", "Pat Int -> Pat a -> Pat a", Random, Full, "4"),
+    FN("scramble", "Pat Int -> Pat a -> Pat a", Random, Full, "4"),
+    FN("perlin", "Frac a => Pat a", Random, Full, nullptr),
+    FN("randcat", "[Pat a] -> Pat a", Random, Full, nullptr),
+    // Tidal: [a]; literals are patterns here, read at time 0
+    FN("choose", "[Pat a] -> Pat a", Random, Full, nullptr),
+    FN("chooseBy", "Pat Double -> [Pat a] -> Pat a", Random, Full, nullptr),
+    FN("cycleChoose", "[Pat a] -> Pat a", Random, Full, nullptr),
+    FN("toScale'", "Num a => Pat Int -> [Pat a] -> Pat Int -> Pat a", Harmony, Full, nullptr),
     // ---- controls -----------------------------------------------------------
     CTL("s", "String"),
     CTL("sound", "String"),
@@ -132,6 +185,12 @@ static const LibEntry kLib[] = {
     OP("|/|", "Frac a => Pat a -> Pat a -> Pat a", 9, Left, false),
     OP("|/", "Frac a => Pat a -> Pat a -> Pat a", 9, Left, false),
     OP("/|", "Frac a => Pat a -> Pat a -> Pat a", 9, Left, false),
+    OP("|%|", "Num a => Pat a -> Pat a -> Pat a", 9, Left, true),
+    OP("|%", "Num a => Pat a -> Pat a -> Pat a", 9, Left, true),
+    OP("%|", "Num a => Pat a -> Pat a -> Pat a", 9, Left, true),
+    OP("|**|", "Frac a => Pat a -> Pat a -> Pat a", 9, Left, true),
+    OP("|**", "Frac a => Pat a -> Pat a -> Pat a", 9, Left, true),
+    OP("**|", "Frac a => Pat a -> Pat a -> Pat a", 9, Left, true),
     OP("|<", "Pat a -> Pat a -> Pat a", 9, Left, true),
     OP("|>", "Pat a -> Pat a -> Pat a", 9, Left, true),
     // structure from the right / both (values as |< / |>)
@@ -153,6 +212,13 @@ static const LibEntry kLib[] = {
 #undef OP
 
 int libCount() { return (int)(sizeof kLib / sizeof kLib[0]); }
+
+bool libIsAlias(int id) {
+    static const char* const kAliases[] = {"somecycles", "eoff", "stutWith", "discretise"};
+    for (const char* a : kAliases)
+        if (!strcmp(lib(id).name, a)) return true;
+    return false;
+}
 const LibEntry& lib(int id) { return kLib[id]; }
 
 int libFind(const char* name, int len) {

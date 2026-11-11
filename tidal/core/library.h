@@ -24,6 +24,9 @@ int libCount();
 const LibEntry& lib(int id);
 int libFind(const char* name, int len);   // -1 if unknown
 inline bool libIsOp(int id) { return lib(id).assoc != Assoc::None; }
+// Another name for a function listed too (somecycles, eoff ...): it works in
+// code, the editor's menus and jog leave it out.
+bool libIsAlias(int id);
 
 // Haskell operators handled structurally (not in the table)
 constexpr int kPrecDollar = 0;   // $  infixr 0

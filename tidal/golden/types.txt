@@ -52,6 +52,53 @@ loopAt :: Pattern Time -> ControlPattern -> ControlPattern
 splice :: Pattern Int -> Pattern Int -> ControlPattern -> Pattern (GMap.Map String Value)
 scale :: Fractional a => Pattern String -> Pattern Int -> Pattern a
 arp :: Pattern String -> Pattern a -> Pattern a
+every' :: Pattern Int -> Pattern Int -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+inside :: Pattern Time -> (Pattern a1 -> Pattern a) -> Pattern a1 -> Pattern a
+outside :: Pattern Time -> (Pattern a1 -> Pattern a) -> Pattern a1 -> Pattern a
+trunc :: Pattern Time -> Pattern a -> Pattern a
+discretise :: Pattern Time -> Pattern a -> Pattern a
+fastGap :: Pattern Time -> Pattern a -> Pattern a
+swingBy :: Pattern Time -> Pattern Time -> Pattern a -> Pattern a
+swing :: Pattern Time -> Pattern a -> Pattern a
+press :: Pattern a -> Pattern a
+pressBy :: Pattern Time -> Pattern a -> Pattern a
+rot :: Ord a => Pattern Int -> Pattern a -> Pattern a
+inv :: Functor f => f Bool -> f Bool
+sew :: Pattern Bool -> Pattern a -> Pattern a -> Pattern a
+stitch :: Pattern Bool -> Pattern a -> Pattern a -> Pattern a
+while :: Pattern Bool -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+euclidOff :: Pattern Int -> Pattern Int -> Pattern Int -> Pattern a -> Pattern a
+eoff :: Pattern Int -> Pattern Int -> Pattern Int -> Pattern a -> Pattern a
+wedge :: Pattern Time -> Pattern a -> Pattern a -> Pattern a
+bite :: Pattern Int -> Pattern Int -> Pattern a -> Pattern a
+squeeze :: Pattern Int -> [Pattern a] -> Pattern a
+select :: Pattern Double -> [Pattern a] -> Pattern a
+run :: (Enum a, Num a, Real a) => Pattern a -> Pattern a
+scan :: (Enum a, Num a) => Pattern a -> Pattern a
+chunk' :: Integral a1 => Pattern a1 -> (Pattern a2 -> Pattern a2) -> Pattern a2 -> Pattern a2
+echoWith :: Pattern Int -> Pattern Time -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+stutWith :: Pattern Int -> Pattern Time -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+plyWith :: (Ord t, Num t) => Pattern t -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+juxBy :: Pattern Double -> (Pattern ValueMap -> Pattern ValueMap) -> Pattern ValueMap -> Pattern ValueMap
+layer :: [a -> Pattern b] -> a -> Pattern b
+pickF :: Pattern Int -> [Pattern a -> Pattern a] -> Pattern a -> Pattern a
+selectF :: Pattern Double -> [Pattern a -> Pattern a] -> Pattern a -> Pattern a
+rolled :: Pattern a -> Pattern a
+rolledBy :: Pattern (Ratio Integer) -> Pattern a -> Pattern a
+toScale :: Num a => [a] -> Pattern Int -> Pattern a
+degrade :: Pattern a -> Pattern a
+unDegradeBy :: Pattern Double -> Pattern a -> Pattern a
+sometimesBy' :: Pattern Double -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+someCycles :: (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+somecycles :: (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+shuffle :: Pattern Int -> Pattern a -> Pattern a
+scramble :: Pattern Int -> Pattern a -> Pattern a
+perlin :: Fractional a => Pattern a
+randcat :: [Pattern a] -> Pattern a
+choose :: [a] -> Pattern a
+chooseBy :: Pattern Double -> [a] -> Pattern a
+cycleChoose :: [a] -> Pattern a
+toScale' :: Num a => Int -> [a] -> Pattern Int -> Pattern a
 s :: Pattern String -> ControlPattern
 sound :: Pattern String -> ControlPattern
 n :: Pattern Note -> ControlPattern
@@ -106,6 +153,12 @@ voices :: Pattern Int -> ControlPattern
 |/| :: (Applicative a, Fractional b) => a b -> a b -> a b
 |/ :: Fractional a => Pattern a -> Pattern a -> Pattern a
 /| :: Fractional a => Pattern a -> Pattern a -> Pattern a
+|%| :: (Applicative a, Moddable b) => a b -> a b -> a b
+|% :: Moddable a => Pattern a -> Pattern a -> Pattern a
+%| :: Moddable a => Pattern a -> Pattern a -> Pattern a
+|**| :: (Applicative a, Floating b) => a b -> a b -> a b
+|** :: Floating a => Pattern a -> Pattern a -> Pattern a
+**| :: Floating a => Pattern a -> Pattern a -> Pattern a
 |< :: Unionable a => Pattern a -> Pattern a -> Pattern a
 |> :: Unionable a => Pattern a -> Pattern a -> Pattern a
 >| :: Unionable a => Pattern a -> Pattern a -> Pattern a

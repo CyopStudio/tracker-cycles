@@ -1461,7 +1461,7 @@ void Editor::wheelFn(int dir) {
     FixVec<int, 256> ok;
     int cur = (int)prog_->at(cursor_).a;
     for (int id = 0; id < libCount(); id++) {
-        if (libIsOp(id)) continue;
+        if (libIsOp(id) || libIsAlias(id)) continue;
         if (id == cur) {
             ok.push_back(id);
             continue;
@@ -2350,7 +2350,7 @@ void Editor::openWrap(WrapMode mode) {
         if (mode == WrapMode::Dollar || mode == WrapMode::Modifiers || mode == WrapMode::Functions) {
             for (int id = 0; id < libCount(); id++) {
                 const LibEntry& e = lib(id);
-                if (libIsOp(id) || e.cat == Cat::Control) continue;
+                if (libIsOp(id) || libIsAlias(id) || e.cat == Cat::Control) continue;
                 if (mode == WrapMode::Modifiers && !(e.cat == Cat::Time || e.cat == Cat::Structure ||
                                                      e.cat == Cat::Random || e.cat == Cat::Layer ||
                                                      e.cat == Cat::Sample))
@@ -2425,7 +2425,7 @@ void Editor::openWrap(WrapMode mode) {
         // modifiers = time, structure, randomness, layering, sample cutting)
         for (int id = 0; id < libCount(); id++) {
             const LibEntry& e = lib(id);
-            if (libIsOp(id) || e.cat == Cat::Control) continue;
+            if (libIsOp(id) || libIsAlias(id) || e.cat == Cat::Control) continue;
             if (mode == WrapMode::Modifiers && !(e.cat == Cat::Time || e.cat == Cat::Structure ||
                                                  e.cat == Cat::Random || e.cat == Cat::Layer ||
                                                  e.cat == Cat::Sample))
@@ -2448,7 +2448,7 @@ void Editor::openWrap(WrapMode mode) {
         addOp("~>", "\"<0 0.25>\"", false, "\"<0 0.25>\" ~>");
         for (int id = 0; id < libCount(); id++) {
             const LibEntry& e = lib(id);
-            if (libIsOp(id) || e.cat == Cat::Control) continue;
+            if (libIsOp(id) || libIsAlias(id) || e.cat == Cat::Control) continue;
             Text head = e.name;
             if (e.defaults) head += Text(" ") + e.defaults;
             uint16_t nn;

@@ -338,6 +338,32 @@ against Tidal 1.10.3 (`:type` in GHCi) when it gets a golden test.
   `bandf`, `delay`, `room`, `crush`, `shape`, `begin`, `speed`, `legato`,
   `sustain`, `nudge`, `cut`, `orbit`
 
+### 7.2 Batch 2 (2026-11-11)
+
+Every row typed from `:t` in GHCi (Tidal 1.10.3) and checked by golden
+cases (exact events; random ones by property, golden/random.txt).
+
+- Time: `every'`, `inside`, `outside`, `trunc`, `discretise`, `fastGap`,
+  `swingBy`, `swing`, `press`, `pressBy`
+- Structure: `rot`, `inv`, `sew`, `stitch`, `while`, `euclidOff`/`eoff`,
+  `wedge`, `bite`, `squeeze`, `select`, `run`, `scan`
+- Layering: `chunk'`, `echoWith`/`stutWith` (at most 8), `plyWith` (at
+  most 8), `juxBy` (approx: pan), `layer`, `pickF`, `selectF`
+- Harmony: `rolled`, `rolledBy`, `toScale`, `toScale'`
+- Random: `degrade`, `unDegradeBy`, `sometimesBy'`, `someCycles` /
+  `somecycles`, `shuffle`, `scramble`, `perlin`, `randcat`, `choose`,
+  `chooseBy`, `cycleChoose`
+- Operators: `|%|` `|%` `%|`, `|**|` `|**` `**|`
+- Simplifications: `toScale`'s `[a]` and `Int`, `choose`'s `[a]` are typed
+  as patterns (numeric literals are patterns here; values read at time 0);
+  `plyWith`'s count is `Pat Double` (GHC defaults its `(Ord t, Num t)`).
+- Engine notes: a literal or a one-value string (`2`, `"2"`) is a pure
+  pattern as in Tidal (no query split at cycles; `(1/3)` is not pure);
+  `sometimesBy` applies f to the chosen events (was `sometimesBy'`'s
+  order); mini-notation euclid on a Bool pattern gives `f` on off steps.
+- Later: tuples (`within`, `zoom`, `compress`, `wchoose`, `wrandcat`,
+  `ur`), `fix`, `chew`, `spread`, `foldEvery`, `ghost`.
+
 ---
 
 ## 8. Editor operations (informative)

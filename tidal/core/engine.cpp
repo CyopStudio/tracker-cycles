@@ -155,18 +155,30 @@ static Val boolV(bool b) {
     return v;
 }
 
-enum class NumOp : uint8_t { Add, Sub, Mul, Div };
+enum class NumOp : uint8_t { Add, Sub, Mul, Div, Mod, Pow };
 static float fop(NumOp op, float a, float b) {
-    return op == NumOp::Add ? a + b : op == NumOp::Sub ? a - b : op == NumOp::Mul ? a * b : a / b;
+    switch (op) {
+        case NumOp::Add: return a + b;
+        case NumOp::Sub: return a - b;
+        case NumOp::Mul: return a * b;
+        case NumOp::Div: return a / b;
+        case NumOp::Mod: return b == 0 ? 0 : a - b * floorf(a / b);  // floored, as Haskell's mod'
+        case NumOp::Pow: return powf(a, b);
+    }
+    return 0;
 }
 
 // Exact while both sides are exact and the result fits 32 bits.
 static bool numOp(NumOp op, const Val& a, const Val& b, Val& out) {
     if (a.t != VT::Num || b.t != VT::Num) return false;
-    if (a.exact && b.exact && !(op == NumOp::Div && b.q.n == 0)) {
+    if (a.exact && b.exact && op != NumOp::Pow && !((op == NumOp::Div || op == NumOp::Mod) && b.q.n == 0)) {
         bool saved = qOverflowFlag();
         qOverflowFlag() = false;
-        Q r = op == NumOp::Add ? a.q + b.q : op == NumOp::Sub ? a.q - b.q : op == NumOp::Mul ? a.q * b.q : a.q / b.q;
+        Q r = op == NumOp::Add   ? a.q + b.q
+              : op == NumOp::Sub ? a.q - b.q
+              : op == NumOp::Mul ? a.q * b.q
+              : op == NumOp::Div ? a.q / b.q
+                                 : a.q - b.q * qint(qfloor(a.q / b.q));
         bool ovf = qOverflowFlag();
         qOverflowFlag() = saved;
         if (!ovf) {
@@ -184,6 +196,12 @@ enum class Fn : uint8_t {
     Fastcat, Slowcat, Overlay, Every, Whenmod, Range, Struct, Mask, Euclid, EuclidInv, EuclidFull,
     DegradeBy, SometimesBy, Sometimes, SomeCyclesBy, Rand, Irand, Sine, Cosine, Saw, Tri, Square, Superimpose, Off, Jux, Stut, Echo, Chunk, Chop, Striate,
     LoopAt, Splice, Scale, Arp, Control,
+    // batch 2 (2026-11-11); callLib2
+    EveryP, Inside, Outside, Trunc, FastGap, Wedge, ChunkR, Run, Scan, Inv, Sew, Stitch, While, EuclidOff,
+    Press, PressBy, SwingBy, Swing, Rot, Bite, Squeeze, Select, PickF, SelectF, Layer, JuxBy, EchoWith,
+    PlyWith, Rolled, RolledBy, ToScale, ToScaleP,
+    Degrade, UnDegradeBy, SometimesByP, SomeCycles, Shuffle, Scramble, Perlin, Randcat, Choose, ChooseBy,
+    CycleChoose,
     // operators
     OpUnionR, OpUnionL, OpNum, ShiftL, ShiftR,
 };
@@ -221,6 +239,22 @@ static const FnInfo& fnInfo(int id) {
             {"splice", Fn::Splice},     {"scale", Fn::Scale},         {"arp", Fn::Arp},
             {"#", Fn::OpUnionR},        {"|>", Fn::OpUnionR},         {"|<", Fn::OpUnionL},
             {">|", Fn::OpUnionR},       {"<|", Fn::OpUnionL},
+            {"every'", Fn::EveryP},     {"inside", Fn::Inside},       {"outside", Fn::Outside},
+            {"trunc", Fn::Trunc},       {"discretise", Fn::Segment},  {"fastGap", Fn::FastGap},
+            {"wedge", Fn::Wedge},       {"chunk'", Fn::ChunkR},       {"run", Fn::Run},
+            {"scan", Fn::Scan},         {"inv", Fn::Inv},             {"sew", Fn::Sew},
+            {"stitch", Fn::Stitch},     {"while", Fn::While},         {"euclidOff", Fn::EuclidOff},
+            {"eoff", Fn::EuclidOff},    {"press", Fn::Press},         {"pressBy", Fn::PressBy},
+            {"swingBy", Fn::SwingBy},   {"swing", Fn::Swing},         {"rot", Fn::Rot},
+            {"bite", Fn::Bite},         {"squeeze", Fn::Squeeze},     {"select", Fn::Select},
+            {"pickF", Fn::PickF},       {"selectF", Fn::SelectF},     {"layer", Fn::Layer},
+            {"juxBy", Fn::JuxBy},       {"echoWith", Fn::EchoWith},   {"stutWith", Fn::EchoWith},
+            {"plyWith", Fn::PlyWith},   {"rolled", Fn::Rolled},       {"rolledBy", Fn::RolledBy},
+            {"toScale", Fn::ToScale},   {"toScale'", Fn::ToScaleP},
+            {"degrade", Fn::Degrade},   {"unDegradeBy", Fn::UnDegradeBy}, {"sometimesBy'", Fn::SometimesByP},
+            {"someCycles", Fn::SomeCycles}, {"somecycles", Fn::SomeCycles}, {"shuffle", Fn::Shuffle},
+            {"scramble", Fn::Scramble}, {"perlin", Fn::Perlin},       {"randcat", Fn::Randcat},
+            {"choose", Fn::Choose},     {"chooseBy", Fn::ChooseBy},   {"cycleChoose", Fn::CycleChoose},
             {"|>|", Fn::OpUnionR},      {"|<|", Fn::OpUnionL},
             {"<~", Fn::ShiftL},         {"~>", Fn::ShiftR},
         };
@@ -253,11 +287,15 @@ static const FnInfo& fnInfo(int id) {
                 size_t cl = len;
                 if (lb) core++, cl--;
                 if (rb) cl--;
-                if (cl == 1 && strchr("+-*/", core[0])) {
+                if (cl == 1 && strchr("+-*/%", core[0])) {
                     fi.fn = Fn::OpNum;
                     fi.side = side;
                     fi.nop = core[0] == '+' ? NumOp::Add : core[0] == '-' ? NumOp::Sub
-                           : core[0] == '*' ? NumOp::Mul : NumOp::Div;
+                           : core[0] == '*' ? NumOp::Mul : core[0] == '/' ? NumOp::Div : NumOp::Mod;
+                } else if (cl == 2 && core[0] == '*' && core[1] == '*') {
+                    fi.fn = Fn::OpNum;
+                    fi.side = side;
+                    fi.nop = NumOp::Pow;
                 }
             }
         }
@@ -353,7 +391,14 @@ static float rnd(Q t, uint32_t seed) {
 // A Pat is a tree node, or an internal transform of another Pat. They live
 // on the C stack for the duration of a query.
 struct Pat {
-    enum K : uint8_t { Node, Apply, Shift, ShiftP, Fast, Rev, Compress, Zoom, Pure, Overlay, SetCtl, MulCtl, Silence };
+    enum K : uint8_t {
+        Node, Apply, Shift, ShiftP, Fast, Rev, Compress, Zoom, Pure, Overlay, SetCtl, MulCtl, Silence,
+        Split,    // x queried cycle by cycle (a patterned argument's innerJoin)
+        Within,   // x where the onset's cycle position is in [q, q2), else y
+        SetCtlP,  // x with control key = q2 + q * (value of pattern y)
+        Inv,      // x with its booleans flipped
+        Degrade,  // x without the events whose random value is < v (neg: only those)
+    };
     K k = Silence;
     uint16_t node = 0;      // Node: expression; Apply: function expression
     const Pat* x = nullptr;
@@ -599,8 +644,38 @@ private:
     // param pattern: call f(value, sub-arc) inside each of its events
     // The parameter's events move to gParams first, so f's results land at
     // m directly (no memmove of every result over the parameter events).
+    // A literal (2, 0.25) or a string of one plain value ("2") is a pure
+    // pattern in Tidal: its functions use the value as it is, without
+    // splitting the query at cycles (arithmetic like (1/3) is not pure).
+    bool pureValue(const Pat& p, Val& v) const {
+        if (p.k == Pat::Pure) {
+            v = p.v;
+            return true;
+        }
+        if (p.k != Pat::Node) return false;
+        const Node& nd = P.at(p.node);
+        if (nd.kind == Kind::Num) {
+            v = numQ(qmake((int32_t)nd.a, (int32_t)nd.b));
+            return true;
+        }
+        if (nd.kind != Kind::Mini || !nd.first) return false;
+        const Node& sq = P.at(nd.first);
+        if (sq.kind != Kind::MSeq || (sq.flags & kDots) || !sq.first || P.at(sq.first).next) return false;
+        const Node& at = P.at(sq.first);
+        switch (at.kind) {
+            case Kind::MNum: v = numQ(qmake((int32_t)at.a, (int32_t)at.b)); return true;
+            case Kind::MNote: v = numQ(qint((int32_t)at.a)); return true;
+            case Kind::MBool: v = boolV(at.a != 0); return true;
+            default: return false;
+        }
+    }
+
     template <class F>
     void withParam(const Pat& param, Arc a, F f) {
+        {
+            Val pv;
+            if (pureValue(param, pv)) return f(pv, a);
+        }
         int m = top;
         query(param, a);
         int k = top - m, base = gParamTop;
@@ -678,6 +753,26 @@ private:
     void qArp(const Pat& x, const Val& mode, Arc a);
     void qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a);
     int listPats(uint16_t list, Pat* out, int cap);
+    int listLen(uint16_t list);
+    Pat listAt(uint16_t list, int i) const;
+    // batch 2 (2026-11-11)
+    __attribute__((noinline)) void callLib2(Fn fn, const Pat* const* all, int n, uint16_t at, Arc a);
+    void qWithin(const Pat& fx, const Pat& x, Q lo, Q hi, Arc a);
+    void qSqueeze(const Pat& inner, Arc whole, Arc part);
+    __attribute__((noinline)) void qChunk(const Pat& x, uint16_t f, int64_t k, bool backward, Arc a);
+    void pushRun(int64_t k, Arc a, int64_t c);
+    void qSew(const Pat& b, const Pat& x, const Pat& y, Arc a);
+    void qPress(const Pat& x, Q r, Arc a);
+    __attribute__((noinline)) void qRot(const Pat& x, int64_t k, Arc a);
+    void qBite(const Pat& x, int64_t n, const Pat& idx, Arc a);
+    __attribute__((noinline)) void qSqueezeList(const Pat& idx, uint16_t list, Arc a);
+    __attribute__((noinline)) void qSelect(Fn fn, const Pat& sel, uint16_t list, const Pat* x, Arc a);
+    __attribute__((noinline)) void qEchoWith(const Pat& x, int64_t count, Q t, uint16_t f, Arc a);
+    __attribute__((noinline)) void qPlyWith(const Pat& x, int64_t count, uint16_t f, Arc a);
+    void arpeggiate(int m, bool down);
+    __attribute__((noinline)) void qRolled(const Pat& x, Q t, Arc a);
+    __attribute__((noinline)) void qToScale(uint16_t list, const Pat& idx, int64_t octave, Arc a);
+    __attribute__((noinline)) void qChoose(Fn fn, const Pat* sel, uint16_t list, Arc a);
 };
 
 void Eval::query(const Pat& p, Arc a) {
@@ -713,6 +808,23 @@ void Eval::query(const Pat& p, Arc a) {
         case Pat::SetCtl: qCtl(*p.x, p.key, p.tag, p.v, false, a); break;
         case Pat::MulCtl: qCtl(*p.x, p.key, p.tag, p.v, true, a); break;
         case Pat::Silence: break;
+        case Pat::Split: forCycles(a, [&](Arc sub, int64_t) { query(*p.x, sub); }); break;
+        case Pat::Within: qWithin(*p.x, *p.y, p.q, p.q2, a); break;
+        case Pat::SetCtlP: {
+            const Pat& x = *p.x;
+            const uint8_t key = p.key;
+            const float mul = qfloat(p.q), add = qfloat(p.q2);
+            withParam(*p.y, a, [&](const Val& v, Arc sub) { qCtl(x, key, 'f', numF(add + mul * num(v)), false, sub); });
+            break;
+        }
+        case Pat::Degrade: qDegrade(*p.x, num(p.v), p.neg, 0, a); break;
+        case Pat::Inv: {
+            const int m = top;
+            query(*p.x, a);
+            for (int i = m; i < top; i++)
+                if (!gArena[i].isMap && gArena[i].v.t == VT::Bool) gArena[i].v.q.n = gArena[i].v.q.n ? 0 : 1;
+            break;
+        }
     }
     depth--;
 }
@@ -1055,14 +1167,20 @@ void Eval::qNode(uint16_t n, Arc a) {
         case Kind::MWeight: return qNode(nd.first, a);
         case Kind::MEuclid: {
             Pat x = pNode(nd.first);
+            // "t(3,8)" on a Bool pattern: the other steps are f (Tidal's euclidBool)
+            const bool boolPat = nd.type == tyPat(Base::Bool);
+            const Pat notX = pWrap(Pat::Inv, &x);
             uint16_t kn = P.child(n, 1), nn = P.child(n, 2), rn = P.child(n, 3);
+            auto both = [&](int64_t k, int64_t steps, int64_t r, Arc s) {
+                qEuclid(x, k, steps, r, false, s);
+                if (boolPat) qEuclid(notX, k, steps, r, true, s);
+            };
             withParam(pNode(kn), a, [&](const Val& kv, Arc s1) {
                 int64_t k = intOf(kv);
                 withParam(pNode(nn), s1, [&](const Val& nv, Arc s2) {
                     int64_t steps = intOf(nv);
-                    if (!rn) return qEuclid(x, k, steps, 0, false, s2);
-                    withParam(pNode(rn), s2,
-                              [&](const Val& rv, Arc s3) { qEuclid(x, k, steps, intOf(rv), false, s3); });
+                    if (!rn) return both(k, steps, 0, s2);
+                    withParam(pNode(rn), s2, [&](const Val& rv, Arc s3) { both(k, steps, intOf(rv), s3); });
                 });
             });
             return;
@@ -1130,6 +1248,17 @@ void Eval::queryApply(uint16_t fn, const Pat& x, Arc a) {
         default: return fail("not a function", fn);
     }
 }
+
+// Element count of a list argument (0 and an error if it isn't a list) and
+// element i as a pattern: no Pat arrays on the (recursive) stack.
+int Eval::listLen(uint16_t list) {
+    if (!list || P.at(list).kind != Kind::List) {
+        fail("expected a list [a, b]", list);
+        return 0;
+    }
+    return P.childCount(list);
+}
+Pat Eval::listAt(uint16_t list, int i) const { return pNode(P.child(list, i)); }
 
 int Eval::listPats(uint16_t list, Pat* out, int cap) {
     if (P.at(list).kind != Kind::List) {
@@ -1355,8 +1484,14 @@ void Eval::qArp(const Pat& x, const Val& mode, Arc a) {
     const char* name = valStr(P, mode.str);
     bool down = !strcmp(name, "down");
     if (!down && strcmp(name, "up")) return fail("arp mode not supported yet (up, down)");
-    int m = top;
+    const int m = top;
     query(x, a);
+    arpeggiate(m, down);
+}
+
+// Events from m up: those with the same whole share it in turn (in their
+// order, or reversed with `down`): Tidal's arpeggiate.
+void Eval::arpeggiate(int m, bool down) {
     int e = top, n = e - m;
     if (n > 256) return fail("too many notes for arp");
     int order[256];
@@ -1547,6 +1682,726 @@ void Eval::qEchoLayers(const Pat& x, int64_t count, Q t, float fb, uint8_t gain,
         layer[e].y = &x;
     }
     query(layer[count > 1 ? count - 1 : 0], a);
+}
+
+
+// ---- batch 2 (2026-11-11): every', inside, sew, squeeze ... -----------------------
+// Semantics from Tidal's documentation, checked against GHCi (golden/cases.txt,
+// "batch 2"); patterned arguments split queries like Tidal's innerJoin.
+
+// within / playWhen: fx's events whose onset's cycle position is in [lo, hi),
+// and x's whose isn't.
+void Eval::qWithin(const Pat& fx, const Pat& x, Q lo, Q hi, Arc a) {
+    auto in = [&](const Ev& e) {
+        Q t = e.hasWhole ? e.whole.s : e.part.s;
+        Q pos = t - qsam(t);
+        return pos >= lo && pos < hi;
+    };
+    int m = top;
+    query(fx, a);
+    int w = m;
+    for (int j = m; j < top; j++)
+        if (in(gArena[j])) gArena[w++] = gArena[j];
+    top = w;
+    int m2 = top;
+    query(x, a);
+    w = m2;
+    for (int j = m2; j < top; j++)
+        if (!in(gArena[j])) gArena[w++] = gArena[j];
+    top = w;
+}
+
+// squeezeJoin: the outer event's own cycle of `inner` played inside its whole
+// (inner time u in [c, c+1) at whole.s + (u - c) * |whole|), wholes cut to
+// the outer whole, parts to the outer part.
+void Eval::qSqueeze(const Pat& inner, Arc whole, Arc part) {
+    const Q d = whole.e - whole.s;
+    if (!(d.n > 0)) return;
+    const Q c = qsam(whole.s);
+    auto in = [&](Q t) { return c + (t - whole.s) / d; };
+    auto out = [&](Q u) { return whole.s + (u - c) * d; };
+    const int m = top;
+    query(inner, Arc{in(part.s), in(part.e)});
+    int w = m;
+    for (int i = m; i < top; i++) {
+        Ev e = gArena[i];
+        Arc p{out(e.part.s), out(e.part.e)}, cut;
+        if (!subArc(p, part, cut)) continue;
+        e.part = cut;
+        if (e.hasWhole) {
+            Arc wh{out(e.whole.s), out(e.whole.e)}, wc;
+            if (!subArc(wh, whole, wc)) continue;
+            e.whole = wc;
+        }
+        gArena[w++] = e;
+    }
+    top = w;
+}
+
+// chunk / chunk': cycle c is cat's cycle c div k of "within chunk i, f x"
+// (chunk' counts the chunks backwards).
+void Eval::qChunk(const Pat& x, uint16_t f, int64_t k, bool backward, Arc a) {
+    if (k <= 0) return query(x, a);
+    forCycles(a, [&](Arc s2, int64_t c) {
+        const int64_t j = imod(c, k), i = backward ? k - 1 - j : j;
+        const Q off = qint(c - (c - j) / k);
+        const Arc loc{s2.s - off, s2.e - off};
+        Pat fx;
+        fx.k = Pat::Apply;
+        fx.node = f;
+        fx.x = &x;
+        const int m = top;
+        qWithin(fx, x, qlazy(i, k), qlazy(i + 1, k), loc);
+        for (int t = m; t < top; t++) shiftEvent(gArena[t], off);
+    });
+}
+
+// run k: 0 .. k-1 in cycle c (inside arc a)
+void Eval::pushRun(int64_t k, Arc a, int64_t c) {
+    if (k <= 0) return;
+    if (k > 1024) return fail("run: at most 1024 steps");
+    const Q C = qint(c);
+    int64_t j = qfloor((a.s - C) * qint(k));
+    if (j < 0) j = 0;
+    for (; j < k && !bad(); j++) {
+        Arc step{C + qlazy(j, k), C + qlazy(j + 1, k)}, part;
+        if (step.s > a.e) break;
+        if (!subArc(step, a, part)) continue;
+        Ev* e = push();
+        if (!e) return;
+        e->whole = step;
+        e->part = part;
+        e->v = numQ(qint(j));
+    }
+}
+
+static bool truthy(const Val& v) { return v.t == VT::Bool ? v.q.n != 0 : (v.t == VT::Num && num(v) != 0); }
+
+// sew: x where the boolean is true, y where false, both cut to its events
+void Eval::qSew(const Pat& b, const Pat& x, const Pat& y, Arc a) {
+    const int m = top;
+    query(b, a);
+    const int be = top;
+    for (int i = m; i < be && !bad(); i++) {
+        const Arc part = gArena[i].part;
+        query(truthy(gArena[i].v) ? x : y, part);
+    }
+    drop(m, be);
+}
+
+// pressBy r: each event starts r of the way through its whole
+void Eval::qPress(const Pat& x, Q r, Arc a) {
+    const int m = top;
+    query(x, a);
+    int w = m;
+    for (int i = m; i < top; i++) {
+        Ev e = gArena[i];
+        if (e.hasWhole) {
+            Arc nw{e.whole.s + (e.whole.e - e.whole.s) * r, e.whole.e}, np;
+            if (!subArc(nw, e.part, np)) continue;
+            e.whole = nw;
+            e.part = np;
+        }
+        gArena[w++] = e;
+    }
+    top = w;
+}
+
+// rot k: per cycle, each event takes the value of the event k later
+void Eval::qRot(const Pat& x, int64_t k, Arc a) {
+    forCycles(a, [&](Arc s2, int64_t c) {
+        const int m = top;
+        query(x, Arc{qint(c), qint(c + 1)});
+        const int e = top, n = e - m;
+        if (n == 0) return;
+        if (n > 256) return fail("rot: too many events in a cycle");
+        int16_t order[256];
+        for (int i = 0; i < n; i++) order[i] = (int16_t)(m + i);
+        auto start = [&](int i) { const Ev& v = gArena[i]; return v.hasWhole ? v.whole.s : v.part.s; };
+        for (int i = 1; i < n; i++)  // stable, by onset
+            for (int j = i; j > 0 && start(order[j - 1]) > start(order[j]); j--) {
+                int16_t t = order[j];
+                order[j] = order[j - 1];
+                order[j - 1] = t;
+            }
+        for (int i = 0; i < n && !bad(); i++) {
+            const Ev& src = gArena[order[i]];
+            Arc part;
+            if (!subArc(src.part, s2, part)) continue;
+            const Ev& from = gArena[order[imod(i + k, n)]];
+            Ev* o = push();
+            if (!o) return;
+            *o = src;
+            o->part = part;
+            o->isMap = from.isMap;
+            o->v = from.v;
+            o->nctl = from.nctl;
+            o->ctlAt = from.ctlAt;  // shared: writers copy first
+        }
+        drop(m, e);
+    });
+}
+
+// bite n idx x: each idx event plays slice (i mod n) of x, squeezed in
+void Eval::qBite(const Pat& x, int64_t n, const Pat& idx, Arc a) {
+    if (n <= 0) return;
+    const int m = top;
+    query(idx, a);
+    const int ie = top;
+    for (int i = m; i < ie && !bad(); i++) {
+        if (!gArena[i].hasWhole) continue;
+        const int64_t k = imod(intOf(gArena[i].v), n);
+        Pat z;
+        z.k = Pat::Zoom;
+        z.x = &x;
+        z.q = qlazy(k, n);
+        z.q2 = qlazy(k + 1, n);
+        qSqueeze(z, gArena[i].whole, gArena[i].part);
+    }
+    drop(m, ie);
+}
+
+// squeeze idx [p0, p1 ..]: each idx event plays p (i mod count), squeezed in
+void Eval::qSqueezeList(const Pat& idx, uint16_t list, Arc a) {
+    const int n = listLen(list);
+    if (n == 0) return;
+    const int m = top;
+    query(idx, a);
+    const int ie = top;
+    for (int i = m; i < ie && !bad(); i++)
+        if (gArena[i].hasWhole) qSqueeze(listAt(list, (int)imod(intOf(gArena[i].v), n)), gArena[i].whole, gArena[i].part);
+    drop(m, ie);
+}
+
+// select / pickF / selectF / layer: a list of patterns or functions
+void Eval::qSelect(Fn fn, const Pat& sel, uint16_t list, const Pat* x, Arc a) {
+    const int n = listLen(list);
+    if (n == 0) return;
+    if (fn == Fn::Layer) {
+        for (int i = 0; i < n && !bad(); i++) queryApply(P.child(list, i), *x, a);
+        return;
+    }
+    withParam(sel, a, [&](const Val& v, Arc sub) {
+        int64_t i;
+        if (fn == Fn::PickF) {
+            i = imod(intOf(v), n);
+        } else {  // round (half to even, as Haskell) of f * (count - 1)
+            const float f = num(v) * (float)(n - 1);
+            const float fl = floorf(f), fr = f - fl;
+            i = (int64_t)fl + (fr > 0.5f || (fr == 0.5f && ((int64_t)fl & 1)) ? 1 : 0);
+            if (i < 0) i = 0;
+            if (i >= n) i = n - 1;
+        }
+        if (fn == Fn::Select) query(listAt(list, (int)i), sub);
+        else queryApply(P.child(list, (int)i), *x, sub);
+    });
+}
+
+// echoWith count t f x: x + f (t ~> echoWith (count - 1) t f x)
+constexpr int kMaxLayers = 8;  // nesting: each layer is a level of recursion
+void Eval::qEchoWith(const Pat& x, int64_t count, Q t, uint16_t f, Arc a) {
+    if (count <= 1) return query(x, a);
+    if (count > kMaxLayers) return fail("echoWith / stutWith: at most 8");
+    Pat lv[kMaxLayers], sh[kMaxLayers], ap[kMaxLayers];
+    lv[0] = x;
+    for (int k = 1; k < count; k++) {
+        sh[k].k = Pat::Shift;
+        sh[k].x = &lv[k - 1];
+        sh[k].q = t;
+        ap[k].k = Pat::Apply;
+        ap[k].node = f;
+        ap[k].x = &sh[k];
+        lv[k].k = Pat::Overlay;
+        lv[k].x = &x;
+        lv[k].y = &ap[k];
+    }
+    query(lv[count - 1], a);
+}
+
+// plyWith count f x: x, f x, f (f x) ... sharing each event in turn
+void Eval::qPlyWith(const Pat& x, int64_t count, uint16_t f, Arc a) {
+    if (count > kMaxLayers) return fail("plyWith: at most 8");
+    Pat lv[kMaxLayers], ap[kMaxLayers];
+    lv[0] = x;
+    for (int k = 1; k < count; k++) {
+        ap[k].k = Pat::Apply;
+        ap[k].node = f;
+        ap[k].x = &lv[k - 1];
+        lv[k].k = Pat::Overlay;
+        lv[k].x = &x;
+        lv[k].y = &ap[k];
+    }
+    const int m = top;
+    query(lv[count > 1 ? count - 1 : 0], a);
+    arpeggiate(m, false);
+}
+
+// rolledBy t: events sharing a whole start one after another over t of it
+// (t < 0: from the last one)
+void Eval::qRolled(const Pat& x, Q t, Arc a) {
+    const int m = top;
+    query(x, a);
+    const int e = top, n = e - m;
+    if (n > 256) return fail("rolled: too many notes");
+    if (t.n == 0) return;
+    const bool back = t.n < 0;
+    const Q at = back ? -t : t;
+    int16_t order[256];
+    for (int i = 0; i < n; i++) order[i] = (int16_t)(m + i);
+    auto key = [&](int i, int j) {  // stable sort by whole
+        int c = qcmp(gArena[i].whole.s, gArena[j].whole.s);
+        return c ? c : qcmp(gArena[i].whole.e, gArena[j].whole.e);
+    };
+    for (int i = 1; i < n; i++)
+        for (int j = i; j > 0 && key(order[j - 1], order[j]) > 0; j--) {
+            int16_t s = order[j];
+            order[j] = order[j - 1];
+            order[j - 1] = s;
+        }
+    for (int g = 0; g < n;) {
+        int h = g + 1;
+        while (h < n && key(order[g], order[h]) == 0) h++;
+        const int cnt = h - g;
+        for (int j = 0; j < cnt; j++) {
+            Ev& ev = gArena[order[g + j]];
+            if (!ev.hasWhole) continue;
+            const int k = back ? cnt - 1 - j : j;
+            const Q shift = (ev.whole.e - ev.whole.s) * at * qlazy(k, cnt);
+            Arc nw{ev.whole.s + shift, ev.whole.e}, np;
+            if (!subArc(nw, ev.part, np)) {
+                ev.part = Arc{Q{1, 1}, Q{0, 1}};  // dropped below
+                continue;
+            }
+            ev.whole = nw;
+            ev.part = np;
+        }
+        g = h;
+    }
+    int w = m;
+    for (int i = m; i < e; i++)
+        if (!(gArena[i].part.s > gArena[i].part.e)) gArena[w++] = gArena[i];
+    top = w;
+}
+
+// toScale' octave [degrees] idx
+void Eval::qToScale(uint16_t list, const Pat& idx, int64_t octave, Arc a) {
+    const int n = listLen(list);
+    if (n == 0) return;
+    if (n > 32) return fail("toScale: at most 32 degrees");
+    Val deg[32];
+    for (int i = 0; i < n; i++) {
+        bool found;
+        sampleAt(listAt(list, i), Q{0, 1}, deg[i], found);
+        if (!found) return fail("toScale: a scale degree must be a number");
+    }
+    const int m = top;
+    query(idx, a);
+    for (int i = m; i < top && !bad(); i++) {
+        Ev& e = gArena[i];
+        if (e.isMap) return fail("toScale: a pattern of numbers");
+        const int64_t k = intOf(e.v);
+        numOp(NumOp::Add, deg[imod(k, n)], numQ(qint(idivFloor(k, n) * octave)), e.v);
+    }
+}
+
+
+// randcat / choose / chooseBy / cycleChoose (Tidal: [a]; literals are
+// patterns here, read at time 0)
+void Eval::qChoose(Fn fn, const Pat* sel, uint16_t list, Arc a) {
+    const int k = listLen(list);
+    if (k == 0) return;
+    if (fn == Fn::Randcat) {  // a random pattern of the list each cycle
+        forCycles(a, [&](Arc s2, int64_t c) { query(listAt(list, (int)(rnd(qint(c), 5) * (float)k) % k), s2); });
+        return;
+    }
+    auto pick = [&](float r, Val& out) {
+        const int i = (int)imod((int64_t)floorf(r * (float)k), k);  // wraps, as Tidal's !!!
+        bool found;
+        sampleAt(listAt(list, i), Q{0, 1}, out, found);
+        return found;
+    };
+    if (fn == Fn::CycleChoose) {  // one value per cycle
+        forCycles(a, [&](Arc s2, int64_t c) {
+            Val v;
+            if (!pick(rnd(qint(c), 0), v)) return;
+            Ev* e = push();
+            if (!e) return;
+            e->whole = Arc{qint(c), qint(c + 1)};
+            e->part = s2;
+            e->v = v;
+        });
+        return;
+    }
+    auto signal = [&](float r, Arc s) {  // continuous, like rand
+        Val v;
+        if (!pick(r, v)) return;
+        Ev* e = push();
+        if (!e) return;
+        e->hasWhole = false;
+        e->part = s;
+        e->v = v;
+    };
+    if (fn == Fn::Choose) return signal(rnd(a.s, 0), a);
+    withParam(*sel, a, [&](const Val& v, Arc sub) { signal(num(v), sub); });
+}
+
+void Eval::callLib2(Fn fn, const Pat* const* all, int n, uint16_t at, Arc a) {
+    auto need = [&](int k) {
+        if (n < k) fail("function is missing arguments", at);
+        return n >= k;
+    };
+    auto fnArg = [&](int i) -> uint16_t {
+        if (all[i]->k != Pat::Node) {
+            fail("expected a function", at);
+            return 0;
+        }
+        return all[i]->node;
+    };
+    auto listArg = [&](int i) -> uint16_t { return all[i]->k == Pat::Node ? all[i]->node : 0; };
+    switch (fn) {
+        case Fn::EveryP: {  // every' n o f: f when cycle mod n == o
+            if (!need(4)) return;
+            const uint16_t f = fnArg(2);
+            const Pat& x = *all[3];
+            withParam(*all[0], a, [&](const Val& nv, Arc s1) {
+                const int64_t k = intOf(nv);
+                withParam(*all[1], s1, [&](const Val& ov, Arc s2) {
+                    const int64_t o = intOf(ov);
+                    forCycles(s2, [&](Arc s3, int64_t c) {
+                        if (k > 0 && imod(c, k) == o) queryApply(f, x, s3);
+                        else query(x, s3);
+                    });
+                });
+            });
+            return;
+        }
+        case Fn::Inside:
+        case Fn::Outside: {  // inside n f x = fast n (f (slow n x))
+            if (!need(3)) return;
+            const uint16_t f = fnArg(1);
+            const Pat& x = *all[2];
+            const bool out = fn == Fn::Outside;
+            withParam(*all[0], a, [&](const Val& v, Arc sub) {
+                Q r = timeOf(v);
+                if (r.n == 0) return;
+                if (out) r = Q{1, 1} / r;
+                Pat slow;
+                slow.k = Pat::Fast;
+                slow.x = &x;
+                slow.q = Q{1, 1} / r;
+                const Pat split = pWrap(Pat::Split, &slow);
+                Pat fx;
+                fx.k = Pat::Apply;
+                fx.node = f;
+                fx.x = &split;
+                qFast(fx, r, sub);
+            });
+            return;
+        }
+        case Fn::Trunc: {
+            if (!need(2)) return;
+            const Pat& x = *all[1];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) {
+                const Q r = timeOf(v);
+                forCycles(sub, [&](Arc s2, int64_t c) {
+                    Arc q;
+                    if (subArc(s2, Arc{qint(c), qint(c) + r}, q)) query(x, q);
+                });
+            });
+            return;
+        }
+        case Fn::FastGap: {
+            if (!need(2)) return;
+            const Pat& x = *all[1];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) {
+                const Q r = timeOf(v);
+                if (r.n > 0) qCompress(x, Q{0, 1}, qmin(Q{1, 1}, Q{1, 1} / r), sub);
+            });
+            return;
+        }
+        case Fn::Wedge: {
+            if (!need(3)) return;
+            withParam(*all[0], a, [&](const Val& v, Arc sub) {
+                const Q r = timeOf(v);
+                if (r <= Q{0, 1}) return query(*all[2], sub);
+                if (r >= Q{1, 1}) return query(*all[1], sub);
+                qCompress(*all[1], Q{0, 1}, r, sub);
+                qCompress(*all[2], r, Q{1, 1}, sub);
+            });
+            return;
+        }
+        case Fn::ChunkR: {
+            if (!need(3)) return;
+            const uint16_t f = fnArg(1);
+            const Pat& x = *all[2];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) { qChunk(x, f, intOf(v), true, sub); });
+            return;
+        }
+        case Fn::Run: {
+            if (!need(1)) return;
+            withParam(*all[0], a, [&](const Val& v, Arc sub) {
+                // [0 .. n-1]: Haskell's enumFromTo goes on to n - 1/2
+                const int64_t k = v.exact ? qfloor(v.q + Q{1, 2}) : (int64_t)floorf(num(v) + 0.5f);
+                forCycles(sub, [&](Arc s2, int64_t c) { pushRun(k, s2, c); });
+            });
+            return;
+        }
+        case Fn::Scan: {
+            if (!need(1)) return;
+            withParam(*all[0], a, [&](const Val& v, Arc sub) {
+                const int64_t k = intOf(v);
+                if (k <= 0) return;
+                forCycles(sub, [&](Arc s2, int64_t c) { pushRun(imod(c, k) + 1, s2, c); });
+            });
+            return;
+        }
+        case Fn::Inv: {
+            if (!need(1)) return;
+            const Pat iv = pWrap(Pat::Inv, all[0]);
+            return query(iv, a);
+        }
+        case Fn::Sew:
+            if (need(3)) qSew(*all[0], *all[1], *all[2], a);
+            return;
+        case Fn::While: {
+            if (!need(3)) return;
+            Pat fx;
+            fx.k = Pat::Apply;
+            fx.node = fnArg(1);
+            fx.x = all[2];
+            return qSew(*all[0], fx, *all[2], a);
+        }
+        case Fn::Stitch: {
+            if (!need(3)) return;
+            for (int want = 1; want >= 0; want--)
+                appLeft(*all[0], want ? *all[1] : *all[2], a, [&](const Ev& l, const Ev& r, Ev& o) {
+                    if (truthy(l.v) != (want == 1)) return false;
+                    o.isMap = r.isMap;
+                    o.v = r.v;
+                    o.nctl = r.nctl;
+                    o.ctlAt = r.ctlAt;  // shared: writers copy first
+                    return true;
+                });
+            return;
+        }
+        case Fn::EuclidOff: {
+            if (!need(4)) return;
+            const Pat& x = *all[3];
+            withParam(*all[0], a, [&](const Val& kv, Arc s1) {
+                withParam(*all[1], s1, [&](const Val& nv, Arc s2) {
+                    withParam(*all[2], s2,
+                              [&](const Val& rv, Arc s3) { qEuclid(x, intOf(kv), intOf(nv), intOf(rv), false, s3); });
+                });
+            });
+            return;
+        }
+        case Fn::Press:
+            if (need(1)) qPress(*all[0], Q{1, 2}, a);
+            return;
+        case Fn::PressBy: {
+            if (!need(2)) return;
+            const Pat& x = *all[1];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) { qPress(x, timeOf(v), sub); });
+            return;
+        }
+        case Fn::SwingBy:
+        case Fn::Swing: {  // swingBy x n = inside n (within (0.5, 1) (x ~>))
+            const bool by = fn == Fn::SwingBy;
+            if (!need(by ? 3 : 2)) return;
+            Pat third;
+            third.k = Pat::Pure;
+            third.v = numQ(Q{1, 3});
+            const Pat& amount = by ? *all[0] : third;
+            const Pat& x = *all[by ? 2 : 1];
+            withParam(*all[by ? 1 : 0], a, [&](const Val& v, Arc sub) {
+                const Q r = timeOf(v);
+                if (r.n == 0) return;
+                Pat slow;
+                slow.k = Pat::Fast;
+                slow.x = &x;
+                slow.q = Q{1, 1} / r;
+                const Pat split = pWrap(Pat::Split, &slow);
+                Pat sh;
+                sh.k = Pat::ShiftP;
+                sh.x = &split;
+                sh.y = &amount;
+                Pat w;
+                w.k = Pat::Within;
+                w.x = &sh;
+                w.y = &split;
+                w.q = Q{1, 2};
+                w.q2 = Q{1, 1};
+                qFast(w, r, sub);
+            });
+            return;
+        }
+        case Fn::Rot: {
+            if (!need(2)) return;
+            const Pat& x = *all[1];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) { qRot(x, intOf(v), sub); });
+            return;
+        }
+        case Fn::Bite: {
+            if (!need(3)) return;
+            withParam(*all[0], a, [&](const Val& v, Arc sub) { qBite(*all[2], intOf(v), *all[1], sub); });
+            return;
+        }
+        case Fn::Squeeze:
+            if (need(2)) qSqueezeList(*all[0], listArg(1), a);
+            return;
+        case Fn::Select:
+            if (need(2)) qSelect(fn, *all[0], listArg(1), nullptr, a);
+            return;
+        case Fn::PickF:
+        case Fn::SelectF:
+            if (need(3)) qSelect(fn, *all[0], listArg(1), all[2], a);
+            return;
+        case Fn::Layer:
+            if (need(2)) qSelect(fn, *all[1], listArg(0), all[1], a);
+            return;
+        case Fn::JuxBy: {  // x # pan (0.5 - n/2), f (x # pan (0.5 + n/2))
+            if (!need(3)) return;
+            const uint16_t f = fnArg(1);
+            Pat l;
+            l.k = Pat::SetCtlP;
+            l.x = all[2];
+            l.y = all[0];
+            l.key = (uint8_t)controlKey("pan");
+            l.q = Q{-1, 2};
+            l.q2 = Q{1, 2};
+            Pat r = l;
+            r.q = Q{1, 2};
+            query(l, a);
+            return queryApply(f, r, a);
+        }
+        case Fn::EchoWith: {
+            if (!need(4)) return;
+            const uint16_t f = fnArg(2);
+            const Pat& x = *all[3];
+            withParam(*all[0], a, [&](const Val& cv, Arc s1) {
+                withParam(*all[1], s1, [&](const Val& tv, Arc s2) { qEchoWith(x, intOf(cv), timeOf(tv), f, s2); });
+            });
+            return;
+        }
+        case Fn::PlyWith: {
+            if (!need(3)) return;
+            const uint16_t f = fnArg(1);
+            const Pat& x = *all[2];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) {
+                // compound n = x + f (compound (n - 1)) while n > 1: ceil(n) layers
+                const int64_t k = v.exact ? -qfloor(-v.q) : (int64_t)ceilf(num(v));
+                qPlyWith(x, k < 1 ? 1 : k, f, sub);
+            });
+            return;
+        }
+        case Fn::Rolled:
+            if (need(1)) qRolled(*all[0], Q{1, 4}, a);
+            return;
+        case Fn::RolledBy: {
+            if (!need(2)) return;
+            const Pat& x = *all[1];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) { qRolled(x, timeOf(v), sub); });
+            return;
+        }
+        case Fn::ToScale:
+            if (need(2)) qToScale(listArg(0), *all[1], 12, a);
+            return;
+        case Fn::ToScaleP: {
+            if (!need(3)) return;
+            Val o;
+            bool found;
+            sampleAt(*all[0], Q{0, 1}, o, found);
+            if (!found) return fail("toScale': the octave must be a number", at);
+            qToScale(listArg(1), *all[2], intOf(o), a);
+            return;
+        }
+        case Fn::Degrade:
+            if (need(1)) qDegrade(*all[0], 0.5f, false, 0, a);
+            return;
+        case Fn::UnDegradeBy: {
+            if (!need(2)) return;
+            const Pat& x = *all[1];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) { qDegrade(x, num(v), true, 0, sub); });
+            return;
+        }
+        case Fn::SometimesByP: {
+            if (!need(3)) return;
+            Pat fx;
+            fx.k = Pat::Apply;
+            fx.node = fnArg(1);
+            fx.x = all[2];
+            const Pat& x = *all[2];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) {
+                qDegrade(x, num(v), false, 0, sub);
+                qDegrade(fx, num(v), true, 0, sub);
+            });
+            return;
+        }
+        case Fn::SomeCycles: {
+            if (!need(2)) return;
+            const uint16_t f = fnArg(0);
+            forCycles(a, [&](Arc s2, int64_t c) {
+                if (rnd(qint(c), 0) < 0.5f) queryApply(f, *all[1], s2);
+                else query(*all[1], s2);
+            });
+            return;
+        }
+        case Fn::Shuffle:
+        case Fn::Scramble: {
+            if (!need(2)) return;
+            const bool perm = fn == Fn::Shuffle;
+            const Pat& x = *all[1];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) {
+                const int64_t k = intOf(v);
+                if (k <= 0) return;
+                if (k > 64) return fail("shuffle / scramble: at most 64 parts", at);
+                forCycles(sub, [&](Arc s2, int64_t c) {
+                    uint8_t order[64];  // shuffle: a permutation per cycle (Fisher-Yates)
+                    for (int i = 0; i < k; i++) order[i] = (uint8_t)i;
+                    if (perm)
+                        for (int i = (int)k - 1; i > 0; i--) {
+                            const int j = (int)(rnd(qint(c) + qlazy(i, k), 7) * (float)(i + 1));
+                            const uint8_t t = order[i];
+                            order[i] = order[j > i ? i : j];
+                            order[j > i ? i : j] = t;
+                        }
+                    const Q C = qint(c);
+                    for (int i = 0; i < k && !bad(); i++) {
+                        Arc slot{C + qlazy(i, k), C + qlazy(i + 1, k)}, part;
+                        if (!subArc(slot, s2, part)) continue;
+                        const int64_t pick = perm ? order[i] : (int64_t)(rnd(slot.s, 7) * (float)k);
+                        Pat z;
+                        z.k = Pat::Zoom;
+                        z.x = &x;
+                        z.q = qlazy(pick, k);
+                        z.q2 = qlazy(pick + 1, k);
+                        qSqueeze(z, slot, part);
+                    }
+                });
+            });
+            return;
+        }
+        case Fn::Perlin: {  // smooth noise: random values at whole cycles, eased between
+            const int64_t i = qfloor(a.s);
+            const float f = qfloat(a.s - qint(i)), r0 = rnd(qint(i), 3), r1 = rnd(qint(i + 1), 3);
+            const float ease = f * f * f * (f * (f * 6 - 15) + 10);
+            Ev* e = push();
+            if (!e) return;
+            e->hasWhole = false;
+            e->part = a;
+            e->v = numF(r0 + ease * (r1 - r0));
+            return;
+        }
+        case Fn::Randcat:
+        case Fn::Choose:
+        case Fn::CycleChoose:
+            if (need(1)) qChoose(fn, nullptr, listArg(0), a);
+            return;
+        case Fn::ChooseBy:
+            if (need(2)) qChoose(fn, all[0], listArg(1), a);
+            return;
+        default: return fail("not implemented", at);
+    }
 }
 
 void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_t at, Arc a) {
@@ -1805,18 +2660,24 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
         }
         case Fn::SometimesBy:
         case Fn::Sometimes: {
-            // each event either untouched (random >= p) or from f x (random < p)
+            // degradeBy p x, plus f applied to the events degradeBy dropped
+            // (sometimesBy' picks after f instead: callLib2)
             int pi = fi.fn == Fn::SometimesBy ? 1 : 0;
             if (!need(pi + 2)) return;
             uint16_t f = fnArg(pi);
             const Pat& x = all[pi + 1];
-            Pat fx;
-            fx.k = Pat::Apply;
-            fx.node = f;
-            fx.x = &x;
             auto run = [&](float p, Arc sub) {
+                Pat rest;
+                rest.k = Pat::Degrade;
+                rest.x = &x;
+                rest.v = numF(p);
+                rest.neg = true;
+                Pat fx;
+                fx.k = Pat::Apply;
+                fx.node = f;
+                fx.x = &rest;
                 qDegrade(x, p, false, 0, sub);
-                qDegrade(fx, p, true, 0, sub);
+                query(fx, sub);
             };
             if (fi.fn == Fn::Sometimes) return run(fi.prob, a);
             withParam(all[0], a, [&](const Val& v, Arc sub) { run(num(v), sub); });
@@ -1927,34 +2788,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
             if (!need(3)) return;
             uint16_t f = fnArg(1);
             const Pat& x = all[2];
-            withParam(all[0], a, [&](const Val& v, Arc sub) {
-                int64_t k = intOf(v);
-                if (k <= 0) return query(x, sub);
-                forCycles(sub, [&](Arc s2, int64_t c) {
-                    int64_t i = imod(c, k);
-                    Q off = qint(c - (c - i) / k);
-                    Arc loc{s2.s - off, s2.e - off};
-                    Q lo = qlazy(i, k), hi = qlazy(i + 1, k);
-                    auto inside = [&](const Ev& e) {
-                        Q t = e.hasWhole ? e.whole.s : e.part.s;
-                        Q pos = t - qsam(t);
-                        return pos >= lo && pos < hi;
-                    };
-                    int m = top;
-                    queryApply(f, x, loc);
-                    int w = m;
-                    for (int j = m; j < top; j++)
-                        if (inside(gArena[j])) gArena[w++] = gArena[j];
-                    top = w;
-                    int m2 = top;
-                    query(x, loc);
-                    w = m2;
-                    for (int j = m2; j < top; j++)
-                        if (!inside(gArena[j])) gArena[w++] = gArena[j];
-                    top = w;
-                    for (int j = m; j < top; j++) shiftEvent(gArena[j], off);
-                });
-            });
+            withParam(all[0], a, [&](const Val& v, Arc sub) { qChunk(x, f, intOf(v), false, sub); });
             return;
         }
         case Fn::Striate: {
@@ -2027,6 +2861,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
             if (need(2)) binop(id, all[0], all[1], a);
             return;
         default: {
+            if (fi.fn >= Fn::EveryP && fi.fn <= Fn::CycleChoose) return callLib2(fi.fn, all.p, n, at, a);
             char m[64];
             snprintf(m, sizeof m, "%s is not implemented in the engine yet", lib(id).name);
             return fail(m, at);

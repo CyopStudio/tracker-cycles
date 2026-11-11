@@ -23,3 +23,14 @@ almostAlways   | subset stack [s "bd*8", s "bd*8" # speed 2] | count 16 16 | key
 someCyclesBy   | subset stack [s "bd*2", s "bd*2" # speed 2] | count 8 8
 rand           | like s "bd*4" | value pan 0 1
 irand          | like s "drum*4" | value n 0 8
+degrade          | subset s "hh*8" | count 4 12
+unDegradeBy      | subset s "hh*8" | count 1 8
+sometimesByp     | subset stack [s "bd*8", s "bd*8" # speed 2] | count 16 16 | key speed 0.2 0.8
+sometimesBy_fast | subset stack [s "bd*4", s "bd*8"] | count 6 18
+someCycles       | subset stack [s "bd*2", s "bd*2" # speed 2] | count 8 8
+shuffle          | like n "0*4" | value n 0 4
+scramble         | like n "0*4" | value n 0 4
+perlin           | like s "bd*8" | value pan 0 1
+randcat          | subset stack [s "a*2", s "b*3"] | count 8 12
+choose           | like n "0*4" | value n 0 8
+cycleChoose      | like n "0" | value n 0 8

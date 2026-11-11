@@ -2,7 +2,7 @@ hw:shift+pad2
 hw:shift+insert
 hw:right
 hw:fx1
-menu:32
+menu:58
 hw:pattern
 msg
 hw:right
@@ -12,7 +12,7 @@ msg
 hw:left
 msg
 hw:shift+s1
-menu:12
+menu:13
 hw:pattern
 msg
 print

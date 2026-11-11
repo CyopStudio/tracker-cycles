@@ -674,6 +674,20 @@ folders listed in the project (e.g. a manifest) on project load.
      apply when checking leaves one item, unless a key already reached
      the menu (menuTouched_). Unit check lazy = eager; smoke 4 / 26 / 29
      lost their OK keys. Flash 885,188 B.
+     Function batch 2 (2026-11-11, PolyendTrac_TidalEditor15.ptf, not yet
+     run): 48 functions + `%` / `**` operators (list and simplifications:
+     docs/tidal_code_tree.md 7.2), every' among them (user uses it a lot).
+     63 new golden cases from GHCi, all exact cases match (203), random
+     ones by property. Engine: callLib2 (noinline, 344 B frame; callLib 408
+     B) for the new ids; Pat kinds Split / Within / SetCtlP / Inv / Degrade;
+     withParam treats literals and one-value strings as pure (Tidal: no
+     split at cycles; fixed swing / echoWith fragment mismatches);
+     sometimesBy now applies f to the chosen events (Tidal's order; the old
+     behaviour is sometimesBy'); Bool mini euclid gives f on off steps.
+     echoWith / plyWith capped at 8 (each layer nests). Aliases (somecycles,
+     eoff, stutWith, discretise) left out of menus (libIsAlias). Flash
+     885,188 -> 912,724 B (87.0 %). Not yet: tuples (within, zoom ...),
+     fix, chew, spread.
 
 ## Polyphony (planned)
 - Built (2026-11-10, tick v7, not yet run on the device): design
