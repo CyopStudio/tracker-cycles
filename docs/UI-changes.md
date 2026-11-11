@@ -141,3 +141,33 @@ space and brackets works too
 changes work well
 
 change request > can we change how | is inserted - if the cursor is in a gap, options should be to wrap the neighboring values in [ | ], or add | between all values in that step. if several notes are selected, automatically wrap [] with | between
+
+
+*PolyendTrac_TidalEditor14
+
+shift>up and shift>down should navigate between code blocks
+
+left when all the way at the left of the code should move up the tree. right when at the right of the code should move down the tree
+
+when a code block contents is deleted, shouldn't leave ??. should go back to newly created block state
+
+shift>padN makes a code block, but can't navigate away until something is added. up/down should clear the empty block
+
+shift>padN goes to the block, but shift>padN again should create a new dN block. shift>padN>copy should duplicate the selected dN block
+
+status bar at the bottom should be slimmer so more room for code
+
+floating screen buttons should be slimmer too
+
+remove the 'tidal' title bar it takes up space and brings no value
+
+remove the d1-d16 indicators too - the code shows what's there. replace with slim scroll bar
+
+add a way to split the code lines for ease of reading. replace shift>screen4 with ↩ symbol if possible or <CR> if not.
+
+rename project.tidal with the saved project name when it's saved
+
+
+*PolyendTrac_TidalEditor18
+
+folder importing when lots of things playing - menu won't load with 8 patterns playing, with 6 playing can just open but is sluggish. loading sitar caused audio hangs but eventually loaded
