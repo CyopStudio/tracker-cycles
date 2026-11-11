@@ -292,6 +292,7 @@ private:
     void blockStep(int dir);
     void duplicateBlock();
     void toggleBreak();
+    uint16_t addedValue(const EditSpec& s, uint16_t nn) const;
     int jogMul_ = 1;  // jog(): detents folded into one numeric step
     bool tryUnwrap();
     Text joinSteps(uint16_t seq, int pos, int n, const char* sep) const;

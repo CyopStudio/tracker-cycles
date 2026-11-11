@@ -272,10 +272,75 @@ void testEditorModel(int& pass, int& fail) {
         ej.act(Action::Right);  // gain 1
         ej.act(Action::Down);   // gain
         ej.act(Action::Right);  // 1
-        ej.jog(4, false);
-        EXPECT(fileOf(ej).find("gain 5") != std::string::npos, "jog(4): %s", fileOf(ej).c_str());
+        ej.jog(4, false);  // gain: 0.05 a detent (UI v3 B1)
+        EXPECT(fileOf(ej).find("gain 1.2") != std::string::npos, "jog(4): %s", fileOf(ej).c_str());
         ej.act(Action::Undo);
         EXPECT(fileOf(ej).find("gain 1") != std::string::npos, "one undo step: %s", fileOf(ej).c_str());
+    }
+
+    // jog steps by meaning (UI v3 B1): the number's owner decides
+    {
+        static Program pb;
+        static Checkpoint cb;
+        static uint8_t ub[32 * 1024];
+        static Editor eb(pb, cb, ub, (int)sizeof ub);
+        struct Case {
+            const char* code;
+            int detents;
+            bool fast;
+            const char* want;
+        } cases[] = {
+            {"gain 1", -4, false, "gain 0.8"},
+            {"pan 0.5", 20, false, "pan 1"},  // clamped to 0 .. 1
+            {"cutoff 1000", 1, false, "cutoff 1059"},
+            {"cutoff 1000", 1, true, "cutoff 2000"},
+            {"speed 1", 3, false, "speed 1.3"},
+            {"crush 4", -10, false, "crush 1"},
+        };
+        for (const Case& c : cases) {
+            char f[128];
+            snprintf(f, sizeof f, "d1 $ s \"bd\" # %s\n", c.code);
+            Label er;
+            eb.loadText(f, (int)strlen(f), er);
+            eb.gotoSlot(0);
+            eb.act(Action::Home);
+            eb.act(Action::Right);
+            eb.act(Action::Down);
+            eb.act(Action::Right);
+            eb.act(Action::Down);
+            eb.act(Action::Right);  // the control's value
+            eb.jog(c.detents, c.fast);
+            EXPECT(fileOf(eb).find(c.want) != std::string::npos, "%s %+d%s -> %s", c.code, c.detents,
+                   c.fast ? " (fast)" : "", fileOf(eb).c_str());
+        }
+        const char* f2 = "d1 $ fast 2 $ s \"bd\"\n";
+        Label er;
+        eb.loadText(f2, (int)strlen(f2), er);
+        eb.gotoSlot(0);
+        eb.act(Action::Home);
+        eb.act(Action::Right);
+        eb.act(Action::Down);
+        eb.act(Action::Right);  // the 2
+        eb.jog(1, false);
+        EXPECT(fileOf(eb).find("fast 3") != std::string::npos, "fast ladder up: %s", fileOf(eb).c_str());
+        eb.jog(-2, false);
+        EXPECT(fileOf(eb).find("fast 1.5") != std::string::npos, "fast ladder down: %s", fileOf(eb).c_str());
+
+        // UI v3 B2: after `# gain` from the FX2 menu the cursor is on its value
+        eb.act(Action::Home);
+        eb.act(Action::Right);  // the whole expression
+        eb.act(Action::MenuFx);
+        int gi = -1;
+        for (int i = 0; i < eb.menu().size(); i++)
+            if (!strcmp(eb.menu()[i].label.c_str(), "# gain 1")) gi = i;
+        EXPECT(gi >= 0, "FX menu has # gain 1");
+        if (gi >= 0) {
+            eb.selectMenu(gi);
+            eb.act(Action::Confirm);
+            eb.jog(-2, false);
+            EXPECT(fileOf(eb).find("# gain 0.9") != std::string::npos, "cursor on the new value: %s",
+                   fileOf(eb).c_str());
+        }
     }
 
     // the control mapping (editor/controls.*), shared with the device

@@ -1,5 +1,7 @@
 #include "editor.h"
 
+#include <math.h>
+
 #include <stdio.h>
 #include <string.h>
 
@@ -591,7 +593,10 @@ void Editor::applyMenuItem(int i, bool wasOnOp) {
     menuOpen_ = false;
     uint16_t nn = 0;
     if (!doSpec(it.spec, nn)) return error("can't apply " + it.label);
-    cursor_ = it.checked ? it.cursor : nn;
+    cursor_ = it.checked && it.cursor ? it.cursor : nn;
+    // a wrap (# gain 1, fast 2 $ ...): onto the first value of what was
+    // added, so the jog edits it at once (UI v3 B2)
+    if (const uint16_t v = addedValue(it.spec, nn)) cursor_ = v;
     gapSeq_ = 0;
     onOp_ = wasOnOp && it.spec.kind == EditKind::SetOp;
     state_[slot_] = SlotState::Edited;
@@ -1550,6 +1555,163 @@ void Editor::flowInto(bool right, uint16_t n) {
     }
 }
 
+
+// ---- jog steps by meaning (UI v3 B1) -----------------------------------------------
+// The step for a number comes from what it is: `# gain 1` moves in 0.05,
+// `fast 2` along a ladder of tempos, a cutoff in semitones ... (the user:
+// "no way to edit # gain 1 to be 0.8"). Values stay exact decimals (the
+// file writes numbers as decimals: no thirds).
+namespace {
+enum class Step : uint8_t { Default, Gain, Unit, Secs, Freq, Speed, Ladder, Time, Count, Crush, Note };
+
+bool nameIn(const char* n, std::initializer_list<const char*> names) {
+    for (const char* x : names)
+        if (!strcmp(n, x)) return true;
+    return false;
+}
+
+// The function / control / operator a number belongs to, and which argument
+// it is (1-based).
+const char* numberOwner(const Program& p, uint16_t n, int& arg) {
+    arg = 0;
+    uint16_t x = n;
+    if (isMiniKind(p.at(x).kind)) {  // a step of a "...": its string
+        while (x && p.at(x).kind != Kind::Mini) x = p.parentOf(x);
+        if (!x) return nullptr;
+    }
+    uint16_t par = p.parentOf(x);
+    if (par && (p.at(par).kind == Kind::Tuple || p.at(par).kind == Kind::List)) {  // within (0, 0.5), toScale [..]
+        x = par;
+        par = p.parentOf(x);
+    }
+    if (!par) return nullptr;
+    const Node& pn = p.at(par);
+    if (pn.kind == Kind::App) {
+        const uint16_t head = pn.first;
+        if (head == x || p.at(head).kind != Kind::Fn) return nullptr;
+        int i = 0;
+        for (uint16_t c = pn.first; c && c != x; c = p.at(c).next) i++;
+        arg = i;
+        return lib((int)p.at(head).a).name;
+    }
+    if (pn.kind == Kind::Op || pn.kind == Kind::SectionL || pn.kind == Kind::SectionR) {
+        arg = pn.kind == Kind::Op && pn.first != x ? 2 : 1;
+        return lib((int)pn.a).name;
+    }
+    return nullptr;
+}
+
+Step stepFor(const char* f, int arg) {
+    if (!f) return Step::Default;
+    if (nameIn(f, {"gain", "amp", "velocity"})) return Step::Gain;
+    if (nameIn(f, {"pan", "shape", "room", "size", "delay", "delayfeedback", "delayfb", "begin", "end", "legato",
+                   "resonance", "hresonance", "lpq", "hpq", "distort", "ccv"}))
+        return Step::Unit;
+    if (nameIn(f, {"attack", "release", "att", "rel", "sustain", "hold"})) return Step::Secs;
+    if (nameIn(f, {"cutoff", "hcutoff", "bandf", "lpf", "hpf", "bpf"})) return Step::Freq;
+    if (nameIn(f, {"speed"})) return Step::Speed;
+    if (nameIn(f, {"n", "note", "up"})) return Step::Note;
+    if (nameIn(f, {"crush"})) return Step::Crush;
+    if (arg == 1 && nameIn(f, {"degradeBy", "unDegradeBy", "sometimesBy", "sometimesBy'", "someCyclesBy", "juxBy"}))
+        return Step::Unit;
+    if (arg == 1 && nameIn(f, {"fast", "slow", "ply", "hurry", "segment", "discretise", "linger", "loopAt",
+                               "fastGap", "inside", "outside", "swing"}))
+        return Step::Ladder;
+    if (nameIn(f, {"<~", "~>", "within", "within'", "zoom", "compress"})) return Step::Time;
+    if (arg == 1 && nameIn(f, {"off", "swingBy", "trunc", "rolledBy", "pressBy"})) return Step::Time;
+    if (nameIn(f, {"stut"})) return arg == 1 ? Step::Count : arg == 2 ? Step::Unit : Step::Time;
+    if (nameIn(f, {"echo"})) return arg == 1 ? Step::Count : arg == 2 ? Step::Time : Step::Unit;
+    if (nameIn(f, {"echoWith", "stutWith"})) return arg == 1 ? Step::Count : Step::Time;
+    if (nameIn(f, {"every", "every'", "iter", "chunk", "chunk'", "euclid", "euclidInv", "euclidFull", "euclidOff",
+                   "eoff", "chop", "striate", "plyWith", "shuffle", "scramble", "bite", "run", "scan", "whenmod",
+                   "splice", "irand", "rot"}))
+        return Step::Count;
+    return Step::Default;
+}
+
+Rational qadd(Rational a, int64_t num, int64_t den) {  // a + num/den
+    return makeRational((int64_t)a.num * den + num * (int64_t)a.den, (int64_t)a.den * den);
+}
+int qcmpR(Rational a, int64_t num, int64_t den) {  // sign of a - num/den
+    const int64_t l = (int64_t)a.num * den, r = num * (int64_t)a.den;
+    return l < r ? -1 : l > r ? 1 : 0;
+}
+Rational qclamp(Rational v, int64_t lo, int64_t hi, int64_t den) {  // lo/den .. hi/den
+    if (qcmpR(v, lo, den) < 0) return makeRational(lo, den);
+    if (qcmpR(v, hi, den) > 0) return makeRational(hi, den);
+    return v;
+}
+}  // namespace
+
+// The new value for `r` after `steps` jog detents (signed), by context.
+static bool steppedValue(Step st, Rational r, int steps, bool fast, Rational& out) {
+    const int dir = steps > 0 ? 1 : -1, count = steps > 0 ? steps : -steps;
+    switch (st) {
+        case Step::Gain:
+            out = qclamp(qadd(r, (int64_t)steps * (fast ? 5 : 1), 20), 0, 2, 1);  // 0.05 / 0.25, 0 .. 2
+            return true;
+        case Step::Unit:
+            out = qclamp(qadd(r, (int64_t)steps * (fast ? 5 : 1), 20), 0, 1, 1);  // 0.05 / 0.25, 0 .. 1
+            return true;
+        case Step::Secs:
+            out = qclamp(qadd(r, (int64_t)steps * (fast ? 10 : 1), 100), 0, 10, 1);  // 0.01 / 0.1 s
+            return true;
+        case Step::Time:
+            out = qadd(r, (int64_t)steps * (fast ? 4 : 1), 16);  // 1/16 / 1/4 cycle
+            return true;
+        case Step::Count:
+            out = qclamp(qadd(r, (int64_t)steps * (fast ? 4 : 1), 1), 0, 1024, 1);
+            return true;
+        case Step::Crush:
+            out = qclamp(qadd(r, (int64_t)steps * (fast ? 4 : 1), 1), 1, 16, 1);
+            return true;
+        case Step::Note:
+            out = qadd(r, (int64_t)steps * (fast ? 12 : 1), 1);
+            return true;
+        case Step::Speed:
+            if (fast) {  // x2 / /2 per detent
+                int64_t num = r.num, den = r.den;
+                for (int i = 0; i < count && i < 8; i++) (dir > 0 ? num : den) *= 2;
+                out = makeRational(num, den);
+            } else {
+                out = qadd(r, steps, 10);  // 0.1
+            }
+            return true;
+        case Step::Freq: {  // a semitone / an octave per detent, whole Hz, 20 .. 20000
+            const double hz = (double)r.num / r.den;
+            double v = hz * pow(2.0, (double)steps * (fast ? 12 : 1) / 12.0);
+            int64_t h = (int64_t)(v + 0.5);
+            if (h == (int64_t)(hz + 0.5)) h += dir;
+            if (h < 20) h = 20;
+            if (h > 20000) h = 20000;
+            out = makeRational(h, 1);
+            return true;
+        }
+        case Step::Ladder: {  // decimal-friendly tempo ladder
+            static const int64_t kN[] = {1, 1, 1, 3, 1, 3, 2, 3, 4, 6, 8, 16};
+            static const int64_t kD[] = {8, 4, 2, 4, 1, 2, 1, 1, 1, 1, 1, 1};
+            const int n = (int)(sizeof kN / sizeof kN[0]);
+            int at = -1;  // the ladder rung at or just past r in the jog's direction
+            if (dir > 0) {
+                for (int i = 0; i < n && at < 0; i++)
+                    if (qcmpR(r, kN[i], kD[i]) < 0) at = i;
+                if (at < 0) at = n - 1;
+                at += (count - 1) * (fast ? 2 : 1) + (fast ? 1 : 0);
+            } else {
+                for (int i = n - 1; i >= 0 && at < 0; i--)
+                    if (qcmpR(r, kN[i], kD[i]) > 0) at = i;
+                if (at < 0) at = 0;
+                at -= (count - 1) * (fast ? 2 : 1) + (fast ? 1 : 0);
+            }
+            if (at < 0) at = 0;
+            if (at >= n) at = n - 1;
+            out = makeRational(kN[at], kD[at]);
+            return true;
+        }
+        default: return false;
+    }
+}
+
 static uint16_t firstNumber(const Program& p, uint16_t n);
 
 void Editor::wheel(int dir, bool fast) {
@@ -1573,9 +1735,21 @@ void Editor::wheel(int dir, bool fast) {
         case Kind::Num:
         case Kind::MNum: {
             int dec = nodeDecimals(n);
+            Rational r = nodeRational(n);
+            {  // by meaning when the number's owner says (gain, cutoff, fast ...)
+                int arg = 0;
+                const char* owner = numberOwner(*p, cursor_, arg);  // sets arg: not in the same call
+                const Step st = stepFor(owner, arg);
+                Rational nr;
+                if (steppedValue(st, r, dir * jogMul_, fast, nr)) {
+                    setNodeRational(m, nr, 0);  // as many decimals as the value needs
+                    if ((int32_t)m.a < 0) m.flags |= kNegParen;
+                    else m.flags &= ~kNegParen;
+                    break;
+                }
+            }
             int64_t scale = 1;
             for (int k = 0; k < dec; k++) scale *= 10;
-            Rational r = nodeRational(n);
             int64_t step = (fast ? 10 : 1) * (int64_t)jogMul_;
             // value + dir*step/scale
             int64_t num = (int64_t)r.num * scale + dir * step * (int64_t)r.den;
@@ -1820,6 +1994,37 @@ static uint16_t firstNumber(const Program& p, uint16_t n) {
     if (k == Kind::Num || k == Kind::MNum) return n;
     for (uint16_t c = p.at(n).first; c; c = p.at(c).next)
         if (uint16_t f = firstNumber(p, c)) return f;
+    return 0;
+}
+
+// The first value (number, note, step) under n in text order, skipping
+// function names.
+static uint16_t firstValue(const Program& p, uint16_t n) {
+    if (!n) return 0;
+    const Kind k = p.at(n).kind;
+    if (k == Kind::Num || k == Kind::MNum || k == Kind::MNote || k == Kind::MWord || k == Kind::MBool ||
+        k == Kind::MChord)
+        return n;
+    if (k == Kind::Fn) return 0;
+    for (uint16_t c = p.at(n).first; c; c = p.at(c).next)
+        if (uint16_t f = firstValue(p, c)) return f;
+    return 0;
+}
+
+// After a wrap: the first value of the part that was added (the control's
+// value of `# gain 1`, the 2 of `fast 2 $ x`), or 0.
+uint16_t Editor::addedValue(const EditSpec& s, uint16_t nn) const {
+    const Program& p = *prog_;
+    if (!nn) return 0;
+    if (s.kind == EditKind::WrapOp && p.at(nn).kind == Kind::Op) {
+        const uint16_t l = p.at(nn).first, r = l ? p.at(l).next : 0;
+        return firstValue(p, s.left ? r : l);
+    }
+    if (s.kind == EditKind::WrapApp && p.at(nn).kind == Kind::App) {
+        // the arguments before the wrapped pattern (the last child)
+        for (uint16_t c = p.at(p.at(nn).first).next; c && p.at(c).next; c = p.at(c).next)
+            if (uint16_t v = firstValue(p, c)) return v;
+    }
     return 0;
 }
 
