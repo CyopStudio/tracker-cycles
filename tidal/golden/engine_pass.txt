@@ -202,3 +202,15 @@ perlin
 randcat
 choose
 cycleChoose
+within
+within_mid
+within_pat
+within_frac
+withinp
+withinp_rev
+zoom
+zoom_wide
+compress
+compress_bad
+wchoose
+wrandcat

@@ -12,6 +12,7 @@ constexpr uint8_t kTyPatBase = 1;   // 1 + Base -> Pat <Base>
 constexpr uint8_t kTyFn = 8;
 constexpr uint8_t kTyList = 9;
 constexpr uint8_t kTyPatVar = 10;   // Pat a, a unresolved
+constexpr uint8_t kTyTuple = 11;    // (a, b)
 inline uint8_t tyPat(Base b) { return (uint8_t)(kTyPatBase + (int)b); }
 const char* tyName(uint8_t code);
 

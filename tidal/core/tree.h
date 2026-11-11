@@ -36,6 +36,7 @@ enum class Kind : uint8_t {
     SectionR,   // child: rhs; a = operator id   e.g. (# speed 2)
     Compose,    // children: f, g
     List,       // children: elements
+    Tuple,      // children: the two elements of (a, b)
     Hole,       // editor placeholder; a = expected type id (optional)
     // mini-notation containers
     MSeq,       // children: steps; flags kDots -> children are MSeq groups

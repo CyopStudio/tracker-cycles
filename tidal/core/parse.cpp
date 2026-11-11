@@ -716,9 +716,24 @@ struct ExprParser {
             prog.appendChild(sec, e);
             return sec;
         }
-        if (cur.t == Tok::Comma) {
-            fail(cur.pos, "tuples are not supported");
-            return 0;
+        if (cur.t == Tok::Comma) {  // a pair (a, b), as within's (0, 0.5)
+            next();
+            uint16_t b = expr(0);
+            if (!ok()) return 0;
+            if (cur.t == Tok::Comma) {
+                fail(cur.pos, "only pairs (a, b) are supported");
+                return 0;
+            }
+            if (cur.t != Tok::RParen) {
+                fail(cur.pos, "expected ')' after the pair");
+                return 0;
+            }
+            next();
+            uint16_t t = node(Kind::Tuple);
+            if (!t) return 0;
+            prog.appendChild(t, e);
+            prog.appendChild(t, b);
+            return t;
         }
         if (cur.t != Tok::RParen) {
             fail(cur.pos, "expected ')'");

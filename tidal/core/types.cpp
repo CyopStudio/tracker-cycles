@@ -38,6 +38,7 @@ uint16_t TypePool::fn(uint16_t a, uint16_t r) {
     return (a && r) ? add(Term{Tag::Fn, Base::Time, 0, 0, a, r}) : 0;
 }
 uint16_t TypePool::list(uint16_t e) { return e ? add(Term{Tag::List, Base::Time, 0, 0, e, 0}) : 0; }
+uint16_t TypePool::tuple(uint16_t a, uint16_t b) { return a && b ? add(Term{Tag::Tuple, Base::Time, 0, 0, a, b}) : 0; }
 
 uint16_t TypePool::resolve(uint16_t t) const {
     while (t && t_[t].tag == Tag::Var && t_[t].a) t = t_[t].a;
@@ -51,7 +52,8 @@ bool TypePool::occurs(uint16_t v, uint16_t t) const {
     switch (x.tag) {
         case Tag::Pat:
         case Tag::List: return occurs(v, x.a);
-        case Tag::Fn: return occurs(v, x.a) || occurs(v, x.b);
+        case Tag::Fn:
+        case Tag::Tuple: return occurs(v, x.a) || occurs(v, x.b);
         default: return false;
     }
 }
@@ -64,7 +66,8 @@ bool TypePool::isGround(uint16_t t) const {
         case Tag::Base: return true;
         case Tag::Pat:
         case Tag::List: return isGround(x.a);
-        case Tag::Fn: return isGround(x.a) && isGround(x.b);
+        case Tag::Fn:
+        case Tag::Tuple: return isGround(x.a) && isGround(x.b);
     }
     return false;
 }
@@ -119,7 +122,8 @@ bool TypePool::unify(uint16_t a, uint16_t b, char* msg, int len) {
         case Tag::Base: return x.base == y.base ? true : fail();
         case Tag::Pat:
         case Tag::List: return unify(x.a, y.a, msg, len);
-        case Tag::Fn: return unify(x.a, y.a, msg, len) && unify(x.b, y.b, msg, len);
+        case Tag::Fn:
+        case Tag::Tuple: return unify(x.a, y.a, msg, len) && unify(x.b, y.b, msg, len);
         default: return fail();
     }
 }
@@ -211,6 +215,7 @@ struct SigParser {
         ws();
         if (lit("(")) {
             uint16_t t = type();
+            if (lit(",")) t = pool.tuple(t, type());  // (a, b)
             if (!lit(")")) err = true;
             return t;
         }
@@ -253,6 +258,11 @@ void TypePool::print(uint16_t t, char* buf, int len) const {
         case Tag::List:
             print(x.a, a, sizeof a);
             snprintf(buf, len, "[%s]", a);
+            break;
+        case Tag::Tuple:
+            print(x.a, a, sizeof a);
+            print(x.b, b, sizeof b);
+            snprintf(buf, len, "(%s, %s)", a, b);
             break;
         case Tag::Fn: {
             print(x.a, a, sizeof a);

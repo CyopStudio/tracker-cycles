@@ -163,6 +163,13 @@ void Renderer::node(const Program& p, uint16_t idx, int needPrec, int side) {
             put(')');
             break;
         }
+        case Kind::Tuple:
+            put('(');
+            node(p, n.first, 0, 0);
+            puts(", ");
+            node(p, p.at(n.first).next, 0, 0);
+            put(')');
+            break;
         case Kind::List: {
             put('[');
             int i = 0;

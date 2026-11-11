@@ -112,6 +112,13 @@ static const LibEntry kLib[] = {
     // Tidal: [a] and Int; numeric literals are patterns here, so the list's
     // and the octave's values are read at time 0
     FN("toScale", "Num a => [Pat a] -> Pat Int -> Pat a", Harmony, Full, nullptr),
+    // pairs (Tidal: (Time, Time), plain values; read at time 0 here)
+    FN("within", "(Pat Time, Pat Time) -> (Pat a -> Pat a) -> Pat a -> Pat a", Time, Full, "(0, 0.5) (fast 2)"),
+    FN("within'", "(Pat Time, Pat Time) -> (Pat a -> Pat a) -> Pat a -> Pat a", Time, Full, "(0, 0.5) (fast 2)"),
+    FN("zoom", "(Pat Time, Pat Time) -> Pat a -> Pat a", Time, Full, "(0.25, 0.75)"),
+    FN("compress", "(Pat Time, Pat Time) -> Pat a -> Pat a", Time, Full, "(0.25, 0.75)"),
+    FN("wchoose", "[(Pat a, Pat Double)] -> Pat a", Random, Full, nullptr),
+    FN("wrandcat", "[(Pat a, Pat Double)] -> Pat a", Random, Full, nullptr),
     FN("degrade", "Pat a -> Pat a", Random, Full, nullptr),
     FN("unDegradeBy", "Pat Double -> Pat a -> Pat a", Random, Full, "0.5"),
     FN("sometimesBy'", "Pat Double -> (Pat a -> Pat a) -> Pat a -> Pat a", Random, Full, "0.5 rev"),

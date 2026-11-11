@@ -686,8 +686,12 @@ folders listed in the project (e.g. a manifest) on project load.
      behaviour is sometimesBy'); Bool mini euclid gives f on off steps.
      echoWith / plyWith capped at 8 (each layer nests). Aliases (somecycles,
      eoff, stutWith, discretise) left out of menus (libIsAlias). Flash
-     885,188 -> 912,724 B (87.0 %). Not yet: tuples (within, zoom ...),
-     fix, chew, spread.
+     885,188 -> 912,724 B (87.0 %).
+     Pairs (2026-11-11, PolyendTrac_TidalEditor16.ptf, not yet run; user
+     asked for within): `(a, b)` = Kind::Tuple / Tag::Tuple (pairs only)
+     through parser, renderer, checker, engine; within, within', zoom,
+     compress, wchoose, wrandcat (12 golden cases, all match). Flash
+     916,580 B (87.4 %). Not yet: ur, fix, chew, spread.
 
 ## Polyphony (planned)
 - Built (2026-11-10, tick v7, not yet run on the device): design

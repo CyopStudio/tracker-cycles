@@ -201,7 +201,7 @@ enum class Fn : uint8_t {
     Press, PressBy, SwingBy, Swing, Rot, Bite, Squeeze, Select, PickF, SelectF, Layer, JuxBy, EchoWith,
     PlyWith, Rolled, RolledBy, ToScale, ToScaleP,
     Degrade, UnDegradeBy, SometimesByP, SomeCycles, Shuffle, Scramble, Perlin, Randcat, Choose, ChooseBy,
-    CycleChoose,
+    CycleChoose, Within, WithinP, Zoom, Compress, WChoose, WRandcat,
     // operators
     OpUnionR, OpUnionL, OpNum, ShiftL, ShiftR,
 };
@@ -255,6 +255,8 @@ static const FnInfo& fnInfo(int id) {
             {"someCycles", Fn::SomeCycles}, {"somecycles", Fn::SomeCycles}, {"shuffle", Fn::Shuffle},
             {"scramble", Fn::Scramble}, {"perlin", Fn::Perlin},       {"randcat", Fn::Randcat},
             {"choose", Fn::Choose},     {"chooseBy", Fn::ChooseBy},   {"cycleChoose", Fn::CycleChoose},
+            {"within", Fn::Within},     {"within'", Fn::WithinP},     {"zoom", Fn::Zoom},
+            {"compress", Fn::Compress}, {"wchoose", Fn::WChoose},     {"wrandcat", Fn::WRandcat},
             {"|>|", Fn::OpUnionR},      {"|<|", Fn::OpUnionL},
             {"<~", Fn::ShiftL},         {"~>", Fn::ShiftR},
         };
@@ -773,6 +775,8 @@ private:
     __attribute__((noinline)) void qRolled(const Pat& x, Q t, Arc a);
     __attribute__((noinline)) void qToScale(uint16_t list, const Pat& idx, int64_t octave, Arc a);
     __attribute__((noinline)) void qChoose(Fn fn, const Pat* sel, uint16_t list, Arc a);
+    bool pairArg(const Pat& p, Val& a, Val& b, uint16_t at);
+    __attribute__((noinline)) void qWeighted(Fn fn, uint16_t list, Arc a);
 };
 
 void Eval::query(const Pat& p, Arc a) {
@@ -2045,6 +2049,60 @@ void Eval::qChoose(Fn fn, const Pat* sel, uint16_t list, Arc a) {
     withParam(*sel, a, [&](const Val& v, Arc sub) { signal(num(v), sub); });
 }
 
+
+// A pair argument (0, 0.5): both values, read at time 0 (Tidal: plain
+// values; literals are patterns here).
+bool Eval::pairArg(const Pat& p, Val& a, Val& b, uint16_t at) {
+    if (p.k != Pat::Node || P.at(p.node).kind != Kind::Tuple) {
+        fail("expected a pair (a, b)", at);
+        return false;
+    }
+    const uint16_t f = P.at(p.node).first;
+    bool fa, fb;
+    sampleAt(pNode(f), Q{0, 1}, a, fa);
+    sampleAt(pNode(P.at(f).next), Q{0, 1}, b, fb);
+    if (!fa || !fb) fail("a pair needs two values", at);
+    return fa && fb;
+}
+
+// wchoose [(value, weight)] (continuous, like rand) / wrandcat
+// [(pattern, weight)] (one per cycle): weighted random picks
+void Eval::qWeighted(Fn fn, uint16_t list, Arc a) {
+    const int k = listLen(list);
+    if (k == 0) return;
+    if (k > 32) return fail("at most 32 choices");
+    float w[32], total = 0;
+    for (int i = 0; i < k; i++) {
+        Val v0, v1;
+        if (!pairArg(listAt(list, i), v0, v1, list)) return;
+        w[i] = num(v1) > 0 ? num(v1) : 0;
+        total += w[i];
+    }
+    if (!(total > 0)) return;
+    auto pick = [&](float r) {
+        float x = r * total;
+        for (int i = 0; i < k; i++) {
+            if (x < w[i]) return i;
+            x -= w[i];
+        }
+        return k - 1;
+    };
+    auto item = [&](int i) { return pNode(P.at(P.child(list, i)).first); };
+    if (fn == Fn::WRandcat) {
+        forCycles(a, [&](Arc s2, int64_t c) { query(item(pick(rnd(qint(c), 5))), s2); });
+        return;
+    }
+    Val v;
+    bool found;
+    sampleAt(item(pick(rnd(a.s, 0))), Q{0, 1}, v, found);
+    if (!found) return;
+    Ev* e = push();
+    if (!e) return;
+    e->hasWhole = false;
+    e->part = a;
+    e->v = v;
+}
+
 void Eval::callLib2(Fn fn, const Pat* const* all, int n, uint16_t at, Arc a) {
     auto need = [&](int k) {
         if (n < k) fail("function is missing arguments", at);
@@ -2392,6 +2450,46 @@ void Eval::callLib2(Fn fn, const Pat* const* all, int n, uint16_t at, Arc a) {
             e->v = numF(r0 + ease * (r1 - r0));
             return;
         }
+        case Fn::Within:
+        case Fn::WithinP:
+        case Fn::Zoom:
+        case Fn::Compress: {
+            const bool fnTaking = fn == Fn::Within || fn == Fn::WithinP;
+            if (!need(fnTaking ? 3 : 2)) return;
+            Val v0, v1;
+            if (!pairArg(*all[0], v0, v1, at)) return;
+            const Q s0 = timeOf(v0), e0 = timeOf(v1);
+            const Pat& x = *all[fnTaking ? 2 : 1];
+            if (fn == Fn::Zoom) return qZoom(x, s0, e0, a);
+            if (fn == Fn::Compress) {  // silence outside 0 <= s <= e <= 1
+                if (s0 < Q{0, 1} || e0 > Q{1, 1} || s0 > e0) return;
+                return qCompress(x, s0, e0, a);
+            }
+            Pat fx;
+            fx.k = Pat::Apply;
+            fx.node = fnArg(1);
+            if (fn == Fn::Within) {  // f where the onset's cycle position is in [s, e)
+                fx.x = &x;
+                return qWithin(fx, x, s0, e0, a);
+            }
+            // within': f sees only that part, stretched to a cycle
+            Pat z;
+            z.k = Pat::Zoom;
+            z.x = &x;
+            z.q = s0;
+            z.q2 = e0;
+            fx.x = &z;
+            Pat c;
+            c.k = Pat::Compress;
+            c.x = &fx;
+            c.q = s0;
+            c.q2 = e0;
+            return qWithin(c, x, s0, e0, a);
+        }
+        case Fn::WChoose:
+        case Fn::WRandcat:
+            if (need(1)) qWeighted(fn, listArg(0), a);
+            return;
         case Fn::Randcat:
         case Fn::Choose:
         case Fn::CycleChoose:
@@ -2861,7 +2959,7 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
             if (need(2)) binop(id, all[0], all[1], a);
             return;
         default: {
-            if (fi.fn >= Fn::EveryP && fi.fn <= Fn::CycleChoose) return callLib2(fi.fn, all.p, n, at, a);
+            if (fi.fn >= Fn::EveryP && fi.fn <= Fn::WRandcat) return callLib2(fi.fn, all.p, n, at, a);
             char m[64];
             snprintf(m, sizeof m, "%s is not implemented in the engine yet", lib(id).name);
             return fail(m, at);

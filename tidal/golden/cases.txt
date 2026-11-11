@@ -247,3 +247,17 @@ randcat           4  randcat [s "a*2", s "b*3"]
 choose            2  n (segment 4 $ choose [0, 2, 7])
 chooseBy          1  n (segment 4 $ chooseBy sine [0, 2, 7])
 cycleChoose       4  n (cycleChoose [0, 2, 7])
+
+# ---- pairs (2026-11-11): within, zoom ... ------------------------------------
+within            2  within (0, 0.5) (fast 2) $ s "bd sn hh cp"
+within_mid        1  within (0.25, 0.75) rev $ n "0 .. 7"
+within_pat        2  within (0.5, 1) (# speed "<2 3>") $ s "a*4"
+within_frac       1  within (1/4, 3/4) (|+ n 12) $ n "0 1 2 3"
+withinp           2  within' (0, 0.5) (fast 2) $ s "a b c d"
+withinp_rev       1  within' (0.5, 1) rev $ n "0 .. 7"
+zoom              2  zoom (0.25, 0.75) $ s "a b c d"
+zoom_wide         2  zoom (0, 2) $ s "<a b> c"
+compress          2  compress (0.25, 0.75) $ s "a b"
+compress_bad      1  compress (0.5, 1.5) $ s "a b"
+wchoose           2  n (segment 4 $ wchoose [(0, 0.25), (2, 0.5), (7, 0.25)])
+wrandcat          4  wrandcat [(s "a*2", 0.5), (s "b*3", 0.5)]

@@ -260,7 +260,13 @@ static void testParseErrors() {
     parseFails("s \"bd [sd\"", "unclosed bracket");
     parseFails("s \"bd(3)\"", "euclid");
     parseFails("(fast 2", "expected ')'");
-    parseFails("(1, 2)", "tuples");
+    parseFails("(1, 2, 3)", "only pairs");
+    roundTrip("within (0, 0.5) (fast 2) $ s \"bd sn\"");
+    roundTrip("within' (1/4, 0.75) rev $ n \"0 1\"");
+    roundTrip("wrandcat [(s \"a\", 0.5), (s \"b\", 1)]");
+    typeCheck("zoom (0.25, 0.75) $ s \"a b\"");
+    typeCheck("zoom (\"a\", 1) $ s \"a b\"", "");
+    typeCheck("within 0.5 rev $ s \"a b\"", "");
     parseFails("s \"averyveryverylongsamplename\"", "too long");
     parseFails("n 0.1234567891", "out of range");
 }

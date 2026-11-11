@@ -26,7 +26,7 @@ from Tidal's documentation and observed behaviour, not its source.
 
 Supported language (settled): function application, `$`, `.`, infix
 operators, operator sections, numeric literals, string (mini-notation)
-literals, lists. **Not supported:** lambdas, `let`, `where`, `do`, guards,
+literals, lists, pairs `(a, b)`. **Not supported:** lambdas, `let`, `where`, `do`, guards,
 user-defined functions, type annotations, `^name` variables.
 
 ---
@@ -361,8 +361,12 @@ cases (exact events; random ones by property, golden/random.txt).
   pattern as in Tidal (no query split at cycles; `(1/3)` is not pure);
   `sometimesBy` applies f to the chosen events (was `sometimesBy'`'s
   order); mini-notation euclid on a Bool pattern gives `f` on off steps.
-- Later: tuples (`within`, `zoom`, `compress`, `wchoose`, `wrandcat`,
-  `ur`), `fix`, `chew`, `spread`, `foldEvery`, `ghost`.
+- Pairs (2026-11-11): `(a, b)` is a Tuple node (two children) typed
+  `(A, B)`; only pairs. `within`, `within'`, `zoom`, `compress`,
+  `wchoose`, `wrandcat`. Tidal's plain `(Time, Time)` / `[(a, Double)]`
+  are typed with patterns here (literals are patterns), values read at
+  time 0.
+- Later: `ur`, `fix`, `chew`, `spread`, `foldEvery`, `ghost`.
 
 ---
 

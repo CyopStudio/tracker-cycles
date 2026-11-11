@@ -86,6 +86,12 @@ selectF :: Pattern Double -> [Pattern a -> Pattern a] -> Pattern a -> Pattern a
 rolled :: Pattern a -> Pattern a
 rolledBy :: Pattern (Ratio Integer) -> Pattern a -> Pattern a
 toScale :: Num a => [a] -> Pattern Int -> Pattern a
+within :: (Time, Time) -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+within' :: (Time, Time) -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+zoom :: (Time, Time) -> Pattern a -> Pattern a
+compress :: (Time, Time) -> Pattern a -> Pattern a
+wchoose :: [(a, Pattern Double)] -> Pattern a
+wrandcat :: [(Pattern a, Pattern Double)] -> Pattern a
 degrade :: Pattern a -> Pattern a
 unDegradeBy :: Pattern Double -> Pattern a -> Pattern a
 sometimesBy' :: Pattern Double -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a

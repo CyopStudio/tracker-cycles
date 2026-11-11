@@ -14,15 +14,15 @@ constexpr uint8_t kCLit = 1 << 2;      // numeric literal: Time Double Int Note
 constexpr uint8_t kCFracLit = 1 << 3;  // decimal literal: Time Double Note
 bool baseSatisfies(Base b, uint8_t constraints);
 
-enum class Tag : uint8_t { Var, Base, Pat, Fn, List };
+enum class Tag : uint8_t { Var, Base, Pat, Fn, List, Tuple };
 
 struct Term {
     Tag tag;
     Base base;     // Tag::Base
     uint8_t cons;  // Tag::Var: constraint bits
     uint8_t pad;
-    uint16_t a;    // Var: bound term (0 = free); Pat/List: element; Fn: arg
-    uint16_t b;    // Fn: result
+    uint16_t a;    // Var: bound term (0 = free); Pat/List: element; Fn: arg; Tuple: first
+    uint16_t b;    // Fn: result; Tuple: second
 };
 
 // A pool of type terms used while checking one block. Index 0 is unused.
@@ -35,6 +35,7 @@ public:
     uint16_t pat(uint16_t elem);
     uint16_t fn(uint16_t arg, uint16_t res);
     uint16_t list(uint16_t elem);
+    uint16_t tuple(uint16_t a, uint16_t b);
     bool full() const { return n_ >= kMax; }
 
     uint16_t resolve(uint16_t t) const;   // follow bound variables

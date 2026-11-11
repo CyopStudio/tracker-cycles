@@ -328,7 +328,7 @@ int Program::intern(const char* s, int len) {
 const char* kindName(Kind k) {
     static const char* names[] = {
         "None",     "Block",   "Num",        "Mini",    "Fn",       "App",
-        "Op",       "SectionL", "SectionR",  "Compose", "List",     "Hole",
+        "Op",       "SectionL", "SectionR",  "Compose", "List",     "Tuple",    "Hole",
         "MSeq",     "MSub",    "MAlt",       "MPoly",   "MChoice",  "MFast",
         "MSlow",    "MReplicate", "MWeight", "MDegrade", "MEuclid", "MRange",
         "MRest",    "MWord",   "MNum",       "MNote",   "MChord",   "MBool",

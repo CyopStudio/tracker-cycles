@@ -17,6 +17,7 @@ const char* tyName(uint8_t c) {
     switch (c) {
         case kTyFn: return "function";
         case kTyList: return "list";
+        case kTyTuple: return "pair";
         case kTyPatVar: return "Pat a";
         default: return "?";
     }
@@ -171,6 +172,14 @@ struct Checker {
                 t = pool.fn(a, c);
                 break;
             }
+            case Kind::Tuple: {
+                uint16_t a = infer(n.first, depth + 1);
+                if (!a) return 0;
+                uint16_t b = infer(p.at(n.first).next, depth + 1);
+                if (!b) return 0;
+                t = pool.tuple(a, b);
+                break;
+            }
             case Kind::List: {
                 uint16_t e = pool.var(0);
                 for (uint16_t c = n.first; c && !err.failed; c = p.at(c).next) {
@@ -198,6 +207,7 @@ struct Checker {
             }
             case Tag::Fn: return kTyFn;
             case Tag::List: return kTyList;
+            case Tag::Tuple: return kTyTuple;
             default: return kTyUnknown;
         }
     }
