@@ -167,6 +167,24 @@ instrument of that s name, else the first free), write one mono 16-bit
 copied as they are), stock importSampleToProject into the slot, then
 Slice play mode + slices + struct saved; messages on the editor's line.
 Flash 924,164 B (+7.6 KB), RAM +444 B, SDRAM +125 KB.
+Editor18 (user, docs/tidal_folders.txt): 808 / juno / sitar loaded, but
+10 of 26 files refused by the stock readHeader ("no fmt / data chunk"),
+and loading while 6-8 patterns played starved the main loop (menu barely
+opened; sitar 38 s with audio hangs): the scheduler queries on the main
+loop and the stock file manager works in 256 KB pieces (~100 ms each), and
+the cache WAV + stock import tripled the SD traffic. Editor19
+(2026-11-11, PolyendTrac_TidalEditor19.ptf, not yet run): forgiving WAV
+walk (core/tidal/wav_parse.h, host test tests/test_wav.cpp: RIFF size
+ignored, data cut to the file, odd chunks without pad, extensible); no
+cache WAV / stock import: the slot's memory placed with the stock helpers
+(setDefaultActiveInstrument, completeLoadedInstrumentStruct,
+setInstrumentSampleAddress, moveSampleMemory), the instrument blocked,
+files converted straight into it, slices set, unblocked, then the
+workspace .pti (struct via saveInstrumentStructToWorkspace after removing
+the old file, data at sizeof(strInstrumentFile)) written in 8 KB pieces;
+every step only while tidalPlayerAheadSeconds() >= 0.15 s (scheduler
+horizon over the playing slots), 3 ms per pass while playing, 12 ms when
+idle. Flash 928,668 B.
 Earlier notes:
 V1 = 48 instruments loaded the normal Tracker way. V2 could load Tidal-style
 folders listed in the project (e.g. a manifest) on project load.

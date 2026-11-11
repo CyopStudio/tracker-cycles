@@ -32,6 +32,7 @@ const char* tidalPlayerSlotError(int slot);  // evaluate / Tracker-mode error, o
 const char* tidalPlayerSlotWarning(int slot, char* buf, int len);  // mapping warnings, or nullptr
 float tidalPlayerCps();
 int tidalPlayerAudioLoad();            // smoothed audio load, %
+float tidalPlayerAheadSeconds();       // music queued beyond now (least over playing slots; large if none)
 int tidalPlayerSounding();             // sample players sounding now
 int tidalPlayerCap();                  // the load-driven polyphony cap now
 

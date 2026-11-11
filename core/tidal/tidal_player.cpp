@@ -337,6 +337,25 @@ float tidalPlayerCps() {
     return (float)c.n / (float)c.d;
 }
 int tidalPlayerAudioLoad() { return voice.loadPercent(); }
+
+// Seconds of music the scheduler has queued beyond now (the least over the
+// playing slots; large when nothing plays): background work (sample
+// folders) backs off while it is short, so the scheduler keeps the main loop.
+float tidalPlayerAheadSeconds() {
+    if (!gStarted || !sched) return 1e9f;
+    const tc::Q now = sched->cycleAt((int64_t)sched->block() * tc::kBlockSamples);
+    const tc::Q cps = sched->cps();
+    const float c = cps.d ? (float)cps.n / (float)cps.d : 0.0f;
+    if (c <= 0) return 1e9f;
+    float best = 1e9f;
+    for (int s = 0; s < tc::kSlots; s++) {
+        if (!sched->playing(s)) continue;
+        const tc::Q d = sched->horizon(s) - now;
+        const float sec = (float)d.n / (float)d.d / c;
+        if (sec < best) best = sec;
+    }
+    return best;
+}
 int tidalPlayerSounding() {
     int n = 0;
     for (int t = 0; t < DeviceVoice::kTracks; t++)

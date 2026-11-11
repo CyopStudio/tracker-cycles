@@ -8,28 +8,36 @@
 #include <strings.h>
 
 #include "../FileManager/AudioDataUtilities.h"
+#include "../FileManager/fileManagerDefs.h"
 #include "Platform.h"
 #include "cr_section_macros.h"
 #include "fileManager.h"
+#include "mtAudioEngine.h"
 #include "mtStructs.h"
+#include "tidal_player.h"
 #include "wavHeaderReader.h"
+#include "wav_parse.h"
 #include "../../tidal/core/mapping.h"
 
 namespace {
 
 constexpr const char* kRoot = "/Tidal";
-constexpr const char* kCacheDir = "/Tidal/.cache";
 constexpr const char* kLogPath = "/tidal_folders.txt";
 constexpr int kMaxFolders = 128;
 constexpr int kMaxListed = 128;  // files listed per folder (sorted), the first kMaxFiles usable kept
 constexpr int kMaxFiles = MAX_SLICE_NUMBER;
 constexpr int kMaxName = 63;
-constexpr uint32_t kChunk = 8 * 1024;                     // source bytes per step
-constexpr uint32_t kMinRate = 8000;                       // so one chunk converts into gOut
+constexpr uint32_t kChunk = 8 * 1024;                                    // source bytes per step
+constexpr uint32_t kMinRate = 8000;                                      // so one chunk converts into gOut
 constexpr uint32_t kOutCap = kChunk * targetSampleRate / kMinRate + 64;  // samples
+// Pacing (Editor18: loading while 6-8 patterns played starved the
+// scheduler, which runs on the main loop): work only while the scheduler is
+// this far ahead, and at most this long per main-loop pass.
+constexpr float kMinAheadSec = 0.15f;
+constexpr uint32_t kBusyBudgetUs = 3000, kIdleBudgetUs = 12000;
 
 struct FileInfo {
-    uint32_t dataBytes, outFrames, rate;
+    uint32_t dataOffset, dataBytes, outFrames, rate;
     uint16_t channels, bits, format, align;
     bool ok;
 };
@@ -44,16 +52,16 @@ __NOINIT(EXTERNAL_RAM) uint8_t gIn[kChunk] __attribute__((aligned(4)));
 __NOINIT(EXTERNAL_RAM) int16_t gOut[kOutCap] __attribute__((aligned(4)));
 __NOINIT(EXTERNAL_RAM) char gLog[6 * 1024];
 
-enum class St : uint8_t { Idle, Scan, Plan, Write, Import, ImportWait, Finish };
+enum class St : uint8_t { Idle, Scan, Plan, Write, Save, SaveData };
 St gSt = St::Idle;
 int gFolderCount = 0;
 char gFolder[kMaxName + 1];  // folder name as on the card
-char gToken[16];             // its s name (sampleToken): the cache file's and the instrument's name
-char gCacheDir[24];
+char gToken[16];             // its s name (sampleToken): the instrument's name
 int gListed = 0, gUsed = 0, gFiles = 0, gRefused = 0, gIdx = 0, gSlot = -1;
 uint32_t gGap = 0, gTotal = 0, gPos[kMaxFiles];
 FileSystem::FileHandle gSrc = nullptr, gDst = nullptr;
-uint32_t gLeft = 0, gWritten = 0, gStartMs = 0, gImportTries = 0;
+uint32_t gLeft = 0, gWritten = 0, gStartMs = 0, gSaved = 0, gWaitedPasses = 0;
+bool gBlocked = false;
 int gLogLen = 0;
 char gMsg[96];
 bool gMsgNew = false, gMsgErr = false;
@@ -96,9 +104,19 @@ void closeFiles(Platform* platform) {
     gSrc = gDst = nullptr;
 }
 
+// The instrument whose memory we were filling is useless: free its slot.
+void dropInstrument() {
+    if (!gBlocked) return;
+    newFileManager.completeLoadedInstrumentStruct(gSlot, false);
+    mtProject.used_memory = newFileManager.getSampleMemorySize(0, kSampleInstrumentsCount - 1);
+    engine.clearBlockedInstrument(gSlot);
+    gBlocked = false;
+}
+
 void fail(Platform* platform, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 void fail(Platform* platform, const char* fmt, ...) {
     closeFiles(platform);
+    dropInstrument();
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(gMsg, sizeof gMsg, fmt, ap);
@@ -115,17 +133,35 @@ bool isWav(const char* n) {
     return dot && (!strcasecmp(dot, ".wav") || !strcasecmp(dot, ".wave"));
 }
 
+// The forgiving WAV walk (wav_parse.h, host-tested) on an open file.
+bool parseWav(FileSystem* fs, FileSystem::FileHandle fh, FileInfo& f, char* why, int whyCap) {
+    const uint32_t size = (uint32_t)fs->getFileSize(fh);
+    wavp::Info w;
+    const bool ok = wavp::parse(
+      size,
+      [&](uint32_t at, uint8_t* buf, uint32_t n) { return fs->seekFile(at, fh) && fs->readFile(buf, n, fh) == (int32_t)n; },
+      w, why, whyCap);
+    if (!ok) return false;
+    f.dataOffset = w.dataOffset;
+    f.dataBytes = w.dataBytes;
+    f.rate = w.rate;
+    f.channels = w.channels;
+    f.bits = w.bits;
+    f.format = w.format;
+    f.align = w.align;
+    return true;
+}
+
 // Frames convertAudioData produces for a file read in kChunk pieces (its
 // per-chunk rounding included).
 uint32_t framesOut(const FileInfo& f) {
     const uint32_t bps = (uint32_t)f.bits / 8 * f.channels;
     if (!bps) return 0;
     const uint32_t chunk = kChunk - kChunk % (f.align ? f.align : 1);
-    uint32_t left = f.dataBytes, total = 0;
+    uint32_t left = f.dataBytes - f.dataBytes % (f.align ? f.align : 1), total = 0;
     while (left > 0) {
         const uint32_t take = left < chunk ? left : chunk;
-        const uint32_t in = take / bps;
-        total += (uint32_t)((uint64_t)in * targetSampleRate / f.rate);
+        total += (uint32_t)((uint64_t)(take / bps) * targetSampleRate / f.rate);
         left -= take;
     }
     return total;
@@ -133,7 +169,7 @@ uint32_t framesOut(const FileInfo& f) {
 
 void pathOf(char* buf, int cap, int i) { snprintf(buf, cap, "%s/%s/%s", kRoot, gFolder, gFileList[i]); }
 
-// scan: one file's header per pass
+// scan: one file's header per call
 void stepScan(Platform* platform) {
     FileSystem* fs = platform->getFileSystem();
     if (gIdx >= gListed) {
@@ -156,24 +192,24 @@ void stepScan(Platform* platform) {
         gRefused++;
         return;
     }
-    strWavFileHeader h{};
-    if (!readHeader(&h, fs, fh)) {
-        fs->closeFile(fh);
-        logf("  refused %s: not a plain WAV (no fmt / data chunk where expected)\n", name);
+    char why[64];
+    const bool parsed = parseWav(fs, fh, f, why, sizeof why);
+    fs->closeFile(fh);
+    if (!parsed) {
+        logf("  refused %s: %s\n", name, why);
         gRefused++;
         return;
     }
-    fs->closeFile(fh);
-    f.dataBytes = h.subchunk2Size;
-    f.rate = h.sampleRate;
-    f.channels = h.numChannels;
-    f.bits = h.bitsPerSample;
-    f.format = h.AudioFormat;
-    f.align = h.blockAlign;
+    strWavFileHeader h{};  // the stock converter's formats
+    h.AudioFormat = f.format;
+    h.numChannels = f.channels;
+    h.sampleRate = f.rate;
+    h.bitsPerSample = f.bits;
+    h.blockAlign = f.align;
+    h.byteRate = f.rate * f.align;
     if (!checkSampleValid(h) || f.channels < 1 || f.channels > 2 || f.rate < kMinRate) {
-        logf("  refused %s: format %u, %u ch, %u bit, %lu Hz (the stock import's formats: PCM / float, 1-2 ch, "
-             ">= %lu Hz)\n",
-             name, f.format, f.channels, f.bits, (unsigned long)f.rate, (unsigned long)kMinRate);
+        logf("  refused %s: format %u, %u ch, %u bit, %lu Hz (supported: PCM / float, 1-2 ch, >= %lu Hz)\n", name,
+             f.format, f.channels, f.bits, (unsigned long)f.rate, (unsigned long)kMinRate);
         gRefused++;
         return;
     }
@@ -189,21 +225,21 @@ void stepScan(Platform* platform) {
     gUsed++;
 }
 
-// plan: layout, slot, room
+// plan: layout, slot, room; then the slot's memory (as the stock sample
+// import places it) with the instrument blocked while we fill it
 void stepPlan(Platform* platform) {
     if (gUsed == 0) return fail(platform, "%s: no usable WAV files (see %s)", gFolder, kLogPath);
     uint64_t sum = 0;
     for (int i = 0; i < gListed; i++)
         if (gInfo[i].ok) sum += gInfo[i].outFrames;
-    // a gap of silence before each file, longer than a slice step
-    // (length / 65535), so a slice point never lands inside the file before
+    // silence before each file, longer than a slice step (length / 65535),
+    // so a slice point never lands inside the file before
     gGap = 2 * (uint32_t)((sum + 65534) / 65535) + 4;
     uint64_t total = sum + (uint64_t)(gUsed - 1) * gGap;
     while (gGap < (uint32_t)((total + 65534) / 65535) + 2) {
         gGap += 2;
         total = sum + (uint64_t)(gUsed - 1) * gGap;
     }
-    const uint64_t bytes = total * 2;
     // the slot: an instrument of this name is reloaded, else the first free one
     gSlot = -1;
     for (int i = 0; i < kSampleInstrumentsCount && gSlot < 0; i++) {
@@ -215,10 +251,11 @@ void stepPlan(Platform* platform) {
     for (int i = 0; i < kSampleInstrumentsCount && gSlot < 0; i++)
         if (mtProject.instrument[i].isActive != 1) gSlot = i;
     if (gSlot < 0) return fail(platform, "%s: no free instrument slot (48 in use)", gFolder);
-    const uint32_t used = mtProject.used_memory - (reload ? newFileManager.getSampleMemorySize(gSlot, gSlot) : 0);
+    const uint32_t oldSize = reload ? newFileManager.getSampleMemorySize(gSlot, gSlot) : 0;
+    const uint32_t used = mtProject.used_memory - oldSize;
     const uint32_t room = mtProject.max_memory > used ? mtProject.max_memory - used : 0;
-    if (bytes > room)
-        return fail(platform, "%s: no room: needs %lu KB, %lu KB free", gFolder, (unsigned long)(bytes / 1024),
+    if (total * 2 > room)
+        return fail(platform, "%s: no room: needs %lu KB, %lu KB free", gFolder, (unsigned long)(total * 2 / 1024),
                     (unsigned long)(room / 1024));
     gTotal = (uint32_t)total;
     logf("  -> %d files (%d refused), %lu frames (%lu.%lu s), gap %lu, slot %d%s\n", gUsed, gRefused,
@@ -226,93 +263,70 @@ void stepPlan(Platform* platform) {
          (unsigned long)(gTotal * 10 / targetSampleRate % 10), (unsigned long)gGap, gSlot + 1,
          reload ? " (reload)" : "");
 
-    // the cache WAV: header now (the size is known), data in stepWrite
-    FileSystem* fs = platform->getFileSystem();
-    if (!fs->exists(kCacheDir)) fs->mkdir(1, kCacheDir);
-    char path[64];
-    snprintf(path, sizeof path, "%s/%s.wav", kCacheDir, gToken);
-    auto [ok, fh] = fs->openFile(path, FileSystem::kWriteCreateNew);
-    if (!ok || !fh) return fail(platform, "%s: can't write %s", gFolder, path);
-    gDst = fh;
-    uint8_t hd[44];
-    auto le32 = [&](int at, uint32_t v) {
-        for (int k = 0; k < 4; k++) hd[at + k] = (uint8_t)(v >> (8 * k));
-    };
-    auto le16 = [&](int at, uint16_t v) {
-        hd[at] = (uint8_t)v;
-        hd[at + 1] = (uint8_t)(v >> 8);
-    };
-    memcpy(hd, "RIFF", 4);
-    le32(4, 36 + (uint32_t)bytes);
-    memcpy(hd + 8, "WAVEfmt ", 8);
-    le32(16, 16);
-    le16(20, 1);  // PCM
-    le16(22, 1);  // mono
-    le32(24, targetSampleRate);
-    le32(28, targetSampleRate * 2);
-    le16(32, 2);
-    le16(34, 16);
-    memcpy(hd + 36, "data", 4);
-    le32(40, (uint32_t)bytes);
-    if (fs->writeFile(hd, sizeof hd, gDst) != (int32_t)sizeof hd) return fail(platform, "%s: SD write failed", gFolder);
+    // the stock import's placement (SampleImport: init, load data struct, move memory)
+    engine.setBlockedInstrument(gSlot);
+    gBlocked = true;
+    mtProject.used_memory -= oldSize;
+    strInstrument& ins = mtProject.instrument[gSlot];
+    if (ins.isActive != 1) newFileManager.setDefaultActiveInstrument(&ins);
+    snprintf(ins.sample.file_name, SAMPLE_NAME_SIZE, "%s", gToken);
+    newFileManager.completeLoadedInstrumentStruct(gSlot, true, gTotal);
+    newFileManager.setInstrumentSampleAddress(gSlot, 1, gTotal);
+    ins.setStreamPreferred(false);
+    const uint32_t newSize = newFileManager.getSampleMemorySize(gSlot, gSlot);
+    newFileManager.moveSampleMemory(newFileManager.calcFirstSlotToMoveInMemory(gSlot + 1),
+                                    (int32_t)newSize - (int32_t)oldSize);
+    mtProject.used_memory = newFileManager.getSampleMemorySize(0, kSampleInstrumentsCount - 1);
+
     gIdx = 0;
     gFiles = gUsed;
     gUsed = 0;  // counts again while writing: the slice index of each file
+    gWritten = 0;
     gSrc = nullptr;
     gSt = St::Write;
 }
 
-bool writeZeros(FileSystem* fs, uint32_t frames) {
-    memset(gOut, 0, (frames < kOutCap ? frames : kOutCap) * 2);
-    while (frames > 0) {
-        const uint32_t k = frames < kOutCap ? frames : kOutCap;
-        if (fs->writeFile(gOut, k * 2, gDst) != (int32_t)(k * 2)) return false;
-        frames -= k;
-    }
-    return true;
-}
-
-// write: one chunk of one file per pass
+// write: a chunk of a file straight into the instrument's memory
 void stepWrite(Platform* platform) {
     FileSystem* fs = platform->getFileSystem();
+    int16_t* const mem = mtProject.instrument[gSlot].sample.address;
     if (!gSrc) {  // the next usable file
         while (gIdx < gListed && !gInfo[gIdx].ok) gIdx++;
         if (gIdx >= gListed) {
-            fs->closeFile(gDst);
-            gDst = nullptr;
-            gSt = St::Import;
-            gImportTries = 0;
+            gSt = St::Save;
             return;
         }
         char path[200];
         pathOf(path, sizeof path, gIdx);
         auto [ok, fh] = fs->openFile(path, FileSystem::kRead);
-        strWavFileHeader h{};
-        if (!ok || !fh || !readHeader(&h, fs, fh)) {
+        if (!ok || !fh || !fs->seekFile(gInfo[gIdx].dataOffset, fh)) {
             if (ok && fh) fs->closeFile(fh);
             return fail(platform, "%s: %s went away", gFolder, gFileList[gIdx]);
         }
         gSrc = fh;
-        if (gUsed > 0 && !writeZeros(fs, gGap)) return fail(platform, "%s: SD write failed", gFolder);
-        gPos[gUsed] = gWritten + (gUsed > 0 ? gGap : 0);
-        gWritten = gPos[gUsed];
-        gLeft = gInfo[gIdx].dataBytes;
+        if (gUsed > 0) {  // the silence before it
+            memset(mem + gWritten, 0, gGap * 2);
+            gWritten += gGap;
+        }
+        gPos[gUsed] = gWritten;
+        gLeft = gInfo[gIdx].dataBytes - gInfo[gIdx].dataBytes % (gInfo[gIdx].align ? gInfo[gIdx].align : 1);
         if ((gUsed & 3) == 0) say(false, "loading %s: file %d of %d", gFolder, gUsed + 1, gFiles);
         return;
     }
     const FileInfo& f = gInfo[gIdx];
     const uint32_t align = f.align ? f.align : 1, chunk = kChunk - kChunk % align;
-    const uint32_t want = gLeft < chunk ? gLeft : chunk;
-    const uint32_t start = gPos[gUsed], wantTotal = f.outFrames;
-    uint32_t produced = 0;
-    int32_t got = want ? fs->readFile(gIn, want, gSrc) : 0;
+    const uint32_t start = gPos[gUsed], want = f.outFrames;
+    const uint32_t take = gLeft < chunk ? gLeft : chunk;
+    const int32_t got = take ? fs->readFile(gIn, take, gSrc) : 0;
     if (got > 0) {
         gLeft -= (uint32_t)got < gLeft ? (uint32_t)got : gLeft;
         const uint32_t usable = (uint32_t)got - (uint32_t)got % align;
-        const int16_t* data = gOut;
+        const uint32_t done = gWritten - start;
+        uint32_t produced;
         if (f.format == wavFormatPCM && f.bits == 16 && f.channels == 1 && f.rate == targetSampleRate) {
-            data = reinterpret_cast<const int16_t*>(gIn);  // already the Tracker's format: as it is
-            produced = usable / 2;
+            produced = usable / 2;  // already the Tracker's format: copied as it is
+            if (done + produced > want) produced = want - done;
+            memcpy(mem + gWritten, gIn, produced * 2);
         } else {
             ConversionConfig cc{};
             cc.inputData = gIn;
@@ -325,17 +339,15 @@ void stepWrite(Platform* platform) {
             cc.sourceFormat = f.format;
             cc.destSampleRate = targetSampleRate;
             produced = convertAudioData(cc);
+            if (done + produced > want) produced = want - done;  // exactly the planned length
+            memcpy(mem + gWritten, gOut, produced * 2);
         }
-        const uint32_t done = gWritten - start;
-        if (done + produced > wantTotal) produced = wantTotal - done;  // exactly the planned length
-        if (produced && fs->writeFile(data, produced * 2, gDst) != (int32_t)(produced * 2))
-            return fail(platform, "%s: SD write failed", gFolder);
         gWritten += produced;
     }
-    if (got <= 0 || gLeft == 0) {  // file done: pad a short read to the planned length
+    if (got <= 0 || gLeft == 0) {  // file done: a short read is padded to the planned length
         const uint32_t done = gWritten - start;
-        if (done < wantTotal && !writeZeros(fs, wantTotal - done)) return fail(platform, "%s: SD write failed", gFolder);
-        gWritten = start + wantTotal;
+        if (done < want) memset(mem + gWritten, 0, (want - done) * 2);
+        gWritten = start + want;
         fs->closeFile(gSrc);
         gSrc = nullptr;
         gIdx++;
@@ -343,43 +355,58 @@ void stepWrite(Platform* platform) {
     }
 }
 
-void stepImport(Platform* platform) {
-    if (newFileManager.getStatus() != fmIdle) {
-        if (++gImportTries > 2000) fail(platform, "%s: the file manager stayed busy", gFolder);
-        return;
-    }
-    snprintf(gCacheDir, sizeof gCacheDir, "%s", kCacheDir);
-    char name[sizeof gToken];
-    snprintf(name, sizeof name, "%s", gToken);
-    if (!newFileManager.importSampleToProject(gCacheDir, name, (uint8_t)gSlot)) {
-        if (++gImportTries > 2000) fail(platform, "%s: the sample import didn't start", gFolder);
-        return;
-    }
-    say(false, "loading %s: into instrument %d", gFolder, gSlot + 1);
-    gSt = St::ImportWait;
-}
-
-void stepFinish(Platform* platform) {
+// save: the slices, the instrument playable again, its struct to the workspace
+void stepSave(Platform* platform) {
     strInstrument& ins = mtProject.instrument[gSlot];
-    if (ins.isActive != 1 || ins.sample.length == 0) return fail(platform, "%s: the sample import failed", gFolder);
     const uint32_t len = ins.sample.length;
     ins.playMode = playModeSlice;
     ins.sliceNumber = (uint8_t)gUsed;
     ins.selectedSlice = 0;
     ins.slicePlayThru = 0;
-    for (int i = 0; i < gUsed; i++)  // pos(v) = v * len / 65535 lands in the gap before file i
+    for (int i = 0; i < gUsed; i++)  // pos(v) = v * len / 65535 lands in the silence before file i
         ins.slices[i] = i == 0 ? 0 : (uint16_t)((uint64_t)gPos[i] * 65535 / len);
+    engine.clearBlockedInstrument(gSlot);
+    gBlocked = false;
+    // the workspace copy: a new file (an old, longer one would leave a tail)
+    char path[PATCH_SIZE];
+    snprintf(path, sizeof path, cWorkspaceInstrumentFileFormatNew, gSlot + 1);
+    FileSystem* fs = platform->getFileSystem();
+    if (fs->exists(path)) fs->remove(path);
     newFileManager.setInstrumentStructChanged((uint8_t)gSlot);
     newFileManager.saveInstrumentStructToWorkspace(gSlot);
+    auto [ok, fh] = fs->openFile(path, FileSystem::kWriteOpen);
+    if (!ok || !fh || !fs->seekFile(sizeof(strInstrumentFile), fh)) {
+        if (ok && fh) fs->closeFile(fh);
+        return fail(platform, "%s: can't write the workspace copy", gFolder);
+    }
+    gDst = fh;
+    gSaved = 0;
+    gSt = St::SaveData;
+    say(false, "%s: playable; saving it to the workspace", gToken);
+}
+
+void stepSaveData(Platform* platform) {
+    FileSystem* fs = platform->getFileSystem();
+    const uint32_t bytes = gTotal * 2;
+    if (gSaved < bytes) {
+        const uint32_t n = bytes - gSaved < kChunk ? bytes - gSaved : kChunk;
+        const uint8_t* src = reinterpret_cast<const uint8_t*>(mtProject.instrument[gSlot].sample.address) + gSaved;
+        if (fs->writeFile(src, n, gDst) != (int32_t)n) return fail(platform, "%s: SD write failed", gFolder);
+        gSaved += n;
+        return;
+    }
+    fs->closeFile(gDst);
+    gDst = nullptr;
     const uint32_t ms = platform->getTimer()->millis() - gStartMs;
-    logf("  done: instrument %d, %lu KB, %lu.%lu s\n\n", gSlot + 1, (unsigned long)(len * 2 / 1024),
-         (unsigned long)(ms / 1000), (unsigned long)(ms / 100 % 10));
+    logf("  done: instrument %d, %lu KB, %lu.%lu s (%lu passes waited for the scheduler)\n\n", gSlot + 1,
+         (unsigned long)(bytes / 1024), (unsigned long)(ms / 1000), (unsigned long)(ms / 100 % 10),
+         (unsigned long)gWaitedPasses);
     flushLog(platform);
     if (gRefused)
         say(true, "%s: %d files in instrument %d, %d refused (see %s)", gToken, gUsed, gSlot + 1, gRefused, kLogPath);
     else
-        say(false, "%s: %d files in instrument %d (%lu KB, %lu.%lu s): s \"%s:0\" ..", gToken, gUsed, gSlot + 1,
-            (unsigned long)(len * 2 / 1024), (unsigned long)(ms / 1000), (unsigned long)(ms / 100 % 10), gToken);
+        say(false, "%s: %d files in instrument %d (%lu KB, %lu.%lu s)", gToken, gUsed, gSlot + 1,
+            (unsigned long)(bytes / 1024), (unsigned long)(ms / 1000), (unsigned long)(ms / 100 % 10));
     gSt = St::Idle;
 }
 
@@ -417,7 +444,7 @@ bool tidalFolderLoad(Platform* platform, const char* name, char* msg, int cap) {
     if (n <= 0) return snprintf(msg, cap, "%s: no .wav files", name), false;
     gListed = n;
     gIdx = gUsed = gRefused = 0;
-    gWritten = 0;
+    gWritten = gWaitedPasses = 0;
     gStartMs = platform->getTimer()->millis();
     gLogLen = 0;
     logf("== %s (s \"%s\"), %d .wav files listed\n", gFolder, gToken, n);
@@ -428,22 +455,26 @@ bool tidalFolderLoad(Platform* platform, const char* name, char* msg, int cap) {
 
 void tidalFoldersUpdate(Platform* platform) {
     if (gSt == St::Idle || !platform) return;
-    if (gSt == St::ImportWait) {  // the stock import runs as a file manager operation
-        if (newFileManager.getCurrentOperation() != fmNoOperation) return;
-        newFileManager.clearStatus();  // fmImportSamplesEnd: no sample import screen to clear it
-        gSt = St::Finish;
+    // only while the file manager is idle and the scheduler is comfortably
+    // ahead (it queries on this main loop: loading must never cost notes)
+    if (newFileManager.getCurrentOperation() != fmNoOperation) return;
+    const float ahead = tidalPlayerAheadSeconds();
+    if (ahead < kMinAheadSec) {
+        gWaitedPasses++;
         return;
     }
-    // our own SD work only while the file manager is idle
-    if (newFileManager.getCurrentOperation() != fmNoOperation) return;
-    switch (gSt) {
-        case St::Scan: stepScan(platform); break;
-        case St::Plan: stepPlan(platform); break;
-        case St::Write: stepWrite(platform); break;
-        case St::Import: stepImport(platform); break;
-        case St::Finish: stepFinish(platform); break;
-        default: break;
-    }
+    Timer* tm = platform->getTimer();
+    const uint32_t t0 = tm->micros(), budget = ahead > 100.0f ? kIdleBudgetUs : kBusyBudgetUs;
+    do {
+        switch (gSt) {
+            case St::Scan: stepScan(platform); break;
+            case St::Plan: stepPlan(platform); break;
+            case St::Write: stepWrite(platform); break;
+            case St::Save: stepSave(platform); break;
+            case St::SaveData: stepSaveData(platform); break;
+            default: return;
+        }
+    } while (gSt != St::Idle && gSt != St::Plan && gSt != St::Save && tm->micros() - t0 < budget);
 }
 
 bool tidalFoldersMessage(char* msg, int cap, bool& isError) {

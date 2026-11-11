@@ -190,6 +190,20 @@ workspace save, instrument named `<token>`), then set Slice play mode,
 the slices and save the instrument. Progress and the result show on the
 editor's message line. Files past the 48th are skipped (logged).
 
+### 7.3 Editor18 results and Editor19 changes
+
+Editor18 (docs/tidal_folders.txt): the folders loaded and played, but the
+stock WAV reader refused 10 of 26 files, and loading while 6-8 patterns
+played starved the main loop (the scheduler's queries run there; the
+stock file manager writes in 256 KB pieces, ~100 ms each): the menu
+barely opened, sitar took 38 s with audio hangs. Editor19: a forgiving
+WAV walk (core/tidal/wav_parse.h, host-tested); the files are converted
+straight into the slot's memory (placed with the stock import's helpers,
+the instrument blocked meanwhile), no cache WAV and no second import; the
+workspace copy is written in 8 KB pieces; every step waits while the
+scheduler is less than 150 ms ahead (3 ms of work per pass while playing,
+12 ms when idle).
+
 ## 8. Steps after the bench
 
 1. Loader as a file manager operation (folder -> sliced instrument in a

@@ -3,16 +3,19 @@
 // sorted by name, a slice per file), so `s "<name>:3"` plays its fourth
 // file through the mapper's slice rule (n mod slices).
 //
-// Step 1 is by hand: the editor's Sample Loader menu lists the folders and
-// starts a load. The job runs on the main loop in small steps (one chunk
-// per pass, only while the file manager is idle):
-//   scan   each file's header (refused files and why go to the log)
-//   write  the files converted to mono 16-bit 44.1 kHz into one WAV,
-//          /Tidal/.cache/<name>.wav, a short silence between files so each
-//          slice point lands before its file's first sample
-//   import the stock sample import of that WAV into the instrument slot
-//          (memory placement, workspace save, instrument named <name>)
-//   finish slices, Slice play mode, instrument struct saved
+// Step 1 is by hand: the editor's Shift+Sample Loader menu lists the
+// folders and starts a load. The job runs on the main loop in small steps,
+// only while the file manager is idle and the Tidal scheduler is at least
+// 150 ms ahead (it queries on the main loop: loading must not cost notes):
+//   scan   each file's header (a forgiving WAV parser; refused files and
+//          why go to the log)
+//   plan   layout (a short silence before each file so each slice point
+//          lands before its first sample), slot, room; the slot's memory
+//          placed as the stock import does, the instrument blocked
+//   write  each file converted to mono 16-bit 44.1 kHz straight into that
+//          memory (files already in that format copied)
+//   save   slices + Slice play mode, unblocked (playable), then its
+//          workspace file written in 8 KB pieces
 // The log of every load: /tidal_folders.txt.
 #pragma once
 #include <stdint.h>
