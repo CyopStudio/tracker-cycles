@@ -99,6 +99,12 @@ op_div_both
 op_div_right
 op_left_vals
 op_right_vals
+op_right_struct
+op_right_struct_l
+op_both_struct
+op_both_struct_l
+op_struct_mini
+op_struct_mini_l
 op_precedence
 shift_left
 shift_right

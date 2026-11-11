@@ -220,6 +220,8 @@ static const FnInfo& fnInfo(int id) {
             {"chop", Fn::Chop},         {"striate", Fn::Striate},     {"loopAt", Fn::LoopAt},
             {"splice", Fn::Splice},     {"scale", Fn::Scale},         {"arp", Fn::Arp},
             {"#", Fn::OpUnionR},        {"|>", Fn::OpUnionR},         {"|<", Fn::OpUnionL},
+            {">|", Fn::OpUnionR},       {"<|", Fn::OpUnionL},
+            {"|>|", Fn::OpUnionR},      {"|<|", Fn::OpUnionL},
             {"<~", Fn::ShiftL},         {"~>", Fn::ShiftR},
         };
         for (int id = 0; id < libCount() && id < 256; id++) {
@@ -238,15 +240,19 @@ static const FnInfo& fnInfo(int id) {
             // numeric operators: |op, |op|, op|, and Haskell + - * /
             const char* n = e.name;
             size_t len = strlen(n);
+            // the bars say where the structure comes from: |op left, op| right,
+            // |op| and bare Haskell + - * / both; # keeps the left (as |>)
+            const bool lb = n[0] == '|', rb = len > 1 && n[len - 1] == '|';
+            Side side = Side::Both;
+            if (lb && !rb) side = Side::Left;
+            if (!lb && rb) side = Side::Right;
+            if (e.assoc != Assoc::None && (fi.fn == Fn::OpUnionR || fi.fn == Fn::OpUnionL) && (lb || rb))
+                fi.side = side;
             if (e.assoc != Assoc::None && fi.fn == Fn::None) {
                 const char* core = n;
                 size_t cl = len;
-                Side side = Side::Both;
-                bool lb = n[0] == '|', rb = len > 1 && n[len - 1] == '|';
                 if (lb) core++, cl--;
                 if (rb) cl--;
-                if (lb && !rb) side = Side::Left;
-                if (!lb && rb) side = Side::Right;
                 if (cl == 1 && strchr("+-*/", core[0])) {
                     fi.fn = Fn::OpNum;
                     fi.side = side;

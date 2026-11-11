@@ -656,7 +656,12 @@ folders listed in the project (e.g. a manifest) on project load.
      PolyendTrac_TidalEditor13.ptf, not yet run): Editor::act() / gotoSlot
      drop blocks with no code whenever no menu / keyboard / edit is open
      (dN is empty again; no undo step holds them), the file renderer skips
-     them; unit check + mutation. Flash 882,260 B.
+     them; unit check + mutation. Also in Editor13 (user's ask): `>|`
+     `<|` `|>|` `|<|` (structure from the right / both; values as `|>` /
+     `|<`; golden cases from GHCi, engine matches), in the operator jog /
+     Replace list and in Screen 8's operators with patterned right sides
+     (`>| n "0 3 5 7"`, `<| s "bd*4"`, `+| ...`, `|>| ...`). Flash
+     882,780 B.
 
 ## Polyphony (planned)
 - Built (2026-11-10, tick v7, not yet run on the device): design

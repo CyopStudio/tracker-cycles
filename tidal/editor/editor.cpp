@@ -2340,6 +2340,11 @@ void Editor::openWrap(WrapMode mode) {
         for (const char* op : {"|+", "|-", "|*", "|/", "|<", "|>"})
             for (const char* rhs : {"n 12", "note 7", "speed 2", "gain 0.8", "pan 0.5", "cutoff 1000"})
                 addOp(op, rhs, true, Text(op) + " " + rhs);
+        // structure from the right (op|) or both (|op|): a patterned right side
+        for (const char* op : {">|", "<|", "+|", "|>|", "|+|"})
+            for (const char* rhs : {"n \"0 3 5 7\"", "s \"bd*4\"", "gain \"1 0.8\""})
+                if (!(op[0] == '+' || op[1] == '+') || rhs[0] != 's')  // no sums of names
+                    addOp(op, rhs, true, Text(op) + " " + rhs);
         return (void)openMenu("operators");
     }
     // Haskell lists: x -> stack [x, x] ... (the copy is selected to edit)

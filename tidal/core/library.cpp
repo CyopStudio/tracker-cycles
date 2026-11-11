@@ -134,6 +134,11 @@ static const LibEntry kLib[] = {
     OP("/|", "Frac a => Pat a -> Pat a -> Pat a", 9, Left, false),
     OP("|<", "Pat a -> Pat a -> Pat a", 9, Left, true),
     OP("|>", "Pat a -> Pat a -> Pat a", 9, Left, true),
+    // structure from the right / both (values as |< / |>)
+    OP(">|", "Pat a -> Pat a -> Pat a", 9, Left, true),
+    OP("<|", "Pat a -> Pat a -> Pat a", 9, Left, true),
+    OP("|>|", "Pat a -> Pat a -> Pat a", 9, Left, true),
+    OP("|<|", "Pat a -> Pat a -> Pat a", 9, Left, true),
     OP("<~", "Pat Time -> Pat a -> Pat a", 9, Left, true),
     OP("~>", "Pat Time -> Pat a -> Pat a", 9, Left, true),
     // Haskell arithmetic on patterns (Num (Pattern a))

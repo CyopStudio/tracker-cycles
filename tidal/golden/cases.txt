@@ -143,6 +143,12 @@ op_div_both       1  speed "4 8" |/| speed "2 4 8"
 op_div_right      1  speed "4 8" /| speed "2 4 8"
 op_left_vals      1  s "bd sd" # n 1 |< n "5 6 7"
 op_right_vals     1  s "bd sd" # n 1 |> n "5 6 7"
+op_right_struct   1  s "bd sd" # n 1 >| n "5 6 7"
+op_right_struct_l 1  s "bd sd" # n 1 <| n "5 6 7"
+op_both_struct    1  s "bd sd" # n 1 |>| n "5 6 7"
+op_both_struct_l  1  s "bd sd" # n 1 |<| n "5 6 7"
+op_struct_mini    1  n ("0 7" >| "0 3 5 7")
+op_struct_mini_l  1  n ("0 7" <| "0 3 5 7")
 op_precedence     1  0.25 <~ s "bd sd" # n 1
 shift_left        1  0.25 <~ s "bd sd hh cp"
 shift_right       2  "<0 0.25>" ~> s "bd sd"
