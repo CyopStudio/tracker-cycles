@@ -73,6 +73,9 @@ void Scheduler::init(Program* live, Event* buf, int cap, Mapper* mapper, Entry* 
     }
     memset(off_, 0, sizeof off_);
     memset(nOff_, 0, sizeof nOff_);
+    litSrc_ = nullptr;
+    litRing_ = nullptr;
+    litHead_ = litTail_ = 0;
     block_ = 0;
     hushReq_ = 0;
     hushSeen_ = 0;
@@ -311,6 +314,14 @@ bool Scheduler::queryWindow(int i, Q s, Q e) {
             if (!mapper_->map(*live_, i, ev, spc, (float)len.n / (float)len.d * spc, out)) continue;
             out.block = (uint32_t)(smp / kBlockSamples);
             out.offset = (uint8_t)(smp % kBlockSamples);
+            if (litSrc_) {  // its source steps, by its index before the sort (pad[0])
+                uint16_t* row = litSrc_ + (kSlots * kRingSize + cnt) * kLitSrc;
+                out.pad[0] = (uint8_t)cnt;
+                for (int k = 0; k < kLitSrc; k++) row[k] = 0;
+#if TC_EVENT_SRC
+                for (int k = 0; k < ev.nsrc && k < kLitSrc; k++) row[k] = ev.src[k];
+#endif
+            }
             // stable insertion sort by time (pattern order for ties)
             int p = cnt++;
             Entry tmp = out;
@@ -337,11 +348,40 @@ bool Scheduler::queryWindow(int i, Q s, Q e) {
         mapper_->commit(i, tmp_, cnt);
         uint32_t t = r.tail;
         for (int j = 0; j < cnt; j++) r.e[(t + j) & (kRingSize - 1)] = tmp_[j];
+        if (litSrc_)
+            for (int j = 0; j < cnt; j++) {
+                const uint16_t* from = litSrc_ + (kSlots * kRingSize + tmp_[j].pad[0]) * kLitSrc;
+                uint16_t* to = litSrc_ + (i * kRingSize + ((t + j) & (kRingSize - 1))) * kLitSrc;
+                for (int k = 0; k < kLitSrc; k++) to[k] = from[k];
+            }
         fence();  // entries before the new tail
         r.tail = t + cnt;
         sl.h = e;
         return true;
     }
+}
+
+int Scheduler::takeLit(LitRecord* out, int cap) {
+    if (!litRing_) return 0;
+    const uint32_t t = litTail_;
+    fence();  // records before the tail
+    uint32_t h = litHead_;
+    if (t - h > (uint32_t)kLitRing) h = t - kLitRing;  // overrun: the oldest are gone
+    int n = 0;
+    while (h != t && n < cap) out[n++] = litRing_[h++ & (kLitRing - 1)];
+    // the interrupt may have overwritten what was read meanwhile: keep only
+    // records it can't have reached (at most kLitRing behind its tail)
+    const uint32_t t2 = litTail_;
+    if (t2 - (h - (uint32_t)n) > (uint32_t)kLitRing) {
+        const int lost = (int)(t2 - (h - (uint32_t)n) - kLitRing);
+        if (lost >= n) n = 0;
+        else {
+            for (int k = 0; k + lost < n; k++) out[k] = out[k + lost];
+            n -= lost;
+        }
+    }
+    litHead_ = h;
+    return n;
 }
 
 int Scheduler::update(uint32_t (*clockUs)(), uint32_t budgetUs) {
@@ -474,6 +514,20 @@ void Scheduler::tick(Voice& v) {
             }
             const uint16_t tag = v.noteOn(i, e, (uint32_t)late);
             if (sample) starts++;
+            if (litRing_) {  // the steps it came from, for the editor
+                const uint16_t* src = litSrc_ + (i * kRingSize + (h & (kRingSize - 1))) * kLitSrc;
+                if (src[0]) {
+                    LitRecord& l = litRing_[litTail_ & (kLitRing - 1)];
+                    l.block = e.block;
+                    l.dur = e.dur;
+                    l.offset = e.offset;
+                    l.slot = (uint8_t)i;
+                    l.n = 0;
+                    for (int k = 0; k < kLitSrc && src[k]; k++) l.src[l.n++] = src[k];
+                    fence();
+                    litTail_ = litTail_ + 1;
+                }
+            }
             if (e.dur) {
                 uint64_t at = (uint64_t)e.block * kBlockSamples + e.offset + e.dur;
                 Off* slotFor = nullptr;

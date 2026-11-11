@@ -57,6 +57,12 @@ int controlKey(const char* name);  // -1 if unknown
 #endif
 #endif
 constexpr int kMaxSrc = 4;
+// The node kinds events name as their source steps, and those of the tree
+// at `root` in preorder (at most `cap`; returns how many). A block and its
+// copy (Scheduler::evaluate) list their steps in the same order, so step k
+// of one is step k of the other.
+bool isStepAtom(Kind k);
+int atomOrder(const Program& p, uint16_t root, uint16_t* out, int cap);
 
 // Events of control patterns carry a small map; others a single value.
 // A control value is a float or a string id (8 bytes per entry).

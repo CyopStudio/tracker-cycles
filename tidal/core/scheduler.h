@@ -38,7 +38,7 @@ struct Entry {
     uint8_t modId[kMaxMods];
     uint16_t modVal[kMaxMods];
     uint8_t voices;      // sample: notes the slot lets ring, this one included (1-3; `voices`, default 1)
-    uint8_t pad[1];
+    uint8_t pad[1];      // pad[0]: the scheduler's own (lit steps: index while queueing)
 };
 static_assert(sizeof(Entry) == 48, "Entry must stay 48 bytes");
 
@@ -98,6 +98,21 @@ struct SchedulerStats {
     uint32_t slotUsMax[kSlots];
 };
 
+// Lit steps (editor highlighting on the device, TC_EVENT_SRC): when an entry
+// plays, the interrupt records the live program's source steps of its event.
+constexpr int kLitSrc = 2;     // steps kept per entry
+constexpr int kLitRing = 256;  // records between two takeLit() calls
+struct LitRecord {
+    uint32_t block;   // onset block
+    uint32_t dur;     // samples (0 = plays out)
+    uint8_t offset;   // sample in the block
+    uint8_t slot;
+    uint8_t n;        // src used
+    uint8_t pad;
+    uint16_t src[kLitSrc];  // live program node ids
+};
+static_assert(sizeof(LitRecord) == 16, "LitRecord must stay 16 bytes");
+
 // Interrupt hooks (device: disable / enable IRQs; host: none).
 struct SchedulerHooks {
     void (*lock)();
@@ -144,6 +159,17 @@ public:
     bool muted(int slot) const { return (muted_ >> slot) & 1; }
     void unmuteAll() { muted_ = 0; }
     void setMonoSlots(bool on) { players_ = on ? 1 : 0; }
+    // Lit steps (optional; caller storage, may be slow memory): `src` holds
+    // kLitSrcWords, `ring` kLitRing records. Without it nothing is kept.
+    static constexpr int kLitSrcWords = (kSlots + 1) * kRingSize * kLitSrc;
+    void setLitStorage(uint16_t* src, LitRecord* ring) {
+        litSrc_ = src;
+        litRing_ = ring;
+        litHead_ = litTail_ = 0;
+    }
+    // Main loop: the records since the last call, oldest first (if more than
+    // kLitRing came, the oldest are gone). Returns how many were written.
+    int takeLit(LitRecord* out, int cap);
 
     // ---- main loop ----------------------------------------------------------
     // Evaluate block `slot` of `edit` (a checked program): copies its tree
@@ -259,6 +285,12 @@ private:
     uint8_t rr_;                  // round-robin start among sample slots
     Off off_[kSlots][kMaxPendingOffs];
     uint8_t nOff_[kSlots];        // active entries per off_ row
+
+    // lit steps (setLitStorage)
+    uint16_t* litSrc_;            // per slot ring position, then the sort buffer's row
+    LitRecord* litRing_;
+    volatile uint32_t litHead_;   // written by the main loop
+    volatile uint32_t litTail_;   // written by the interrupt
 };
 
 }  // namespace tc

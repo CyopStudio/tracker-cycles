@@ -28,7 +28,7 @@ uint32_t stmtHash(const std::string& stmt);  // FNV-1a of the trimmed text
 double steadySeconds();
 // Step nodes (the kinds the engine tags events with) of the tree at
 // `root`, in preorder.
-bool isStepAtom(tc::Kind k);
+using tc::isStepAtom;
 void atomOrder(const tc::Program& p, uint16_t root, std::vector<uint16_t>& out);
 
 class Backend {

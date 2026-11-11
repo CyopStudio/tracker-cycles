@@ -26,16 +26,10 @@ double steadySeconds() {
     return duration<double>(steady_clock::now().time_since_epoch()).count();
 }
 
-bool isStepAtom(tc::Kind k) {
-    using tc::Kind;
-    return k == Kind::MWord || k == Kind::MNum || k == Kind::MNote || k == Kind::MChord || k == Kind::MBool ||
-           k == Kind::MRange;
-}
-
 void atomOrder(const tc::Program& p, uint16_t root, std::vector<uint16_t>& out) {
-    if (!root) return;
-    if (isStepAtom(p.at(root).kind)) out.push_back(root);
-    for (uint16_t c = p.at(root).first; c; c = p.at(c).next) atomOrder(p, c, out);
+    static uint16_t buf[tc::kMaxNodes];
+    const int n = tc::atomOrder(p, root, buf, tc::kMaxNodes);
+    out.insert(out.end(), buf, buf + n);
 }
 
 void Backend::addLog(const std::string& line) {

@@ -447,6 +447,32 @@ static uintptr_t gMinSp = UINTPTR_MAX;
 #define TC_NOTE_SP()
 #endif
 uintptr_t engineMinStack() { return gMinSp; }
+
+bool isStepAtom(Kind k) {
+    return k == Kind::MWord || k == Kind::MNum || k == Kind::MNote || k == Kind::MChord || k == Kind::MBool ||
+           k == Kind::MRange;
+}
+
+static void atomWalk(const Program& p, uint16_t n, uint16_t* out, int cap, int& cnt) {
+    for (; n; n = p.at(n).next) {
+        if (isStepAtom(p.at(n).kind)) {
+            if (cnt < cap) out[cnt] = n;
+            cnt++;
+        }
+        atomWalk(p, p.at(n).first, out, cap, cnt);
+    }
+}
+
+int atomOrder(const Program& p, uint16_t root, uint16_t* out, int cap) {
+    if (!root) return 0;
+    int cnt = 0;
+    if (isStepAtom(p.at(root).kind)) {
+        if (cnt < cap) out[cnt] = root;
+        cnt++;
+    }
+    atomWalk(p, p.at(root).first, out, cap, cnt);
+    return cnt < cap ? cnt : cap;
+}
 int engineHighWater() { return gHighWater; }
 void engineResetStats() {
     gHighWater = 0;

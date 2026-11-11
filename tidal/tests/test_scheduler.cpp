@@ -714,6 +714,82 @@ void testHushAndErrors() {
 
 }  // namespace
 
+// Lit steps (device highlighting): every played entry leaves a record of
+// its event's source steps (live node ids), in play order; the ring keeps
+// the latest kLitRing when nobody takes them.
+void testLit() {
+#if TC_EVENT_SRC
+    reset();
+    static uint16_t litSrc[Scheduler::kLitSrcWords];
+    static LitRecord litRing[kLitRing];
+    memset(litSrc, 0x5A, sizeof litSrc);  // must not rely on zeroed storage
+    gS.setLitStorage(litSrc, litRing);
+    // d3's layers come out of the query out of time order (1 1 5 -> 1 5 1):
+    // the sort must carry each entry's steps along
+    if (!load("d1 $ s \"bd sd\" # n \"0 1\"\n"
+              "d2 $ s \"hh*4\"\n"
+              "d3 $ n \"[1*2, 5]\" # s \"arpy\"\n"))
+        return;
+    uint16_t root[3] = {0, 0, 0};
+    Error e;
+    SEXPECT(gS.evaluate(gEdit, 0, e, &root[0]) && gS.evaluate(gEdit, 1, e, &root[1]) &&
+                gS.evaluate(gEdit, 2, e, &root[2]),
+            "evaluate: %s", e.msg);
+    uint16_t atoms[3][16];
+    int na[3];
+    for (int s = 0; s < 3; s++) na[s] = atomOrder(gLive, root[s], atoms[s], 16);
+    SEXPECT(na[0] == 4 && na[1] == 2, "atoms: d1 %d (want 4), d2 %d (want 2: hh, 4)", na[0], na[1]);
+    auto idx = [&](int s, uint16_t node) {
+        for (int k = 0; k < na[s]; k++)
+            if (atoms[s][k] == node) return k;
+        return -1;
+    };
+    std::vector<LitRecord> got;
+    const uint32_t end = (uint32_t)(refSample(Q{6, 1}) / kBlockSamples);
+    run(end, 30, [&](uint32_t) {
+        LitRecord buf[64];
+        int n;
+        while ((n = gS.takeLit(buf, 64)) > 0) got.insert(got.end(), buf, buf + n);
+    });
+    LitRecord buf[64];
+    int n;
+    while ((n = gS.takeLit(buf, 64)) > 0) got.insert(got.end(), buf, buf + n);
+    SEXPECT(got.size() == gVoice.on.size(), "%zu lit records for %zu notes", got.size(), gVoice.on.size());
+    int bad = 0, k1 = 0;
+    std::map<int, int> noteOf;
+    for (size_t i = 0; i < got.size() && i < gVoice.on.size(); i++) {
+        const LitRecord& l = got[i];
+        const Rec& r = gVoice.on[i];
+        bool ok = l.slot == r.slot && l.block == r.block && l.offset == r.offset;
+        if (l.slot == 0) {  // bd / sd with 0 / 1, alternating
+            ok = ok && l.n == 2 && idx(0, l.src[0]) == k1 % 2 && idx(0, l.src[1]) == 2 + k1 % 2;
+            k1++;
+        } else if (l.slot == 1) {
+            ok = ok && l.n == 1 && idx(1, l.src[0]) == 0;
+        } else {  // d3: a step's number always plays the same note
+            ok = ok && l.slot == 2 && l.n >= 1 && gLive.at(l.src[0]).kind == Kind::MNum;
+            const int v = ok ? (int32_t)gLive.at(l.src[0]).a : 0;
+            if (ok && noteOf.count(v)) ok = noteOf[v] == r.note;
+            if (ok) noteOf[v] = r.note;
+        }
+        if (!ok && bad++ < 3)
+            printf("  lit %zu: slot %d block %u n %d src %d (%s %d) %d (%s %d) (note: slot %d block %u note %d)\n", i,
+                   l.slot, l.block, l.n, l.src[0], kindName(gLive.at(l.src[0]).kind), (int32_t)gLive.at(l.src[0]).a,
+                   l.src[1], kindName(gLive.at(l.src[1]).kind), (int32_t)gLive.at(l.src[1]).a, r.slot, r.block, r.note);
+    }
+    SEXPECT(bad == 0, "%d lit records don't match their notes", bad);
+    // nobody takes them: the latest kLitRing stay
+    gVoice.on.clear();
+    run((uint32_t)(refSample(Q{60, 1}) / kBlockSamples), 30);
+    got.clear();
+    while ((n = gS.takeLit(buf, 64)) > 0) got.insert(got.end(), buf, buf + n);
+    SEXPECT(gVoice.on.size() > (size_t)kLitRing, "only %zu notes for the overrun test", gVoice.on.size());
+    SEXPECT(got.size() == (size_t)kLitRing && got.back().block == gVoice.on.back().block,
+            "overrun: %zu records (want %d), last block %u (want %u)", got.size(), kLitRing,
+            got.empty() ? 0 : got.back().block, gVoice.on.empty() ? 0 : gVoice.on.back().block);
+#endif
+}
+
 void testScheduler(int& pass, int& fail) {
     gPassP = &pass;
     gFailP = &fail;
@@ -731,5 +807,6 @@ void testScheduler(int& pass, int& fail) {
     testMute();
     testIdleUpdates();
     testHushAndErrors();
+    testLit();
     printf("scheduler: %s\n", fail == f0 ? "ok" : "FAILED");
 }
