@@ -132,4 +132,12 @@ OK that worked
 
 had one crash, somehow got into a position with an isolated block that had no code and no (empty ...) message. when i evaluated it > nothing to evaluate and system hangs
 
-space and brackets works too 
+space and brackets works too
+
+
+
+*PolyendTrac_TidalEditor13
+
+changes work well
+
+change request > can we change how | is inserted - if the cursor is in a gap, options should be to wrap the neighboring values in [ | ], or add | between all values in that step. if several notes are selected, automatically wrap [] with | between

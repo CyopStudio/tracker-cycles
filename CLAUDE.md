@@ -662,6 +662,13 @@ folders listed in the project (e.g. a manifest) on project load.
      Replace list and in Screen 8's operators with patterned right sides
      (`>| n "0 3 5 7"`, `<| s "bd*4"`, `+| ...`, `|>| ...`). Flash
      882,780 B.
+     Editor13 (user): "changes work well"; asked for a new | (Screen 7).
+     Editor14 (2026-11-11, PolyendTrac_TidalEditor14.ptf, not yet run):
+     Screen 7 at a gap inside "..." offers `[a | b]` (the steps either
+     side) and `a | b | c` (| between all the sequence's steps; a `[..]`
+     group becomes `[a | b | c]` itself); a selection of 2+ steps becomes
+     `[a | b | c]` at once (no menu). One neighbour / one step: the old
+     insert items. Smoke sessions 28-29. Flash 884,868 B.
 
 ## Polyphony (planned)
 - Built (2026-11-10, tick v7, not yet run on the device): design

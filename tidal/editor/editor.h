@@ -262,6 +262,7 @@ private:
                          bool mini);
     void ensureBlock();
     void dropEmptyBlocks();
+    Text joinSteps(uint16_t seq, int pos, int n, const char* sep) const;
     void actOne(Action a);  // blocks with no code once no menu needs them (Cancel, Undo)
     void doCopy();
     void quick(int i);

@@ -1999,6 +1999,20 @@ void Editor::openMini(int k) {
     if (k < 0 || k > 4) k = 4;
     int selPos;
     const int selN = selRange(selPos);
+    if (selN > 1 && k == 4) {  // | on a selection: [a | b | c] at once (Editor13 note)
+        EditSpec sp;
+        sp.kind = EditKind::ReplaceRun;
+        sp.mini = true;
+        sp.seq = selSeq_;
+        sp.pos = selPos;
+        sp.cycles = (uint32_t)selN;
+        sp.code = "[" + joinSteps(selSeq_, selPos, selN, " | ") + "]";
+        uint16_t nn;
+        selA_ = selB_ = selSeq_ = 0;
+        if (sp.code.overflowed()) return error("selection too long");
+        if (doSpec(sp, nn)) info(sp.code);
+        return;
+    }
     if (selN > 0) {  // the selected run, wrapped as one step
         static const char* const kRunPats[5][4] = {
             {"[$]", nullptr, nullptr, nullptr},
@@ -2029,6 +2043,43 @@ void Editor::openMini(int k) {
         Label title = kMiniTitle[k];
         title += " (selection)";
         return (void)openMenu(title);
+    }
+    if (gapSeq_ && k == 4 && !listGap()) {
+        // | at a gap: the steps either side as [a | b], or | between all the
+        // sequence's steps (Editor13 note)
+        const Program& p = *prog_;
+        const int count = p.childCount(gapSeq_);
+        const uint16_t par = p.parentOf(gapSeq_);
+        const bool group = par && p.at(par).kind == Kind::MSub && p.childCount(par) == 1;  // [a b c]
+        MenuList& items = menuBuild();
+        auto run = [&](int pos, int n, const Label& label) {
+            if (!items.push_back(MenuItem{})) return;
+            MenuItem& it = items.back();
+            it.spec.kind = EditKind::ReplaceRun;
+            it.spec.mini = true;
+            it.spec.seq = gapSeq_;
+            it.spec.pos = pos;
+            it.spec.cycles = (uint32_t)n;
+            it.spec.code = "[" + joinSteps(gapSeq_, pos, n, " | ") + "]";
+            it.label = label + it.spec.code;
+            if (it.spec.code.overflowed()) items.pop_back();
+        };
+        const bool both = gapPos_ > 0 && gapPos_ < count;
+        if (both && !(count == 2 && group)) run(gapPos_ - 1, 2, "either side: ");
+        if (count >= 2) {
+            if (group) {  // the group itself becomes the choice: no [[...]]
+                if (items.push_back(MenuItem{})) {
+                    MenuItem& it = items.back();
+                    it.spec = spec(EditKind::Replace, par, "[" + joinSteps(gapSeq_, 0, count, " | ") + "]");
+                    it.spec.mini = true;
+                    it.label = "all: " + it.spec.code;
+                    if (it.spec.code.overflowed()) items.pop_back();
+                }
+            } else if (!(both && count == 2)) {
+                run(0, count, "all: ");
+            }
+        }
+        if (!items.empty()) return (void)openMenu("|");
     }
     if (gapSeq_) {
         // at a gap: insert, built from the neighbouring step
@@ -2718,6 +2769,16 @@ uint16_t Editor::selLast() const {
     int pos;
     const int n = selRange(pos);
     return n ? prog_->child(selSeq_, pos + n - 1) : 0;
+}
+
+// Steps pos .. pos+n-1 of a sequence, rendered and joined by `sep`.
+Text Editor::joinSteps(uint16_t seq, int pos, int n, const char* sep) const {
+    Text t;
+    for (int k = 0; k < n; k++) {
+        if (k) t += sep;
+        t += renderNode(*prog_, prog_->child(seq, pos + k));
+    }
+    return t;
 }
 
 Text Editor::selText() const {
