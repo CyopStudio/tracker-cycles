@@ -178,6 +178,8 @@ to upstream CE.
     Answers for D (user): Shift+Screen 1-3 = # gain 0.9 / # room 0.3 /
     # delay 0.3; tree mode: $ / # / operators selectable (Delete unwraps,
     <CR> before); cursor mode at boot; step table fine.
+    RC10 (user): A, B, C all work. PARKED until after D: highlights still
+    stop while a menu checks (feels like a crash; a slow menu is fine).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
