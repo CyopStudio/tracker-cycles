@@ -1048,6 +1048,23 @@ void Editor::toggleBreak() {
     info(on ? "line break (Shift+Screen 5 again removes it)" : "line break removed");
 }
 
+bool Editor::operatorSides(uint16_t& l, uint16_t& r) const {
+    l = r = 0;
+    if (!onOperator()) return false;
+    const Program& p = *prog_;
+    const Node& n = p.at(cursor_);
+    if (n.kind == Kind::Op) {
+        l = n.first;
+        r = l ? p.at(l).next : 0;
+    } else {  // App with $: the pattern is the last child
+        for (uint16_t c = n.first; c; c = p.at(c).next) {
+            if (!p.at(c).next) r = c;
+            else l = c;
+        }
+    }
+    return l && r;
+}
+
 // Shift+Screen 1-3 (UI v3, user's choice): `# gain 0.9`, `# room 0.3`,
 // `# delay 0.3` on the pattern around the cursor (out of a "..." string or
 // an argument until it fits); the cursor lands on the new value for the jog.
@@ -1184,6 +1201,7 @@ Label Editor::cursorInfo() const {
                         of.c_str(), cursor_ == playing_[slot_] ? " (playing)" : ""),
                s;
     }
+    if (onOperator() && n.kind == Kind::App) return "$ (Delete unwraps it, Shift+Screen 5: a line break before it)";
     Label s = kindName(n.kind);
     if (n.kind == Kind::Fn || n.kind == Kind::Op || n.kind == Kind::SectionL || n.kind == Kind::SectionR) {
         s += " ";
@@ -1539,8 +1557,9 @@ void Editor::navigate(Action a) {
         return;
     }
     // on an operator's symbol: Left / Right into the operand on that side
-    if (onOp_ && p.at(cursor_).kind == Kind::Op && (a == Action::Left || a == Action::Right)) {
-        const uint16_t l = p.at(cursor_).first, r = l ? p.at(l).next : 0;
+    if (onOperator() && (a == Action::Left || a == Action::Right)) {
+        uint16_t l, r;
+        operatorSides(l, r);
         onOp_ = false;
         if (a == Action::Right && r) flowInto(true, r);
         else if (a == Action::Left && l) flowInto(false, l);
@@ -1604,7 +1623,10 @@ bool Editor::flow(bool right, uint16_t from) {
             return true;
         }
         const uint16_t sib = right ? p.at(c).next : p.prevSibling(c);
-        if (sib && pk == Kind::Op) {  // between an operator's operands: stop on its symbol
+        // between an operator's operands, or before a `$`'s pattern: stop on the symbol
+        const bool dollarPair = pk == Kind::App && (p.at(par).flags & kDollar) &&
+                                (right ? (sib && !p.at(sib).next) : !p.at(c).next);
+        if (sib && (pk == Kind::Op || dollarPair)) {
             gapSeq_ = 0;
             cursor_ = par;
             onOp_ = true;
@@ -1814,6 +1836,7 @@ void Editor::wheel(int dir, bool fast) {
     }
     if (prog_->at(cursor_).kind == Kind::Fn) return wheelFn(dir);
     if (prog_->at(cursor_).kind == Kind::Op) return wheelOp(dir);
+    if (onOperator()) return info("$: Delete unwraps it, Shift+Screen 5 puts a line break before it");
     if (!beginEdit()) return;
     Program* p = prog_;
     Node& n = prog_->at(cursor_);
@@ -2942,6 +2965,11 @@ void Editor::openWrap(WrapMode mode) {
 // Delete inside "...": a step becomes a rest (timing stays), a rest is
 // removed, and the step pad entry just appended is removed (ends entry).
 void Editor::doDelete() {
+    if (onOperator()) {  // on `#`, `|+`, `$` ...: unwrap (UI v3 tree refinement)
+        if (!tryUnwrap()) return error("can't unwrap this");
+        onOp_ = false;
+        return;
+    }
     int selPos;
     const int selN = selRange(selPos);
     if (selN > 0) {  // remove the run (all of the steps: a rest stays)

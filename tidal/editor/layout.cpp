@@ -90,9 +90,8 @@ int layoutText(const Editor& ed, uint16_t blk, bool cps, bool cur, bool lit, int
         const int a = s.spans[ed.selFirst()].start, b = s.spans[ed.selLast()].end;
         for (int i = a; i < b && i < n; i++) s.flags[i] |= kCellSel;
     } else if (cur && !cps && ed.onOperator()) {  // just the operator's symbol, between its operands
-        const Program& pr = ed.prog();
-        const uint16_t l = pr.at(ed.cursor()).first, r = l ? pr.at(l).next : 0;
-        if (l && r)
+        uint16_t l, r;
+        if (ed.operatorSides(l, r))
             for (int i = s.spans[l].end; i < s.spans[r].start && i < n; i++)
                 if (s.text[i] != ' ' && s.text[i] != '(' && s.text[i] != ')') s.flags[i] |= kCellSel;
     } else if (cur && ed.cursor()) {

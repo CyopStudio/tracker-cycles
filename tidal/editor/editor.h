@@ -211,7 +211,15 @@ public:
     bool canSelect() const;  // the cursor (or the gap) is on a step of a "..." sequence
     // The cursor is on an operator's symbol (`#`, `|+` ...: Left / Right stop
     // there between its operands); jog / Replace change the operator.
-    bool onOperator() const { return onOp_ && cursor_ && prog_->at(cursor_).kind == Kind::Op; }
+    bool onOperator() const {
+        if (!onOp_ || !cursor_) return false;
+        const Node& n = prog_->at(cursor_);
+        return n.kind == Kind::Op || (n.kind == Kind::App && (n.flags & kDollar));
+    }
+    // The operands either side of the symbol at the cursor: an operator's two,
+    // or the last argument before `$` and the pattern after it (UI v3: `$` is
+    // selectable like `#`). False if the cursor isn't on a symbol.
+    bool operatorSides(uint16_t& l, uint16_t& r) const;
     // Several blocks per dN (v2 step 6): the block dN last evaluated (0 = none)
     uint16_t playingBlock(int s) const { return playing_[s]; }
     // Per-event highlighting: steps of playing blocks lit while their
