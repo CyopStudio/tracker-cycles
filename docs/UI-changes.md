@@ -184,3 +184,16 @@ status bar should be same colour as the screen buttons
 highlight strip is redundant. can see where the cursor is without it so get rid to keep the screen as dark as possible.
 
 I think I wasn't clear about the left/right behaviour. I want L / R to navigate up / down the tree within the block, but never to move up or down the code blocks themselves. only up/down or shift+Up/Down should
+
+PolyendTracker_Cycles_1.0.0.ptf
+
+First proper play revealed some issues
+
+when there's a few playing patterns, the menu's don't draw. They are open, and pressing the screen buttons either cancels or selects, but the menus aren't visible
+
+creating a new block with shift padN - it doesn't allow creation of a new pattern in the block with Note or Instrument. only Replace works to put new content in a block
+
+We need to refine the cursor. I left Rec free for this as I had a feeling we would need to do this. I think we need 2 modes - a normal cursor that navigates like a text editor would, and the tree navigation that we have now. Rec will toggle the two modes.
+Tree mode works like it does now (with some refinement)
+Cursor mode will act like a smart text editor. delete will erase to the right. shift delete will backspace. delete/backspace on a function will unwrap. insert will add # or wrap $ depending on position.
+I realise this is a big job at this point. I hope we can achieve this without breaking too much

@@ -120,6 +120,18 @@ class TcCodeView : public TcControl
         const tc::CodeScreen& s = *scr_;
         const int from = half ? s.n / 2 : 0, to = half ? s.n : s.n / 2;
         const int adv = advance(), lh = lineH();
+        // The frame's display list is ~8 KB and overlays are appended last
+        // (they draw on top): with several patterns playing, the highlights
+        // filled it and the menu was cut off (1.0.0 device pass). So under an
+        // open menu / keyboard nothing is drawn, highlights are left out, and
+        // backgrounds are one rect per run of cells.
+        const tc::Editor* ed = tidalEditorModel();
+        const bool menu = ed && ed->menuOpen(), kbd = ed && ed->keyboardOpen();
+        auto covered = [&](int x, int y) {
+            if (kbd) return x >= 20 && x < 780 && y >= 40 - lh && y < 370;
+            if (menu) return x >= 420 - adv && y >= 40 - lh && y < 40 + 13 * 22 + 34;
+            return false;
+        };
         API_SAVE_CONTEXT();
         API_SCISSOR_XY(0, kAreaTop);
         API_SCISSOR_SIZE(800, kAreaBottom - kAreaTop);
@@ -146,13 +158,23 @@ class TcCodeView : public TcControl
                 continue;
             }
             if (L.kind != tc::LineKind::Code && L.kind != tc::LineKind::Cps) continue;
-            for (int i = 0; i < L.n; i++) {
-                const tc::CodeCell& c = L.cell[i];
+            // backgrounds as runs: adjacent cells (same row, next column) of one colour
+            auto bgOf = [&](const tc::CodeCell& c) -> uint32_t {
+                const bool sel = c.flags & tc::kCellSel, lit = (c.flags & tc::kCellLit) && !menu && !kbd;
+                return sel ? (lit ? col::litSel : col::cursor) : lit ? col::lit : 0;
+            };
+            for (int i = 0; i < L.n;) {
+                const uint32_t bg = bgOf(L.cell[i]);
+                int j = i + 1;
+                while (bg && j < L.n && L.col[j] == L.col[j - 1] + 1 && bgOf(L.cell[j]) == bg) j++;
                 const int x = kCodeX + L.col[i] * adv;
-                const bool sel = c.flags & tc::kCellSel, lit = c.flags & tc::kCellLit;
-                if (sel) rect(x, y - 1, adv, lh, lit ? col::litSel : col::cursor);
-                else if (lit) rect(x, y - 1, adv, lh, col::lit);
-                if (c.flags & tc::kCellGap) rect(x - 2, y - 1, 3, lh, col::accent);
+                if (bg && !covered(x, y)) rect(x, y - 1, (L.col[j - 1] - L.col[i] + 1) * adv, lh, bg);
+                for (int k = i; k < j; k++)
+                    if (L.cell[k].flags & tc::kCellGap) {
+                        const int gx = kCodeX + L.col[k] * adv;
+                        if (!covered(gx, y)) rect(gx - 2, y - 1, 3, lh, col::accent);
+                    }
+                i = j;
             }
         }
         API_END();
@@ -165,7 +187,7 @@ class TcCodeView : public TcControl
         uint32_t colour = 0xFFFFFFFE;
         int tx = 0;
         auto glyph = [&](int x, int y, char ch, uint32_t c) {
-            if (ch <= ' ' || ch < first || ch > 126 || y < 0 || y > 479) return;
+            if (ch <= ' ' || ch < first || ch > 126 || y < 0 || y > 479 || covered(x, y)) return;
             if (c != colour) {
                 API_COLOR(c);
                 colour = c;

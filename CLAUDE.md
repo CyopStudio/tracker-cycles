@@ -84,6 +84,17 @@ to upstream CE.
     activeLabelsColors[1]); no current-block strip (keep the screen dark);
     Left / Right never leave the block (only Up / Down and Shift+Up / Down
     change blocks; the crossing is gone). Editor23.
+    1.0.0 device pass (user): (1) with a few patterns playing, menus
+    opened (keys worked) but didn't draw: the FT812 frame display list is
+    ~8 KB and the overlay is appended last, so per-cell highlight rects
+    pushed it out. RC2 (PolyendTrac_CyclesRC2.ptf, not yet run): the code
+    view draws backgrounds as one rect per run of cells, no highlights and
+    nothing under an open menu / keyboard. (2) Note / Instrument didn't
+    start a new block on the Shift+pad-twice placeholder: not reproduced
+    (prototype, lazy menus, pad releases all fine); waiting for the message
+    shown. (3) User wants a second, text-editor-like cursor mode on Rec
+    (Delete right, Shift+Delete left, on a function unwrap, Insert adds #
+    or wraps $ by position) next to the tree mode: design pending.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
