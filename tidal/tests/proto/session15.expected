@@ -1,8 +1,8 @@
 msg: MFast : Pat String
 msg: + sd  (gap: more pads insert more)
 msg: removed the step before the gap
-menu insert [ ]: [insert [bd bd]] [insert [bd bd bd]] [insert [bd, bd]]
-msg: insert [ ]: insert [bd bd]
+msg: [~]: pads enter into it
+msg: [~]: pads enter into it
 msg: Fn n : function
 msg: empty: Instrument, Note, Screen 1-8 or FX start a block; Up / Down leave
 msg: d9 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
@@ -12,7 +12,7 @@ setcps (120/60/4)
 d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
 
 -- hats
-d2 $ s "bd [bd bd]" # gain 0.8 # pan sine
+d2 $ s "bd [~]" # gain 0.8 # pan sine
 
 d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
 

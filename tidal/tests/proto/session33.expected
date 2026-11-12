@@ -1,4 +1,4 @@
-msg: pattern modifiers: fast 2 $ ...
+msg: functions: fast 2 $ ...
 msg: ERROR nothing to the left
 msg: !3
 msg: 3
@@ -15,7 +15,7 @@ msg: d1 silenced (Play plays it again)
 msg: # shape 0.3: jog changes it
 msg: undone
 msg: before #: Insert adds a # control here, Delete unwraps it
-msg: FX: # gain 1
+msg: effects: # gain 1
 setcps (120/60/4)
 
 -- kick and snare

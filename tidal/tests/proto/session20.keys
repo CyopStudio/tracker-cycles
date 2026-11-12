@@ -23,8 +23,7 @@ hw:down
 hw:right
 msg
 hw:s3
-menulist
-hw:s8
+msg
 msg
 hw:shift+pad2
 hw:shift+insert

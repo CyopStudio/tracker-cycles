@@ -89,7 +89,11 @@ enum class Action {
     ToggleCursorMode,                  // Rec (UI v3 D): cursor mode <-> tree mode
     Backspace,                         // Shift+Delete in cursor mode: the token to the left
     QuickShape,                        // Shift+Screen 4 (RC14): # shape 0.3
-    StepRepeat, StepWeight,            // Shift+Screen 6 / 7 (RC14): the step at the cursor as x!2 / x@2
+    StepRepeat, StepWeight,            // Shift+Screen 3 / 4 (RC19): the step at the cursor as x!2 / x@2
+    StepFast, StepSlow,                // Shift+Screen 1 / 2 (RC19): x*2 / x/2
+    StepStack,                         // Shift+Screen 5 (RC19): , a layer (chord, polyrhythm)
+    ToPattern,                         // Shift+Screen 6 (RC19): "" a number as a pattern
+    Shift7,                            // Shift+Screen 7 (RC19): <CR>, or ? on a step, .. at a gap
     UnmuteAll,                         // Pattern held + Screen 8 (RC17 notes)
 };
 const char* actionName(Action a);
@@ -267,6 +271,7 @@ public:
     // Context buttons (Screen 5..8): inside "..." brackets [ ] < > { }%4 (3,8),
     // on a pattern # <last control>, |+, |*, <~. Empty label: nothing here.
     Label quickLabel(int i) const;
+    Label shift7Label() const;  // Shift+Screen 7 by context: "?" / ".." / "<CR>"
     // Cursor mode (UI v3 D, Rec toggles; on at boot): Left / Right go token
     // by token through the block's text, Up / Down by line and column (past
     // the first / last line: the blocks around), Delete / Shift+Delete the
@@ -329,7 +334,11 @@ private:
     void cursorDelete(bool back);
     void cursorInsert();
     bool spliceGroup();
-    void stepSuffix(bool repeat);  // Shift+Screen 6 / 7: x!2 / x@2
+    void stepSuffix(char op);  // step marks: x*2 x/2 x!2 x@2 x?0.5 (Shift+Screen 1-4, 7)
+    void stepStack();          // Shift+Screen 5: , (a layer: chord / polyrhythm)
+    void toPattern();          // Shift+Screen 6: "" (a number as a pattern)
+    void shift7();             // Shift+Screen 7: <CR> / ? on a step / .. at a gap
+    uint16_t keyStep() const;  // the step the step keys act on (0: none)
     uint16_t headOf(uint16_t n) const;  // n is a function name: the application it heads (else 0)
     uint16_t controlTarget() const;     // where `# ...` goes (the top of the operator chain)
 
@@ -375,6 +384,7 @@ private:
     enum class WrapMode { All, Functions, Controls, Dollar, Modifiers, Fx, Ops };
     void openStruct(int i);   // Screen 1-8: $ # [] <> {} () | |+
     void openMini(int k);     // [] <> {} () | around the step(s)
+    void wrapMini(int k);     // [] <> {} (): at once, no menu (RC19 notes)
     void jumpControl(bool notes);  // to the block's n / s pattern (adds it if missing)
     void openWrap(WrapMode mode);
     void openNotes();

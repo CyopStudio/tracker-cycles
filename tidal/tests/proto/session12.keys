@@ -2,5 +2,5 @@ hw:shift+pad1 hw:s1 menulist cancel hw:s2 menulist cancel hw:s8 menulist cancel
 hw:fx1 menulist cancel hw:fx2 menulist cancel
 hw:s3 msg
 hw:shift+pad2 hw:down hw:down hw:down hw:right hw:down hw:down
-hw:s3 menulist pick:insert%20[hh*8%20hh*8%20hh*8] ok hw:s4 menulist cancel hw:s5 menulist cancel hw:s6 menulist pick:[hh*8%20hh*8%20hh*8](3,8) ok hw:s7 menulist cancel
+hw:s3 msg hw:s4 msg hw:s5 msg hw:s6 msg hw:s7 menulist cancel
 hw:shift+pad1 hw:s1 pick:hurry%202%20$%20... ok hw:fx2 menu:0 ok print

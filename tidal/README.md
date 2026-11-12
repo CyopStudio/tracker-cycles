@@ -158,15 +158,16 @@ The prototype starts in cursor mode; `--mode tree` starts in tree mode
 | → at a block's top | into the block's expression | | → |
 | Jog wheel | change value (number, note, sample, function) | move | wheel, `+` `-`, PgUp/PgDn |
 | Shift + jog | bigger step (×10, octave, sample `:n`) | ±8 items | Shift + wheel |
-| Shift + Screen 1–4 | `# gain 0.9`, `# room 0.3`, `# delay 0.3`, `# shape 0.3` at the end of the pattern's `#` chain; the cursor on the new value | | F1–F4 |
-| Shift + Screen 5 | `<CR>`: a line break before the argument at the cursor, or before the operator / `$` it belongs to (again: removed); kept in the file, statements for GHCi stay on one line | | F5 |
-| Shift + Screen 6 | inside `"..."`: the step repeated, `bd!2` (again: `!3` …); the jog changes the count | | F6 |
-| Shift + Screen 7 | inside `"..."`: the step held longer, `bd@2`; the cursor on the number | | F7 |
-| Shift + Screen 8 | Undo | | F8 / `z` |
+| Shift + Screen 1–4 | step marks inside `"..."` (on a step, or the step before a gap): `*2`, `/2`, `!2`, `@2`; pressed again on such a step `*` `/` `!` count one more, `@` goes to its number; the cursor on the number for the jog (RC19 notes; `qgain` … `qshape` keep the old quick controls as actions) | | F1–F4 |
+| Shift + Screen 5 | `,` another layer: in `[ ]` / `< >` / `{ }` a new layer with a copy of the step (`{ }%n` loses its `%n`: a polyrhythm), on a plain step a chord `[x, x]`; `# voices` follows | | F5 |
+| Shift + Screen 6 | `""`: a plain number becomes a pattern (`n 0` → `n "0"`, `fast 2` → `fast "2"`); the cursor on its step | | F6 |
+| Shift + Screen 7 | by context (its label shows which): on a step `?` (`x?0.5`, the cursor on the chance), at a gap between two numbers `..` (`0 7` → `0 .. 7`), elsewhere `<CR>`: a line break before the argument at the cursor, or before the operator / `$` it belongs to (again: removed; kept in the file, statements for GHCi stay on one line) | | F7 |
+| Shift + Screen 8 | Ctrl+Z (undo) | | F8 / `z` |
 | Screen 1 `$` | menu: functions applied with `$` (`fast 2 $ …`, `every 4 rev $ …`); from inside `"..."` on the enclosing pattern | | |
 | Screen 2 `#` | menu: `# control` (all) | | |
-| Screen 3–7 inside `"..."` | menus around the step(s): `[ ]` (group, `[x x]`, `[x x x]`, `[x, x]`), `< >` (`<x>`, `<x ~>`, `<x x>`), `{ }` (`{x}%4` …), `( , )` Euclid (`(3,8)`, `(5,8)`, `(3,8,2)`, `(<3 5>,8)`), `\|` random choice (`[x \| ~]` …) | | |
-| Screen 8 `\|+` | menu: `\|+ \|- \|* \|/ \|< \|>` with `n 12`, `note 7`, `speed 2`, `gain 0.8`, `pan 0.5`, `cutoff 1000` | | |
+| Screen 3–6 | at once, no menu (RC19 notes): the step / selection / the quotes' sequence / a plain number becomes `[x]`, `<x>`, `{x}%4`, `x(3,8)` (the cursor inside, on the euclid's 3); at a gap a new `[~]`, `<~>`, `{~}%4`, `~(3,8)` with the cursor on its `~`, so pads enter into it | | |
+| Screen 7 `\|` inside `"..."` | menu: `[x \| ~]` …, at a gap `[a \| b]` / `a \| b \| c`, a selection `[a \| b \| c]` at once | | |
+| Screen 8 `\|+` | operators: on an operator's symbol or its right side (the control Screen 2 just added) every operator that fits in its place (`# gain 1` → `\|* gain 1`); elsewhere the menu that adds an operator with a control (on a number pattern also in front: `"0,7,10" +\| x`) | | |
 | Screen 8 | | OK | Enter / F8 |
 | Pattern (held) + pad N | mute / unmute dN (keeps its timing, Tidal's `mute`); several pads in one hold are fine | OK | hold Space + digit |
 | Shift + Pattern + pad N | solo dN (everything else muted); again = unmute all | | |
@@ -183,8 +184,8 @@ The prototype starts in cursor mode; `--mode tree` starts in tree mode
 | Shift + Note | chord menu on the note at the cursor (in a gap: the step before it): `e'maj`, `e'min`, `'maj7`, `'dom7`, `'min7`, `'dim`, `'dim7`, `'aug`, `'sus2`, `'sus4`, `'six`, `'five`, root as a note name (Tidal: c5 = 0); on a chord also "single note"; not on a range's end. Adds `# voices 3` to a sample block without `voices` | | |
 | Pads held together | a chord: a pad entered while another entry pad is still held turns the step before the gap into a stack, `"[0,4,7]"` / `"[bd,sd]"` (up to 8); the first chord on a sample block without `voices` adds `# voices 3` (MIDI blocks play chords anyway). Not on a range or group the entry just ended | | Ctrl+click pads, then a plain click on the last |
 | Instrument | jump to the block's `s` / `sound` pattern, first step (adds `# s "bd"` if there is none): pads then pick instruments; not on MIDI blocks | | `s` |
-| FX1 | pattern modifiers menu: time, structure, randomness, layering, sample cutting (`fast`, `every`, `jux`, `chop` …) applied with `$` | | `f` |
-| FX2 | sound FX menu: `# cutoff`, `# room`, `# delay`, `# crush`, `# shape`, `# pan`, `# gain`, envelopes; from inside `"..."` on the enclosing pattern | | `c` |
+| FX1 | functions menu: time, structure, randomness, layering, sample cutting (`fast`, `every`, `jux`, `chop` …) applied with `$` | | `f` |
+| FX2 | effects menu (sound controls): `# cutoff`, `# room`, `# delay`, `# crush`, `# shape`, `# pan`, `# gain`, envelopes; from inside `"..."` on the enclosing pattern | | `c` |
 | Play | evaluate current block (RC14: Play and Pattern swapped) | OK | `e` |
 | Shift + Play | silence the current dN (`dN silence`; the code stays, Play plays it again) | | |
 | Shift + Master | device: the status view (cps, audio load, voices, stack, each block's state; also written to `/tidal_status.txt`) | | |

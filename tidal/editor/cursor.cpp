@@ -14,6 +14,10 @@
 namespace tc {
 
 uint16_t stepOf(const Program& p, uint16_t n);  // editor.cpp
+static uint16_t leafOf(const Program& p, uint16_t n) {
+    while (n && p.at(n).first) n = p.at(n).first;
+    return n;
+}
 
 void Editor::setCursorMode(bool on) {
     cursorMode_ = on;
@@ -439,40 +443,50 @@ void Editor::cursorInsert() {
     openWrap(WrapMode::Fx);
 }
 
-// Shift+Screen 6 / 7 (RC14 user): the step at the cursor (or before the
-// gap) repeated (`bd!2`: two steps of bd) or held longer (`bd@2`: twice the
-// time); again on a `!` step adds one; the cursor lands where the jog
-// changes the count (both modes).
-void Editor::stepSuffix(bool repeat) {
+// Step marks (RC14 / RC19 notes, Shift+Screen 1-4, 7): the step at the
+// cursor (or before the gap) as x*2 / x/2 / x!2 / x@2 / x?0.5. Again on
+// such a step: * / / / ! count one more; @ / ? go to their number. The
+// cursor lands where the jog changes the number (both modes).
+void Editor::stepSuffix(char op) {
     const Program& p = *prog_;
-    uint16_t step = 0;
-    if (gapSeq_ && !listGap()) {
-        step = p.child(gapSeq_, gapPos_ > 0 ? gapPos_ - 1 : 0);  // the step before (at the start: after)
-    } else if (cursor_ && isMiniKind(p.at(cursor_).kind) && p.at(cursor_).kind != Kind::MSeq) {
-        step = stepOf(p, cursor_);
-    }
+    const uint16_t step = keyStep();
     const uint16_t seq = step ? p.parentOf(step) : 0;
-    if (!seq || p.at(seq).kind != Kind::MSeq)
-        return error(repeat ? "! goes on a step inside \"...\"" : "@ goes on a step inside \"...\"");
+    Text mark = Text(&op, 1);
+    if (!step) return error(mark + " goes on a step inside \"...\"");
     const Node& st = p.at(step);
-    if (repeat && st.kind == Kind::MReplicate && !(st.flags & kBare)) {
-        if ((int)st.a >= kMaxSeqSteps) return error("! counts go up to 64");
-        if (!beginEdit()) return;
-        prog_->at(step).a++;
+    const Kind want = op == '!' ? Kind::MReplicate : op == '@' ? Kind::MWeight : op == '*' ? Kind::MFast
+                    : op == '/' ? Kind::MSlow : Kind::MDegrade;
+    const uint16_t arg = st.first ? p.at(st.first).next : 0;  // the mark's number (not for !)
+    if (st.kind == want) {
         gapSeq_ = 0;
-        Label m;
-        if (endEdit(step)) info(m.printf("!%u (jog changes it)", (unsigned)prog_->at(step).a));
-        return;
-    }
-    if (!repeat && st.kind == Kind::MWeight && !(st.flags & kUnderscore) && p.at(st.first).next) {
-        gapSeq_ = 0;
-        cursor_ = p.at(st.first).next;
-        return info("@: jog changes it");
+        if (op == '!' && !(st.flags & kBare)) {
+            if ((int)st.a >= kMaxSeqSteps) return error("! counts go up to 64");
+            if (!beginEdit()) return;
+            prog_->at(step).a++;
+            Label m;
+            if (endEdit(step)) info(m.printf("!%u (jog changes it)", (unsigned)prog_->at(step).a));
+            return;
+        }
+        const uint16_t num = arg ? leafOf(p, arg) : 0;
+        if ((op == '*' || op == '/') && num && p.at(num).kind == Kind::MNum) {  // one more
+            if (!beginEdit()) return;
+            Node& nd = prog_->at(num);
+            const Rational r = nodeRational(nd);
+            if (r.den != 1) return abortEdit(), (void)(cursor_ = num), info(mark + ": jog changes it");
+            setNodeRational(nd, makeRational((int64_t)r.num + 1, 1), 0);
+            Label m;
+            if (endEdit(num)) info(m.printf("%c%d (jog changes it)", op, (int)r.num + 1));
+            return;
+        }
+        if (num && (op == '@' || op == '?' || op == '*' || op == '/')) {
+            cursor_ = num;
+            return info(mark + ": jog changes it");
+        }
     }
     int idx = 0;
     for (uint16_t c = p.at(seq).first; c && c != step; c = p.at(c).next) idx++;
     Text code = joinSteps(seq, idx, 1, " ");
-    code += repeat ? "!2" : "@2";
+    code += op == '?' ? "?0.5" : mark + "2";
     if (code.overflowed()) return error("step too long");
     gapSeq_ = 0;
     const uint16_t was = cursor_;
@@ -484,9 +498,9 @@ void Editor::stepSuffix(bool repeat) {
         return error(code + " doesn't fit here");
     }
     const Node& r = prog_->at(nn);
-    if (!repeat && r.kind == Kind::MWeight && prog_->at(r.first).next) cursor_ = prog_->at(r.first).next;
+    if (op != '!' && r.first && prog_->at(r.first).next) cursor_ = leafOf(*prog_, prog_->at(r.first).next);
     else cursor_ = nn;
-    info(code + ": jog changes the count");
+    info(code + ": jog changes the number");
 }
 
 bool Editor::cursorBarChar(int& at) const {
@@ -517,6 +531,118 @@ bool Editor::cursorTokenChars(int& a, int& b, int& pa, int& pb) const {
         pb = toks_[best].end;
     }
     return true;
+}
+
+// The step the step keys act on: at the cursor (its whole step: `bd` of
+// bd*2), or the one before the gap (at the start: after it); 0 if none.
+uint16_t Editor::keyStep() const {
+    const Program& p = *prog_;
+    uint16_t step = 0;
+    if (gapSeq_ && !listGap()) step = p.child(gapSeq_, gapPos_ > 0 ? gapPos_ - 1 : 0);
+    else if (cursor_ && isMiniKind(p.at(cursor_).kind) && p.at(cursor_).kind != Kind::MSeq) step = stepOf(p, cursor_);
+    uint16_t seq = step ? p.parentOf(step) : 0;
+    // inside a mark's number (the 2 of bd*2): the marked step itself
+    for (uint16_t mod = seq ? p.parentOf(seq) : 0; mod && isMiniModifier(p.at(mod).kind) && p.at(mod).first != seq;
+         mod = seq ? p.parentOf(seq) : 0) {
+        step = stepOf(p, mod);
+        seq = p.parentOf(step);
+    }
+    return seq && p.at(seq).kind == Kind::MSeq ? step : 0;
+}
+
+// Shift+Screen 5 `,` (RC19 notes): another layer. In a group ([..] <..>
+// {..}): a new layer holding a copy of the step (in {..}%n the %n goes: the
+// first layer sets the steps, a polyrhythm); a plain step: a chord with a
+// copy, [x, x]. The cursor on the copy (pads / jog change it).
+void Editor::stepStack() {
+    const uint16_t step = keyStep();
+    if (!step) return error(", goes on a step inside \"...\"");
+    const Program& p = *prog_;
+    const uint16_t seq = p.parentOf(step), grp = p.parentOf(seq);
+    const Kind gk = grp ? p.at(grp).kind : Kind::None;
+    gapSeq_ = 0;
+    if (gk == Kind::MSub || gk == Kind::MAlt || gk == Kind::MPoly) {
+        if (!beginEdit()) return;
+        Program* q = prog_;
+        const uint16_t c = q->copyTree(*q, step), lay = c ? q->alloc(Kind::MSeq) : 0;
+        if (!lay) return abortEdit(), error("out of nodes");
+        q->appendChild(lay, c);
+        bool poly = false;
+        if (gk == Kind::MPoly && (q->at(grp).flags & kHasSteps)) {  // drop the %n
+            uint16_t last = q->at(grp).first, prev = 0;
+            while (q->at(last).next) prev = last, last = q->at(last).next;
+            if (prev) q->at(prev).next = 0;
+            else q->at(grp).first = 0;
+            q->freeTree(last);
+            q->at(grp).flags &= (uint16_t)~kHasSteps;
+            poly = true;
+        }
+        q->appendChild(grp, lay);
+        if (endEdit(c))
+            info(poly ? ", a new layer (the %n went: the first layer sets the steps)" : ", a new layer: pads / jog change it");
+        return;
+    }
+    int idx = 0;
+    for (uint16_t c = p.at(seq).first; c && c != step; c = p.at(c).next) idx++;
+    const Text t = joinSteps(seq, idx, 1, " ");
+    const Text code = "[" + t + ", " + t + "]";
+    if (code.overflowed()) return error("step too long");
+    cursor_ = step;
+    uint16_t nn;
+    EditSpec sp;
+    if (!tryReplace(code, true, nn, &sp) || !doSpec(sp, nn)) return error(code + " doesn't fit here");
+    // the second layer's step
+    uint16_t lay2 = prog_->at(nn).first ? prog_->at(prog_->at(nn).first).next : 0;
+    cursor_ = lay2 ? leafOf(*prog_, lay2) : nn;
+    info(code + ": a chord, pads / jog change the copy");
+}
+
+// Shift+Screen 6 `""` (RC19 notes): a plain number (`n 0`, `fast 2`) as a
+// pattern, `n "0"`, so steps can be added; the cursor on its step.
+void Editor::toPattern() {
+    if (!cursor_ || cps_) return error("\"\": on a number");
+    const Kind k = prog_->at(cursor_).kind;
+    if (isMiniKind(k) || k == Kind::Mini || gapSeq_) return error("\"\": already a pattern");
+    if (k != Kind::Num) return error("\"\": on a number (it becomes \"...\")");
+    Text t = renderNode(*prog_, cursor_);
+    if (t.size() > 2 && t[0] == '(' && t.back() == ')') t = t.substr(1, t.size() - 2);  // (-1)
+    if (t.find('/') != Text::npos) return error("a fraction can't go inside \"...\"; jog it first");
+    uint16_t nn;
+    EditSpec sp;
+    if (!tryReplace("\"" + t + "\"", false, nn, &sp) || !doSpec(sp, nn)) return error("\"" + t + "\" doesn't fit here");
+    cursor_ = leafOf(*prog_, nn);
+    info("\"" + t + "\": pads add steps after it");
+}
+
+// Shift+Screen 7 (RC19 notes): on a step `?` (maybe), at a gap between two
+// numbers `..` (a range), elsewhere <CR> (a line break).
+Label Editor::shift7Label() const {
+    if (gapSeq_ && !listGap()) return "..";
+    if (!gapSeq_ && cursor_ && keyStep()) return "?";
+    return "<CR>";
+}
+
+void Editor::shift7() {
+    if (gapSeq_ && !listGap()) {
+        const Program& p = *prog_;
+        const int count = p.childCount(gapSeq_);
+        const uint16_t a = gapPos_ > 0 ? p.child(gapSeq_, gapPos_ - 1) : 0, b = gapPos_ < count ? p.child(gapSeq_, gapPos_) : 0;
+        if (!a || !b || p.at(a).kind != Kind::MNum || p.at(b).kind != Kind::MNum)
+            return error("..: at a gap between two numbers (0 7 -> 0 .. 7)");
+        EditSpec sp;
+        sp.kind = EditKind::ReplaceRun;
+        sp.mini = true;
+        sp.seq = gapSeq_;
+        sp.pos = gapPos_ - 1;
+        sp.cycles = 2;
+        sp.code = joinSteps(gapSeq_, gapPos_ - 1, 2, " .. ");
+        uint16_t nn;
+        if (!doSpec(sp, nn)) return error(sp.code + " doesn't fit here");
+        cursor_ = nn;
+        return info(sp.code);
+    }
+    if (cursor_ && keyStep()) return stepSuffix('?');
+    toggleBreak();
 }
 
 }  // namespace tc

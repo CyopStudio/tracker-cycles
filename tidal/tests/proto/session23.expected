@@ -4,35 +4,35 @@ msg: Fn fast : function
 msg: Num : Pat Time
 msg: $ (Delete unwraps it, Shift+Screen 5: a line break before it)
 msg: Fn s : function
-msg: gap 0 of 4: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 0 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: MFast : Pat String
-msg: gap 1 of 4: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 1 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: MSub : Pat String
-msg: gap 2 of 4: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 2 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: MWord : Pat String
-msg: gap 3 of 4: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 3 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: MWord : Pat String
-msg: gap 4 of 4: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 4 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: Op # : ControlPattern
 msg: Fn gain : function
 msg: Num : Pat Double
 msg: Fn gain : function
 msg: Op # : ControlPattern
-msg: gap 4 of 4: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 4 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: MWord : Pat String
-msg: gap 3 of 4: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 3 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: MWord : Pat String
-msg: gap 2 of 4: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 2 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: MSub : Pat String
-msg: gap 1 of 4: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 1 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: MFast : Pat String
-msg: gap 0 of 4: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 0 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: Fn s : function
 msg: $ (Delete unwraps it, Shift+Screen 5: a line break before it)
 msg: Num : Pat Time
 msg: Fn fast : function
 msg: Num : Pat Int
 msg: Fn every : function
-msg: gap 1 of 4: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 1 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: MSub : Pat String
-msg: gap 2 of 4: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 2 of 4: pads / Screen 3-6 insert, Delete removes the step before

@@ -6,8 +6,8 @@ msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Play sends it)
 msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Play sends it)
 msg: d1 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
 msg: Num : Pat Int
-menu [ ] (number -> pattern): ["[4 4]"] ["[4 4 4]"] ["[4, 4]"]
-msg: [ ] (number -> pattern): "[4 4]"
+msg: "[4]"
+msg: "[4]"
 msg: Fn rev : function
 msg: replace function: fast 2
 msg: replace function: (# room 0.3)
@@ -17,7 +17,7 @@ menu replace function: [(|+ cutoff 1000)] [(|- cutoff 1000)] [(|* cutoff 1000)] 
 setcps (121/60/5)
 
 -- kick and snare
-d1 $ every "[4 4]" (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+d1 $ every "[4]" (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
 
 -- hats
 d2 $ often (# room 0.3) $ s "hh*8" # gain 0.8 # pan sine

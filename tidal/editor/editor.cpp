@@ -44,6 +44,8 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"kbdclear", Action::KbdClear}, {"cursormode", Action::ToggleCursorMode},
     {"backspace", Action::Backspace}, {"qshape", Action::QuickShape},
     {"repeat", Action::StepRepeat}, {"weight", Action::StepWeight}, {"unmuteall", Action::UnmuteAll},
+    {"fastmark", Action::StepFast}, {"slowmark", Action::StepSlow}, {"stack", Action::StepStack},
+    {"topattern", Action::ToPattern}, {"shift7", Action::Shift7},
 };
 
 const char* actionName(Action a) {
@@ -296,9 +298,9 @@ static int voicesNeeded(const Program& p, uint16_t n) {
         } else if (nameIn(f, {"stack", "layer"})) {
             factor = layersOf(p, a0);
         }
-    } else if (x.kind == Kind::MSub || x.kind == Kind::MAlt) {
-        factor = x.kind == Kind::MSub ? p.childCount(n) : 1;  // [a, b]: layers at once (<a, b> too)
-        if (x.kind == Kind::MAlt && p.childCount(n) > 1) factor = p.childCount(n);
+    } else if (x.kind == Kind::MSub || x.kind == Kind::MAlt || x.kind == Kind::MPoly) {
+        // [a, b] <a, b> {a b, c}: layers at once ({..}%n: its last child is the %n)
+        factor = p.childCount(n) - (x.kind == Kind::MPoly && (x.flags & kHasSteps) ? 1 : 0);
     } else if (x.kind == Kind::MChord) {
         factor = 3;
     }
@@ -1284,11 +1286,11 @@ Label Editor::cursorInfo() const {
         const int count = prog_->childCount(gapSeq_);
         Label m;
         if (cursorMode_)
-            return m.printf("gap %d of %d: pads / Screen 3-7 / Insert add a step; Delete: the step after, "
+            return m.printf("gap %d of %d: pads / Screen 3-6 / Insert add a step; Delete: the step after, "
                             "Shift+Delete: the one before",
                             gapPos_, count),
                    m;
-        return m.printf("gap %d of %d: pads / Screen 3-7 insert, Delete removes the step before", gapPos_, count), m;
+        return m.printf("gap %d of %d: pads / Screen 3-6 insert, Delete removes the step before", gapPos_, count), m;
     }
     if (!cursor_)
         return "empty: Instrument, Note, Screen 1-8 or FX start a block; Up / Down leave";
@@ -1421,7 +1423,8 @@ void Editor::actOne(Action a) {
             case Action::Struct8: case Action::MenuModifiers: case Action::MenuFx:
             case Action::PlayCancel: case Action::UnmuteAll: case Action::Evaluate: case Action::Hush: case Action::MenuChords:
             case Action::SilenceSlot: case Action::Backspace: case Action::ToggleCursorMode:
-            case Action::StepRepeat: case Action::StepWeight:
+            case Action::StepRepeat: case Action::StepWeight: case Action::StepFast: case Action::StepSlow:
+            case Action::StepStack: case Action::Shift7:
                 break;
             case Action::Insert:  // cursor mode: a step into the gap
                 if (!cursorMode_) leaveGap();
@@ -1505,8 +1508,13 @@ void Editor::actOne(Action a) {
         case Action::QuickRoom: quickControl("room 0.3"); break;
         case Action::QuickDelay: quickControl("delay 0.3"); break;
         case Action::QuickShape: quickControl("shape 0.3"); break;
-        case Action::StepRepeat: stepSuffix(true); break;
-        case Action::StepWeight: stepSuffix(false); break;
+        case Action::StepRepeat: stepSuffix('!'); break;
+        case Action::StepWeight: stepSuffix('@'); break;
+        case Action::StepFast: stepSuffix('*'); break;
+        case Action::StepSlow: stepSuffix('/'); break;
+        case Action::StepStack: stepStack(); break;
+        case Action::ToPattern: toPattern(); break;
+        case Action::Shift7: shift7(); break;
         case Action::Struct1:
         case Action::Struct2:
         case Action::Struct3:
@@ -2645,7 +2653,32 @@ void Editor::openStruct(int i) {
     switch (i) {
         case 0: return openWrap(WrapMode::Dollar);
         case 1: return openWrap(WrapMode::Controls);
-        case 7: return openWrap(WrapMode::Ops);
+        case 7: {
+            // RC19 notes: add a control with Screen 2, then change its
+            // operator here: the nearest operator around the cursor (or the
+            // one whose symbol it is on) and every operator that fits there
+            // ... on the operator's symbol or its right side (where Screen 2
+            // leaves the cursor); on a left side the menu that adds one stays
+            uint16_t o = 0;
+            if (onOperator() && prog_->at(cursor_).kind == Kind::Op) {
+                o = cursor_;
+            } else {
+                uint16_t c = gapSeq_ ? gapSeq_ : cursor_;
+                for (uint16_t up = c ? prog_->parentOf(c) : 0; up && prog_->at(up).kind != Kind::Block;
+                     c = up, up = prog_->parentOf(up)) {
+                    if (prog_->at(up).kind != Kind::Op) continue;
+                    if (prog_->at(up).first != c) o = up;  // the right side
+                    break;
+                }
+            }
+            if (!cps_ && o) {
+                gapSeq_ = 0;
+                cursor_ = o;
+                onOp_ = true;
+                return openOps();
+            }
+            return openWrap(WrapMode::Ops);  // no operator yet: add one (with a control)
+        }
         default: return openMini(i - 2);
     }
 }
@@ -2691,8 +2724,104 @@ static const char* const kMiniTitle[5] = {"[ ]", "< >", "{ }", "( , )", "|"};
 
 // [] <> {} () | around the step(s) at the cursor (inside "..."); the first
 // item of each is what the old one-touch buttons did.
+// Screen 3-6 (RC19 notes): no menu, the bracket goes on at once: a step /
+// selection / the quotes' sequence / a plain number becomes [x] <x> {x}%4
+// x(3,8); at a gap a new [~] <~> {~}%4 ~(3,8) with the cursor on its ~ so
+// pads enter into it. The cursor lands inside (euclid: on its 3).
+static uint16_t firstLeaf(const Program& p, uint16_t n) {
+    while (n && p.at(n).first) n = p.at(n).first;
+    return n;
+}
+
+void Editor::wrapMini(int k) {
+    static const char* const kWrap[4] = {"[$]", "<$>", "{$}%4", "@(3,8)"};
+    static const char* const kNumWrap[4] = {"[$]", "<$>", "{$}%4", "$(3,8)"};
+    static const char* const kGap[4] = {"[~]", "<~>", "{~}%4", "~(3,8)"};
+    Label what = kMiniTitle[k];
+    // where the cursor lands in what was made: brackets: the first step, euclid: k
+    auto land = [&](uint16_t made) {
+        const Program& p = *prog_;
+        uint16_t c = made;
+        while (c && p.at(c).kind == Kind::MSeq && p.at(c).first && !p.at(p.at(c).first).next) c = p.at(c).first;
+        if (c && p.at(c).kind == Kind::MEuclid && p.at(c).first && p.at(p.at(c).first).next)
+            return firstLeaf(p, p.at(p.at(c).first).next);
+        return firstLeaf(p, c);
+    };
+    int selPos;
+    const int selN = selRange(selPos);
+    if (selN > 0) {
+        EditSpec sp;
+        sp.kind = EditKind::ReplaceRun;
+        sp.mini = true;
+        sp.seq = selSeq_;
+        sp.pos = selPos;
+        sp.cycles = (uint32_t)selN;
+        const Text t = selText();
+        if (!fillPattern(sp.code, kWrap[k], t, "[" + t + "]", false)) return error("selection too long");
+        selA_ = selB_ = selSeq_ = 0;
+        uint16_t nn;
+        if (!doSpec(sp, nn)) return error(sp.code + " doesn't fit here");
+        cursor_ = land(nn);
+        return info(sp.code);
+    }
+    if (gapSeq_) {
+        if (listGap()) return error(what + ": inside \"...\" only");
+        EditSpec sp;
+        sp.kind = EditKind::InsertGap;
+        sp.seq = gapSeq_;
+        sp.pos = gapPos_;
+        sp.code = kGap[k];
+        uint16_t nn;
+        if (!doSpec(sp, nn)) return error(Text("can't insert ") + kGap[k] + " here");
+        gapSeq_ = 0;
+        cursor_ = firstLeaf(*prog_, nn);  // its ~: the next pad replaces it
+        return info(Text(kGap[k]) + ": pads enter into it");
+    }
+    if (!cursor_) return error("select a step inside \"...\" first");
+    Kind kind = prog_->at(cursor_).kind;
+    const uint16_t oldCursor = cursor_;
+    if (kind == Kind::Mini) {  // on the quotes: the whole sequence inside them
+        cursor_ = prog_->at(cursor_).first;
+        kind = cursor_ ? prog_->at(cursor_).kind : Kind::None;
+    } else if (isMiniKind(kind) && kind != Kind::MSeq) {
+        cursor_ = stepOf(*prog_, cursor_);  // `bd` of bd*2: the whole step
+        kind = prog_->at(cursor_).kind;
+    }
+    const bool num = kind == Kind::Num;
+    if (!num && !isMiniKind(kind)) {
+        cursor_ = oldCursor;
+        return error(what + ": on a step inside \"...\" or a number");
+    }
+    Text t = renderNode(*prog_, cursor_);
+    if (num) {
+        if (t.size() > 2 && t[0] == '(' && t.back() == ')') t = t.substr(1, t.size() - 2);  // (-1)
+        if (t.find('/') != Text::npos) {
+            cursor_ = oldCursor;
+            return error("a fraction can't go inside \"...\"; jog it first");
+        }
+    }
+    const bool multi = kind == Kind::MSeq && prog_->at(cursor_).first && prog_->at(prog_->at(cursor_).first).next;
+    EditSpec sp;
+    sp.kind = EditKind::Replace;
+    sp.mini = !num;
+    sp.target = cursor_;
+    if (!fillPattern(sp.code, num ? kNumWrap[k] : kWrap[k], t, multi ? "[" + t + "]" : t, num)) {
+        cursor_ = oldCursor;
+        return error("too long");
+    }
+    uint16_t nn;
+    if (!doSpec(sp, nn)) {
+        cursor_ = oldCursor;
+        return error(sp.code + " doesn't fit here");
+    }
+    // a number became "...": into its sequence; a step: into the new bracket
+    cursor_ = land(prog_->at(nn).kind == Kind::Mini ? prog_->at(nn).first : nn);
+    info(sp.code);
+}
+
 void Editor::openMini(int k) {
     if (k < 0 || k > 4) k = 4;
+    if (k < 4) return wrapMini(k);
     int selPos;
     const int selN = selRange(selPos);
     if (selN > 1 && k == 4) {  // | on a selection: [a | b | c] at once (Editor13 note)
@@ -2891,7 +3020,7 @@ void Editor::openOps() {
         it.spec.launch = id;
         it.label = lib(id).name;
     }
-    (void)openMenu("operator");
+    (void)openMenu("operators");
 }
 
 void Editor::openReplace() {
@@ -3107,7 +3236,7 @@ void Editor::openWrap(WrapMode mode) {
             addOp("#", rhs, true, "# " + rhs);
         }
         sortMenu(items);
-        return (void)openMenu("FX");
+        return (void)openMenu("effects");
     }
     if (mode == WrapMode::Ops) {  // |+ |- |* |/ |< |> with a control
         if (numMini) {
@@ -3167,7 +3296,7 @@ void Editor::openWrap(WrapMode mode) {
         }
         addLists();  // last, so the menu's other items keep their places
         sortMenu(items);
-        return (void)openMenu(mode == WrapMode::Dollar ? "$ functions" : "pattern modifiers");
+        return (void)openMenu("functions");
     }
     if (controlsOnly) addControls();
     if (!controlsOnly) {
@@ -3189,7 +3318,7 @@ void Editor::openWrap(WrapMode mode) {
         if (mode == WrapMode::All) addLists();
     }
     sortMenu(items);
-    openMenu(controlsOnly ? "add control" : mode == WrapMode::Functions ? "functions" : "wrap");
+    openMenu(controlsOnly ? "controls" : mode == WrapMode::Functions ? "functions" : "wrap");
 }
 
 // Delete inside "...": a step becomes a rest (timing stays), a rest is

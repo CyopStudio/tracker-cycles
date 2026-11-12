@@ -1,4 +1,4 @@
-msg: gap 1 of 2: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 1 of 2: pads / Screen 3-6 insert, Delete removes the step before
 menu: (closed)
 msg: |: all: [~ | sd]
 setcps (120/60/4)

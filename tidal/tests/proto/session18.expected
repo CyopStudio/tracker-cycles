@@ -1,4 +1,4 @@
-msg: pattern modifiers: stack [x, x]  (+ # voices 2: overlapping notes)
+msg: functions: stack [x, x]  (+ # voices 2: overlapping notes)
 msg: list gap 2 of 2: Insert copies an element in, Paste / Replace insert, Delete removes the one before
 msg: inserted a copy into the list  (+ # voices 3: overlapping notes)
 msg: list gap 2 of 3: Insert copies an element in, Paste / Replace insert, Delete removes the one before

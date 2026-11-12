@@ -1,10 +1,10 @@
 hw:down hw:right hw:right hw:right wrap pick:rev%20$%20... hw:s8
 hw:down hw:down hw:jog+ hw:jog+
-hw:shift+s8 hw:shift+s8
+undo undo
 hw:shift+pad3 hw:down hw:right hw:down hw:down hw:jog-
 hw:play
 hw:shift+pad1 hw:down hw:right hw:right hw:right hw:down hw:down hw:down hw:delete
-hw:shift+s8
+undo
 hw:shift+pad20 replace pick:note%20pattern hw:play hw:play
 hw:shift+pattern
 print

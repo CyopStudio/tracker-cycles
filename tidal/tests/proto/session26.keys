@@ -4,10 +4,9 @@ hw:shift+right
 hw:shift+right
 msg
 hw:s3
-menulist
 msg
 print
-hw:shift+s8
+undo
 hw:instr
 hw:shift+right
 hw:shift+right
@@ -18,7 +17,7 @@ msg
 hw:delete
 msg
 print
-hw:shift+s8
+undo
 msg
 hw:shift+pad3
 hw:instr

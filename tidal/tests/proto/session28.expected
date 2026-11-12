@@ -1,4 +1,4 @@
-msg: gap 1 of 4: pads / Screen 3-7 insert, Delete removes the step before
+msg: gap 1 of 4: pads / Screen 3-6 insert, Delete removes the step before
 menu |: [either side: [bd*2 | [~ sd]]] [all: [bd*2 | [~ sd] | bd | sd]]
 msg: |: either side: [bd*2 | [~ sd]]
 setcps (120/60/4)

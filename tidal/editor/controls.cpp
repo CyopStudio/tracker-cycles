@@ -221,8 +221,8 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         case Control::Copy: return shift ? act(Action::Paste, "Paste") : act(Action::Copy, "Copy");
         case Control::Note: return shift ? act(Action::MenuChords, "chord") : act(Action::JumpNotes, "n pattern");
         case Control::Instr: return act(Action::JumpSamples, "s pattern");
-        case Control::Fx1: return act(Action::MenuModifiers, "modifiers");
-        case Control::Fx2: return act(Action::MenuFx, "FX");
+        case Control::Fx1: return act(Action::MenuModifiers, "functions");
+        case Control::Fx2: return act(Action::MenuFx, "effects");
         case Control::Play:
             if (shift && !ed.onCps()) return act(Action::SilenceSlot, "Silence dN");
             return act(Action::Evaluate, ed.onCps() ? "Send tempo" : "Evaluate");
@@ -238,9 +238,8 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         case Control::Song:
             if (shift) return act(Action::JumpCps, ed.onCps() ? "back" : "setcps");
             return act(Action::MenuLaunch, "launch");
-        // Screen 1-8: the structure menus $ # [] <> {} () | |+; with Shift
-        // the old Replace / Wrap / Unwrap / Undo + context quick-buttons
-        // (docs/tidal_ui_v2.md)
+        // Screen 1-8: $ # [] <> {} () | |+ (functions, controls, brackets at
+        // once, | menu, operators); with Shift the step marks (below)
         case Control::Screen0:
         case Control::Screen1:
         case Control::Screen2:
@@ -258,19 +257,17 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         default: break;
     }
     switch (c) {
-        // Replace / Wrap / Unwrap retired (UI v3: by context instead: the jog
-        // and menus replace, Insert / the Screen menus wrap, Delete unwraps)
-        case Control::Screen0: return act(Action::QuickGain, "# gain 0.9");
-        case Control::Screen1: return act(Action::QuickRoom, "# room 0.3");
-        case Control::Screen2: return act(Action::QuickDelay, "# delay 0.3");
-        // RC14 (user): Shift+Screen 4 # shape, 6 ! (repeat the step), 7 @
-        // (hold it longer), 8 Undo; the context quick buttons (Quick2-4)
-        // keep their actions but no key
-        case Control::Screen3: return act(Action::QuickShape, "# shape 0.3");
-        case Control::Screen4: return act(Action::LineBreak, "<CR>");  // a line break (UI notes, Editor14)
-        case Control::Screen5: return act(Action::StepRepeat, "! repeat");
-        case Control::Screen6: return act(Action::StepWeight, "@ longer");
-        case Control::Screen7: return act(Action::Undo, "Undo");
+        // RC19 notes: Shift+Screen 1-8 = * / ! @ , "" (?|..|<CR>) Ctrl+Z
+        // (the quick controls # gain / room / delay / shape and the context
+        // buttons keep their actions, no key)
+        case Control::Screen0: return act(Action::StepFast, "*");
+        case Control::Screen1: return act(Action::StepSlow, "/");
+        case Control::Screen2: return act(Action::StepRepeat, "!");
+        case Control::Screen3: return act(Action::StepWeight, "@");
+        case Control::Screen4: return act(Action::StepStack, ",");
+        case Control::Screen5: return act(Action::ToPattern, "\"\"");
+        case Control::Screen6: return act(Action::Shift7, ed.shift7Label().c_str());
+        case Control::Screen7: return act(Action::Undo, "Ctrl+Z");
         case Control::File: return act(Action::Save, "Save");
         case Control::Config: return shift ? act(Action::EditComment, "comment") : act(Action::ToggleTrackerMode, "Trk mode");
         default: return {};

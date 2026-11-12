@@ -261,6 +261,16 @@ to upstream CE.
     and Replace's value lists keep their order. Smoke sessions pick items
     by label (`pick:LABEL`, %20 = space; TC_TRACE_PICKS=1 prints what a
     menu:N picked) so menu order changes don't break them.
+    RC19 notes (RC20 PolyendTrac_CyclesRC20.ptf, not yet run): Shift+Screen
+    1-8 = * / ! @ , "" (? | .. | <CR>) Ctrl+Z (stepSuffix(op), keyStep,
+    stepStack, toPattern, shift7 / shift7Label in cursor.cpp; quick
+    controls keep their actions only); Screen 3-6 wrap at once (wrapMini:
+    [x] <x> {x}%4 x(3,8); at a gap [~] ... with the cursor on the ~);
+    Screen 8 = openOps on an operator's symbol / right side, else the old
+    add-an-operator menu; names: menus "functions", "controls", "effects"
+    (FX2), "operators"; FX1 / FX2 labels "functions" / "effects". MPoly
+    layers count for voices. Smoke sessions converted by replaying them
+    on the previous build with a key trace (Shift keys -> action names).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

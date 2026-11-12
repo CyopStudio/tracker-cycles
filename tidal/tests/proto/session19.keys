@@ -9,7 +9,7 @@ menulist
 pick:138
 hw:play
 msg
-hw:shift+s8
+undo
 msg
 hw:play
 msg
@@ -41,6 +41,6 @@ hw:shift+config
 hw:s2
 hw:s8
 msg
-hw:shift+s8
+undo
 msg
 print

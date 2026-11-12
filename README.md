@@ -61,14 +61,17 @@ The screen shows your code: a `setcps` line and blocks `d1` to `d16`.
 | Pattern (held) + pad N | mute / unmute dN (Shift: solo); Pattern + Screen 8: unmute all; Shift + Pattern alone: `hush` (Pattern alone does nothing) |
 | Shift + pad N | go to dN; the same pad twice in a row: a new dN block |
 | Shift + ↑ / ↓ | previous / next block |
-| Screen 1–8 | structure menus: `$` functions, `#` controls, `[ ]`, `< >`, `{ }`, `( , )` euclid, `\|`, operators |
+| Screen 1 / 2 | menus: functions (`$`), controls (`#`) |
+| Screen 3–6 | `[ ]`, `< >`, `{ }%4`, `( )` euclid at once around the step / selection / number (at a gap: a new `[~]` … for the pads) |
+| Screen 7 / 8 | `\|` random choice menu; operators: on a control (`# gain 1`) the operators that can replace its `#`, elsewhere add one |
 | Rec | cursor mode / tree mode |
-| Shift + Screen 1–4 | `# gain 0.9`, `# room 0.3`, `# delay 0.3`, `# shape 0.3` |
-| Shift + Screen 5 | line break before the argument / operator at the cursor |
-| Shift + Screen 6 / 7 | inside `"..."`: repeat the step (`bd!2`) / hold it longer (`bd@2`); the jog changes the count |
-| Shift + Screen 8 | Undo |
+| Shift + Screen 1–4 | inside `"..."`: the step `*2` (faster), `/2` (slower), `!2` (repeated), `@2` (longer); again: one more; the jog changes the number |
+| Shift + Screen 5 | `,`: another layer: a chord on a step (`[x, x]`), a new layer in a group (`{a b, c}`: a polyrhythm) |
+| Shift + Screen 6 | `""`: a number as a pattern (`n 0` → `n "0"`) |
+| Shift + Screen 7 | on a step `?` (maybe: `x?0.5`), at a gap between two numbers `..` (`0 .. 7`), elsewhere `<CR>` (a line break) |
+| Shift + Screen 8 | Ctrl+Z (undo) |
 | Note / Instrument | jump to the block's `n` / `s` pattern (Shift + Note: chord names) |
-| FX1 / FX2 | pattern modifiers (`$` functions) / sound effects (`#` controls) |
+| FX1 / FX2 | functions (`$`) / effects (the sound `#` controls) |
 | Song | launch menu (`dN $`, `jumpMod`, `jumpIn`); Shift + Song: tempo (`setcps`) |
 | Copy / Shift + Copy | copy / paste (at a block's top: duplicate the block) |
 | Delete / Shift + Delete | delete the token (inside `"..."`: a step becomes `~`; on a function, `$` or `#`: unwrap) / the token to the left (tree mode: unwrap) |
