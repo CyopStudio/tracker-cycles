@@ -32,6 +32,9 @@ original:
 	@echo " Building Original Tracker (MK66) - $(EDITION_NAME) $(ORIGINAL_VER_MAJOR).$(ORIGINAL_VER_MINOR).$(ORIGINAL_VER_PATCH) ($(BUILD_TAG))"
 	@echo "=================================================================="
 	@rm -f "$(MK66_DIR)/build/obj/source/PlatformImpl.o"
+	@# the compiler needs more than the default 8 MB stack for the editor's unity
+	@# file (core/tidal/tc_editor.cpp): it segfaulted ("internal compiler error")
+	ulimit -s unlimited 2>/dev/null || ulimit -s 65536 2>/dev/null; \
 	$(MAKE) -C "$(CORE_DIR)" -j$(NPROC) build \
 		TOOLCHAIN="$(TOOLCHAIN)" \
 		PLATFORM=MK66 PRODUCT=ORIGINAL \

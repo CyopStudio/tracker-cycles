@@ -1253,9 +1253,11 @@ folders listed in the project (e.g. a manifest) on project load.
   (version in version.mk, ORIGINAL_VER_*; currently 1.0.0)
 - `make clean`, `make version`
 - Makefiles don't track flags: `make clean` after changing CUSTOM_DEFINES.
-- Confirm `make original` still builds after firmware-side changes. If the
-  compiler crashes ("internal compiler error: Segmentation fault", seen in
-  WSL with -j8), rerun with `-j2`: the crash is not in the code.
+- Confirm `make original` still builds after firmware-side changes. The
+  compiler needs more than the default 8 MB stack for the editor's unity
+  file (core/tidal/tc_editor.cpp): it crashed with "internal compiler
+  error: Segmentation fault" at random lines. The `original` target raises
+  `ulimit -s` itself; building core by hand needs `ulimit -s unlimited`.
 - Linker prints region usage (`-print-memory-usage`); for a breakdown run
   `arm-none-eabi-size -A platforms/mk66/build/PolyendTracker.axf`.
 
