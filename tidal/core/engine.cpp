@@ -422,6 +422,7 @@ struct Pat {
         EveryF,   // foldEvery: node f applied to x on cycles divisible by q
         Match,    // fix / contrast: x's control events that y matches at their onset (neg: those it doesn't)
         ClipCycles,  // x with each whole cut at cycle boundaries (what `|*| pure` does to structure)
+        CatN,     // cat of the q.n Pats at x (an array): fastcat = fast n of this (Tidal)
     };
     K k = Silence;
     uint16_t node = 0;      // Node: expression; Apply: function expression
@@ -808,6 +809,13 @@ private:
     __attribute__((noinline)) void qMapNum(Fn fn, const Pat& lo, const Pat& hi, const Pat& x, Arc a);
     __attribute__((noinline)) void qRandslice(const Pat& x, int64_t n, Arc a);
     bool ctlsMatch(const Ev& cond, const Ev& e) const;
+    void clipToCycle(int from, int64_t c) {  // the wholes of events [from, top) cut to cycle c
+        for (int i = from; i < top; i++)
+            if (gArena[i].hasWhole) {
+                gArena[i].whole.s = qmax(gArena[i].whole.s, qint(c));
+                gArena[i].whole.e = qmin(gArena[i].whole.e, qint(c + 1));
+            }
+    }
 };
 
 void Eval::query(const Pat& p, Arc a) {
@@ -862,6 +870,7 @@ void Eval::query(const Pat& p, Arc a) {
             break;
         }
         case Pat::Match: qMatch(*p.x, *p.y, !p.neg, a); break;
+        case Pat::CatN: qCat(p.x, (int)p.q.n, a); break;
         case Pat::ClipCycles:
             forCycles(a, [&](Arc sub, int64_t c) {
                 const int m = top;
@@ -1729,8 +1738,12 @@ void Eval::qList(Fn fn, uint16_t list, Arc a) {
     int k = listPats(list, items, 64);
     if (fn == Fn::Stack) {
         for (int i = 0; i < k; i++) query(items[i], a);
-    } else if (fn == Fn::Fastcat) {
-        for (int i = 0; i < k; i++) qCompress(items[i], qlazy(i, k), qlazy(i + 1, k), a);
+    } else if (fn == Fn::Fastcat) {  // fast k (cat items): a long event continues in its own cycles
+        Pat cn;
+        cn.k = Pat::CatN;
+        cn.x = items;
+        cn.q = qint(k);
+        if (k > 0) qFast(cn, qint(k), a);
     } else {
         qCat(items, k, a);
     }
@@ -1824,6 +1837,7 @@ void Eval::qChunk(const Pat& x, uint16_t f, int64_t k, bool backward, Arc a) {
         const int m = top;
         qWithin(fx, x, qlazy(i, k), qlazy(i + 1, k), loc);
         for (int t = m; t < top; t++) shiftEvent(gArena[t], off);
+        if (backward) clipToCycle(m, c);  // chunk' cuts events to their cycle (golden long_chunkr)
     });
 }
 
@@ -1956,10 +1970,9 @@ void Eval::qSelect(Fn fn, const Pat& sel, uint16_t list, const Pat* x, Arc a) {
         int64_t i;
         if (fn == Fn::PickF) {
             i = imod(intOf(v), n);
-        } else {  // round (half to even, as Haskell) of f * (count - 1)
-            const float f = num(v) * (float)(n - 1);
-            const float fl = floorf(f), fr = f - fl;
-            i = (int64_t)fl + (fr > 0.5f || (fr == 0.5f && ((int64_t)fl & 1)) ? 1 : 0);
+        } else {  // GHCi: select floor (f * (count - 1)), selectF floor (f * count), kept in range
+            const float f = num(v) * (float)(fn == Fn::Select ? n - 1 : n);
+            i = (int64_t)floorf(f + 1e-6f);
             if (i < 0) i = 0;
             if (i >= n) i = n - 1;
         }
@@ -2193,8 +2206,12 @@ void Eval::callLib2(Fn fn, const Pat* const* all, int n, uint16_t at, Arc a) {
                 withParam(*all[1], s1, [&](const Val& ov, Arc s2) {
                     const int64_t o = intOf(ov);
                     forCycles(s2, [&](Arc s3, int64_t c) {
+                        // every' cuts each event to its cycle (Tidal 1.10.3: a long
+                        // note restarts every cycle; golden long_everyp)
+                        const int m = top;
                         if (k > 0 && imod(c, k) == o) queryApply(f, x, s3);
                         else query(x, s3);
+                        clipToCycle(m, c);
                     });
                 });
             });
@@ -2353,10 +2370,10 @@ void Eval::callLib2(Fn fn, const Pat* const* all, int n, uint16_t at, Arc a) {
                 Pat w;
                 w.k = Pat::Within;
                 w.x = &sh;
-                w.y = &split;
+                w.y = &slow;  // the unshifted notes aren't split (golden long_swingBy)
                 w.q = Q{1, 2};
                 w.q2 = Q{1, 1};
-                qFast(w, r, sub);
+                forCycles(sub, [&](Arc s2, int64_t) { qFast(w, r, s2); });  // inside's innerJoin
             });
             return;
         }
@@ -2646,13 +2663,19 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
             Pat pr[2] = {all[0], pWrap(Pat::Rev, &all[0])};
             return qCat(pr, 2, a);
         }
-        case Fn::Brak: {
+        case Fn::Brak: {  // odd cycles: 1/4 ~> fastcat [x, silence]
             if (!need(1)) return;
+            Pat two[2];
+            two[0] = all[0];
+            two[1].k = Pat::Silence;
+            Pat cn;
+            cn.k = Pat::CatN;
+            cn.x = two;
+            cn.q = Q{2, 1};
             Pat half;
-            half.k = Pat::Compress;
-            half.x = &all[0];
-            half.q = Q{0, 1};
-            half.q2 = Q{1, 2};
+            half.k = Pat::Fast;
+            half.x = &cn;
+            half.q = Q{2, 1};
             Pat sh;
             sh.k = Pat::Shift;
             sh.x = &half;
@@ -2901,8 +2924,11 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
             sh.k = Pat::ShiftP;
             sh.x = &all[2];
             sh.y = &all[0];
-            query(all[2], a);
-            return queryApply(f, sh, a);
+            forCycles(a, [&](Arc sub, int64_t) {  // both split at cycles, as Tidal (golden long_off)
+                query(all[2], sub);
+                queryApply(f, sh, sub);
+            });
+            return;
         }
         case Fn::Jux: {
             if (!need(2)) return;
@@ -3059,21 +3085,23 @@ void Eval::callLib3(Fn fn, const Pat* const* all, int n, uint16_t at, Arc a) {
     switch (fn) {
         case Fn::Stutter: {  // stutter n t x = echoWith n t id x: n copies, each t later
             if (!need(3)) return;
+            // Tidal: plain Int and Time, read once (no split at cycles: golden long_stutter)
             const Pat& x = *all[2];
-            withParam(*all[0], a, [&](const Val& cv, Arc s1) {
-                withParam(*all[1], s1, [&](const Val& tv, Arc s2) {
-                    const int64_t count = intOf(cv);
-                    if (count > 32) return fail("stutter: at most 32", at);
-                    const Q t = timeOf(tv);
-                    for (int64_t k = 0; k < count && !bad(); k++) {
-                        Pat sh;
-                        sh.k = Pat::Shift;
-                        sh.x = &x;
-                        sh.q = t * qint(k);
-                        query(sh, s2);
-                    }
-                });
-            });
+            Val cv, tv;
+            bool f1, f2;
+            sampleAt(*all[0], Q{0, 1}, cv, f1);
+            sampleAt(*all[1], Q{0, 1}, tv, f2);
+            if (!f1 || !f2) return fail("stutter: count and time must be numbers", at);
+            const int64_t count = intOf(cv);
+            if (count > 32) return fail("stutter: at most 32", at);
+            const Q t = timeOf(tv);
+            for (int64_t k = 0; k < count && !bad(); k++) {
+                Pat sh;
+                sh.k = Pat::Shift;
+                sh.x = &x;
+                sh.q = t * qint(k);
+                query(sh, a);
+            }
             return;
         }
         case Fn::Ghost:
@@ -3129,11 +3157,16 @@ void Eval::callLib3(Fn fn, const Pat* const* all, int n, uint16_t at, Arc a) {
             qCat(two, 2, a);
             return;
         }
-        case Fn::FastAppend:  // fastcat [a, b]
+        case Fn::FastAppend: {  // fastcat [a, b] = fast 2 (cat [a, b])
             if (!need(2)) return;
-            qCompress(*all[0], Q{0, 1}, Q{1, 2}, a);
-            qCompress(*all[1], Q{1, 2}, Q{1, 1}, a);
+            const Pat two[2] = {*all[0], *all[1]};
+            Pat cn;
+            cn.k = Pat::CatN;
+            cn.x = two;
+            cn.q = Q{2, 1};
+            qFast(cn, Q{2, 1}, a);
             return;
+        }
         case Fn::RepeatCycles: {  // each cycle of x played n times
             if (!need(2)) return;
             const Pat& x = *all[1];

@@ -234,6 +234,16 @@ to upstream CE.
     adds `# voices N` or raises a literal voices in the same undo step
     (Editor::raiseVoices in endEdit); never lowers; MIDI blocks and
     loaded files untouched; the message says "(+ # voices N ...)".
+    Long events (user: `every' 4 3 (# crush 4) $ slow 4 ...` did nothing;
+    RC17 PolyendTrac_CyclesRC17.ptf, not yet run): 39 golden cases with a
+    slow 4 note through cycle-wise functions. Tidal 1.10.3: every' and
+    chunk' cut every event to its cycle (so the slow note restarts each
+    cycle; ours kept it whole and started only at 0, 4, 8); fastcat /
+    fastAppend / brak are fast n . cat (cat shifts a long event into its
+    own cycles; we squeezed); off splits original and copy per cycle;
+    stutter's plain args don't split; swingBy splits per outer cycle and
+    leaves unshifted notes whole; select = floor (f * (n-1)), selectF =
+    floor (f * n) (we rounded both). 284/284 golden cases match.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
