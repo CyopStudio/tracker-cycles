@@ -2,7 +2,7 @@ msg: Fn every : function
 msg: Num : Pat Int
 msg: Fn fast : function
 msg: Num : Pat Time
-msg: $ (Delete unwraps it, Shift+Screen 5: a line break before it)
+msg: $ (Delete unwraps it, Shift+Screen 7: a line break before it)
 msg: Fn s : function
 msg: gap 0 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: MFast : Pat String
@@ -28,7 +28,7 @@ msg: gap 1 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: MFast : Pat String
 msg: gap 0 of 4: pads / Screen 3-6 insert, Delete removes the step before
 msg: Fn s : function
-msg: $ (Delete unwraps it, Shift+Screen 5: a line break before it)
+msg: $ (Delete unwraps it, Shift+Screen 7: a line break before it)
 msg: Num : Pat Time
 msg: Fn fast : function
 msg: Num : Pat Int

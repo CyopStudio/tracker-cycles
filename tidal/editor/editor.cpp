@@ -1109,7 +1109,7 @@ void Editor::blockStep(int dir) {
     info(cursorInfo());
 }
 
-// Shift+Screen 5: a line break (on / off) before the argument at the cursor,
+// Shift+Screen 7 (\n): a line break (on / off) before the argument at the cursor,
 // or before the operator / $ it belongs to (UI notes, Editor14).
 void Editor::toggleBreak() {
     if (cps_ || !cursor_ || prog_->at(cursor_).kind == Kind::Block)
@@ -1143,7 +1143,7 @@ void Editor::toggleBreak() {
     const bool on = prog_->at(target).flags & flag;
     if (!endEdit(n, false)) return;
     onOp_ = wasOp;
-    info(on ? "line break (Shift+Screen 5 again removes it)" : "line break removed");
+    info(on ? "line break (Shift+Screen 7 again removes it)" : "line break removed");
 }
 
 bool Editor::operatorSides(uint16_t& l, uint16_t& r) const {
@@ -1316,7 +1316,7 @@ Label Editor::cursorInfo() const {
                         of.c_str(), cursor_ == playing_[slot_] ? " (playing)" : ""),
                s;
     }
-    if (onOperator() && n.kind == Kind::App) return "$ (Delete unwraps it, Shift+Screen 5: a line break before it)";
+    if (onOperator() && n.kind == Kind::App) return "$ (Delete unwraps it, Shift+Screen 7: a line break before it)";
     Label s = kindName(n.kind);
     if (n.kind == Kind::Fn || n.kind == Kind::Op || n.kind == Kind::SectionL || n.kind == Kind::SectionR) {
         s += " ";
@@ -2009,7 +2009,7 @@ void Editor::wheel(int dir, bool fast) {
     }
     if (prog_->at(cursor_).kind == Kind::Fn) return wheelFn(dir);
     if (prog_->at(cursor_).kind == Kind::Op) return wheelOp(dir);
-    if (onOperator()) return info("$: Delete unwraps it, Shift+Screen 5 puts a line break before it");
+    if (onOperator()) return info("$: Delete unwraps it, Shift+Screen 7 puts a line break before it");
     if (prog_->at(cursor_).kind == Kind::MReplicate && !(prog_->at(cursor_).flags & kBare)) {
         // x!n: the count (RC14, Shift+Screen 6 makes these)
         const int v = (int)prog_->at(cursor_).a + dir * jogMul_ * (fast ? 4 : 1);

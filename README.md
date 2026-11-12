@@ -68,7 +68,7 @@ The screen shows your code: a `setcps` line and blocks `d1` to `d16`.
 | Shift + Screen 1–4 | inside `"..."`: the step `*2` (faster), `/2` (slower), `!2` (repeated), `@2` (longer); again: one more; the jog changes the number |
 | Shift + Screen 5 | `,`: another layer: a chord on a step (`[x, x]`), a new layer in a group (`{a b, c}`: a polyrhythm) |
 | Shift + Screen 6 | `""`: a number as a pattern (`n 0` → `n "0"`) |
-| Shift + Screen 7 | on a step `?` (maybe: `x?0.5`), at a gap between two numbers `..` (`0 .. 7`), elsewhere `<CR>` (a line break) |
+| Shift + Screen 7 | on a step `?` (maybe: `x?0.5`), at a gap between two numbers `..` (`0 .. 7`), elsewhere `\n` (a line break) |
 | Shift + Screen 8 | Ctrl+Z (undo) |
 | Note / Instrument | jump to the block's `n` / `s` pattern (Shift + Note: chord names) |
 | FX1 / FX2 | functions (`$`) / effects (the sound `#` controls) |

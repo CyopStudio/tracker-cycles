@@ -257,7 +257,7 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         default: break;
     }
     switch (c) {
-        // RC19 notes: Shift+Screen 1-8 = * / ! @ , "" (?|..|<CR>) Ctrl+Z
+        // RC19 notes: Shift+Screen 1-8 = * / ! @ , "" (?|..|\n) Ctrl+Z
         // (the quick controls # gain / room / delay / shape and the context
         // buttons keep their actions, no key)
         case Control::Screen0: return act(Action::StepFast, "*");

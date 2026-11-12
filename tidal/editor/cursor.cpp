@@ -615,11 +615,11 @@ void Editor::toPattern() {
 }
 
 // Shift+Screen 7 (RC19 notes): on a step `?` (maybe), at a gap between two
-// numbers `..` (a range), elsewhere <CR> (a line break).
+// numbers `..` (a range), elsewhere \n (a line break).
 Label Editor::shift7Label() const {
     if (gapSeq_ && !listGap()) return "..";
     if (!gapSeq_ && cursor_ && keyStep()) return "?";
-    return "<CR>";
+    return "\\n";  // a line break (user: \\n, like the code it adds)
 }
 
 void Editor::shift7() {

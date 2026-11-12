@@ -84,7 +84,7 @@ enum class Action {
     SilenceSlot,                       // Shift+Pattern: the current dN stops (its code stays)
     MenuFolders,                       // Sample Loader: Tidal sample folders (/Tidal/) to load
     BlockUp, BlockDown,                // Shift+Up / Down: the previous / next block (its top)
-    LineBreak,                         // Shift+Screen 5: a line break before the argument / operator (toggle)
+    LineBreak,                         // Shift+Screen 7 (\n) outside "...": a line break before the argument / operator (toggle)
     QuickGain, QuickRoom, QuickDelay,  // Shift+Screen 1-3 (UI v3): # gain 0.9 / # room 0.3 / # delay 0.3
     ToggleCursorMode,                  // Rec (UI v3 D): cursor mode <-> tree mode
     Backspace,                         // Shift+Delete in cursor mode: the token to the left
@@ -93,7 +93,7 @@ enum class Action {
     StepFast, StepSlow,                // Shift+Screen 1 / 2 (RC19): x*2 / x/2
     StepStack,                         // Shift+Screen 5 (RC19): , a layer (chord, polyrhythm)
     ToPattern,                         // Shift+Screen 6 (RC19): "" a number as a pattern
-    Shift7,                            // Shift+Screen 7 (RC19): <CR>, or ? on a step, .. at a gap
+    Shift7,                            // Shift+Screen 7 (RC19): \n, or ? on a step, .. at a gap
     UnmuteAll,                         // Pattern held + Screen 8 (RC17 notes)
 };
 const char* actionName(Action a);
@@ -271,7 +271,7 @@ public:
     // Context buttons (Screen 5..8): inside "..." brackets [ ] < > { }%4 (3,8),
     // on a pattern # <last control>, |+, |*, <~. Empty label: nothing here.
     Label quickLabel(int i) const;
-    Label shift7Label() const;  // Shift+Screen 7 by context: "?" / ".." / "<CR>"
+    Label shift7Label() const;  // Shift+Screen 7 by context: "?" / ".." / "\\n"
     // Cursor mode (UI v3 D, Rec toggles; on at boot): Left / Right go token
     // by token through the block's text, Up / Down by line and column (past
     // the first / last line: the blocks around), Delete / Shift+Delete the
@@ -337,7 +337,7 @@ private:
     void stepSuffix(char op);  // step marks: x*2 x/2 x!2 x@2 x?0.5 (Shift+Screen 1-4, 7)
     void stepStack();          // Shift+Screen 5: , (a layer: chord / polyrhythm)
     void toPattern();          // Shift+Screen 6: "" (a number as a pattern)
-    void shift7();             // Shift+Screen 7: <CR> / ? on a step / .. at a gap
+    void shift7();             // Shift+Screen 7: \n / ? on a step / .. at a gap
     uint16_t keyStep() const;  // the step the step keys act on (0: none)
     uint16_t headOf(uint16_t n) const;  // n is a function name: the application it heads (else 0)
     uint16_t controlTarget() const;     // where `# ...` goes (the top of the operator chain)

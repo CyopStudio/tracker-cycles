@@ -161,7 +161,7 @@ The prototype starts in cursor mode; `--mode tree` starts in tree mode
 | Shift + Screen 1–4 | step marks inside `"..."` (on a step, or the step before a gap): `*2`, `/2`, `!2`, `@2`; pressed again on such a step `*` `/` `!` count one more, `@` goes to its number; the cursor on the number for the jog (RC19 notes; `qgain` … `qshape` keep the old quick controls as actions) | | F1–F4 |
 | Shift + Screen 5 | `,` another layer: in `[ ]` / `< >` / `{ }` a new layer with a copy of the step (`{ }%n` loses its `%n`: a polyrhythm), on a plain step a chord `[x, x]`; `# voices` follows | | F5 |
 | Shift + Screen 6 | `""`: a plain number becomes a pattern (`n 0` → `n "0"`, `fast 2` → `fast "2"`); the cursor on its step | | F6 |
-| Shift + Screen 7 | by context (its label shows which): on a step `?` (`x?0.5`, the cursor on the chance), at a gap between two numbers `..` (`0 7` → `0 .. 7`), elsewhere `<CR>`: a line break before the argument at the cursor, or before the operator / `$` it belongs to (again: removed; kept in the file, statements for GHCi stay on one line) | | F7 |
+| Shift + Screen 7 | by context (its label shows which): on a step `?` (`x?0.5`, the cursor on the chance), at a gap between two numbers `..` (`0 7` → `0 .. 7`), elsewhere `\n`: a line break before the argument at the cursor, or before the operator / `$` it belongs to (again: removed; kept in the file, statements for GHCi stay on one line) | | F7 |
 | Shift + Screen 8 | Ctrl+Z (undo) | | F8 / `z` |
 | Screen 1 `$` | menu: functions applied with `$` (`fast 2 $ …`, `every 4 rev $ …`); from inside `"..."` on the enclosing pattern | | |
 | Screen 2 `#` | menu: `# control` (all) | | |
