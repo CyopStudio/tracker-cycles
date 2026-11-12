@@ -44,7 +44,7 @@ If a firmware build ever fails to boot:
 The screen shows your code: a `setcps` line and blocks `d1` to `d16`.
 
 * **d1–d8** play the 8 sample tracks (the project's 48 instruments, chosen by name with `s`).
-* **d9–d16** send MIDI: d9 on channel 1 through d16 on channel 8 (`# midichan` overrides).
+* **d9–d16** send MIDI: d9 on channel 1 through d16 on channel 8 (`# midichan` overrides). `velocity 1` (the default) is MIDI velocity 127. A pattern with MIDI controls but no `n` / `note` (`ccv "0 64 127" # ccn 74`) sends only those messages, no notes.
 
 1. **Shift + pad 1** goes to `d1`. On an empty slot, press **Instrument** to start a block with `s "<first instrument>"`, or **Note** for `n "0"`.
 2. Move with the **arrows**. The editor starts in **cursor mode**: **Left / Right** go token by token, **Up / Down** line by line and on to the blocks around. **Rec** switches to tree mode, where Left / Right step through the code tree and Up / Down go to the parent / first child.

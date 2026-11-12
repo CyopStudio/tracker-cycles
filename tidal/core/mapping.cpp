@@ -254,7 +254,8 @@ bool TrackerMapper::map(const Program& p, int slot, const Event& e, float, float
     bool hasRes = false, hasHres = false, hasPan = false, hasDrive = false, hasCrush = false, hasRoom = false,
          hasDelay = false, hasBegin = false, hasEnd = false, hasAttack = false, hasRelease = false,
          hasLegato = false, hasSustain = false, hasChan = false, hasCcn = false, hasCcv = false, hasBend = false,
-         hasSize = false, hasDelayTime = false, hasDelayFb = false, hasDjf = false, hasProg = false, hasTouch = false;
+         hasSize = false, hasDelayTime = false, hasDelayFb = false, hasDjf = false, hasProg = false, hasTouch = false,
+         hasN = false, hasNote = false;
     float size = 0, delayTime = 0, delayFb = 0, djf = 0.5f, prog = 0, touch = 0;
     float voices = 1;
     float res = 0, hres = 0, pan = 0.5f, drive = 0, crush = 16, room = 0, delay = 0, begin = 0, end = 1, attack = 0,
@@ -267,9 +268,9 @@ bool TrackerMapper::map(const Program& p, int slot, const Event& e, float, float
             formatCtl(p, c, name, sizeof name);
             hasName = true;
         } else if (k == kN_) {
-            n = v;
+            n = v, hasN = true;
         } else if (k == kNote_) {
-            note = v;
+            note = v, hasNote = true;
         } else if (k == kSpeed_) {
             speed = v;
         } else if (k == kGain_) {
@@ -343,9 +344,17 @@ bool TrackerMapper::map(const Program& p, int slot, const Event& e, float, float
     if (slot >= kSampleSlots) {  // ---- MIDI
         out.chan = (uint8_t)(hasChan ? clampi((int)lroundf(chan), 0, 15) : (slot - kSampleSlots) % 16);
         out.note = (uint8_t)clampi(60 + (int)lroundf(note + n), 0, 127);
-        out.vel = (uint8_t)(hasVolume ? clampi((int)lroundf(100.0f * ratio), 0, 127) : 100);
+        // velocity 1 (the default) = MIDI velocity 127 (user, before 1.0.0)
+        out.vel = (uint8_t)(hasVolume ? clampi((int)lroundf(127.0f * ratio), 0, 127) : 127);
         float len = hasLegato ? lenSamples * legato : hasSustain ? sustain * fs_ : lenSamples;
         out.dur = len > 1.0f ? (uint32_t)len : 1;
+        // no n / note but MIDI controls (`ccv "0 64" # ccn 74`): just those
+        // messages, as Tidal users send them; no note (an event with neither
+        // plays note 60, n 0, as in Tidal)
+        if (!hasN && !hasNote && ((hasCcn && hasCcv) || hasBend || hasProg || hasTouch)) {
+            out.kind = EntryKind::Control;
+            out.dur = 0;  // no noteOff
+        }
         if (hasCcn && hasCcv)
             m.set(TMod::Cc, (uint16_t)(clampi((int)lroundf(ccn), 0, 127) << 8 | clampi((int)lroundf(ccv), 0, 127)));
         if (hasBend) m.set(TMod::Bend, (uint16_t)clampi(8192 + (int)lroundf(bend), 0, 16383));

@@ -313,15 +313,25 @@ void testMidi() {
     gMap.init(&gHost, kFs);
     std::vector<Out> v = mapCode(8, "n \"0 7\" # s \"midi\"");
     MEXPECT(v.size() == 2 && v[0].ok && v[0].e.chan == 0 && v[0].e.note == 60 && v[1].e.note == 67 &&
-                v[0].e.vel == 100 && v[0].e.dur == (uint32_t)(kSpc / 2),
-            "d9 basic");
+                v[0].e.vel == 127 && v[0].e.dur == (uint32_t)(kSpc / 2),
+            "d9 basic (velocity 1 = 127)");
     Out o = one(11, "note 3 # midichan 9 # velocity 0.5 # legato 0.5");
-    MEXPECT(o.ok && o.e.chan == 9 && o.e.note == 63 && o.e.vel == 50 && o.e.dur == (uint32_t)(kSpc / 2),
+    MEXPECT(o.ok && o.e.chan == 9 && o.e.note == 63 && o.e.vel == 64 && o.e.dur == (uint32_t)(kSpc / 2),
             "d12: chan %d note %d vel %d dur %u", o.e.chan, o.e.note, o.e.vel, o.e.dur);
     o = one(9, "n 0 # ccn 7 # ccv 64 # midibend 100");
     MEXPECT(o.e.chan == 1 && o.mod(TMod::Cc) == (7 << 8 | 64) && o.mod(TMod::Bend) == 8292, "cc / bend");
     o = one(8, "n 0 # progNum 5 # miditouch 90");
     MEXPECT(o.mod(TMod::Program) == 5 && o.mod(TMod::Touch) == 90, "program / aftertouch");
+    // no n / note but MIDI controls: those messages only (no note, no noteOff)
+    o = one(8, "ccv \"64\" # ccn 74");
+    MEXPECT(o.ok && o.e.kind == EntryKind::Control && o.e.dur == 0 && o.mod(TMod::Cc) == (74 << 8 | 64),
+            "CC only: kind %d dur %u", (int)o.e.kind, o.e.dur);
+    o = one(8, "midibend 100");
+    MEXPECT(o.ok && o.e.kind == EntryKind::Control && o.mod(TMod::Bend) == 8292, "bend only");
+    o = one(8, "s \"midi\"");
+    MEXPECT(o.ok && o.e.kind == EntryKind::Note && o.e.note == 60, "no n and no controls: note 60 (n 0)");
+    o = one(8, "n 0 # ccn 7 # ccv 64");
+    MEXPECT(o.ok && o.e.kind == EntryKind::Note && o.mod(TMod::Cc) == (7 << 8 | 64), "a note with a CC: both");
     o = one(8, "n 0 # ccn 7");
     MEXPECT(o.mod(TMod::Cc) < 0, "ccn without ccv");
     o = one(8, "n 0 # gain 2");

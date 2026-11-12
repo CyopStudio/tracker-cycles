@@ -316,6 +316,11 @@ to upstream CE.
     tests (MIDI out never checked on hardware), then the example project
     (tracker-cycles1.tidal + the project's files, the user's own samples)
     in docs/ExampleProject/, then the release flow (Git section).
+    MIDI (user, before the MIDI test; RC25 PolyendTrac_CyclesRC25.ptf, not
+    yet run): velocity 1 (and no volume control) = MIDI velocity 127 (was
+    100); an event with MIDI controls (ccn + ccv, midibend, progNum,
+    miditouch) but no n / note is EntryKind::Control: the messages only, no
+    noteOn / noteOff (dur 0); with neither it still plays note 60 (n 0).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

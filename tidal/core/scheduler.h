@@ -22,7 +22,9 @@ constexpr int kRingSize = 128;           // entries per slot (power of two)
 constexpr int kMaxMods = 10;
 constexpr int kMaxPendingOffs = 8;       // per slot (MIDI chords)
 
-enum class EntryKind : uint8_t { Note = 0 };
+// Note: a note (sample or MIDI); Control: MIDI messages only (CC, bend,
+// program, aftertouch: a MIDI event with no n / note), no note, no noteOff.
+enum class EntryKind : uint8_t { Note = 0, Control = 1 };
 
 // One trigger, 48 bytes. The control mapping (step 4c, mapping.h) fills
 // everything but the timing; the interrupt applies it as given.

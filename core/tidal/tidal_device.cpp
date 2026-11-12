@@ -223,6 +223,7 @@ uint16_t DeviceVoice::noteOn(int slot, const tc::Entry& e, uint32_t late) {
         else if (e.modId[i] == (uint8_t)tc::TMod::Program) sendProgramChange((uint8_t)e.modVal[i], ch, false);
         else if (e.modId[i] == (uint8_t)tc::TMod::Touch) sendAfterTouch((uint8_t)e.modVal[i], ch, false);
     }
+    if (e.kind == tc::EntryKind::Control) return 0;  // `ccv ... # ccn ...` with no n / note: just the messages
     sendMidiNoteOn(e.note, e.vel, ch, false);
     return 0;
 }
