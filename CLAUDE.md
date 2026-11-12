@@ -293,6 +293,8 @@ to upstream CE.
     background list (the text's list stays in RAM_G), at most every 40 ms
     (was 60); separate fingerprints; no control left: the text draws the
     backgrounds as before.
+    RC23 (user, 2026-11-12): "sooooo much better! feels snappier overall"
+    (RC20-RC22 changes confirmed in use with it).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
