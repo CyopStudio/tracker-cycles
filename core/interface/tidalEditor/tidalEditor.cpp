@@ -101,27 +101,37 @@ class TcControl : public cDisplayControl
     void setValue(int) override {}
     void setColors(const uint32_t*) override {}
     void setData(void*) override {}
-    static TcControl* views[3];
+    static TcControl* views[4];
 };
-TcControl* TcControl::views[3] = {};
+TcControl* TcControl::views[4] = {};
 
 // ---- the code area ------------------------------------------------------------------
+// Two controls: the text (two halves) and, underneath, its backgrounds
+// (cursor, highlights, flash, bars). The display keeps each control's list in
+// RAM_G, so a highlight-only change rebuilds just the small background list
+// instead of every glyph (user, after RC22: highlights lagged when busy).
 class TcCodeView : public TcControl
 {
   public:
-    explicit TcCodeView(strControlProperties* p) : TcControl(p, 2, 0) {}
-    void update() override { draw(0); }
+    explicit TcCodeView(strControlProperties* p, bool bg = false)
+        : TcControl(p, bg ? 1 : 2, bg ? 3 : 0), bgLayer_(bg) {}
+    void update() override { draw(bgLayer_ ? -1 : 0); }
     void update2() override { draw(1); }
     void setData(void* d) override { scr_ = static_cast<const tc::CodeScreen*>(d); }
 
   private:
     const tc::CodeScreen* scr_ = nullptr;
+    bool bgLayer_;
 
-    void draw(int half)
+    void draw(int half)  // -1: all lines (the background layer)
     {
         if (!scr_) return;
         const tc::CodeScreen& s = *scr_;
-        const int from = half ? s.n / 2 : 0, to = half ? s.n : s.n / 2;
+        const bool bgPart = bgLayer_;
+        // no background control (none left to create): the text draws them too, as before
+        const bool rectsHere = bgPart || !views[3];
+        const int from = half > 0 ? s.n / 2 : 0, to = half != 0 ? s.n : s.n / 2;
+        if (half == -1) half = 0;  // the background: the flash / scroll bar too
         const int adv = advance(), lh = lineH();
         // The frame's display list is ~8 KB and overlays are appended last
         // (they draw on top): with several patterns playing, the highlights
@@ -139,7 +149,9 @@ class TcCodeView : public TcControl
         // 8 KB (an overrun corrupts the next control's list), and the whole
         // frame must stay under ~8 KB with the menu / keyboard appended last.
         // Past it the remaining lines are left out (never a broken frame).
-        const int budget = (menu || kbd) ? 1800 : 3500;  // bytes per half (2 halves)
+        // text: per half (2 halves); backgrounds: one list (runs of cells)
+        const int budget = bgPart ? ((menu || kbd) ? 600 : 1000)
+                         : rectsHere ? ((menu || kbd) ? 1800 : 3500) : ((menu || kbd) ? 1500 : 3000);
         int used = 64;                                    // context, scissor, begin / end
         auto afford = [&](int bytes) {
             if (used + bytes > budget) return false;
@@ -149,6 +161,7 @@ class TcCodeView : public TcControl
         API_SAVE_CONTEXT();
         API_SCISSOR_XY(0, kAreaTop);
         API_SCISSOR_SIZE(800, kAreaBottom - kAreaTop);
+        if (rectsHere) {
         // backgrounds: the current block, bars, selection / lit / gap
         API_BEGIN(RECTS);
         // no current-block strip (Editor22 notes: the cursor shows where you are; keep the screen dark);
@@ -197,6 +210,11 @@ class TcCodeView : public TcControl
             }
         }
         API_END();
+        if (bgPart) {
+            API_RESTORE_CONTEXT();
+            return;
+        }
+        }
         // glyphs: bitmaps, a colour change only when it changes; past
         // x 511 (VERTEX2II's range) through VERTEX_TRANSLATE_X
         const strFont& f = codeFont();
@@ -242,6 +260,12 @@ class TcCodeView : public TcControl
         if (tx) API_VERTEX_TRANSLATE_X(0);
         API_RESTORE_CONTEXT();
     }
+};
+
+class TcCodeBg : public TcCodeView
+{
+  public:
+    explicit TcCodeBg(strControlProperties* p) : TcCodeView(p, true) {}
 };
 
 // ---- the info box (cursor info / status, message) ------------------------------------------
@@ -507,6 +531,7 @@ void cTidalEditorModule::stop()
     moduleRefresh = 0;
     clearPads();
     display.setControlHide(code_);
+    if (codeBg_ >= 0) display.setControlHide(codeBg_);
     display.setControlHide(side_);
     display.setControlHide(menu_);
 }
@@ -528,13 +553,14 @@ void cTidalEditorModule::update()
         redraw();
         return;
     }
-    // highlights only: the code view, at most ~16 times a second (each
-    // redraw is a display frame and 3.5-5.7 ms of main loop, editor bench v1)
-    if (ms - lastLitMs_ >= 60 && tidalEditorTakeLitDirty()) {
+    // highlights only: just the code's background layer (a small list; the
+    // text's list stays in RAM_G), at most ~25 times a second
+    if (ms - lastLitMs_ >= 40 && tidalEditorTakeLitDirty()) {
         lastDrawMs_ = lastLitMs_ = ms;
         const tc::CodeScreen& scr = tidalEditorLayout(geometry());
         display.setControlData(code_, (void*)&scr);
-        display.refreshControl(code_);
+        if (codeBg_ >= 0) display.setControlData(codeBg_, (void*)&scr);
+        display.refreshControl(codeBg_ >= 0 ? codeBg_ : code_);
         display.synchronizeRefresh();
         tidalEditorLitQueued(ms);
     }
@@ -567,25 +593,44 @@ void cTidalEditorModule::redraw()
         display.refreshControl(c);
         any = true;
     };
-    {  // the code view (its budget depends on an open overlay)
-        Fnv f;
-        f.num(scr.n);
-        f.num(scr.scroll);
-        f.num(scr.flash.on | scr.flash.ok << 1 | scr.flash.y << 2);
-        f.num(overlay);
-        f.num(scr.tokenMode);  // the cursor colour follows the mode
+    {  // the code view: text and backgrounds apart (budgets depend on an open overlay)
+        Fnv t, b;
+        t.num(scr.n);
+        t.num(scr.scroll);
+        t.num(overlay);
+        b.num(scr.n);
+        b.num(scr.scroll);
+        b.num(scr.contentH);
+        b.num(scr.flash.on | scr.flash.ok << 1 | scr.flash.y << 2 | scr.flash.h << 12);
+        b.num(overlay);
+        b.num(scr.tokenMode);  // the cursor colour follows the mode
         for (int i = 0; i < scr.n; i++) {
             const tc::CodeLine& L = scr.line[i];
-            f.num(L.y);
-            f.num((int)L.kind | (int)L.bar << 8 | (int)L.dim << 16);
-            f.bytes(L.cell, L.n * sizeof L.cell[0]);
-            f.bytes(L.col, L.n);
+            t.num(L.y);
+            t.num((int)L.kind | (int)L.dim << 16);
+            b.num(L.y);
+            b.num((int)L.kind | (int)L.bar << 8);
+            for (int k = 0; k < L.n; k++) {  // text: character, style, white when selected; backgrounds: the flags
+                const tc::CodeCell& c = L.cell[k];
+                t.num((uint32_t)(uint8_t)c.ch | (uint32_t)c.style << 8 | (uint32_t)(c.flags & tc::kCellSel) << 16 |
+                      (uint32_t)L.col[k] << 24);
+                b.num((uint32_t)c.flags | (uint32_t)L.col[k] << 8);
+            }
         }
         display.setControlData(code_, (void*)&scr);
         display.setControlShow(code_);
-        if (forceAll_ || f.h != codeHash_) {
-            codeHash_ = f.h;
+        if (codeBg_ >= 0) {
+            display.setControlData(codeBg_, (void*)&scr);
+            display.setControlShow(codeBg_);
+        }
+        const bool bgApart = codeBg_ >= 0;  // else the text control draws the backgrounds too
+        if (forceAll_ || t.h != codeHash_ || (!bgApart && b.h != codeBgHash_)) {
+            codeHash_ = t.h;
             refresh(code_);
+        }
+        if (forceAll_ || b.h != codeBgHash_) {
+            codeBgHash_ = b.h;
+            if (bgApart) refresh(codeBg_);
         }
     }
     {  // the info box
@@ -680,6 +725,7 @@ void cTidalEditorModule::initDisplayControls()
     menu_ = display.createControl<TcMenuView>(&p3);
     p3.style = controlStyleShow;
     code_ = display.createControl<TcCodeView>(&p3);
+    codeBg_ = display.createControl<TcCodeBg>(&p3);  // after the text: drawn under it
     side_ = display.createControl<TcSideView>(&p3);
 }
 

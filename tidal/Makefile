@@ -13,7 +13,7 @@ CXXFLAGS  ?= -std=c++17 -O2 -g -Wall -Wextra -Wno-missing-field-initializers -Wn
 BUILD     := build
 CORE_SRC  := $(wildcard core/*.cpp)
 CORE_OBJ  := $(CORE_SRC:%.cpp=$(BUILD)/%.o)
-TEST_SRC  := $(filter-out tests/bench.cpp tests/edbench.cpp,$(wildcard tests/*.cpp))
+TEST_SRC  := $(filter-out tests/bench.cpp tests/edbench.cpp tests/layoutbench.cpp,$(wildcard tests/*.cpp))
 TEST_OBJ  := $(TEST_SRC:%.cpp=$(BUILD)/%.o)
 
 # The prototype draws with the firmware's own fonts (core/libs/fonts).
@@ -38,7 +38,7 @@ CXXFLAGS_SDL := -DTC_HAVE_SDL -I$(SDL_PREFIX)/include -I$(SDL_PREFIX)/include/SD
 PROTO_LIBS += -L$(SDL_PREFIX)/lib/x86_64-linux-gnu -L$(SDL_PREFIX)/lib -lSDL2
 endif
 
-.PHONY: all test smoke proto arm clean run golden bench edbench
+.PHONY: all test smoke proto arm clean run golden bench edbench layoutbench
 all: $(BUILD)/run_tests $(BUILD)/tidal_proto
 
 test: $(BUILD)/run_tests
@@ -65,6 +65,13 @@ $(BUILD)/bench: $(CORE_OBJ) $(BUILD)/tests/bench.o
 
 edbench: $(BUILD)/edbench
 	./$(BUILD)/edbench
+
+# code view layout timing (a highlight-only redraw's CPU before the display)
+layoutbench: $(BUILD)/layoutbench
+	./$(BUILD)/layoutbench
+
+$(BUILD)/layoutbench: $(CORE_OBJ) $(EDITOR_OBJ) $(BUILD)/tests/layoutbench.o
+	$(CXX) $(CXXFLAGS) -o $@ $^
 
 $(BUILD)/edbench: $(CORE_OBJ) $(BUILD)/tests/edbench.o
 	$(CXX) $(CXXFLAGS) -o $@ $^

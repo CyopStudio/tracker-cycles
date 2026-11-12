@@ -22,7 +22,8 @@ class cTidalEditorModule : public ModuleBase
     void redraw();
 
   private:
-    hControl code_ = -1, side_ = -1, menu_ = -1, bg_ = -1;
+    hControl code_ = -1, codeBg_ = -1, side_ = -1, menu_ = -1, bg_ = -1;
+    uint32_t codeBgHash_ = 0;
     hControl label_[8] = {};
     uint32_t lastDrawMs_ = 0, lastStatusMs_ = 0, lastLitMs_ = 0;
     // what each control showed last (redraw refreshes only changed ones: the

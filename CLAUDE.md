@@ -280,6 +280,19 @@ to upstream CE.
     happen (fitNode_ / fitChanges_); n detents = one edit; functions
     alphabetical, operators in family order. 15 trials on the user's
     block instead of ~120 per detent (test_editor).
+    Highlights lagging when busy (user; RC23 PolyendTrac_CyclesRC23.ptf, not
+    yet run): (1) layoutCode no longer memsets the 16 KB span table per
+    block (twice per block per frame = 288 KB of uncached SDRAM writes):
+    spans stay zero and only a block's own nodes are cleared after it
+    (LayoutScratch::clean); block heights are kept while the code / rows /
+    geometry stay (heightKey), so highlight frames skip the measuring pass
+    (host `make layoutbench` 10.9 -> 5.7 us); (2) the code view is two
+    display controls: text (2 halves, 3000 / 1500 B) and its backgrounds
+    (cursor, lit, flash, bars; TcCodeBg, 1000 / 600 B, created after the
+    text so it is drawn under it); highlight-only frames refresh just the
+    background list (the text's list stays in RAM_G), at most every 40 ms
+    (was 60); separate fingerprints; no control left: the text draws the
+    backgrounds as before.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

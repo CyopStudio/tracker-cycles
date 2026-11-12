@@ -11,6 +11,15 @@ namespace tc {
 
 namespace {
 
+constexpr uint32_t kSpansClean = 0x5C1EA9u;
+
+// Zero the spans of n's subtree (what the renderer wrote for one block).
+void clearSpans(const Program& p, uint16_t n, LayoutScratch& s) {
+    if (!n) return;
+    s.spans[n] = Span{0, 0};
+    for (uint16_t c = p.at(n).first; c; c = p.at(c).next) clearSpans(p, c, s);
+}
+
 bool styleOf(Kind k, CodeStyle& st) {
     switch (k) {
         case Kind::Fn: st = CodeStyle::Fn; return true;
@@ -46,7 +55,11 @@ void paint(const Program& p, uint16_t idx, LayoutScratch& s, int n) {
 int layoutText(const Editor& ed, uint16_t blk, bool cps, bool cur, bool lit, int slot, double now, int cols,
                LayoutScratch& s, int& rows) {
     const Program& p = ed.prog();
-    memset(s.spans, 0, sizeof s.spans);
+    if (s.clean != kSpansClean) {  // the first use (raw storage on the device)
+        memset(s.spans, 0, sizeof s.spans);
+        s.clean = kSpansClean;
+        s.heightKey = 0;
+    }
     Renderer r(s.text, kLayoutText + 1, s.spans);
     r.setBreaks(true);
     s.text[0] = 0;
@@ -138,6 +151,7 @@ int layoutText(const Editor& ed, uint16_t blk, bool cps, bool cur, bool lit, int
         i = j + 1;
     }
     rows = row + 1;
+    clearSpans(p, cps ? p.cpsExpr : blk, s);  // all zero again for the next block
     return n;
 }
 
@@ -191,22 +205,46 @@ void layoutCode(const Editor& ed, double now, const CodeGeometry& g, CodeScreen&
     auto isCur = [&](const Row& rw) { return rw.idx == -2 ? ed.onCps() : rw.blk ? rw.blk == curBlk : empty >= 0; };
     auto litFor = [&](const Row& rw) { return rw.blk && rw.blk == ed.playingBlock(rw.slot); };
 
-    // heights (a layout pass per block), then the scroll
+    // heights (a layout pass per block), then the scroll; the heights only
+    // change with the code, the rows or the geometry (not with highlights,
+    // the flash or the cursor), so they're kept while those stay
+    uint32_t key = 2166136261u;
+    auto mix = [&](uint32_t v) { key = (key ^ v) * 16777619u; };
+    mix(ed.changes());
+    mix((uint32_t)(empty + 1));
+    mix((uint32_t)ed.slot());
+    mix((uint32_t)nrows);
+    mix((uint32_t)g.cols);
+    mix((uint32_t)g.lineH);
+    mix((uint32_t)g.blockGap);
+    for (int k = 0; k < nrows; k++) mix(rows[k].blk);
+    if (key == 0) key = 1;
+    const bool haveHeights = s.clean == kSpansClean && s.heightKey == key && s.nHeights == nrows;
     int heights[kMaxBlocks + 2];
     int curY = 0, curH = 0, y = 0;
     for (int k = 0; k < nrows; k++) {
         const Row& rw = rows[k];
-        int lines = 1;
-        if (rw.idx == -2 || rw.blk) layoutText(ed, rw.blk, rw.idx == -2, false, false, rw.slot, now, g.cols, s, lines);
-        const bool hasComment = rw.idx >= 0 && p.blockComment(rw.idx)[0];
-        const int h = (rw.blk || rw.idx == -2) ? (hasComment ? g.lineH : 0) + lines * g.lineH + g.blockGap
-                                               : g.lineH + g.blockGap;
+        int h;
+        if (haveHeights) {
+            h = s.heights[k];
+        } else {
+            int lines = 1;
+            if (rw.idx == -2 || rw.blk) layoutText(ed, rw.blk, rw.idx == -2, false, false, rw.slot, now, g.cols, s, lines);
+            const bool hasComment = rw.idx >= 0 && p.blockComment(rw.idx)[0];
+            h = (rw.blk || rw.idx == -2) ? (hasComment ? g.lineH : 0) + lines * g.lineH + g.blockGap
+                                         : g.lineH + g.blockGap;
+            s.heights[k] = (int16_t)h;
+        }
         if (isCur(rw)) {
             curY = y;
             curH = h;
         }
         heights[k] = h;
         y += h;
+    }
+    if (!haveHeights) {
+        s.heightKey = key;
+        s.nHeights = nrows;
     }
     const int scroll = curY + curH > g.areaH ? curY + curH - g.areaH : 0;
     out.scroll = (int16_t)scroll;

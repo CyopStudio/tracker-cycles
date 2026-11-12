@@ -75,6 +75,14 @@ struct CodeGeometry {
 // Working memory (~44 KB: SDRAM on the device).
 constexpr int kLayoutText = 4096;  // characters of one rendered block
 struct LayoutScratch {
+    // spans are kept all zero between blocks (only a block's own nodes are
+    // cleared after it: no 16 KB memset per block); `clean` marks that
+    uint32_t clean;
+    // heights of the block rows, kept while the code / rows / geometry are
+    // as they were (highlight-only redraws skip the measuring pass)
+    uint32_t heightKey;
+    int nHeights;
+    int16_t heights[kMaxBlocks + 2];
     Span spans[kMaxNodes];
     char text[kLayoutText + 1];
     CodeStyle style[kLayoutText];
