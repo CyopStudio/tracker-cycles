@@ -323,6 +323,13 @@ to upstream CE.
     noteOn / noteOff (dur 0); with neither it still plays note 60 (n 0).
     RC25 MIDI test (user, 2026-11-12): "Midi works flawlessly" (notes,
     chords, CCs, bend, program, aftertouch, midichan, clock).
+    RELEASED 1.0.0 (2026-11-12): release/1.0.0 off develop, merged into
+    main (3bbc41f "Release 1.0.0"), tag v1.0.0 pushed (the workflow builds
+    and publishes the GitHub release: CHANGELOG.md body, the .ptf, the
+    effects zip and docs/ExampleProject/tracker-cycles1.zip), merged back
+    into develop and feature/tidal. Next (1.1): editor.cpp split, CLAUDE.md
+    history to docs/history.md, label-based smoke navigation, then pages /
+    perform mode (docs/retrospective_2026-11.md); UPCOMING.md for changes.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
