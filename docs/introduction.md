@@ -2,7 +2,7 @@
 
 **Tracker Cycles turns the Original Polyend Tracker into a standalone live-coding instrument for TidalCycles-style patterns.** You write real Tidal code, such as `d1 $ every 4 (fast 2) $ s "bd*2 [~ sd]" # room 0.3`, edit it with the pads, jog wheel and buttons, and the Tracker's own sample engine plays it. You don't need a computer, SuperCollider or GHC.
 
-It's a free firmware for the Original Tracker (MK66), built on Polyend's Tracker Community Edition. The step sequencer, pattern editor and song mode are replaced by a Tidal pattern engine and a code editor. Everything else that makes the Tracker a Tracker stays: instruments, the sample loader and editor, the mixer, effects and MIDI.
+It's a free firmware for the Original Tracker (MK66), built on Polyend's Tracker Community Edition. The step sequencer, pattern editor and song mode are replaced by a Tidal pattern engine and a code editor. Everything else stays: instruments, the sample loader and editor, the mixer, effects and MIDI.
 
 ---
 

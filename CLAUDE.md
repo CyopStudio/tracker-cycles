@@ -321,6 +321,8 @@ to upstream CE.
     100); an event with MIDI controls (ccn + ccv, midibend, progNum,
     miditouch) but no n / note is EntryKind::Control: the messages only, no
     noteOn / noteOff (dur 0); with neither it still plays note 60 (n 0).
+    RC25 MIDI test (user, 2026-11-12): "Midi works flawlessly" (notes,
+    chords, CCs, bend, program, aftertouch, midichan, clock).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
