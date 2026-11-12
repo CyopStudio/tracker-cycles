@@ -2,6 +2,7 @@
 
 **Tracker Cycles** (`1.0.0`): TidalCycles-style live coding on the **Original Polyend Tracker** (`MK66`), a fork of Polyend Tracker Community Edition (CE).
 
+* **[Introduction](introduction.md)**: what Tracker Cycles is and its main features, in one page.
 * **[README](../README.md)**: install, quick start, controls, what it plays, SD card layout, sample folders.
 * **[Release Changelog (`CHANGELOG.md`)](../CHANGELOG.md)**
 
