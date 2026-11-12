@@ -168,3 +168,4 @@ jobs:
           files: |
             build/*.ptf
             build/PolyendTracker_Cycles_Effects.zip
+            docs/ExampleProject/tracker-cycles1.zip
