@@ -7,11 +7,11 @@ msg
 replace
 menulist
 menu:6
-hw:pattern
+hw:play
 msg
-hw:shift+s4
+hw:shift+s8
 msg
-hw:pattern
+hw:play
 msg
 hw:fx1
 msg
@@ -41,6 +41,6 @@ hw:shift+config
 hw:s2
 hw:s8
 msg
-hw:shift+s4
+hw:shift+s8
 msg
 print

@@ -215,3 +215,6 @@ compress_bad
 wchoose
 wrandcat
 name_digits
+slice
+slice_pat
+slice_own_begin

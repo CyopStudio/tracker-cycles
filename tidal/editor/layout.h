@@ -19,6 +19,7 @@ enum class CodeStyle : uint8_t { Text, Fn, Num, Word, Quote, Hole, SlotPlay, Slo
 constexpr uint8_t kCellSel = 1;  // inside the cursor's selection
 constexpr uint8_t kCellLit = 2;  // a sounding step (per-event highlighting)
 constexpr uint8_t kCellGap = 4;  // the gap cursor's bar is just before this cell
+constexpr uint8_t kCellPair = 8; // the partner of the bracket / quote at the cursor (cursor mode)
 
 struct CodeCell {
     char ch;

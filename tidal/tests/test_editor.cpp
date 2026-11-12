@@ -428,7 +428,7 @@ void testEditorModel(int& pass, int& fail) {
         }
         // d1 $ every 4 (fast 2) $ s " bd * 2 [ ~ sd ] bd sd " # gain 1, and the gaps
         // between steps (5 outside the brackets, 3 inside)
-        EXPECT(fwd.size() == 29, "d1 has 21 tokens and 8 gaps, walked %d", (int)fwd.size());
+        EXPECT(fwd.size() == 30, "d1 has 21 tokens, 8 gaps and the bar before the pattern, walked %d", (int)fwd.size());
         int ops = 0;
         for (const St& x : fwd) ops += x.op;
         EXPECT(ops == 2, "two symbols ($ and #): %d", ops);
@@ -498,9 +498,11 @@ void testEditorModel(int& pass, int& fail) {
     EXPECT(ctlFromId("s1", c) && c == Control::Screen0, "s1");
     EXPECT(!ctlFromId("pad49", c) && !ctlFromId("nope", c), "bad ids refused");
     EXPECT(!strcmp(ctlName(padCtl(47)), "Pad 48") && !strcmp(ctlId(Control::Fx1), "fx1"), "names");
-    Command k = controlCommand(eager, Control::Pattern, false);
-    EXPECT(k.type == Command::Act && k.action == Action::Evaluate && k.label == "Evaluate", "Pattern: %s",
+    Command k = controlCommand(eager, Control::Play, false);  // RC14: Play evaluates, Pattern is the mute modifier
+    EXPECT(k.type == Command::Act && k.action == Action::Evaluate && k.label == "Evaluate", "Play: %s",
            k.label.c_str());
+    k = controlCommand(eager, Control::Screen7, true);
+    EXPECT(k.type == Command::Act && k.action == Action::Undo, "Shift+Screen 8: Undo (%s)", k.label.c_str());
     k = controlCommand(eager, padCtl(1), true);  // Shift + pad 2 = d2
     EXPECT(k.type == Command::Slot && k.slot == 1 && k.label == "d2", "Shift+pad2: %s", k.label.c_str());
     EXPECT(press(eager, padCtl(2), true) && eager.slot() == 2, "pressing Shift+pad3 selects d3");

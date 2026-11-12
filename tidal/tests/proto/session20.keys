@@ -31,7 +31,7 @@ hw:shift+insert
 hw:right
 hw:fx1
 menu:19
-hw:pattern
+hw:play
 hw:down
 hw:right
 msg
@@ -46,5 +46,5 @@ msg
 hw:s8
 menulist
 hw:s1
-hw:pattern
+hw:play
 print

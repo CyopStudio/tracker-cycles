@@ -1,0 +1,7 @@
+hw:shift+pad2 hw:left hw:insert hw:s8 msg
+hw:shift+pad2 hw:left hw:shift+delete msg
+hw:shift+pad1 hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:shift+s6 hw:jog+ msg
+hw:right hw:right hw:right hw:right hw:shift+s7 hw:jog+ msg
+hw:play msg hw:pattern+pad1 msg hw:pattern msg hw:shift+play msg
+hw:shift+s4 msg hw:shift+s8 msg
+print

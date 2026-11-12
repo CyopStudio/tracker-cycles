@@ -195,7 +195,7 @@ enum class Fn : uint8_t {
     None, Silence, Fast, Slow, Hurry, Rev, Palindrome, Brak, Iter, Ply, Linger, Segment, Stack, Cat,
     Fastcat, Slowcat, Overlay, Every, Whenmod, Range, Struct, Mask, Euclid, EuclidInv, EuclidFull,
     DegradeBy, SometimesBy, Sometimes, SomeCyclesBy, Rand, Irand, Sine, Cosine, Saw, Tri, Square, Superimpose, Off, Jux, Stut, Echo, Chunk, Chop, Striate,
-    LoopAt, Splice, Scale, Arp, Control,
+    LoopAt, Splice, Slice, Scale, Arp, Control,
     // batch 2 (2026-11-11); callLib2
     EveryP, Inside, Outside, Trunc, FastGap, Wedge, ChunkR, Run, Scan, Inv, Sew, Stitch, While, EuclidOff,
     Press, PressBy, SwingBy, Swing, Rot, Bite, Squeeze, Select, PickF, SelectF, Layer, JuxBy, EchoWith,
@@ -236,7 +236,7 @@ static const FnInfo& fnInfo(int id) {
             {"superimpose", Fn::Superimpose}, {"off", Fn::Off},       {"jux", Fn::Jux},
             {"stut", Fn::Stut},         {"echo", Fn::Echo},           {"chunk", Fn::Chunk},
             {"chop", Fn::Chop},         {"striate", Fn::Striate},     {"loopAt", Fn::LoopAt},
-            {"splice", Fn::Splice},     {"scale", Fn::Scale},         {"arp", Fn::Arp},
+            {"splice", Fn::Splice},     {"slice", Fn::Slice},     {"scale", Fn::Scale},         {"arp", Fn::Arp},
             {"#", Fn::OpUnionR},        {"|>", Fn::OpUnionR},         {"|<", Fn::OpUnionL},
             {">|", Fn::OpUnionR},       {"<|", Fn::OpUnionL},
             {"every'", Fn::EveryP},     {"inside", Fn::Inside},       {"outside", Fn::Outside},
@@ -753,7 +753,7 @@ private:
     void qDegrade(const Pat& x, float p, bool invert, uint32_t seed, Arc a);
     uint32_t miniSeed(uint16_t n);
     void qArp(const Pat& x, const Val& mode, Arc a);
-    void qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a);
+    void qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a, bool speed = true);
     int listPats(uint16_t list, Pat* out, int cap);
     int listLen(uint16_t list);
     Pat listAt(uint16_t list, int i) const;
@@ -1537,7 +1537,8 @@ void Eval::arpeggiate(int m, bool down) {
 
 // splice: structure from the index pattern; each event plays slice
 // (i mod n) / n of the sample, sped up to fit the event, with unit "c".
-void Eval::qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a) {
+// slice (speed = false): the same begin / end, no speed or unit.
+void Eval::qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a, bool withSpeed) {
     int keyB = controlKey("begin"), keyE = controlKey("end"), keyS = controlKey("speed"), keyU = controlKey("unit");
     int m = top;
     query(idx, a);
@@ -1559,7 +1560,7 @@ void Eval::qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a) {
             for (int t = x0; t < x1 && !bad(); t++) {
                 Arc part2;
                 if (!subArc(part1, gArena[t].part, part2)) continue;
-                if (!gArena[t].isMap) return fail("splice needs a control pattern");
+                if (!gArena[t].isMap) return fail(withSpeed ? "splice needs a control pattern" : "slice needs a control pattern");
                 Q wd = gArena[i].whole.e - gArena[i].whole.s;
                 float speed = (1.0f / (float)n) / qfloat(wd);
                 // unit "c" is a pure pattern: split at cycle boundaries
@@ -1591,8 +1592,10 @@ void Eval::qSplice(const Pat& bits, const Pat& idx, const Pat& x, Arc a) {
                     }
                     if (!hasB) set(keyB, 'f', numF(begin), false);
                     if (!hasE) set(keyE, 'f', numF(end), false);
-                    set(keyS, 'f', numF(speed), true);
-                    set(keyU, 's', strV(kEngineStr + kStrC), false);
+                    if (withSpeed) {
+                        set(keyS, 'f', numF(speed), true);
+                        set(keyU, 's', strV(kEngineStr + kStrC), false);
+                    }
                 });
             }
             drop(x0, x1);
@@ -2928,6 +2931,9 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
             });
             return;
         }
+        case Fn::Slice:
+            if (need(3)) qSplice(all[0], all[1], all[2], a, false);
+            break;
         case Fn::Splice:
             if (need(3)) qSplice(all[0], all[1], all[2], a);
             return;

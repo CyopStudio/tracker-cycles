@@ -4,8 +4,8 @@ hw:insert
 hw:shift+pad1
 replace
 menu:1
-hw:pattern
-hw:pattern
+hw:play
+hw:play
 msg
 hw:shift+pad1
 msg
@@ -27,7 +27,7 @@ msg
 hw:shift+pad1
 msg
 hw:shift+pad1
-hw:pattern
+hw:play
 hw:shift+pad2
 hw:shift+pad1
 msg

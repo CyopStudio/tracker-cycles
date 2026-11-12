@@ -70,6 +70,8 @@ static const LibEntry kLib[] = {
     // Signatures verified with :t in GHCi (Tidal 1.10.3), 2026-11-09.
     FN("loopAt", "Pat Time -> Pat Control -> Pat Control", Sample, Approx, "2"),
     FN("splice", "Pat Int -> Pat Int -> Pat Control -> Pat Control", Sample, Approx, "4 \"0 2\""),
+    // slice (RC13 user ask): begin / end only, which the Tracker plays exactly
+    FN("slice", "Pat Int -> Pat Int -> Pat Control -> Pat Control", Sample, Full, "4 \"0 2\""),
     // ---- harmony ------------------------------------------------------------
     FN("scale", "Frac a => Pat String -> Pat Int -> Pat a", Harmony, Full, "\"major\""),
     FN("arp", "Pat String -> Pat a -> Pat a", Harmony, Full, "\"up\""),

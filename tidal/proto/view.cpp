@@ -37,6 +37,7 @@ constexpr uint32_t lit = 0x553810;     // a step whose event is sounding
 constexpr uint32_t litSel = 0x6E4A18;  // the same inside the cursor's selection
 constexpr uint32_t cursorTok = 0x52306E;  // cursor mode's cursor (tree mode: cursor; user, RC11)
 constexpr uint32_t litTok = 0x6E3A40;     // lit inside cursor mode's cursor
+constexpr uint32_t pairTok = 0x2E2440;    // the partner of the bracket / quote at the cursor
 }  // namespace col
 
 
@@ -92,6 +93,7 @@ void drawEditor(const Editor& ed, Framebuffer& fb) {
             const int px = cx + L.col[i] * adv;
             const bool sel = c.flags & kCellSel, lit = c.flags & kCellLit;
             if (sel) fb.rect(px, yy - 1, adv, lineH, scr.tokenMode ? (lit ? col::litTok : col::cursorTok) : lit ? col::litSel : col::cursor);
+            else if (c.flags & kCellPair) fb.rect(px, yy - 1, adv, lineH, lit ? col::lit : col::pairTok);
             else if (lit) fb.rect(px, yy - 1, adv, lineH, col::lit);
             if (c.flags & kCellGap) fb.rect(px - 2, yy - 1, 3, lineH, col::accent);  // gap cursor
             char ch[2] = {c.ch, 0};

@@ -53,7 +53,7 @@ bool mapKey(const SDL_KeyboardEvent& k, bool shift, Key& out) {
         case SDLK_PAGEDOWN:
         case SDLK_MINUS:
         case SDLK_KP_MINUS: return ctl(Control::JogDown);
-        case SDLK_SPACE: return ctl(Control::Play);
+        case SDLK_SPACE: return ctl(Control::Pattern);  // the mute modifier (RC14: Pattern and Play swapped)
         case SDLK_i: return ctl(Control::Insert);
         case SDLK_x:
         case SDLK_DELETE:
@@ -64,7 +64,7 @@ bool mapKey(const SDL_KeyboardEvent& k, bool shift, Key& out) {
         case SDLK_n: return ctl(Control::Note);
         case SDLK_l: return ctl(Control::Song);
         case SDLK_p: return intent(Action::EditComment);
-        case SDLK_e: return ctl(Control::Pattern);
+        case SDLK_e: return ctl(Control::Play);  // evaluate
         case SDLK_f: return ctl(Control::Fx1);
         case SDLK_c: return ctl(ctrl ? Control::Copy : Control::Fx2);
         case SDLK_v: return ctrl ? intent(Action::Paste) : false;
@@ -163,11 +163,11 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
                 Key k;
                 if (e.key.keysym.sym == SDLK_q && (e.key.keysym.mod & KMOD_CTRL)) {
                     running = false;
-                } else if (e.key.keysym.sym == SDLK_h) {  // hush = Shift+Play pressed and released alone
+                } else if (e.key.keysym.sym == SDLK_h) {  // hush = Shift+Pattern pressed and released alone
                     if (!e.key.repeat) {
-                        press(ed, Control::Play, true);
-                        release(ed, Control::Play);
-                        st.last = "key h -> Shift+Play (alone) -> hush";
+                        press(ed, Control::Pattern, true);
+                        release(ed, Control::Pattern);
+                        st.last = "key h -> Shift+Pattern (alone) -> hush";
                     }
                 } else if (e.key.keysym.sym == SDLK_SPACE && e.key.repeat) {
                     // Play is held: key repeat must not press it again
@@ -192,9 +192,9 @@ int runWindow(Editor& ed, Framebuffer& screen, int scale, bool withPanel) {
                 }
                 dirty = true;
             } else if (e.type == SDL_KEYUP) {
-                if (e.key.keysym.sym == SDLK_SPACE && ed.playHeld()) {  // Play released (v2: acts on release)
-                    release(ed, Control::Play);
-                    st.last = "key Space released -> Play";
+                if (e.key.keysym.sym == SDLK_SPACE && ed.playHeld()) {  // Pattern released (acts on release)
+                    release(ed, Control::Pattern);
+                    st.last = "key Space released -> Pattern";
                 }
                 dirty = true;  // Shift display
             } else if (e.type == SDL_MOUSEWHEEL) {

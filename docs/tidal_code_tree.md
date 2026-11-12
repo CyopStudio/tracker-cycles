@@ -331,7 +331,7 @@ against Tidal 1.10.3 (`:type` in GHCi) when it gets a golden test.
 - Continuous: `sine`, `cosine`, `saw`, `tri`, `square`
 - Layering: `superimpose`, `off`, `jux`, `stut`/`echo`, `chunk`
 - Samples: `chop`, `striate` (host-only until the device supports them),
-  `loopAt`, `splice` (approximate on device: playback rate via tune)
+  `loopAt`, `splice` (approximate on device: playback rate via tune), `slice` (begin / end only: exact on the device)
 - Harmony: `scale`, `arp`, `up`
 - Operators: `#`, `|+|`/`|+`/`+|`, `|-|`.., `|*|`.., `|/|`.., `|<`, `|>`
 - Controls: `s`, `n`, `note`, `gain`, `pan`, `cutoff`, `resonance`, `hpf`,

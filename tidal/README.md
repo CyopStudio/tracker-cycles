@@ -140,11 +140,11 @@ only in these keys, the rest (jog, pads, menus, Screen keys) is the same:
 
 | Cursor mode | |
 | :--- | :--- |
-| ← → | previous / next token in text order (names, numbers, a string's quotes, its steps, brackets, `*2` …, `$` / `#` / operators; the `dN` top); stays in the block |
+| ← → | previous / next token in text order (names, numbers, a string's quotes, its steps and the gaps between them, brackets, `*2` …, `$` / `#` / operators; the bar before the pattern; the `dN` top); stays in the block. On a bracket or quote only it is the cursor, its partner is marked |
 | ↑ ↓ | the token at the same column on the line above / below (line breaks); past the first / last line: the block above (its last line) / below (its first line) |
 | Delete | the token under the cursor: a step becomes `~` (a `~` goes); a function's name: unwrap it (a control behind an operator, `# gain 1`, goes with its operator); `$` / `#` / an operator: unwrap; `[` / `<` / `{`: the brackets go, the steps stay; `*` / `?` / `(`: unwrap; an argument: what it belongs to is unwrapped (never a `??`); the `dN` top: the block |
 | Shift + Delete | Backspace: the same for the token to the left (in a gap: the step before it); never the `dN` top |
-| Insert | on a function's name: the `$` modifiers menu (FX1) around its application; inside `"..."`: a copy of the step after it; at the `dN` top: a new block (slot pad); elsewhere: the `#` FX menu (FX2) at the end of the operator chain |
+| Insert | on a function's name, or on the bar before the pattern (the stop after `dN $`): the `$` modifiers menu (FX1) around it; inside `"..."`: a copy of the step after it (at a gap: of the step before); at the `dN` top: a new block (slot pad); elsewhere: the `#` FX menu (FX2) at the end of the operator chain |
 
 The prototype starts in cursor mode; `--mode tree` starts in tree mode
 (the smoke sessions do, unless their `.args` say `--mode cursor`).
@@ -158,23 +158,21 @@ The prototype starts in cursor mode; `--mode tree` starts in tree mode
 | → at a block's top | into the block's expression | | → |
 | Jog wheel | change value (number, note, sample, function) | move | wheel, `+` `-`, PgUp/PgDn |
 | Shift + jog | bigger step (×10, octave, sample `:n`) | ±8 items | Shift + wheel |
-| Shift + Screen 1 | Replace (type-correct choices) | Cancel | F1 / `r` / Esc |
-| Shift + Screen 2 | Wrap (`fast 2 $ …`, `# gain 1`, `x*2` …) | | F2 / `w` |
-| Shift + Screen 3 | Unwrap (keep the inner pattern) | | F3 / `u` |
-| Shift + Screen 4 | Undo | | F4 / `z` |
+| Shift + Screen 1–4 | `# gain 0.9`, `# room 0.3`, `# delay 0.3`, `# shape 0.3` at the end of the pattern's `#` chain; the cursor on the new value | | F1–F4 |
 | Shift + Screen 5 | `<CR>`: a line break before the argument at the cursor, or before the operator / `$` it belongs to (again: removed); kept in the file, statements for GHCi stay on one line | | F5 |
-| Shift + Screen 6–8 inside `"..."` | wrap the step in `< >`, `{ }%4`, `(3,8)` (`[ ]`: Screen 3); on the quotes, the whole sequence (`"[bd sd]"`) | | F5–F8 |
-| Shift + Screen 6–8 on a pattern | `\|+ n 12`, `\|* speed 2`, `0.25 <~` (`# <control>`: Screen 2) | | F6–F8 |
+| Shift + Screen 6 | inside `"..."`: the step repeated, `bd!2` (again: `!3` …); the jog changes the count | | F6 |
+| Shift + Screen 7 | inside `"..."`: the step held longer, `bd@2`; the cursor on the number | | F7 |
+| Shift + Screen 8 | Undo | | F8 / `z` |
 | Screen 1 `$` | menu: functions applied with `$` (`fast 2 $ …`, `every 4 rev $ …`); from inside `"..."` on the enclosing pattern | | |
 | Screen 2 `#` | menu: `# control` (all) | | |
 | Screen 3–7 inside `"..."` | menus around the step(s): `[ ]` (group, `[x x]`, `[x x x]`, `[x, x]`), `< >` (`<x>`, `<x ~>`, `<x x>`), `{ }` (`{x}%4` …), `( , )` Euclid (`(3,8)`, `(5,8)`, `(3,8,2)`, `(<3 5>,8)`), `\|` random choice (`[x \| ~]` …) | | |
 | Screen 8 `\|+` | menu: `\|+ \|- \|* \|/ \|< \|>` with `n 12`, `note 7`, `speed 2`, `gain 0.8`, `pan 0.5`, `cutoff 1000` | | |
 | Screen 8 | | OK | Enter / F8 |
-| Play + pad N | mute / unmute dN (keeps its timing, Tidal's `mute`); several pads in one hold are fine | OK | hold Space + digit |
-| Shift + Play + pad N | solo dN (everything else muted); again = unmute all | | |
-| Play alone (released, no pad) | unmute all | | Space |
-| Shift + Play alone | hush | | `h` |
-| Delete while Play is held | cancel (releasing Play then does nothing) | | |
+| Pattern (held) + pad N | mute / unmute dN (keeps its timing, Tidal's `mute`); several pads in one hold are fine | OK | hold Space + digit |
+| Shift + Pattern + pad N | solo dN (everything else muted); again = unmute all | | |
+| Pattern alone (released, no pad) | unmute all | | Space |
+| Shift + Pattern alone | hush | | `h` |
+| Delete while Pattern is held | cancel (releasing Pattern then does nothing) | | |
 | Insert | copy step / element, or add a `# control`; at a block's top: arm a new block (the next slot pad N adds an empty `dN $ silence` above the current block) | | `i` |
 | Shift + Insert (Home) | jump to the block's top (`dN $` / `jumpMod N k $`) | | Home |
 | Delete | inside `"..."`: a step becomes `~` (timing stays), a `~` is removed, elsewhere: delete (operand, or leave a `??` hole); all of a block's code: the block goes (an empty placeholder in its place) | | `x` / Del |
@@ -187,8 +185,8 @@ The prototype starts in cursor mode; `--mode tree` starts in tree mode
 | Instrument | jump to the block's `s` / `sound` pattern, first step (adds `# s "bd"` if there is none): pads then pick instruments; not on MIDI blocks | | `s` |
 | FX1 | pattern modifiers menu: time, structure, randomness, layering, sample cutting (`fast`, `every`, `jux`, `chop` …) applied with `$` | | `f` |
 | FX2 | sound FX menu: `# cutoff`, `# room`, `# delay`, `# crush`, `# shape`, `# pan`, `# gain`, envelopes; from inside `"..."` on the enclosing pattern | | `c` |
-| Pattern | evaluate current block | OK | `e` |
-| Shift + Pattern | silence the current dN (`dN silence`; the code stays, Pattern plays it again) | | |
+| Play | evaluate current block (RC14: Play and Pattern swapped) | OK | `e` |
+| Shift + Play | silence the current dN (`dN silence`; the code stays, Play plays it again) | | |
 | Shift + Master | device: the status view (cps, audio load, voices, stack, each block's state; also written to `/tidal_status.txt`) | | |
 | Shift + Smp Load | Tidal sample folders (Smp Load alone opens the stock Sample Loader): a menu of `/Tidal/<name>/` on the card; OK loads one into an instrument (sliced, a file per slice, `s "name:3"`; docs/tidal_sample_folders.md). Device only (the prototype has no folders) | | `hw:smpload` |
 | Song | launch menu: `dN $` (now), `jumpMod N 2/4/8/16`, `jumpIn N 1/2/4` (when the next evaluation takes effect) | | `l` |

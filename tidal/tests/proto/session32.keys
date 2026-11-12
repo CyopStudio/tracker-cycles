@@ -1,5 +1,5 @@
 hw:shift+pad1 hw:left hw:left
-hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right 
+hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right 
 hw:delete
 hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right 
 hw:delete
@@ -7,7 +7,6 @@ hw:shift+delete
 hw:down hw:down hw:up hw:up hw:up
 hw:shift+pad2 hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right  hw:insert hw:jog+ hw:s8
 hw:shift+pad3 hw:insert hw:s8
-hw:shift+pad3 hw:right hw:right hw:right  hw:delete hw:right hw:insert hw:right hw:shift+delete
 hw:rec hw:right hw:rec
-hw:shift+s4 print
+hw:shift+s8 print
 hw:shift+pad13 hw:shift+delete msg print

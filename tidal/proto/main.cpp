@@ -89,22 +89,22 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
             std::string id = tok.substr(3);
             bool shift = id.rfind("shift+", 0) == 0;
             if (shift) id = id.substr(6);
-            // Play acts on press / release (v2): hw:play / hw:shift+play =
-            // pressed and released alone; hw:play+pad3 / hw:shift+play+pad3 =
-            // pad pressed while Play is held (hw:play+delete cancels)
-            if (id == "play" || id.rfind("play+", 0) == 0) {
+            // Pattern acts on press / release (v2, Play's job until RC14): hw:pattern /
+            // hw:shift+pattern = pressed and released alone; hw:pattern+pad3 =
+            // pad pressed while Pattern is held (hw:pattern+delete cancels)
+            if (id == "pattern" || id.rfind("pattern+", 0) == 0) {
                 const bool inMenu = ed.menuOpen();
-                press(ed, Control::Play, shift);
+                press(ed, Control::Pattern, shift);
                 if (!inMenu) {
-                    if (id.size() > 5) {
+                    if (id.size() > 8) {
                         Control c2;
-                        if (!ctlFromId(id.substr(5).c_str(), c2)) {
-                            fprintf(stderr, "unknown control '%s'\n", id.substr(5).c_str());
+                        if (!ctlFromId(id.substr(8).c_str(), c2)) {
+                            fprintf(stderr, "unknown control '%s'\n", id.substr(8).c_str());
                             return false;
                         }
                         press(ed, c2, false);
                     }
-                    release(ed, Control::Play);
+                    release(ed, Control::Pattern);
                 }
                 continue;
             }

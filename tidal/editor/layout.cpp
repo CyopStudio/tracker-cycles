@@ -79,7 +79,14 @@ int layoutText(const Editor& ed, uint16_t blk, bool cps, bool cur, bool lit, int
             const Span& sp = s.spans[l.node];
             for (int i = sp.start; i < sp.end && i < n; i++) s.flags[i] |= kCellLit;
         }
-    if (cur && !cps && ed.gapSeq()) {
+    int ta, tb, pa, pb;
+    if (cur && !cps && ed.headGap() && ed.cursor()) {  // the bar before the pattern
+        const int at = s.spans[ed.cursor()].start;
+        if (at < n) s.flags[at] |= kCellGap;
+    } else if (cur && !cps && ed.cursorTokenChars(ta, tb, pa, pb)) {  // just the bracket / quote / dN
+        for (int i = ta; i < tb && i < n; i++) s.flags[i] |= kCellSel;
+        for (int i = pa; i < pb && i < n; i++) s.flags[i] |= kCellPair;
+    } else if (cur && !cps && ed.gapSeq()) {
         const uint16_t seq = ed.gapSeq();
         const int count = p.childCount(seq), pos = ed.gapPos();
         int gapAt = -1;

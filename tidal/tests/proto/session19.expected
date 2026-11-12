@@ -1,11 +1,11 @@
-msg: setcps: jog changes the value (BPM / 60 / beats per cycle), Pattern sends it, Shift+Song goes back
+msg: setcps: jog changes the value (BPM / 60 / beats per cycle), Play sends it, Shift+Song goes back
 msg: 132
 menu tempo: [90] [100] [110] [120] [128] [130] [138] [140] [150] [160] [170] [174] [60] [4] [3] [0.5] [1]
 msg: tempo: 138
 msg: undone
 > setcps (132/60/4)
 msg: tempo sent: setcps (132/60/4)
-msg: ERROR on setcps: jog / Replace change it, Pattern sends it; Shift+Song or a slot pad goes back
+msg: ERROR on setcps: jog / Replace change it, Play sends it; Shift+Song or a slot pad goes back
 msg: App : ControlPattern
 msg: keyboard: pads type, arrows + Screen 1 type the lit key, jog moves the cursor, Screen 8 OK, Screen 7 Cancel
 msg: keyboard: pads type, arrows + Screen 1 type the lit key, jog moves the cursor, Screen 8 OK, Screen 7 Cancel

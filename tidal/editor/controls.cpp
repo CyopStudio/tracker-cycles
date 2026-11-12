@@ -139,7 +139,7 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
             }
             return {};
         }
-        if (c == Control::Delete) return act(Action::PlayCancel, "cancel");
+        if (c == Control::Delete) return act(Action::PlayCancel, "cancel");  // Pattern held
         return {};
     }
     if (isPad(c)) {
@@ -205,7 +205,10 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         case Control::JogDown: return shift ? act(Action::WheelDownFast, "value --") : act(Action::WheelDown, "value -");
         // Play acts as a modifier (press / release, see press()); the label
         // says what releasing it alone does
-        case Control::Play: {
+        // Pattern is the mute modifier (press / release, see press()), Play
+        // evaluates (RC14 user: swapped, Play on a block is "evaluate");
+        // the label says what releasing Pattern alone does
+        case Control::Pattern: {
             Command k;  // no action: press() / release() handle it
             k.label = shift ? "solo / hush" : "mute / unmute all";
             return k;
@@ -219,7 +222,7 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         case Control::Instr: return act(Action::JumpSamples, "s pattern");
         case Control::Fx1: return act(Action::MenuModifiers, "modifiers");
         case Control::Fx2: return act(Action::MenuFx, "FX");
-        case Control::Pattern:
+        case Control::Play:
             if (shift && !ed.onCps()) return act(Action::SilenceSlot, "Silence dN");
             return act(Action::Evaluate, ed.onCps() ? "Send tempo" : "Evaluate");
         // Params stays free (the instrument parameters); comments are on
@@ -259,16 +262,14 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
         case Control::Screen0: return act(Action::QuickGain, "# gain 0.9");
         case Control::Screen1: return act(Action::QuickRoom, "# room 0.3");
         case Control::Screen2: return act(Action::QuickDelay, "# delay 0.3");
-        case Control::Screen3: return act(Action::Undo, "Undo");
+        // RC14 (user): Shift+Screen 4 # shape, 6 ! (repeat the step), 7 @
+        // (hold it longer), 8 Undo; the context quick buttons (Quick2-4)
+        // keep their actions but no key
+        case Control::Screen3: return act(Action::QuickShape, "# shape 0.3");
         case Control::Screen4: return act(Action::LineBreak, "<CR>");  // a line break (UI notes, Editor14)
-        case Control::Screen5:
-        case Control::Screen6:
-        case Control::Screen7: {
-            int q = (int)c - (int)Control::Screen4;
-            const Label l = ed.quickLabel(q);
-            if (l.empty()) return {};
-            return act((Action)((int)Action::Quick1 + q), l.c_str());
-        }
+        case Control::Screen5: return act(Action::StepRepeat, "! repeat");
+        case Control::Screen6: return act(Action::StepWeight, "@ longer");
+        case Control::Screen7: return act(Action::Undo, "Undo");
         case Control::File: return act(Action::Save, "Save");
         case Control::Config: return shift ? act(Action::EditComment, "comment") : act(Action::ToggleTrackerMode, "Trk mode");
         default: return {};
@@ -295,7 +296,7 @@ bool controlFor(const Editor& ed, Action a, Control& c, bool& shift) {
 }
 
 bool press(Editor& ed, Control c, bool shift) {
-    if (c == Control::Play && !ed.menuOpen() && !ed.playHeld()) {
+    if (c == Control::Pattern && !ed.menuOpen() && !ed.playHeld()) {  // the mute modifier
         ed.playDown(shift);
         return true;
     }
@@ -318,7 +319,7 @@ bool press(Editor& ed, Control c, bool shift) {
 }
 
 void release(Editor& ed, Control c) {
-    if (c == Control::Play) ed.playUp();
+    if (c == Control::Pattern) ed.playUp();
     if (isPad(c)) ed.entryPadUp(padIndex(c));
 }
 

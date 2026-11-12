@@ -88,6 +88,8 @@ enum class Action {
     QuickGain, QuickRoom, QuickDelay,  // Shift+Screen 1-3 (UI v3): # gain 0.9 / # room 0.3 / # delay 0.3
     ToggleCursorMode,                  // Rec (UI v3 D): cursor mode <-> tree mode
     Backspace,                         // Shift+Delete in cursor mode: the token to the left
+    QuickShape,                        // Shift+Screen 4 (RC14): # shape 0.3
+    StepRepeat, StepWeight,            // Shift+Screen 6 / 7 (RC14): the step at the cursor as x!2 / x@2
 };
 const char* actionName(Action a);
 bool actionFromName(const char* s, Action& out);
@@ -246,7 +248,7 @@ public:
     void clearLitSeen() { litSeen_.clear(); }
     int gapPos() const { return gapPos_; }
     // `setcps` (Shift+Song): the cursor is in its expression; jog / Replace
-    // edit it, Pattern sends it, Shift+Song or a slot pad goes back.
+    // edit it, Play sends it, Shift+Song or a slot pad goes back.
     bool onCps() const { return cps_; }
     bool cpsSent() const;  // the setcps shown is the one last sent
     // Keyboard screen (the Tracker's naming keyboard, keyboard.h): editing
@@ -271,38 +273,47 @@ public:
     // Edits are the tree mode's (cursor.cpp).
     bool cursorMode() const { return cursorMode_; }
     void setCursorMode(bool on);
+    // the bar before the block's pattern (cursor mode; Insert: a $ function in front)
+    bool headGap() const { return headGap_; }
+    // Cursor mode, on a bracket / quote / modifier symbol / the dN: just
+    // that token's characters [a, b) are the cursor, and its partner (the
+    // other bracket or quote; pa == pb: none) is marked (RC13 user). False:
+    // the cursor is the whole node. Characters of the rendered block.
+    bool cursorTokenChars(int& a, int& b, int& pa, int& pb) const;
 
 private:
     // ---- cursor mode (cursor.cpp) ----
     bool cursorMode_ = false;
-    enum : uint8_t { kTokNode, kTokSym, kTokTop, kTokGap };
+    enum : uint8_t { kTokNode, kTokSym, kTokTop, kTokGap, kTokHead };
     struct Tok {
         uint16_t start, end;  // characters of the rendered block
         uint16_t node;
         uint16_t line, col;   // hard line (line breaks) and column of start
         uint16_t pos;         // kTokGap: the gap's position in its sequence (node)
         uint8_t kind;         // kTokNode: select node; kTokSym: its operator symbol; kTokTop: the block's
-                              // top; kTokGap: a gap between steps of "..." (node = the sequence)
+                              // top; kTokGap: a gap between steps of "..." (node = the sequence);
+                              // kTokHead: the bar before the expression (node = its root)
     };
     static constexpr int kTokText = 4096, kTokMax = 1024;
     // scratch (SDRAM on the device, with the editor): the current block
     // rendered with spans, each character's deepest node, the tokens
-    Span tokSpans_[kMaxNodes];
-    char tokText_[kTokText + 1];
-    uint16_t tokOwner_[kTokText];
-    Tok toks_[kTokMax];
+    mutable Span tokSpans_[kMaxNodes];
+    mutable char tokText_[kTokText + 1];
+    mutable uint16_t tokOwner_[kTokText];
+    mutable Tok toks_[kTokMax];
     struct Gap {
         uint16_t at, seq, pos;  // the character it stands before
     };
     static constexpr int kGapMax = 512;
-    Gap gaps_[kGapMax];
-    int gapN_ = 0;
-    void tokGaps(uint16_t n);
-    int tokN_ = 0, tokLines_ = 0;
+    mutable Gap gaps_[kGapMax];
+    mutable int gapN_ = 0;
+    void tokGaps(uint16_t n) const;
+    bool headGap_ = false;  // cursor mode: the bar before the block's expression (cursor_ = its root)
+    mutable int tokN_ = 0, tokLines_ = 0;
     uint16_t tokAt_ = 0xFFFF;  // the current token's first character (tells '[' from ']')
-    int buildTokens();         // the current block's tokens (0: none)
-    void tokOwners(uint16_t n, int len);
-    int tokenIndex();          // the token the cursor is on (-1: none)
+    int buildTokens() const;   // the current block's tokens (0: none)
+    void tokOwners(uint16_t n, int len) const;
+    int tokenIndex() const;    // the token the cursor is on (-1: none)
     void setToken(int i);
     int tokenNear(int line, int col) const;
     void cursorMove(int dir);  // Left / Right
@@ -311,6 +322,7 @@ private:
     void cursorDelete(bool back);
     void cursorInsert();
     bool spliceGroup();
+    void stepSuffix(bool repeat);  // Shift+Screen 6 / 7: x!2 / x@2
     uint16_t headOf(uint16_t n) const;  // n is a function name: the application it heads (else 0)
     uint16_t controlTarget() const;     // where `# ...` goes (the top of the operator chain)
 

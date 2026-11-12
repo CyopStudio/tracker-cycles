@@ -3,5 +3,5 @@ hw:shift+pad3 hw:down hw:down hw:down hw:right hw:down hw:down hw:pad20 hw:right
 hw:shift+pad3 hw:down hw:right hw:down hw:right hw:down hw:pad21
 hw:shift+pad13 hw:down hw:down hw:right hw:pad1 hw:down hw:pad38
 hw:shift+pad1 hw:down hw:right hw:right hw:right hw:down hw:down hw:right hw:down hw:shift+pad2
-hw:pattern
+hw:play
 print

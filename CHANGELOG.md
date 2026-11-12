@@ -12,6 +12,7 @@ Notable changes to **Tracker Cycles**, TidalCycles-style live coding for the Ori
   * More than 100 functions and operators: time, structure, randomness, layering, harmony, signals, pairs (`within`, `zoom` …) and the operator families (`#`, `|+|` … `|%|`, `|**|`, `|<|`, `|>|`). The list is in `docs/tidal_code_tree.md`.
   * `d1`–`d8` play the 8 sample tracks. `d9`–`d16` send MIDI notes and CCs (`midichan`, `ccn`, `ccv`, `midibend`).
   * `setcps` sets the tempo; MIDI clock out follows it.
+  * `slice` plays one part of a sample per event (begin / end), exactly on the Tracker; `splice` also fits the part to the event's length.
   * `mute` / `unmute` / solo / `hush`; launch modes `jumpMod` / `jumpIn`.
 * **Scheduler.** Patterns are queried on the main loop ahead of time, so the audio interrupt only plays the notes that are due.
 * **Sound mapping.** Tidal controls map onto the Tracker's engine: gain, pan, filters, resonance, delay / reverb sends, bit crush, overdrive, sample start / end, envelopes, pitch and slices.

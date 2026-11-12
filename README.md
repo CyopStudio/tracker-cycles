@@ -50,20 +50,23 @@ The screen shows your code: a `setcps` line and blocks `d1` to `d16`.
 2. Move with the **arrows**. The editor starts in **cursor mode**: **Left / Right** go token by token, **Up / Down** line by line and on to the blocks around. **Rec** switches to tree mode, where Left / Right step through the code tree and Up / Down go to the parent / first child.
 3. Turn the **jog wheel** to change the value under the cursor (numbers, notes, sample names, functions). **Shift + jog** takes bigger steps; on a sample it changes the file index (`bd` → `bd:1` …).
 4. In a `"..."` sequence the **pads** enter values (notes on the keyboard layout, or the 48 instruments in an `s` pattern). Holding pads together enters a chord.
-5. Press **Pattern** to evaluate the block. Its `dN` turns green.
-6. Hold **Play** and press a slot pad to mute / unmute it. **Shift + Play** alone is `hush`.
+5. Press **Play** to evaluate the block. It flashes, and its `dN` turns green.
+6. Hold **Pattern** and press a slot pad to mute / unmute it. **Shift + Pattern** alone is `hush`.
 
 ### Main controls
 
 | Control | Action |
 | :--- | :--- |
-| Pattern | evaluate the block (Shift: silence it) |
+| Play | evaluate the block (Shift: silence it) |
+| Pattern (held) + pad N | mute / unmute dN (Shift: solo); Pattern alone: unmute all, Shift + Pattern alone: `hush` |
 | Shift + pad N | go to dN; the same pad twice in a row: a new dN block |
 | Shift + ↑ / ↓ | previous / next block |
 | Screen 1–8 | structure menus: `$` functions, `#` controls, `[ ]`, `< >`, `{ }`, `( , )` euclid, `\|`, operators |
 | Rec | cursor mode / tree mode |
-| Shift + Screen 1–4 | `# gain 0.9`, `# room 0.3`, `# delay 0.3`, Undo |
+| Shift + Screen 1–4 | `# gain 0.9`, `# room 0.3`, `# delay 0.3`, `# shape 0.3` |
 | Shift + Screen 5 | line break before the argument / operator at the cursor |
+| Shift + Screen 6 / 7 | inside `"..."`: repeat the step (`bd!2`) / hold it longer (`bd@2`); the jog changes the count |
+| Shift + Screen 8 | Undo |
 | Note / Instrument | jump to the block's `n` / `s` pattern (Shift + Note: chord names) |
 | FX1 / FX2 | pattern modifiers (`$` functions) / sound effects (`#` controls) |
 | Song | launch menu (`dN $`, `jumpMod`, `jumpIn`); Shift + Song: tempo (`setcps`) |
@@ -85,6 +88,7 @@ Tracker Cycles evaluates real Tidal syntax: function application, `$`, `.`, oper
 
 * **Time:** `fast` `slow` `hurry` `rev` `iter` `ply` `linger` `segment` `every` `every'` `whenmod` `inside` `outside` `within` `within'` `zoom` `compress` `trunc` `fastGap` `swingBy` `press` `rot` `<~` `~>`
 * **Structure:** `struct` `mask` `euclid` (and `Inv` / `Full` / `Off`) `sew` `stitch` `while` `wedge` `bite` `squeeze` `select` `run` `scan` `range`
+* **Samples:** `slice` `splice` `loopAt`, sample folders with `s "bd:3"`
 * **Random:** `degradeBy` `sometimesBy` (and friends) `someCyclesBy` `shuffle` `scramble` `rand` `irand` `perlin` `choose` `wchoose` `randcat` `wrandcat`
 * **Layering:** `superimpose` `off` `jux` `juxBy` `stut` `echo` `echoWith` `chunk` `chunk'` `plyWith` `layer` `pickF` `selectF`
 * **Harmony:** `scale` `toScale` `arp` `rolled` `rolledBy`, chord names (`"c'maj e'min7"`)

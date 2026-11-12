@@ -17,12 +17,13 @@ uint16_t stepOf(const Program& p, uint16_t n);  // editor.cpp
 
 void Editor::setCursorMode(bool on) {
     cursorMode_ = on;
+    headGap_ = false;
     selA_ = selB_ = selSeq_ = 0;
     tokAt_ = 0xFFFF;
     cursorSettle();
 }
 
-void Editor::tokOwners(uint16_t n, int len) {
+void Editor::tokOwners(uint16_t n, int len) const {
     const Program& p = *prog_;
     const Span& sp = tokSpans_[n];
     if (sp.end > sp.start)
@@ -32,7 +33,7 @@ void Editor::tokOwners(uint16_t n, int len) {
 
 // The gaps of the "..." sequences under n (steps, not a modifier's argument
 // such as `bd*2`'s 2), in tree order.
-void Editor::tokGaps(uint16_t n) {
+void Editor::tokGaps(uint16_t n) const {
     const Program& p = *prog_;
     const Node& x = p.at(n);
     if (x.kind == Kind::MSeq && !(x.flags & kDots) && x.first) {
@@ -55,7 +56,7 @@ static bool exprContainer(Kind k) {
            k == Kind::Block || k == Kind::List;
 }
 
-int Editor::buildTokens() {
+int Editor::buildTokens() const {
     tokN_ = 0;
     tokLines_ = 0;
     const Program& p = *prog_;
@@ -118,6 +119,11 @@ int Editor::buildTokens() {
             if (j <= i) j = i + 1;
             add(i, j, o, kTokTop);
             col += eStart - i;
+            if (e && eStart < n) {  // the bar before the pattern (RC13 user: inserting a $ at the head)
+                const int c0 = col;
+                add(eStart, eStart, e, kTokHead);
+                toks_[tokN_ - 1].col = (uint16_t)c0;
+            }
             i = eStart > i ? eStart : i + 1;
             continue;
         }
@@ -136,7 +142,12 @@ int Editor::buildTokens() {
     return tokN_;
 }
 
-int Editor::tokenIndex() {
+int Editor::tokenIndex() const {
+    if (headGap_) {
+        for (int i = 0; i < tokN_; i++)
+            if (toks_[i].kind == kTokHead) return i;
+        return -1;
+    }
     if (gapSeq_) {
         for (int i = 0; i < tokN_; i++)
             if (toks_[i].kind == kTokGap && toks_[i].node == gapSeq_ && toks_[i].pos == gapPos_) return i;
@@ -147,7 +158,7 @@ int Editor::tokenIndex() {
     int best = -1;
     for (int i = 0; i < tokN_; i++) {
         const Tok& t = toks_[i];
-        if (t.node != cursor_ || t.kind == kTokGap || (t.kind == kTokSym) != sym) continue;
+        if (t.node != cursor_ || t.kind == kTokGap || t.kind == kTokHead || (t.kind == kTokSym) != sym) continue;
         if (t.start == tokAt_) return i;
         if (best < 0) best = i;
     }
@@ -160,6 +171,7 @@ void Editor::setToken(int i) {
     onOp_ = t.kind == kTokSym;
     gapSeq_ = t.kind == kTokGap ? t.node : 0;
     gapPos_ = t.pos;
+    headGap_ = t.kind == kTokHead;
     tokAt_ = t.start;
 }
 
@@ -167,7 +179,7 @@ int Editor::tokenNear(int line, int col) const {
     int best = -1, bestD = 0x7FFF;
     for (int i = 0; i < tokN_; i++) {
         const Tok& t = toks_[i];
-        if (t.line != line || t.kind == kTokGap) continue;  // Up / Down land on tokens
+        if (t.line != line || t.kind == kTokGap || t.kind == kTokHead) continue;  // Up / Down land on tokens
         const int a = t.col, z = t.col + (t.end - t.start);
         const int d = col < a ? a - col : col >= z ? col - z + 1 : 0;
         if (d < bestD) {
@@ -258,13 +270,16 @@ void Editor::cursorLine(int dir) {
 }
 
 void Editor::cursorSettle() {
+    if (headGap_) return;
     if (!cursorMode_ || menuOpen_ || kbdOpen_ || cps_ || gapSeq_ || selSeq_ || !cursor_) return;
     if (!buildTokens() || tokenIndex() >= 0) return;
     // on a node with no token of its own (an application, a whole operator
     // expression ...): its first token
     const Span sp = tokSpans_[cursor_];
     for (int i = 0; i < tokN_; i++)
-        if (toks_[i].start >= sp.start && toks_[i].start < sp.end) return setToken(i);
+        if (toks_[i].start >= sp.start && toks_[i].start < sp.end && toks_[i].kind != kTokHead &&
+            toks_[i].kind != kTokGap)
+            return setToken(i);
 }
 
 uint16_t Editor::headOf(uint16_t n) const {
@@ -274,6 +289,13 @@ uint16_t Editor::headOf(uint16_t n) const {
 }
 
 void Editor::cursorDelete(bool back) {
+    if (headGap_) {  // the bar before the pattern: Delete acts on the token after it
+        if (back) return error("nothing to the left");
+        buildTokens();
+        const int c = tokenIndex();
+        if (c < 0 || c + 1 >= tokN_) return;
+        setToken(c + 1);
+    }
     if (back && gapSeq_) return deleteAtGap();  // the bar: the step before it
     if (!back && gapSeq_ && !listGap()) {     // the bar: the token after it (a step: ~)
         buildTokens();
@@ -287,9 +309,10 @@ void Editor::cursorDelete(bool back) {
         if (!buildTokens()) return;
         const int c = tokenIndex();
         // never onto the block's top (Delete there clears the block)
-        if (c <= 0 || toks_[c - 1].kind == kTokTop) return error("nothing to the left");
+        if (c <= 0 || toks_[c - 1].kind == kTokTop || toks_[c - 1].kind == kTokHead) return error("nothing to the left");
         setToken(c - 1);
     }
+    if (headGap_) return;  // nothing after the bar (an empty pattern can't be)
     if (!cursor_ || gapSeq_ || onOperator()) return doDelete();
     const Program& p = *prog_;
     const Kind k = p.at(cursor_).kind;
@@ -341,6 +364,10 @@ bool Editor::spliceGroup() {
 }
 
 void Editor::cursorInsert() {
+    if (headGap_) {  // before the pattern: a $ function in front of all of it
+        headGap_ = false;
+        return openWrap(WrapMode::Modifiers);
+    }
     if (gapSeq_ && !listGap()) {  // a gap in "...": a copy of the step before it (the first: after it)
         const uint16_t seq = gapSeq_;
         const uint16_t src = prog_->child(seq, gapPos_ > 0 ? gapPos_ - 1 : 0);
@@ -374,6 +401,78 @@ void Editor::cursorInsert() {
     if (t) cursor_ = t;
     onOp_ = false;
     openWrap(WrapMode::Fx);
+}
+
+// Shift+Screen 6 / 7 (RC14 user): the step at the cursor (or before the
+// gap) repeated (`bd!2`: two steps of bd) or held longer (`bd@2`: twice the
+// time); again on a `!` step adds one; the cursor lands where the jog
+// changes the count (both modes).
+void Editor::stepSuffix(bool repeat) {
+    const Program& p = *prog_;
+    uint16_t step = 0;
+    if (gapSeq_ && !listGap()) {
+        step = p.child(gapSeq_, gapPos_ > 0 ? gapPos_ - 1 : 0);  // the step before (at the start: after)
+    } else if (cursor_ && isMiniKind(p.at(cursor_).kind) && p.at(cursor_).kind != Kind::MSeq) {
+        step = stepOf(p, cursor_);
+    }
+    const uint16_t seq = step ? p.parentOf(step) : 0;
+    if (!seq || p.at(seq).kind != Kind::MSeq)
+        return error(repeat ? "! goes on a step inside \"...\"" : "@ goes on a step inside \"...\"");
+    const Node& st = p.at(step);
+    if (repeat && st.kind == Kind::MReplicate && !(st.flags & kBare)) {
+        if ((int)st.a >= kMaxSeqSteps) return error("! counts go up to 64");
+        if (!beginEdit()) return;
+        prog_->at(step).a++;
+        gapSeq_ = 0;
+        Label m;
+        if (endEdit(step)) info(m.printf("!%u (jog changes it)", (unsigned)prog_->at(step).a));
+        return;
+    }
+    if (!repeat && st.kind == Kind::MWeight && !(st.flags & kUnderscore) && p.at(st.first).next) {
+        gapSeq_ = 0;
+        cursor_ = p.at(st.first).next;
+        return info("@: jog changes it");
+    }
+    int idx = 0;
+    for (uint16_t c = p.at(seq).first; c && c != step; c = p.at(c).next) idx++;
+    Text code = joinSteps(seq, idx, 1, " ");
+    code += repeat ? "!2" : "@2";
+    if (code.overflowed()) return error("step too long");
+    gapSeq_ = 0;
+    const uint16_t was = cursor_;
+    cursor_ = step;
+    uint16_t nn;
+    EditSpec sp;
+    if (!tryReplace(code, true, nn, &sp) || !doSpec(sp, nn)) {
+        cursor_ = was;
+        return error(code + " doesn't fit here");
+    }
+    const Node& r = prog_->at(nn);
+    if (!repeat && r.kind == Kind::MWeight && prog_->at(r.first).next) cursor_ = prog_->at(r.first).next;
+    else cursor_ = nn;
+    info(code + ": jog changes the count");
+}
+
+bool Editor::cursorTokenChars(int& a, int& b, int& pa, int& pb) const {
+    if (!cursorMode_ || cps_ || gapSeq_ || headGap_ || selSeq_ || !cursor_ || onOperator()) return false;
+    if (!buildTokens()) return false;
+    const int c = tokenIndex();
+    if (c < 0) return false;
+    const Tok& t = toks_[c];
+    if (t.kind != kTokTop && !(t.kind == kTokNode && prog_->at(t.node).first)) return false;  // a leaf: the node
+    a = t.start;
+    b = t.end;
+    pa = pb = 0;
+    int best = -1;  // the partner: the nearest other token of the same node
+    for (int i = 0; i < tokN_; i++)
+        if (i != c && toks_[i].node == t.node && toks_[i].kind == kTokNode &&
+            (best < 0 || (i > c ? i - c : c - i) < (best > c ? best - c : c - best)))
+            best = i;
+    if (best >= 0) {
+        pa = toks_[best].start;
+        pb = toks_[best].end;
+    }
+    return true;
 }
 
 }  // namespace tc

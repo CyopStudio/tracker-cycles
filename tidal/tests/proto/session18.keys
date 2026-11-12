@@ -2,8 +2,8 @@ hw:shift+pad2
 hw:shift+insert
 hw:right
 hw:fx1
-menu:62
-hw:pattern
+menu:63
+hw:play
 msg
 hw:right
 msg
@@ -13,7 +13,7 @@ hw:left
 msg
 replace
 menu:13
-hw:pattern
+hw:play
 msg
 print
 hw:right
@@ -41,5 +41,5 @@ hw:shift+copy
 msg
 hw:up
 msg
-hw:pattern
+hw:play
 print

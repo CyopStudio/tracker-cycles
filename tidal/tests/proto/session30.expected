@@ -1,6 +1,6 @@
 msg: Op # : ControlPattern
 msg: d1 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
-msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Pattern sends it)
+msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Play sends it)
 msg: d2 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
 msg: gap 1 of 1: pads / Screen 3-7 insert, Delete removes the step before
 msg: MAlt : Pat Double

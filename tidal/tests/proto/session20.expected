@@ -1,9 +1,9 @@
 msg: Num : Pat Double
-msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Pattern sends it)
+msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Play sends it)
 menu tempo: [90 BPM] [100 BPM] [110 BPM] [120 BPM] [128 BPM] [130 BPM] [138 BPM] [140 BPM] [150 BPM] [160 BPM] [170 BPM] [174 BPM] [0.5 cycles / s]
 msg: d1 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
-msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Pattern sends it)
-msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Pattern sends it)
+msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Play sends it)
+msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Play sends it)
 msg: d1 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
 msg: Num : Pat Int
 menu [ ] (number -> pattern): ["[4 4]"] ["[4 4 4]"] ["[4, 4]"]

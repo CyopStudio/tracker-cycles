@@ -11,7 +11,7 @@ menulist
 hw:s8
 msg
 print
-hw:shift+s4
+hw:shift+s8
 hw:shift+pad1
 hw:instr
 hw:shift+right

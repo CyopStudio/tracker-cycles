@@ -42,7 +42,8 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"cps", Action::JumpCps},     {"selleft", Action::SelLeft}, {"selright", Action::SelRight},     {"comment", Action::EditComment},
     {"kbdtype", Action::KbdType}, {"kbdok", Action::KbdOk},       {"kbdcancel", Action::KbdCancel},
     {"kbdclear", Action::KbdClear}, {"cursormode", Action::ToggleCursorMode},
-    {"backspace", Action::Backspace},
+    {"backspace", Action::Backspace}, {"qshape", Action::QuickShape},
+    {"repeat", Action::StepRepeat}, {"weight", Action::StepWeight},
 };
 
 const char* actionName(Action a) {
@@ -695,6 +696,7 @@ static uint16_t valueOf(const Program& p, uint16_t step) {
 }
 
 void Editor::enterNumber(int v, bool rest) {
+    headGap_ = false;
     padAgain_ = -1;
     if (!padNumeric()) return error("pads enter numbers inside a numeric pattern");
     Text n = tnum(v);
@@ -732,6 +734,7 @@ int Editor::cursorInstrument() const {
 }
 
 void Editor::enterInstrument(int i) {
+    headGap_ = false;
     padAgain_ = -1;
     if (!padInstruments()) return error("pads pick instruments inside an s pattern");
     if (i < 0 || i >= kInstrumentSlots || !samples_[i][0])
@@ -943,6 +946,7 @@ void Editor::gotoSlot(int s) {
 
 void Editor::gotoSlotTree(int s) {
     if (s < 0 || s >= kSlots) return;
+    headGap_ = false;
     dropEmptyBlocks();
     cps_ = false;
     pending_ = 0;
@@ -1205,8 +1209,9 @@ Label Editor::cursorInfo() const {
     }
     if (!cursor_)
         return "empty: Instrument, Note, Screen 1-8 or FX start a block; Up / Down leave";
+    if (headGap_) return "start of the pattern: Insert adds a $ function in front, Delete the token after";
     if (cps_ && cursor_ == prog_->cpsExpr && prog_->at(cursor_).kind != Kind::Num)
-        return "setcps (Right: its numbers, Down: the blocks, jog: the BPM, Pattern sends it)";
+        return "setcps (Right: its numbers, Down: the blocks, jog: the BPM, Play sends it)";
     const Node& n = prog_->at(cursor_);
     if (n.kind == Kind::Block) {  // the block's top: Up / Down = other blocks, Right = into it
         int k = 0, count = 0;
@@ -1256,6 +1261,15 @@ void Editor::actOne(Action a) {
             default: selA_ = selB_ = selSeq_ = 0; break;
         }
     }
+    switch (a) {  // the bar before the pattern lasts for the cursor keys and the ones that use it
+        case Action::Left: case Action::Right: case Action::Up: case Action::Down: case Action::Insert:
+        case Action::Delete: case Action::Backspace: case Action::Evaluate: case Action::PlayCancel:
+        case Action::Hush: case Action::SilenceSlot: case Action::Save:
+            break;
+        default:
+            if (!menuOpen_) headGap_ = false;
+            break;
+    }
     if (a == Action::SelLeft || a == Action::SelRight) return selectMove(a == Action::SelLeft ? -1 : 1);
     const bool wasOnOp = onOperator();
     switch (a) {  // these keep the cursor on the operator's symbol; the rest leave it
@@ -1280,7 +1294,7 @@ void Editor::actOne(Action a) {
             case Action::NextSlot: case Action::PrevSlot: case Action::Home: case Action::BlockUp:
             case Action::BlockDown:
                 break;
-            default: return error("on setcps: jog / Replace change it, Pattern sends it; Shift+Song or a slot pad goes back");
+            default: return error("on setcps: jog / Replace change it, Play sends it; Shift+Song or a slot pad goes back");
         }
     }
     // an empty slot: the keys that would wrap or add something start a block
@@ -1292,7 +1306,7 @@ void Editor::actOne(Action a) {
             case Action::MenuModifiers: case Action::MenuFx: case Action::Wrap: case Action::Insert:
             case Action::Quick1: case Action::Quick2: case Action::Quick3: case Action::Quick4:
             case Action::MenuFunctions: case Action::MenuControls: case Action::QuickGain:
-            case Action::QuickRoom: case Action::QuickDelay:
+            case Action::QuickRoom: case Action::QuickDelay: case Action::QuickShape:
                 return openReplace();
             default: break;
         }
@@ -1317,6 +1331,7 @@ void Editor::actOne(Action a) {
             case Action::Struct8: case Action::MenuModifiers: case Action::MenuFx:
             case Action::PlayCancel: case Action::Evaluate: case Action::Hush: case Action::MenuChords:
             case Action::SilenceSlot: case Action::Backspace: case Action::ToggleCursorMode:
+            case Action::StepRepeat: case Action::StepWeight:
                 break;
             case Action::Insert:  // cursor mode: a step into the gap
                 if (!cursorMode_) leaveGap();
@@ -1399,6 +1414,9 @@ void Editor::actOne(Action a) {
         case Action::QuickGain: quickControl("gain 0.9"); break;
         case Action::QuickRoom: quickControl("room 0.3"); break;
         case Action::QuickDelay: quickControl("delay 0.3"); break;
+        case Action::QuickShape: quickControl("shape 0.3"); break;
+        case Action::StepRepeat: stepSuffix(true); break;
+        case Action::StepWeight: stepSuffix(false); break;
         case Action::Struct1:
         case Action::Struct2:
         case Action::Struct3:
@@ -1458,7 +1476,7 @@ void Editor::actOne(Action a) {
                 if (out_) out_->silence(slot_);
                 playing_[slot_] = 0;
                 if (state_[slot_] == SlotState::Playing) state_[slot_] = SlotState::Edited;
-                info("d" + tnum(slot_ + 1) + " silenced (Pattern plays it again)");
+                info("d" + tnum(slot_ + 1) + " silenced (Play plays it again)");
             } else {
                 info("d" + tnum(slot_ + 1) + " isn't playing");
             }
@@ -1893,6 +1911,16 @@ void Editor::wheel(int dir, bool fast) {
     if (prog_->at(cursor_).kind == Kind::Fn) return wheelFn(dir);
     if (prog_->at(cursor_).kind == Kind::Op) return wheelOp(dir);
     if (onOperator()) return info("$: Delete unwraps it, Shift+Screen 5 puts a line break before it");
+    if (prog_->at(cursor_).kind == Kind::MReplicate && !(prog_->at(cursor_).flags & kBare)) {
+        // x!n: the count (RC14, Shift+Screen 6 makes these)
+        const int v = (int)prog_->at(cursor_).a + dir * jogMul_ * (fast ? 4 : 1);
+        if (v < 1 || v > kMaxSeqSteps) return error("! counts go from 1 to 64");
+        if (!beginEdit()) return;
+        prog_->at(cursor_).a = (uint32_t)v;
+        Label m;
+        if (endEdit(cursor_)) info(m.printf("!%d", v));
+        return;
+    }
     if (!beginEdit()) return;
     Program* p = prog_;
     Node& n = prog_->at(cursor_);
@@ -2293,8 +2321,8 @@ void Editor::playDown(bool shift) {
     playHeld_ = true;
     playShift_ = shift;
     playUsed_ = false;
-    info(shift ? "Shift+Play: pad = solo, release = hush, Delete = cancel"
-               : "Play: pad = mute / unmute, release = unmute all, Delete = cancel");
+    info(shift ? "Shift+Pattern: pad = solo, release = hush, Delete = cancel"
+               : "Pattern: pad = mute / unmute, release = unmute all, Delete = cancel");
 }
 
 void Editor::playUp() {
@@ -3469,7 +3497,7 @@ void Editor::jumpCps() {
     cps_ = true;
     const uint16_t n = firstNumber(*prog_, prog_->cpsExpr);
     cursor_ = n ? n : prog_->cpsExpr;
-    info("setcps: jog changes the value (BPM / 60 / beats per cycle), Pattern sends it, Shift+Song goes back");
+    info("setcps: jog changes the value (BPM / 60 / beats per cycle), Play sends it, Shift+Song goes back");
 }
 
 // ---------------------------------------------------------------------------

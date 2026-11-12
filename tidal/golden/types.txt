@@ -1,5 +1,5 @@
 # :t of every core/library.cpp entry in real Tidal (golden/capture.py).
-# tidal-1.10.3, GHC 9.8.2, captured 2026-11-11
+# tidal-1.10.3, GHC 9.8.2, captured 2026-11-12
 
 silence :: Pattern a
 fast :: Pattern Time -> Pattern a -> Pattern a
@@ -50,6 +50,7 @@ chop :: Pattern Int -> ControlPattern -> ControlPattern
 striate :: Pattern Int -> ControlPattern -> ControlPattern
 loopAt :: Pattern Time -> ControlPattern -> ControlPattern
 splice :: Pattern Int -> Pattern Int -> ControlPattern -> Pattern (GMap.Map String Value)
+slice :: Pattern Int -> Pattern Int -> ControlPattern -> ControlPattern
 scale :: Fractional a => Pattern String -> Pattern Int -> Pattern a
 arp :: Pattern String -> Pattern a -> Pattern a
 every' :: Pattern Int -> Pattern Int -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a

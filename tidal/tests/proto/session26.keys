@@ -7,7 +7,7 @@ hw:s3
 menulist
 msg
 print
-hw:shift+s4
+hw:shift+s8
 hw:instr
 hw:shift+right
 hw:shift+right
@@ -18,7 +18,7 @@ msg
 hw:delete
 msg
 print
-hw:shift+s4
+hw:shift+s8
 msg
 hw:shift+pad3
 hw:instr

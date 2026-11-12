@@ -1,4 +1,4 @@
 hw:shift+pad1 hw:shift+insert msg
 hw:down msg hw:down msg hw:up hw:up msg
-hw:right msg hw:pattern
+hw:right msg hw:play
 hw:shift+pad2 hw:shift+insert hw:right hw:song menulist cancel

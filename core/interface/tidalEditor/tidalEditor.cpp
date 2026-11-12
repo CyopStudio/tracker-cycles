@@ -47,6 +47,7 @@ constexpr uint32_t lit = 0x553810;
 constexpr uint32_t litSel = 0x6E4A18;
 constexpr uint32_t cursorTok = 0x52306E;  // cursor mode's cursor (tree mode: cursor; user, RC11)
 constexpr uint32_t litTok = 0x6E3A40;
+constexpr uint32_t pairTok = 0x2E2440;  // the partner of the bracket / quote at the cursor
 constexpr uint32_t muted = 0x5A7FD0;
 }  // namespace col
 // the last four: a block's dN by its slot's state (playing, edited, error, muted)
@@ -178,6 +179,7 @@ class TcCodeView : public TcControl
                 // highlights stay on under an open menu (RC4 user ask); the budget keeps the frame safe
                 const bool sel = c.flags & tc::kCellSel, lit = c.flags & tc::kCellLit;
                 if (sel && s.tokenMode) return lit ? col::litTok : col::cursorTok;
+                if (!sel && !lit && (c.flags & tc::kCellPair)) return col::pairTok;
                 return sel ? (lit ? col::litSel : col::cursor) : lit ? col::lit : 0;
             };
             for (int i = 0; i < L.n;) {
@@ -451,7 +453,7 @@ void functButton(uint8_t button, uint8_t state)
         tidalEditorSetDirty();  // the soft keys show the Shift functions
         return;
     }
-    if (c == Control::Play) {
+    if (c == Control::Pattern) {  // the mute modifier acts on press and release (RC14: was Play)
         if (state == buttonPress) tc::press(*ed, c, shift);
         else if (state == buttonRelease) tc::release(*ed, c);
         tidalEditorSetDirty();

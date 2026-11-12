@@ -204,6 +204,19 @@ to upstream CE.
     tidalEditorLitQueued); the "checking k of N" progress redraws at most
     every 300 ms. Next if it still hitches: cheaper trial checks (type
     prefilter). Flash 953,220 B (90.9 %).
+    RC13 (user): cursor mode "excellent", menus snappy with highlights
+    running (stall fixed). RC14 (PolyendTrac_CyclesRC14.ptf, not yet
+    run): Play = evaluate (Shift: silence), Pattern = the mute modifier
+    (swapped: the user kept hitting Delete next to Pattern); Shift row =
+    1 gain / 2 room / 3 delay / 4 shape / 5 <CR> / 6 `!` (StepRepeat:
+    x!2, again +1, jog on `!n` changes n) / 7 `@` (StepWeight: x@2,
+    cursor on the number) / 8 Undo (Quick2-4 keep their actions, no
+    key); cursor mode: a stop before the pattern (kTokHead, headGap_:
+    Insert = $ menu around the whole pattern; Backspace never reaches it
+    or the top), on a bracket / quote only it is the cursor and its
+    partner is marked (cursorTokenChars, kCellPair 0x2E2440); `slice`
+    (engine qSplice without speed / unit, Device Full; 3 golden cases).
+    Flash 957,404 B (91.3 %).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
