@@ -1,0 +1,25 @@
+> setcps (120/60/4)
+> d1 $ s "hh*8" # gain 0.8
+msg: d1 evaluated
+msg: d1 block 1 of 2 (playing): Shift+Up / Down: the others, the pad again: a new one
+msg: new d1 block: Note / Instrument / Screen 1-8 start it, Up / Down leave it
+msg: d1 block 1 of 2 (playing) (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: d1 block 2 of 2 (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: d1 block 1 of 2 (playing) (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: block deleted (Up / Down: the blocks around)
+msg: d1 block 1 of 2 (playing): Shift+Up / Down: the others, the pad again: a new one
+msg: d1 block 1 of 2 (playing): Shift+Up / Down: the others, the pad again: a new one
+setcps (120/60/4)
+
+d1 $ s "hh*8" # gain 0.8
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5

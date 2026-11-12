@@ -1,0 +1,86 @@
+Tracker Cycles editor bench v1, run 1 (10 s after boot), Tidal player silent
+times in microseconds (wall, audio interrupt included); Programs in SDRAM
+
+Program: 73844 B; whole copy 8490 us
+
+== light (d1: 19 nodes; program 162 live nodes, 8 strings)
+   s "bd*2 [~ sd] bd sd" # gain 1
+   parse file 4456 us, check d1 165 us, trackerCheck 14 us, render 52 us (35 chars),
+   block copy 438 us, undo by text (render + parse + check) 807 us
+   jog edit (number + check): full 8678 us, block 239 us, in place 534 us
+   menu replace (pattern)   full copy 759481 us (49/109 ok), block copy 32385 us (49/109 ok), in place 23246 us (49/109 ok)
+   menu $ functions (wrap)  full copy 318708 us (35/51 ok), block copy 26291 us (35/51 ok), in place 22457 us (35/51 ok)
+   menu mini step           full copy 378507 us (62/62 ok), block copy 23142 us (62/62 ok), in place 20445 us (62/62 ok)
+
+== everyday (d1: 37 nodes; program 180 live nodes, 7 strings)
+   every 4 (fast 2) $ n "0 .. 7" # s "arpy" # speed "<1 2>" # room 0.3 # pan sine
+   parse file 3971 us, check d1 813 us, trackerCheck 38 us, render 126 us (83 chars),
+   block copy 329 us, undo by text (render + parse + check) 1875 us
+   jog edit (number + check): full 6635 us, block 933 us, in place 813 us
+   menu replace (pattern)   full copy 656655 us (49/109 ok), block copy 40053 us (49/109 ok), in place 23725 us (49/109 ok)
+   menu $ functions (wrap)  full copy 349816 us (35/51 ok), block copy 59904 us (35/51 ok), in place 54107 us (35/51 ok)
+   menu mini step           full copy 417390 us (62/62 ok), block copy 66602 us (62/62 ok), in place 58786 us (62/62 ok)
+
+== heavy (d1: 98 nodes; program 241 live nodes, 7 strings)
+   jux rev $ every 3 (0.25 <~) $ sometimesBy 0.3 (# speed 2) $ off 0.125 (|+ n 12) $ stut 3 0.5 0.125 $ n "0 [3 5] <7 10> [12 ~ 7]*2 0 . 3 5 <7 [10 12]>" # s "<arpy pluck>" # cutoff (range 300 3000 sine) # resonance 0.2 # room 0.4 # gain 0.9 # pan rand # legato 0.5
+   parse file 5213 us, check d1 2277 us, trackerCheck 299 us, render 439 us (267 chars),
+   block copy 522 us, undo by text (render + parse + check) 5299 us
+   jog edit (number + check): full 7724 us, block 2482 us, in place 1900 us
+   menu replace (pattern)   full copy 568071 us (49/109 ok), block copy 60435 us (49/109 ok), in place 21653 us (49/109 ok)
+   menu $ functions (wrap)  full copy 364782 us (35/51 ok), block copy 127365 us (35/51 ok), in place 110423 us (35/51 ok)
+   menu mini step           full copy 440873 us (62/62 ok), block copy 153712 us (62/62 ok), in place 134403 us (62/62 ok)
+
+audio during part 1: max 50 %, avg 30 %
+
+display: font 0 handle 1, 'm' 8 px, 'i' 8 px (monospaced); 16 lines of up to 64 columns
+frame                                        avg us   max us  work us  bytes glyphs   runs lines
+code, colour runs, 16 lines                   16666    19226     5346   5236    353    157 6 (budget)
+code, one colour per line, 16 lines           18698    18890     4093   3552    770     16 16
+code, colour runs + 12 highlight rects        18658    19116     5624   5300    339    152 6 (budget)
+code, colour runs, 8 lines                    18682    19245     5650   5236    353    157 6 (budget)
+highlights only (separate control)            18497    19248     3603    248
+audio during the display test: max 17 %, avg 29 %
+
+Tracker Cycles editor bench v1, run 2 (40 s after boot), Tidal player playing
+times in microseconds (wall, audio interrupt included); Programs in SDRAM
+
+Program: 73844 B; whole copy 8845 us
+
+== light (d1: 19 nodes; program 162 live nodes, 8 strings)
+   s "bd*2 [~ sd] bd sd" # gain 1
+   parse file 5075 us, check d1 164 us, trackerCheck 14 us, render 52 us (35 chars),
+   block copy 479 us, undo by text (render + parse + check) 844 us
+   jog edit (number + check): full 9502 us, block 643 us, in place 565 us
+   menu replace (pattern)   full copy 963913 us (49/109 ok), block copy 45429 us (49/109 ok), in place 29835 us (49/109 ok)
+   menu $ functions (wrap)  full copy 416719 us (35/51 ok), block copy 33353 us (35/51 ok), in place 29021 us (35/51 ok)
+   menu mini step           full copy 493984 us (62/62 ok), block copy 29728 us (62/62 ok), in place 26514 us (62/62 ok)
+
+== everyday (d1: 37 nodes; program 180 live nodes, 7 strings)
+   every 4 (fast 2) $ n "0 .. 7" # s "arpy" # speed "<1 2>" # room 0.3 # pan sine
+   parse file 5034 us, check d1 1272 us, trackerCheck 38 us, render 126 us (83 chars),
+   block copy 450 us, undo by text (render + parse + check) 2454 us
+   jog edit (number + check): full 8706 us, block 1386 us, in place 1272 us
+   menu replace (pattern)   full copy 806537 us (49/109 ok), block copy 48860 us (49/109 ok), in place 29121 us (49/109 ok)
+   menu $ functions (wrap)  full copy 423848 us (35/51 ok), block copy 74497 us (35/51 ok), in place 64691 us (35/51 ok)
+   menu mini step           full copy 506685 us (62/62 ok), block copy 79888 us (62/62 ok), in place 70948 us (62/62 ok)
+
+== heavy (d1: 98 nodes; program 241 live nodes, 7 strings)
+   jux rev $ every 3 (0.25 <~) $ sometimesBy 0.3 (# speed 2) $ off 0.125 (|+ n 12) $ stut 3 0.5 0.125 $ n "0 [3 5] <7 10> [12 ~ 7]*2 0 . 3 5 <7 [10 12]>" # s "<arpy pluck>" # cutoff (range 300 3000 sine) # resonance 0.2 # room 0.4 # gain 0.9 # pan rand # legato 0.5
+   parse file 5720 us, check d1 2633 us, trackerCheck 86 us, render 691 us (267 chars),
+   block copy 312 us, undo by text (render + parse + check) 5552 us
+   jog edit (number + check): full 8101 us, block 2811 us, in place 2281 us
+   menu replace (pattern)   full copy 658269 us (49/109 ok), block copy 69915 us (49/109 ok), in place 25666 us (49/109 ok)
+   menu $ functions (wrap)  full copy 422090 us (35/51 ok), block copy 147759 us (35/51 ok), in place 128920 us (35/51 ok)
+   menu mini step           full copy 510953 us (62/62 ok), block copy 177898 us (62/62 ok), in place 156362 us (62/62 ok)
+
+audio during part 1: max 59 %, avg 32 %
+
+display: font 0 handle 1, 'm' 8 px, 'i' 8 px (monospaced); 16 lines of up to 64 columns
+frame                                        avg us   max us  work us  bytes glyphs   runs lines
+code, colour runs, 16 lines                   15849    19253     4991   5236    353    157 6 (budget)
+code, one colour per line, 16 lines           18723    18882     3942   3552    770     16 16
+code, colour runs + 12 highlight rects        18693    19249     5740   5300    339    152 6 (budget)
+code, colour runs, 8 lines                    18717    19239     5459   5236    353    157 6 (budget)
+highlights only (separate control)            18463    19019     3519    248
+audio during the display test: max 29 %, avg 32 %
+

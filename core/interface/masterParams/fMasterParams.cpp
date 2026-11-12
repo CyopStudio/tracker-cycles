@@ -4,8 +4,6 @@
 #include "mtPadsBacklight.h"
 #include "mtSequencer.h"
 
-#include "patternEditor/patternEditor.h"
-#include "performanceMode/performanceMode.h"
 
 #include "masterParams/masterParams.h"
 #include "mtGainLevelLogarithmicTab.h"
@@ -1100,10 +1098,6 @@ static void functSelectStereoBoost()
 
 static void functSwitchModule(uint8_t button)
 {
-    if (!performanceMode.canPerformanceModeContinueAfterSwitchingTo(button))
-    {
-        performanceMode.turnOffAtEndOfPattern();
-    }
 
     if (MP->sourceModuleButton == interfaceButtonSampleRec)
     {

@@ -29,9 +29,9 @@
  */
 
 #include "AudioStream.h"
+#include "../../tidal/audio_profile.h"
 #include "config.h"
 #include "mtAudioEngine.h"
-#include <mtAudioExport.h>
 
 #define MAX_AUDIO_MEMORY 229376
 
@@ -331,6 +331,18 @@ AUDIO_CORE_RAM void AudioStream::update_all(void)
 
     AudioStream* p;
 
+#ifdef AUDIO_PROFILE
+    int index = 0;
+    for (p = AudioStream::first_update; p; p = p->next_update, index++)
+    {
+        if (p->active)
+        {
+            AUDIO_PROFILE_MARK(t0);
+            p->update();
+            audioProfileNode(index, p, AUDIO_PROFILE_CYCLES() - t0);
+        }
+    }
+#else
     for (p = AudioStream::first_update; p; p = p->next_update)
     {
         if (p->active)
@@ -340,6 +352,7 @@ AUDIO_CORE_RAM void AudioStream::update_all(void)
             // any input blocks that weren't consumed?
         }
     }
+#endif
 }
 
 void artificial_isr(void) // AudioStream::update_all()

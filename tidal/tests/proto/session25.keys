@@ -1,0 +1,3 @@
+hw:shift+pad1 hw:play msg shift+pads hw:shift+play msg shift+pads hw:shift+play msg
+hw:shift+pad3 hw:note hw:pad17 pads hw:shift+pad1 hw:instr pads
+hw:shift+config pads hw:s7

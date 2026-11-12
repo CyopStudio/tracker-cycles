@@ -1,0 +1,8 @@
+hw:shift+pad2 hw:left hw:insert pick:fast%202%20$%20... hw:s8 msg
+hw:shift+pad2 hw:left hw:shift+delete msg
+hw:shift+pad1 hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right repeat hw:jog+ msg
+hw:right hw:right hw:right hw:right weight hw:jog+ msg
+hw:play msg hw:pattern+pad1 msg hw:pattern msg hw:pattern+s8 msg hw:shift+play msg
+qshape msg undo msg
+hw:shift+pad13 hw:right hw:right hw:right hw:right hw:right hw:right hw:right hw:right msg hw:insert pick:%23%20gain%201 hw:s8 msg
+print

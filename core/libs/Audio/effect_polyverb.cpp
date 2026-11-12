@@ -1,6 +1,8 @@
 // Copyright 2020 Wojciech Jakóbczyk (jakobczyk.woj@gmail.com)
 
 #include "effect_polyverb.h"
+
+#include <string.h>
 #include "cr_mtb_buffer.h"
 
 extern uint16_t externalRamReverbBuff[];
@@ -38,12 +40,30 @@ AUDIO_CORE_RAM void AudioEffectPolyverb::update(void)
     audio_block_t* block_right;
 
     block_left = receiveWritable(0);
-    if (block_left == NULL)
-        return;
     block_right = receiveWritable(1);
+    // Tracker Cycles audio floor: no input -> run on silence only while the
+    // tail is audible (reverb.IsActive(): average wet level above ~-76 dBFS),
+    // then skip (no output = silence downstream)
+    if (block_left == NULL && block_right == NULL && !reverb.IsActive())
+        return;
+    if (block_left == NULL)
+    {
+        block_left = allocate();
+        if (block_left)
+            memset(block_left->data, 0, sizeof block_left->data);
+    }
     if (block_right == NULL)
     {
-        release(block_left);
+        block_right = allocate();
+        if (block_right)
+            memset(block_right->data, 0, sizeof block_right->data);
+    }
+    if (block_left == NULL || block_right == NULL)
+    {
+        if (block_left)
+            release(block_left);
+        if (block_right)
+            release(block_right);
         return;
     }
 

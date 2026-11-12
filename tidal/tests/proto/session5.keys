@@ -1,0 +1,8 @@
+hw:down hw:right hw:right hw:right hw:down hw:down hw:right hw:down hw:down quick4 hw:jog+
+hw:up hw:up quick2
+hw:shift+pad1 hw:shift+insert hw:right hw:right hw:right hw:right quick2 hw:jog-
+hw:shift+insert hw:right quick4 hw:jog+
+hw:shift+pad2 hw:down controls pick:#%20pan%20sine hw:play hw:shift+insert hw:right quick1
+hw:shift+pad3 hw:down hw:down hw:down hw:right quick2 hw:up hw:up quick2
+hw:play
+print

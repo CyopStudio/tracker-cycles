@@ -16,6 +16,9 @@ extern "C"
 {
     extern void _vStackTop(void); // symbols from linker script
     extern void _vStackBase(void);
+#ifndef PLATFORM_IMX  // Tracker Cycles: the Tidal runtime is in every MK66 build
+    extern char* __brkval; // teensy core heap end
+#endif
 }
 Profiler* Profiler::instance = nullptr;
 
@@ -29,6 +32,23 @@ void Profiler::init()
     size_t allocSize = 4096;
     do
     {
+#ifndef PLATFORM_IMX  // Tracker Cycles: the Tidal runtime is in every MK66 build
+        // Tracker Cycles bench / tick test: leave a stack reserve for the
+        // Tidal evaluator's recursion (deepest 20.6 KB measured) instead of
+        // claiming all but 8 KB (teensy STACK_MARGIN) for the heap. This only
+        // holds at boot: later mallocs that the freed pool can't serve still
+        // grow the heap towards the stack (tick v4: 4 KB), so the pool must
+        // stay big enough too (checker in SDRAM, tidal_config.h).
+        {
+            static constexpr size_t kTidalStackReserve = 32 * 1024;
+            volatile char here = 0;
+            if ((size_t)((const char*)&here - __brkval) < kTidalStackReserve + allocSize + 64)
+            {
+                allocSize /= 2;
+                continue;
+            }
+        }
+#endif
         void* buf = malloc(allocSize);
         if (buf != nullptr)
         {

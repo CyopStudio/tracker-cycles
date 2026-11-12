@@ -1,0 +1,4 @@
+hw:shift+pad5 msg hw:instr msg hw:pad3 hw:pad1 msg
+hw:delete msg hw:pad2 msg print
+hw:shift+pad6 hw:note msg hw:pad20 hw:pad22 msg print
+hw:shift+pad4 hw:fx1 msg menulist

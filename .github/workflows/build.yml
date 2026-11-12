@@ -1,11 +1,11 @@
-name: Build Tracker CE Firmware
+name: Build Tracker Cycles Firmware
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop, 'release/**', 'feature/**' ]
     tags: [ 'v*' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop ]
   workflow_dispatch:
 
 permissions:
@@ -20,16 +20,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Check for AI bot Co-authored-by trailers
-        if: github.event_name == 'pull_request'
-        run: |
-          BASE_SHA="${{ github.event.pull_request.base.sha }}"
-          HEAD_SHA="${{ github.event.pull_request.head.sha }}"
-          if git log --format="%B" "$BASE_SHA..$HEAD_SHA" | grep -iE "^Co-authored-by:.*(copilot|claude|cursor|anthropic|openai|gemini|windsurf|aider|coderabbit|devin|\[bot\])"; then
-            echo "::error::Please remove AI assistant 'Co-authored-by:' trailers from your commit messages so the repository Contributors list only credits human contributors."
-            exit 1
-          fi
 
       - name: Cache GNU Arm Embedded Toolchain 10.3-2021.10
         id: cache-toolchain
@@ -51,15 +41,19 @@ jobs:
       - name: Check version configuration
         run: make version
 
-      - name: Build Original Tracker, Tracker+, and Tracker Mini firmware
+      - name: Host tests (Tidal engine, editor, golden cases)
+        run: make -C tidal test
+
+      - name: Build Original Tracker firmware
         run: |
           set -o pipefail
           POSTFIX_ARGS=""
           if [[ "${{ github.ref }}" != refs/tags/v* ]]; then
+            # test builds: PolyendTracker_Cyc_<sha>.ptf (30 characters; the updater lists up to 31)
             SHORT_SHA=$(git rev-parse --short=7 HEAD)
-            POSTFIX_ARGS="ORIGINAL_POSTFIX=CE_${SHORT_SHA} PLUS_POSTFIX=CE_${SHORT_SHA} MINI_POSTFIX=CE_${SHORT_SHA}"
+            POSTFIX_ARGS="ORIGINAL_POSTFIX=Cyc_${SHORT_SHA}"
           fi
-          make all $POSTFIX_ARGS 2>&1 | tee build_output.log
+          make original $POSTFIX_ARGS 2>&1 | tee build_output.log
 
       - name: Build reference .ptfx Sample Editor plugins
         run: |
@@ -70,47 +64,37 @@ jobs:
         if: always()
         run: |
           {
-            echo "### Generated \`.ptf\` Firmware Files"
+            echo "### Generated \`.ptf\` Firmware"
             echo "\`\`\`text"
             ls -lh build/*.ptf || true
             echo "\`\`\`"
             echo ""
-            echo "### Generated \`.ptfx\` Sample Editor Effects (\`/Effects\`)"
+            echo "### Linker Memory Usage (Original Tracker)"
             echo "\`\`\`text"
-            ls -lh editor-fx-sdk/build/Effects/*.ptfx || true
-            echo "\`\`\`"
-            echo ""
-            echo "### Linker Memory Usage (All 3 Devices)"
-            echo "\`\`\`text"
-            grep -E "^ Building |=== Building|Memory region|FLASH:|RAM:|EXTERNAL_RAM:|QSPI_FLASH:|SRAM_DTC:|SRAM_ITC:|SRAM_OC:" build_output.log || true
+            grep -E "^ Building |=== Building|Memory region|FLASH:|RAM:|EXTERNAL_RAM:" build_output.log || true
             echo "\`\`\`"
           } > pr_summary.md
 
           {
-            echo "## Polyend Tracker CE - Firmware Build & Memory Summary"
+            echo "## Tracker Cycles - Firmware Build & Memory Summary"
             echo ""
             cat pr_summary.md
             echo ""
             echo "> **Downloads (Bottom of Summary Page)**:"
-            echo "> * **\`polyend-tracker-ce-firmware\`**: Ready-to-flash \`.ptf\` firmware files for **Original Tracker**, **Tracker+**, and **Tracker Mini**."
-            echo "> * **\`polyend-tracker-ce-effects\`**: Unzip and copy the included **\`Effects/\`** folder directly to the root of your Tracker's microSD card."
+            echo "> * **\`tracker-cycles-firmware\`**: the ready-to-flash \`.ptf\` for the **Original Polyend Tracker**."
+            echo "> * **\`tracker-cycles-effects\`**: unzip and copy the **\`Effects/\`** folder to the root of the Tracker's microSD card."
           } >> "$GITHUB_STEP_SUMMARY"
 
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            echo "PR_TARGET_NUMBER=${{ github.event.pull_request.number }}"
-            echo "PR_SUMMARY_B64=$(base64 -w 0 pr_summary.md)"
-          fi
-
-      - name: Upload Firmware Artifacts (.ptf)
+      - name: Upload Firmware Artifact (.ptf)
         uses: actions/upload-artifact@v4
         with:
-          name: polyend-tracker-ce-firmware
+          name: tracker-cycles-firmware
           path: build/*.ptf
 
       - name: Upload Sample Editor Effects Artifact (Effects/*.ptfx)
         uses: actions/upload-artifact@v4
         with:
-          name: polyend-tracker-ce-effects
+          name: tracker-cycles-effects
           path: editor-fx-sdk/build/
 
       - name: Post Firmware Download Links to PR (Same-Repo PRs)
@@ -128,45 +112,28 @@ jobs:
               ? fs.readFileSync('pr_summary.md', 'utf8').trim()
               : '';
 
-            const fwUrl = `https://nightly.link/${owner}/${repo}/actions/runs/${runId}/polyend-tracker-ce-firmware.zip`;
-            const fxUrl = `https://nightly.link/${owner}/${repo}/actions/runs/${runId}/polyend-tracker-ce-effects.zip`;
-            const marker = '<!-- polyend-tracker-ce-pr-firmware -->';
+            const fwUrl = `https://nightly.link/${owner}/${repo}/actions/runs/${runId}/tracker-cycles-firmware.zip`;
+            const marker = '<!-- tracker-cycles-pr-firmware -->';
 
             const body = [
               marker,
-              '### Polyend Tracker CE Test Firmware & Sample Editor Effects',
+              '### Tracker Cycles Test Firmware',
               '',
-              'This pull request passed all build checks. You can download and test the built firmware for **Original Tracker**, **Tracker+**, and **Tracker Mini** (`Build: ' + shortSha + '`) and the `.ptfx` Sample Editor plugins directly using the links below (no GitHub account required):',
+              'This pull request passed all build checks. Download and test the firmware for the **Original Polyend Tracker** (`Build: ' + shortSha + '`):',
               '',
               `* **[Download Firmware (.zip)](${fwUrl})**`,
-              `* **[Download Sample Editor Effects (.zip)](${fxUrl})**`,
               '',
               '<details>',
               '<summary><b>How to Install & Flash on Your Tracker</b></summary>',
               '',
-              '### 1. Flashing the Firmware (`.ptf`)',
-              `1. Download and unzip **[polyend-tracker-ce-firmware.zip](${fwUrl})**.`,
-              '2. Copy the `.ptf` file matching your hardware to the **`/Firmware/`** folder on your Tracker\'s microSD card:',
-              `   * **Original Polyend Tracker**: \`PolyendTracker_CE_${shortSha}.ptf\``,
-              `   * **Polyend Tracker+**: \`TrackerPlus_CE_${shortSha}.ptf\``,
-              `   * **Polyend Tracker Mini**: \`TrackerMini_CE_${shortSha}.ptf\``,
-              '3. Insert the microSD card into your Tracker, navigate to **Config → Firmware → Firmware update**, select the `.ptf` file, and confirm.',
-              `4. Once rebooted, you can verify you are running this PR build under **Config → Firmware** (\`Build: ${shortSha}\`).`,
-              '',
-              '### 2. Installing Sample Editor Effects (`.ptfx`)',
-              `1. Download and unzip **[polyend-tracker-ce-effects.zip](${fxUrl})**.`,
-              '2. Copy the **`Effects/`** folder to the root directory of your Tracker\'s microSD card so your `.ptfx` plugins are located at **`/Effects/*.ptfx`**.',
-              '',
-              '### 3. Emergency Recovery (Just in Case)',
-              'The Tracker\'s bootloader is hardware-isolated from the firmware. If a test build ever fails to boot:',
-              '1. Place a known-good, stable `.ptf` firmware file inside the **`/Firmware/`** folder on your microSD card (ideally as the only `.ptf` file in that folder).',
-              '2. Insert the microSD card and power on your Tracker.',
-              '3. Use a paperclip or SIM-eject pin to press the **recessed hardware Reset / Emergency Bootloader pinhole button** (on the bottom of Original Tracker / Tracker+, or next to the USB-C port on Tracker Mini). The bootloader will automatically flash the `.ptf` file from `/Firmware/`.',
+              `1. Unzip and copy \`PolyendTracker_Cyc_${shortSha}.ptf\` to the **\`/Firmware/\`** folder on the Tracker's microSD card.`,
+              '2. On the Tracker: **Config → Firmware → Firmware update**, select the `.ptf` file, confirm.',
+              '3. Recovery: put a known-good `.ptf` alone in `/Firmware/`, power on, press the recessed Reset / bootloader pinhole on the bottom of the unit.',
               '',
               '</details>',
               '',
               '<details>',
-              '<summary><b>Firmware File Sizes & Linker Memory Summary</b></summary>',
+              '<summary><b>Firmware Size & Linker Memory Summary</b></summary>',
               '',
               summaryDetails,
               '',
@@ -181,33 +148,24 @@ jobs:
             });
             const existing = comments.find(c => c.body && c.body.includes(marker));
             if (existing) {
-              await github.rest.issues.updateComment({
-                owner,
-                repo,
-                comment_id: existing.id,
-                body
-              });
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
             } else {
-              await github.rest.issues.createComment({
-                owner,
-                repo,
-                issue_number: prNumber,
-                body
-              });
+              await github.rest.issues.createComment({ owner, repo, issue_number: prNumber, body });
             }
 
       - name: Package .ptfx Effects for GitHub Release
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           cd editor-fx-sdk/build
-          zip -r ../../build/PolyendTracker_CE_Effects.zip Effects README.txt
+          zip -r ../../build/PolyendTracker_Cycles_Effects.zip Effects README.txt
 
       - name: Publish GitHub Release on Version Tag
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          name: Polyend Tracker CE ${{ github.ref_name }}
-          generate_release_notes: true
+          name: Tracker Cycles ${{ github.ref_name }}
+          body_path: CHANGELOG.md
           files: |
             build/*.ptf
-            build/PolyendTracker_CE_Effects.zip
+            build/PolyendTracker_Cycles_Effects.zip
+            docs/ExampleProject/tracker-cycles1.zip

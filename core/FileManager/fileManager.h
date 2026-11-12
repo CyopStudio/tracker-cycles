@@ -15,7 +15,6 @@
 #include "InstrumentDelete.h"
 #include "ProjectOpen.h"
 #include "ProjectSave.h"
-#include "RecordingSave.h"
 #include "SampleImport.h"
 #include "SampleMemoryReload.h"
 #include "SampleMemorySave.h"
@@ -263,23 +262,10 @@ class cFileManager
 
     bool deleteInstruments(uint8_t instrumentSlotFrom, uint8_t instrumentSlotTo);
 
-    bool loadWorkspacePattern(uint8_t index);
-    const Sequencer::strPattern* loadWorkspacePatternToTempBuffer(uint8_t index);
 
     bool deleteProjectOrFolder(char* projectPath);
     bool deleteMod(char* modPathWithName);
 
-    bool exportSound(uint8_t mode);
-    bool exportSoundRenderSelection(char* filePath);
-    bool exportSoundCancel();
-    bool saveRecordedSound(char* dirPath,
-                           char* fileName,
-                           std::optional<int8_t> importSlot,
-                           int16_t* leftChannelAddress,
-                           int16_t* rightChannelAddress,
-                           uint32_t length);
-    bool exportProjectSamples();
-    void exportProjectSamplesCancel();
 
     bool importSampleFromSampleEditor(int16_t* memoryAddressL,
                                       int16_t* memoryAddressR,
@@ -295,40 +281,13 @@ class cFileManager
 
     // to na pozniej \/
 
-    bool loadWorkspacePatternNow(uint8_t index);
-    bool saveWorkspacePatternNow(uint8_t index);
-    bool loadPerformanceTrackToBuffer(uint8_t pattIndex, uint8_t trackIndex);
-    bool isPatternLoading();
-    bool isPatternEmpty(uint8_t index);
 
     uint8_t getNextSongPattern();
     uint8_t getSongPattern(uint8_t pos);
-    std::optional<int> getPatternPosInSong(uint8_t patternToSearch);
-    void setSongPos(uint8_t pos);
-    bool switchNextPatternInSong();
-    void copySongTracks(char* currentProjectPath,
-                        uint8_t srcPatternIdx,
-                        uint8_t destPatternIdx,
-                        uint8_t trackStartSrc,
-                        uint8_t trackStartDest,
-                        uint8_t tracksNum);
-    void deleteTracks(char* currentProjectPath,
-                      uint8_t srcPatternIdx,
-                      uint8_t trackStartSrc,
-                      uint8_t tracksNum);
 
-    void updateActualPatternBitmask();
-    bool updatePatternBitmask(uint8_t patternIdx, Sequencer::strPattern* sourcePattern);
 
     // UNDO/REDO
-    void storePatternUndoRevision();
-    void storeSongUndoRevision(uint8_t index);
-    void undoSongPattern();
-    void undoPattern();
-    void redoPattern();
 
-    void storePatternSelection(uint8_t index);
-    void restorePatternSelection(uint8_t index);
 
     float importMod_getProgress();
     uint8_t exportItFile_getProgress();
@@ -389,15 +348,11 @@ class cFileManager
     void loadProjectValues();
 
     void saveProjectFileToWorkspace();
-    void loadPatternFromWorkspace(uint8_t index);
 
     bool loadProjectFileFormFileStruct(strMtProject* project, strProjectFile* pFile);
     bool writeProjectFileToFileStruct(strMtProject* project, strProjectFile* pFile);
 
-    bool needImportModFileAfterNewProject() { return importModFileAfterNewProject; }
-    void clearImportModFileAfterNewProject() { importModFileAfterNewProject = false; }
 
-    void savePatternToWorkspace();
 
     void clearWorkspace();
     bool createWorkspaceDirs();
@@ -438,7 +393,6 @@ class cFileManager
         return stereoSampleMode ? FileManagerOperation::kLeftAndRight : FileManagerOperation::kLeft;
     }
 
-    void checkVersionAndTranslate(Sequencer::strPattern* pattern);
 
   private:
     friend FileManagerOperation;
@@ -454,7 +408,6 @@ class cFileManager
     InstrumentDelete instrumentDelete;
     SampleMemoryReload sampleMemoryReload;
     SampleMemorySave sampleMemorySave;
-    RecordingSave recordingSave;
     int currentPattern = -1; // -1 for asserts
     int loadedPattern = -1;  // -1 for asserts
 
@@ -501,15 +454,9 @@ class cFileManager
     void calcTotalMemoryToTransfer();
 
     // glowne update / workspace ------------------------------------
-    void updateImportModFile();
-    void updateExportModFile();
     void updateBrowseSamples();
     void updateBrowseFirmwares();
     void updateBrowseGames();
-    void updateLoadWorkspacePattern();
-    void updateExportSound();
-    void updateExportProjectSamples();
-    void updateSaveRecordedSound();
     void updateDrawSampleWaveform();
 
     void autoSaveProjectToWorkspace();
@@ -533,27 +480,9 @@ class cFileManager
 
     // pattern ------------------------------------
 
-    bool continuePatternProcess();
 
-    void loadPatternFromWorkspaceFinish();
 
-    bool validatePatternFileData(const char* filePath,
-                                 const Sequencer::strPattern* pattern,
-                                 size_t fileSize);
-    bool writePatternFile(const char* filePath, Sequencer::strPattern* sourcePattern);
-    bool readPatternFile(const char* filePath, Sequencer::strPattern* destPattern);
-    bool saveActualPattern(const char* path, uint8_t index);
-    bool loadPattern(const char* path, uint8_t index);
 
-    void translateVolumeFxInPatternFromFileVersion1ToFileVersion2(
-      Sequencer::strPattern* patternToTranslate);
-    void translateBeatSliceNoteInPatternFromFileVersionLessThan3(
-      Sequencer::strPattern* patternToTranslate);
-    void translateVolumeFxInPatternFromFileVersion3ToFileVersion4(
-      Sequencer::strPattern* patternToTranslate);
-    void translatePatternFromFileVersion4ToFileVersion5(Sequencer::strPattern* patternToTranslate);
-    void translatePatternFromFileVersion5ToFileVersion6(Sequencer::strPattern* patternToTranslate);
-    void translatePatternWithDifferentTrackCount(Sequencer::strPattern* pattern);
 
     uint32_t calcProjectPatternsSize();
 
@@ -630,23 +559,12 @@ class cFileManager
     static uint32_t currentFolderMemoryFileUsage[list_length_max];
 
     // export sound
-    void exportSoundEnd();
-    void exportSoundGetStatus();
-    uint8_t getExportProgress();
-    void exportSamplesStart();
-    uint32_t getTotalSamplesMemoryExported();
 
     // recording
-    void saveRecordingEnd();
-    char* getRecordingDirPath();
-    char* getRecordingFileName();
-    void saveRecordedSoundContinue();
-    void saveRecordedSoundFinish();
     uint8_t recordingImportSlot;
 
     /// IMPORT .MOD .IT etc
 
-    enImportModMode checkImportFileType();
 
     bool importModFileAfterNewProject = 0;
 
@@ -662,71 +580,23 @@ class cFileManager
 
     /// IMPORT .MOD
 
-    void importModFile_Init();
-    void importModFile_GetInstrumentData();
-    void importModFile_SaveInstrument();
 
-    void importModFile_SongInit();
-    void importModFile_Patterns();
-    void importModFile_ImportWave();
-    void importModFile_WriteWave();
-    void importModFile_Finish();
-    void importModFile_Error();
 
     int8_t periodToNote(uint16_t period);
-    void printNote(uint8_t note);
 
     /// IMPORT MOD KONIEC
 
     // import IT
-    void importItFile_Init();
-    void importItFile_ProcessHeader();
-    void importItFile_ProcessSong();
-    void importItFile_ProcessOffsets();
 
-    void importItFile_ProcessInstruments();
-    void importItFile_LoadSamples();
-    void importItFile_ProcessPatterns();
-    void importItFile_ProcessPattern(uint32_t patternOffset, uint16_t length, uint16_t rows);
-    void importItFile_WriteWaves();
-    void importItFile_Finish();
 
-    void importItFile_setPattern(uint8_t index, uint8_t length);
-    void importItFile_setStep(uint8_t step,
-                              uint8_t track,
-                              uint8_t note,
-                              int16_t volume,
-                              uint8_t instrument,
-                              uint8_t fx,
-                              uint8_t fxVal);
-    void importItFile_savePattern();
-    void importItFile_initPatternBuffer(uint32_t pattLength, uint32_t patternOffset);
 
-    uint8_t importItFile_getNextPatternByte();
 
-    float importItFile_getProgress();
 
-    uint32_t getInstrumentOffset(uint8_t index);
-    uint32_t getSampleOffset(uint8_t index);
-    uint32_t getPatternOffset(uint8_t index);
-    uint32_t getFileVariable(uint32_t subFileOffset, uint32_t offset, uint8_t varSize);
 
     // import IT koniec
 
     // EXPORT MOD
-    void exportItFile_Init();
-    void exportItFile_InitHeader();
-    void exportItFile_ProcessInstruments();
-    void exportItFile_ProcessSamples();
-    void exportItFile_ProcessWaves();
-    void exportItFile_ProcessPatterns();
-    void exportItFile_Finish();
-    void exportItFile_Error();
 
-    void exportItFile_storeInstrumentOffset();
-    void exportItFile_storeSampleOffset();
-    void exportItFile_storePatternOffset();
-    void exportItFile_storeWaveOffset();
 
     //  draw sample waweform
     void drawSampleWaveformInit();

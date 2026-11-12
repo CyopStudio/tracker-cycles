@@ -1,0 +1,29 @@
+msg: gap 1 of 4: pads / Screen 3-6 insert, Delete removes the step before
+menu |: [either side: [bd*2 | [~ sd]]] [all: [bd*2 | [~ sd] | bd | sd]]
+msg: |: either side: [bd*2 | [~ sd]]
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "[bd*2 | [~ sd]] bd sd" # gain 1
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5
+msg: 4 steps selected: Screen 3-7 wrap them, Delete removes, Copy copies
+msg: [bd*2 | [~ sd] | bd | sd]
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "[bd*2 | [~ sd] | bd | sd]" # gain 1
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5

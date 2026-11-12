@@ -6,7 +6,6 @@
 #include "AudioInput.h"
 #include "AudioOutput.h"
 #include "AudioVoice.h"
-#include "ExportQueues.h"
 #include "MixerAndFxs.h"
 #include "Platform.h"
 #include "SdStream.h"
@@ -53,13 +52,9 @@ class audioEngine
     void connectMixerToOutput(MixerAndFxs<kVoices>* mixerAndFxs, AudioOutput* output);
 #ifdef FEATURE_SYNTH
     void connectSynthToMixer(MixerAndFxs<kVoices>* mixerAndFxs, SynthVoice* synth);
-    void connectSynthToExportQueue(SynthVoice* synth, ExportQueues* exportQueues);
     void connectSynthToOutput(SynthVoice* synth, AudioOutput* output);
 #endif
     void connectSpecialInputsToOutput(AudioOutput* output);
-    void connectVoiceToExportQueue(AudioVoice* voice, ExportQueues* exportQueues, int idx);
-    void connectMixerToExportQueue(MixerAndFxs<kVoices>* mixerAndFxs, ExportQueues* exportQueues);
-    void connectOutputToExportQueue(AudioOutput* output, ExportQueues* exportQueues);
 #ifdef PLATFORM_IMX
     void refreshOutputSourceOutsideTheRecorder();
     void forceUsbGainOutsideTheRecorder();
@@ -143,7 +138,6 @@ class audioEngine
     void clearDelay();
     void clearReverb();
     void resetLimiter();
-    void performanceModeEndAll();
     void startTestSignal(float amp, float freq);
     void stopTestSignal();
     void endAllFx(bool synthOnly = false);
@@ -189,7 +183,6 @@ class audioEngine
 
     AudioInput* getAudioInput();
     AudioOutput* getAudioOutput();
-    ExportQueues* getExportQueues();
     MixerAndFxs<kVoices>* getMixerAndFx();
     AudioPlaySdWav* getSdPlayer();
 
@@ -246,7 +239,6 @@ class audioEngine
                                       // use something like bitset2d from Play if it grows
     std::optional<uint8_t> lastSynthFxId[kSynthParts][2];
 #endif
-    ExportQueues exportQueues;
     AudioOutput output;
     AudioAnalyzeRMS* delayRms[(int)MixerAndFxChannelType::kChannelCount];
     AudioAnalyzeRMS* polyverbRms[(int)MixerAndFxChannelType::kChannelCount];
@@ -273,6 +265,43 @@ class playerEngine
               AudioMixer<MixerAndFxs<audioEngine::kVoices>::kSendsInputsCount>* prePolyverbMixer);
 
     uint8_t noteOn(uint8_t instr_idx, int8_t note, int8_t velocity);
+    // Tracker Cycles (mtAudioTidal.cpp, every Original Tracker build): a
+    // note with Tidal's per-note overrides (ids / values of tc::TMod,
+    // tidal/core/mapping.h). Every note starts from the instrument; the
+    // previous Tidal note's overrides that this one lacks are ended.
+    // velocity: volume step 0..100, -1 = the instrument's.
+    // Polyphony (docs/tidal_voices.md): `player` (0..kTidalPlayers-1) is the
+    // track's sample player that plays it (picked by the caller); the note's
+    // volume becomes that player's gain into the track's shared chain, so
+    // the track amp / sends run at unity (tidalVolume). Pitch, start / end,
+    // slice, reverse and the amp envelope are per player; filter, crush,
+    // drive, pan and sends are per track (the latest note's).
+    static constexpr int kTidalPlayers = 3;
+    uint8_t tidalNoteOn(uint8_t player,
+                        uint8_t instr_idx,
+                        int8_t note,
+                        int8_t velocity,
+                        const uint8_t* modId,
+                        const uint16_t* modVal,
+                        uint8_t nmods);
+    void tidalNoteOff(uint8_t player);  // release that player's note
+    void tidalStop(uint8_t player);     // stop it now
+    void tidalCut(uint8_t player);      // fade it out in a few ms (voice stolen / `voices` limit)
+    bool tidalPlaying(uint8_t player);  // sounding (release tail included)
+    void tidalAllOff();
+    // the stock noteOn paths call this: back to player 0, instrument volume
+    void tidalRestoreStock()
+    {
+        tidalVolume = false;
+#ifndef PLATFORM_IMX
+        if (tidalCur != 0)
+        {
+            playMemPtr[0] = audioVoice.getPlayer(0);
+            tidalCur = 0;
+        }
+        audioVoice.getPlayerSum()->gain(0, 1.0f);
+#endif
+    }
     uint8_t noteOn(uint8_t instr_idx,
                    int8_t note,
                    int8_t velocity,
@@ -362,7 +391,6 @@ class playerEngine
     {
         sequencerMode,
         sequencerMode2,
-        performanceMode,
 
         controlTypeLength
     };
@@ -458,125 +486,12 @@ class playerEngine
 
     } currentSeqModValues;
 
-    struct strCurrentPerformanceValues
-    {
-        uint16_t startPoint;
-        uint16_t loopPoint1;
-        uint16_t loopPoint2;
-        uint16_t endPoint;
-        uint8_t reversePlayback;
-        float filterCutoff;
-        uint8_t filterType;
-        uint8_t filterEnable;
-        uint8_t delaySend;
-        uint8_t reverbSend;
-        int16_t panning;
-        int8_t tune;
-        uint8_t volume;
-        uint32_t wavetablePosition;
-        uint16_t granularPosition;
 
-        uint8_t lfoAmpEnable;
-        uint8_t lfoAmpRate;
-
-        uint8_t lfoCutoffEnable;
-        uint8_t lfoCutoffRate;
-
-        uint8_t lfoWavetablePositionEnable;
-        uint8_t lfoWavetablePositionRate;
-
-        uint8_t lfoGranularPositionEnable;
-        uint8_t lfoGranularPositionRate;
-
-        uint8_t lfoPanningEnable;
-        uint8_t lfoPanningRate;
-
-        uint8_t lfoFinetuneEnable;
-        uint8_t lfoFinetuneRate;
-
-        uint8_t bitDepth;
-        uint8_t overdrive;
-
-    } currentPerformanceValues;
-
-    struct strPerformanceMod
-    {
-        int8_t volume;
-        int8_t panning;
-        int8_t tune;
-        int8_t delaySend;
-        int8_t reverbSend;
-        int8_t cutoff;
-        int16_t wavetablePosition;
-        int16_t granularPosition;
-        uint8_t filterType;
-        int32_t startPoint;
-        int32_t endPoint;
-        uint8_t reversePlayback;
-        int8_t lfoAmpRate;
-        int8_t lfoCutoffRate;
-        int8_t lfoPositionRate;
-        int8_t lfoPanningRate;
-        int8_t lfoFinetuneRate;
-
-        int8_t bitDepth;
-        int8_t overdrive;
-    } performanceMod;
 
     float currentEnvelopeModification[envMax];
 
     uint8_t trackControlParameter[(int)controlType::controlTypeLength]
                                  [(int)parameterList::parameterListLength];
-    //**********************************************************************************************************************************
-    // PERFORMANCE MODE
-    //*****************************CHANGE
-    void changeVolumePerformanceMode(int8_t value);
-    void changePanningPerformanceMode(int8_t value);
-    void changeBitDepthPerformanceMode(int8_t value);
-    void changeOverdrivePerformanceMode(int8_t value);
-    void changeTunePerformanceMode(int8_t value);
-    void changeDelaySendPerformanceMode(int8_t value);
-    void changeReverbSendPerformanceMode(int8_t value);
-    void changeStartPointPerformanceMode(int32_t value);
-    void changeEndPointPerformanceMode(int32_t value);
-    void changeCutoffPerformanceMode(int8_t value);
-    void changeFilterTypePerformanceMode(uint8_t mode);
-    void changeSamplePlaybackPerformanceMode(uint8_t value);
-    void changeWavetableWindowPerformanceMode(int16_t value);
-    void changeGranularPositionPerformanceMode(int16_t value);
-
-    void changePositionPerformanceMode(int16_t value);
-
-    void changeAmpLfoRatePerformanceMode(int8_t value);
-    void changeCutoffLfoRatePerformanceMode(int8_t value);
-    void changePositionLfoRatePerformanceMode(int8_t value);
-    void changePanningLfoRatePerformanceMode(int8_t value);
-    void changeFinetuneLfoRatePerformanceMode(int8_t value);
-
-    //*****************************END
-    void endVolumePerformanceMode();
-    void endPanningPerformanceMode();
-    void endBitDepthPerformanceMode();
-    void endOverdrivePerformanceMode();
-    void endTunePerformanceMode();
-    void endDelaySendPerformanceMode();
-    void endReverbSendPerformanceMode();
-    void endStartPointPerformanceMode();
-    void endCutoffPerformanceMode();
-    void endFilterTypePerformanceMode();
-    void endSamplePlaybackPerformanceMode();
-    void endEndPointPerformanceMode();
-    void endWavetableWindowPerformanceMode();
-    void endGranularPositionPerformanceMode();
-
-    void endPositionPerformanceMode();
-
-    void endAmpLfoRatePerformanceMode();
-    void endCutoffLfoRatePerformanceMode();
-    void endPositionLfoRatePerformanceMode();
-    void endPanningLfoRatePerformanceMode();
-    void endFinetuneLfoRatePerformanceMode();
-
     void setPassEnvelope(uint8_t state);
     float getRMSValue();
     AudioVoice* getAudioVoice();
@@ -599,6 +514,21 @@ class playerEngine
     envelopeGenerator* envelopePtr[envMax];
     uint8_t nChannel;
     uint8_t lastSeqFx[2];
+    uint32_t tidalMods = 0;  // TMod bits the last tidalNoteOn set
+    uint32_t tidalModsP[kTidalPlayers] = {};  // per player: its player-level TMod bits
+    uint8_t tidalCur = 0;                     // player playMemPtr[0] points at
+    bool tidalVolume = false;                 // note volume is in the player gain: track at unity
+    bool anyPlayerPlaying()
+    {
+#ifndef PLATFORM_IMX
+        for (int k = 0; k < AudioVoice::kPlayers; k++)
+            if (audioVoice.getPlayer(k)->isPlaying())
+                return true;
+        return false;
+#else
+        return playMemPtr[0]->isPlaying();
+#endif
+    }
     uint8_t lastSeqVal[2];
     int8_t currentNote;
     uint32_t refreshRegister;
@@ -816,8 +746,6 @@ class playerEngine
     void filterConnect();
     void filterDisconnect();
 
-    void changePointsPerformanceMode(int32_t spValue, int32_t epValue);
-    void endPointsPerformanceMode();
 
     void calcLfoBasedEnvelope(envelopeGenerator::strEnv* env,
                               strInstrument::strEnvBasedLfo* lfo,

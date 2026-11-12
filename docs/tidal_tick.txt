@@ -1,0 +1,353 @@
+Tracker Cycles device tick test v13 (engine -Os), built-in sets
+11 active instruments; scheduler object 4336 B (internal RAM), entries 104448 B, live program 71728 B (SDRAM); engine working set in internal RAM: yes; 3 sample players per track, cap max 16 (load-driven), voices default 1
+cycles at 180 MHz (1 us = 180); audio block = 2902 us = 522,353 cycles
+
+== set 1 of 15 (silence: audio floor, nothing plays, 10 s, solo)
+evaluate: parse 366 us, check 6 us (checker in SDRAM), scheduler 18 us
+--
+tick: 3446 blocks, avg 926 cycles, max 1214; idle blocks (no start) 3446: avg 926, max 1214; 0 blocks with starts: avg 0, max 0
+noteOn: 0 (avg 0.0 overrides), avg 0 cycles, max 0; noteOffs 0; most starts in one block 0
+late (blocks): 0: 0, 1: 0, 2: 0, 3+: 0; dropped 0, capped 0, superseded 0, unmapped 0
+main loop: update() 432703 calls, 287 ms in 10000 ms (2.8 %), longest call 169 us; longest gap between main-loop passes 231 us
+scheduler: queries 0, idle update() calls 432702, window splits 0, horizon skips 0, window 1/16 cycle; mapping 0 events, avg 0 cycles
+audio load: avg 5 %, max 5 %
+players: most sounding at a noteOn 0 (cap 16), avg 0.0; retriggered own track's oldest 0, faded by voices 0, faded for the cap 0; stale noteOffs 0; audio blocks most in use 5 of 70
+governor: smoothed load max 4 % (now 4 %); cap at noteOns min 0, avg 0 (max 16); faded by the governor 0
+per slot (wall time, interrupts included): windows, avg us, max us
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator not run yet; heap end 32768 B below the top of RAM
+
+== set 2 of 15 (timing: light, 3 tracks, 20 s)
+d1 $ s "bd*4"
+d2 $ s "~ sd"
+d3 $ s "hh*8" # gain 0.8
+evaluate: parse 384 us, check 294 us (checker in SDRAM), scheduler 131 us
+--
+tick: 6893 blocks, avg 1358 cycles, max 36532; idle blocks (no start) 6802: avg 1112, max 1291; 91 blocks with starts: avg 19802, max 36532
+noteOn: 148 (avg 0.0 overrides), avg 11052 cycles, max 13545; noteOffs 0; most starts in one block 3
+late (blocks): 0: 148, 1: 0, 2: 0, 3+: 0; dropped 0, capped 0, superseded 0, unmapped 0
+main loop: update() 523642 calls, 1025 ms in 20000 ms (5.1 %), longest call 1772 us; longest gap between main-loop passes 1628 us
+scheduler: queries 549, idle update() calls 516877, window splits 0, horizon skips 0, window 1/16 cycle; mapping 149 events, avg 4617 cycles
+audio load: avg 40 %, max 54 %
+players: most sounding at a noteOn 3 (cap 16), avg 1.7; retriggered own track's oldest 90, faded by voices 0, faded for the cap 0; stale noteOffs 0; audio blocks most in use 22 of 70
+governor: smoothed load max 45 % (now 41 %); cap at noteOns min 16, avg 16 (max 16); faded by the governor 0
+per slot (wall time, interrupts included): windows, avg us, max us
+  d1: 183, 130, 1457
+  d2: 183, 67, 123
+  d3: 183, 158, 185
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 7713 B below the top of RAM; heap end 32768 B below: 25055 B to spare
+
+== set 3 of 15 (timing: everyday, 8 tracks, 20 s)
+d1 $ s "bd*2 [~ bd] bd"
+d2 $ s "~ sd" # n "<0 1>"
+d3 $ every 2 (fast 2) $ s "hh*8"
+d4 $ n "0 .. 7" # s "arpy"
+d5 $ off 0.125 (|+ n 12) $ n "0 3 7" # s "bass"
+d6 $ s "cp*2" # pan sine
+d7 $ sometimes (# speed 2) $ s "drum*4"
+d8 $ s "<lt mt ht>*3"
+evaluate: parse 2620 us, check 2694 us (checker in SDRAM), scheduler 483 us
+--
+tick: 6893 blocks, avg 2316 cycles, max 56321; idle blocks (no start) 6679: avg 1610, max 1884; 214 blocks with starts: avg 24345, max 56321
+noteOn: 447 (avg 0.0 overrides), avg 10209 cycles, max 17260; noteOffs 181; most starts in one block 4
+late (blocks): 0: 392, 1: 55, 2: 0, 3+: 0; dropped 0, capped 55, superseded 0, unmapped 0
+main loop: update() 338190 calls, 1566 ms in 20000 ms (7.8 %), longest call 5785 us; longest gap between main-loop passes 2291 us
+scheduler: queries 1427, idle update() calls 334856, window splits 0, horizon skips 0, window 1/16 cycle; mapping 450 events, avg 7657 cycles
+audio load: avg 59 %, max 77 %
+players: most sounding at a noteOn 8 (cap 16), avg 6.3; retriggered own track's oldest 374, faded by voices 0, faded for the cap 0; stale noteOffs 63; audio blocks most in use 37 of 70
+governor: smoothed load max 67 % (now 63 %); cap at noteOns min 16, avg 16 (max 16); faded by the governor 0
+per slot (wall time, interrupts included): windows, avg us, max us
+  d1: 184, 131, 198
+  d2: 184, 119, 224
+  d3: 184, 168, 190
+  d4: 175, 217, 241
+  d5: 175, 1114, 2401
+  d6: 175, 821, 1961
+  d7: 175, 405, 2054
+  d8: 175, 193, 2099
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 9753 B below the top of RAM; heap end 32768 B below: 23015 B to spare
+
+== set 4 of 15 (timing: heavy, 8 tracks, 20 s)
+setcps 0.7
+d1 $ stut 8 0.5 0.0625 $ s "hh*16" # n "0 .. 15"
+d2 $ jux rev $ chop 8 $ s "bd*8 sd*8" # speed "1 2"
+d3 $ echo 8 0.125 0.7 $ s "bd(5,8) sd(3,8,2)" # n (irand 8)
+d4 $ off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale "major" "0 .. 7") # s "arpy"
+d5 $ chunk 4 (hurry 2) $ iter 4 $ s "bd sd hh cp hh sd bd cp" # n "0 .. 7"
+d6 $ s "hh*16" # n "0 .. 15" # pan sine # gain (range 0.8 1 saw)
+d7 $ sometimes (# speed 2) $ often (# crush 4) $ s "[bd*4, hh*8, ~ sd]"
+d8 $ n (arp "up" "<c'maj e'min7 g'dom7 a'min>*2") # s "bass" # legato 0.5
+evaluate: parse 8409 us, check 8624 us (checker in SDRAM), scheduler 2740 us
+--
+tick: 6893 blocks, avg 6315 cycles, max 58549; idle blocks (no start) 4964: avg 1740, max 2869; 1929 blocks with starts: avg 18086, max 58549
+noteOn: 2878 (avg 1.9 overrides), avg 10276 cycles, max 17178; noteOffs 245; most starts in one block 4
+late (blocks): 0: 2452, 1: 426, 2: 0, 3+: 0; dropped 0, capped 426, superseded 4359, unmapped 0
+main loop: update() 156798 calls, 8631 ms in 20000 ms (43.1 %), longest call 11975 us; longest gap between main-loop passes 2433 us
+scheduler: queries 1792, idle update() calls 152523, window splits 0, horizon skips 0, window 1/16 cycle; mapping 7337 events, avg 13857 cycles
+audio load: avg 69 %, max 82 %
+players: most sounding at a noteOn 8 (cap 16), avg 7.9; retriggered own track's oldest 2860, faded by voices 0, faded for the cap 0; stale noteOffs 2; audio blocks most in use 38 of 70
+governor: smoothed load max 75 % (now 70 %); cap at noteOns min 14, avg 15 (max 16); faded by the governor 0
+per slot (wall time, interrupts included): windows, avg us, max us
+  d1: 224, 8755, 8975
+  d2: 224, 4906, 5839
+  d3: 224, 6727, 8399
+  d4: 224, 3763, 5390
+  d5: 224, 2665, 2850
+  d6: 224, 1542, 2542
+  d7: 224, 3833, 5457
+  d8: 224, 1619, 2630
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 18641 B below the top of RAM; heap end 32768 B below: 14127 B to spare
+
+== set 5 of 15 (timing: all 8 tracks together, 20 s)
+setcps 0.575
+d1 $ s "bd*16"
+d2 $ s "sd*16"
+d3 $ s "hh*16"
+d4 $ s "cp*16"
+d5 $ s "ho*16"
+d6 $ s "cr*16"
+d7 $ s "lt*16"
+d8 $ s "mt*16"
+evaluate: parse 634 us, check 2917 us (checker in SDRAM), scheduler 2737 us
+--
+tick: 6894 blocks, avg 3842 cycles, max 43420; idle blocks (no start) 6502: avg 1722, max 3257; 392 blocks with starts: avg 38998, max 43420
+noteOn: 1490 (avg 0.0 overrides), avg 9225 cycles, max 11387; noteOffs 365; most starts in one block 4
+late (blocks): 0: 762, 1: 728, 2: 0, 3+: 0; dropped 0, capped 728, superseded 61, unmapped 0
+main loop: update() 273308 calls, 1669 ms in 20001 ms (8.3 %), longest call 8841 us; longest gap between main-loop passes 2376 us
+scheduler: queries 1480, idle update() calls 270458, window splits 0, horizon skips 0, window 1/16 cycle; mapping 1500 events, avg 3741 cycles
+audio load: avg 67 %, max 80 %
+players: most sounding at a noteOn 8 (cap 16), avg 8.0; retriggered own track's oldest 1490, faded by voices 0, faded for the cap 0; stale noteOffs 0; audio blocks most in use 35 of 70
+governor: smoothed load max 75 % (now 68 %); cap at noteOns min 14, avg 15 (max 16); faded by the governor 0
+per slot (wall time, interrupts included): windows, avg us, max us
+  d1: 185, 201, 8809
+  d2: 185, 179, 5755
+  d3: 185, 191, 8204
+  d4: 185, 164, 3108
+  d5: 185, 183, 2697
+  d6: 185, 2067, 2113
+  d7: 185, 179, 5414
+  d8: 185, 160, 2441
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 18641 B below the top of RAM; heap end 32768 B below: 14127 B to spare
+
+== set 6 of 15 (timing: governed cap, 8 tracks of ringing chords (voices 3), 20 s, solo)
+setcps 0.575
+d1 $ n "<c'maj e'min>*2" # s "arpy" # legato 3 # voices 3
+d2 $ n "<a'min f'maj>*2" # s "bass" # legato 3 # voices 3
+d3 $ n "<e'min c'maj>*2" # s "pluck" # legato 3 # voices 3
+d4 $ n "<g'maj d'min>*2" # s "casio" # legato 3 # voices 3
+d5 $ n "<c'maj7 a'min7>*2" # s "jvbass" # legato 3 # voices 3
+d6 $ n "<f'maj g'maj>*2" # s "bev" # legato 3 # voices 3
+d7 $ n "<d'min e'min>*2" # s "bass1" # legato 3 # voices 3
+d8 $ n "<a'min c'maj>*2" # s "bass2" # legato 3 # voices 3
+evaluate: parse 13562 us, check 6687 us (checker in SDRAM), scheduler 5094 us
+--
+tick: 6893 blocks, avg 3036 cycles, max 73200; idle blocks (no start) 6761: avg 2008, max 2682; 132 blocks with starts: avg 55707, max 73200
+noteOn: 528 (avg 0.0 overrides), avg 12535 cycles, max 21896; noteOffs 464; most starts in one block 4
+late (blocks): 0: 88, 1: 88, 2: 88, 3+: 264; dropped 0, capped 484, superseded 22, unmapped 0
+main loop: update() 312194 calls, 2908 ms in 20000 ms (14.5 %), longest call 11154 us; longest gap between main-loop passes 14285 us
+scheduler: queries 1408, idle update() calls 308663, window splits 0, horizon skips 0, window 1/16 cycle; mapping 550 events, avg 11465 cycles
+audio load: avg 60 %, max 109 %
+players: most sounding at a noteOn 16 (cap 16), avg 12.1; retriggered own track's oldest 287, faded by voices 0, faded for the cap 74; stale noteOffs 456; audio blocks most in use 37 of 70
+governor: smoothed load max 93 % (now 58 %); cap at noteOns min 8, avg 13 (max 16); faded by the governor 118
+per slot (wall time, interrupts included): windows, avg us, max us
+  d1: 176, 550, 2858
+  d2: 176, 1478, 2823
+  d3: 176, 1365, 2832
+  d4: 176, 1302, 2830
+  d5: 176, 1827, 5245
+  d6: 176, 1374, 2857
+  d7: 176, 1356, 2862
+  d8: 176, 1442, 2862
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 18641 B below the top of RAM; heap end 32768 B below: 14127 B to spare
+
+== set 7 of 15 (timing: governed cap, everyday with voices 3 on every track, 20 s, solo)
+d1 $ s "bd*2 [~ bd] bd" # voices 3
+d2 $ s "~ sd" # n "<0 1>" # voices 3
+d3 $ every 2 (fast 2) $ s "hh*8" # voices 3
+d4 $ n "0 .. 7" # s "arpy" # voices 3
+d5 $ off 0.125 (|+ n 12) $ n "0 3 7" # s "bass" # voices 3
+d6 $ s "cp*2" # pan sine # voices 3
+d7 $ sometimes (# speed 2) $ s "drum*4" # voices 3
+d8 $ s "<lt mt ht>*3" # voices 3
+evaluate: parse 5842 us, check 5608 us (checker in SDRAM), scheduler 586 us
+--
+tick: 6896 blocks, avg 2491 cycles, max 62156; idle blocks (no start) 6677: avg 1637, max 1886; 219 blocks with starts: avg 28533, max 62156
+noteOn: 460 (avg 0.0 overrides), avg 12099 cycles, max 21952; noteOffs 191; most starts in one block 4
+late (blocks): 0: 402, 1: 58, 2: 0, 3+: 0; dropped 0, capped 58, superseded 0, unmapped 0
+main loop: update() 188316 calls, 2445 ms in 20001 ms (12.2 %), longest call 6201 us; longest gap between main-loop passes 8327 us
+scheduler: queries 1477, idle update() calls 186099, window splits 0, horizon skips 0, window 1/16 cycle; mapping 467 events, avg 22645 cycles
+audio load: avg 76 %, max 103 %
+players: most sounding at a noteOn 15 (cap 16), avg 11.6; retriggered own track's oldest 239, faded by voices 0, faded for the cap 34; stale noteOffs 22; audio blocks most in use 37 of 70
+governor: smoothed load max 88 % (now 77 %); cap at noteOns min 8, avg 13 (max 16); faded by the governor 108
+per slot (wall time, interrupts included): windows, avg us, max us
+  d1: 185, 160, 251
+  d2: 185, 172, 2638
+  d3: 185, 859, 2752
+  d4: 185, 1294, 2803
+  d5: 185, 1689, 2950
+  d6: 184, 762, 2737
+  d7: 184, 1369, 2866
+  d8: 184, 1174, 2776
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 18641 B below the top of RAM; heap end 32768 B below: 14127 B to spare
+
+== set 8 of 15 (timing: governed cap, heavy with voices 3 on every track, 20 s, solo)
+setcps 0.7
+d1 $ stut 8 0.5 0.0625 $ s "hh*16" # n "0 .. 15" # voices 3
+d2 $ jux rev $ chop 8 $ s "bd*8 sd*8" # speed "1 2" # voices 3
+d3 $ echo 8 0.125 0.7 $ s "bd(5,8) sd(3,8,2)" # n (irand 8) # voices 3
+d4 $ off 0.125 (|+ n 12) $ off 0.25 (|+ n 7) $ n (scale "major" "0 .. 7") # s "arpy" # voices 3
+d5 $ chunk 4 (hurry 2) $ iter 4 $ s "bd sd hh cp hh sd bd cp" # n "0 .. 7" # voices 3
+d6 $ s "hh*16" # n "0 .. 15" # pan sine # gain (range 0.8 1 saw) # voices 3
+d7 $ sometimes (# speed 2) $ often (# crush 4) $ s "[bd*4, hh*8, ~ sd]" # voices 3
+d8 $ n (arp "up" "<c'maj e'min7 g'dom7 a'min>*2") # s "bass" # legato 0.5 # voices 3
+evaluate: parse 19962 us, check 17397 us (checker in SDRAM), scheduler 3288 us
+--
+tick: 6897 blocks, avg 11404 cycles, max 60859; idle blocks (no start) 4624: avg 1706, max 2800; 2273 blocks with starts: avg 31132, max 60859
+noteOn: 5660 (avg 1.8 overrides), avg 11240 cycles, max 20132; noteOffs 448; most starts in one block 4
+late (blocks): 0: 3881, 1: 865, 2: 565, 3+: 349; dropped 0, capped 1703, superseded 1402, unmapped 0
+main loop: update() 91496 calls, 10786 ms in 20002 ms (53.9 %), longest call 14100 us; longest gap between main-loop passes 11290 us
+scheduler: queries 1737, idle update() calls 87631, window splits 0, horizon skips 0, window 1/16 cycle; mapping 7147 events, avg 18165 cycles
+audio load: avg 76 %, max 109 %
+players: most sounding at a noteOn 15 (cap 16), avg 9.6; retriggered own track's oldest 4096, faded by voices 0, faded for the cap 435; stale noteOffs 321; audio blocks most in use 37 of 70
+governor: smoothed load max 92 % (now 85 %); cap at noteOns min 8, avg 10 (max 16); faded by the governor 527
+per slot (wall time, interrupts included): windows, avg us, max us
+  d1: 218, 11126, 12176
+  d2: 217, 6829, 8729
+  d3: 217, 9280, 14061
+  d4: 217, 5282, 8308
+  d5: 217, 3160, 5468
+  d6: 217, 1676, 2919
+  d7: 217, 6083, 8649
+  d8: 217, 1887, 2901
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 19465 B below the top of RAM; heap end 32768 B below: 13303 B to spare
+
+== set 9 of 15 (poly d4: whole 3-note chords, each rings into the next, 10 s, solo)
+d4 $ n "<c'maj e'min a'min f'maj>" # s "arpy" # legato 2 # voices 3
+evaluate: parse 2742 us, check 2393 us (checker in SDRAM), scheduler 175 us
+--
+tick: 3447 blocks, avg 1145 cycles, max 38905; idle blocks (no start) 3440: avg 1083, max 1394; 7 blocks with starts: avg 31508, max 38905
+noteOn: 21 (avg 0.0 overrides), avg 9521 cycles, max 14544; noteOffs 15; most starts in one block 3
+late (blocks): 0: 21, 1: 0, 2: 0, 3+: 0; dropped 0, capped 0, superseded 0, unmapped 0
+main loop: update() 260961 calls, 534 ms in 10000 ms (5.3 %), longest call 2099 us; longest gap between main-loop passes 1846 us
+scheduler: queries 106, idle update() calls 256419, window splits 0, horizon skips 0, window 1/16 cycle; mapping 21 events, avg 3949 cycles
+audio load: avg 40 %, max 62 %
+players: most sounding at a noteOn 5 (cap 16), avg 3.1; retriggered own track's oldest 19, faded by voices 0, faded for the cap 0; stale noteOffs 15; audio blocks most in use 29 of 70
+governor: smoothed load max 78 % (now 25 %); cap at noteOns min 16, avg 16 (max 16); faded by the governor 0
+per slot (wall time, interrupts included): windows, avg us, max us
+  d4: 106, 498, 613
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 19465 B below the top of RAM; heap end 32768 B below: 13303 B to spare
+
+== set 10 of 15 (poly d5: bass notes overlap, tails under the next, 10 s, solo)
+d5 $ n "0 3 7 10" # s "bass" # legato 2 # voices 3
+evaluate: parse 545 us, check 354 us (checker in SDRAM), scheduler 104 us
+--
+tick: 3446 blocks, avg 1215 cycles, max 19004; idle blocks (no start) 3420: avg 1124, max 1281; 26 blocks with starts: avg 13140, max 19004
+noteOn: 26 (avg 0.0 overrides), avg 11083 cycles, max 16996; noteOffs 24; most starts in one block 1
+late (blocks): 0: 26, 1: 0, 2: 0, 3+: 0; dropped 0, capped 0, superseded 0, unmapped 0
+main loop: update() 333385 calls, 482 ms in 10000 ms (4.8 %), longest call 1053 us; longest gap between main-loop passes 1017 us
+scheduler: queries 106, idle update() calls 327692, window splits 0, horizon skips 0, window 1/16 cycle; mapping 27 events, avg 4824 cycles
+audio load: avg 25 %, max 34 %
+players: most sounding at a noteOn 3 (cap 16), avg 2.8; retriggered own track's oldest 23, faded by voices 0, faded for the cap 0; stale noteOffs 0; audio blocks most in use 14 of 70
+governor: smoothed load max 29 % (now 25 %); cap at noteOns min 16, avg 16 (max 16); faded by the governor 0
+per slot (wall time, interrupts included): windows, avg us, max us
+  d5: 106, 221, 258
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 19465 B below the top of RAM; heap end 32768 B below: 13303 B to spare
+
+== set 11 of 15 (poly d3: echoes ring over each other, 10 s, solo)
+d3 $ echo 3 0.2 0.6 $ n "<0 7>" # s "pluck" # legato 1 # voices 3
+evaluate: parse 599 us, check 480 us (checker in SDRAM), scheduler 134 us
+--
+tick: 3446 blocks, avg 1184 cycles, max 14727; idle blocks (no start) 3425: avg 1109, max 1275; 21 blocks with starts: avg 13421, max 14727
+noteOn: 21 (avg 0.0 overrides), avg 11330 cycles, max 12689; noteOffs 18; most starts in one block 1
+late (blocks): 0: 21, 1: 0, 2: 0, 3+: 0; dropped 0, capped 0, superseded 0, unmapped 0
+main loop: update() 336437 calls, 524 ms in 10000 ms (5.2 %), longest call 1027 us; longest gap between main-loop passes 992 us
+scheduler: queries 106, idle update() calls 330709, window splits 0, horizon skips 0, window 1/16 cycle; mapping 21 events, avg 5665 cycles
+audio load: avg 24 %, max 33 %
+players: most sounding at a noteOn 3 (cap 16), avg 2.1; retriggered own track's oldest 9, faded by voices 0, faded for the cap 0; stale noteOffs 0; audio blocks most in use 14 of 70
+governor: smoothed load max 28 % (now 24 %); cap at noteOns min 16, avg 16 (max 16); faded by the governor 0
+per slot (wall time, interrupts included): windows, avg us, max us
+  d3: 106, 769, 988
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 19465 B below the top of RAM; heap end 32768 B below: 13303 B to spare
+
+== set 12 of 15 (voices d4: one note (voices 1), then a whole chord (voices 3), 10 s, solo)
+d4 $ n "<c'maj e'min>" # s "arpy" # legato 2 # voices "<1 3>"
+evaluate: parse 1388 us, check 370 us (checker in SDRAM), scheduler 147 us
+--
+tick: 3446 blocks, avg 1126 cycles, max 42923; idle blocks (no start) 3439: avg 1070, max 1366; 7 blocks with starts: avg 28751, max 42923
+noteOn: 15 (avg 0.0 overrides), avg 12199 cycles, max 14852; noteOffs 11; most starts in one block 3
+late (blocks): 0: 15, 1: 0, 2: 0, 3+: 0; dropped 0, capped 0, superseded 6, unmapped 0
+main loop: update() 341644 calls, 535 ms in 10000 ms (5.3 %), longest call 1062 us; longest gap between main-loop passes 1317 us
+scheduler: queries 106, idle update() calls 335764, window splits 0, horizon skips 0, window 1/16 cycle; mapping 21 events, avg 3992 cycles
+audio load: avg 23 %, max 44 %
+players: most sounding at a noteOn 5 (cap 16), avg 2.6; retriggered own track's oldest 6, faded by voices 6, faded for the cap 0; stale noteOffs 11; audio blocks most in use 14 of 70
+governor: smoothed load max 34 % (now 24 %); cap at noteOns min 16, avg 16 (max 16); faded by the governor 0
+per slot (wall time, interrupts included): windows, avg us, max us
+  d4: 106, 698, 814
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 19465 B below the top of RAM; heap end 32768 B below: 13303 B to spare
+
+== set 13 of 15 (reverb d4: rising run with reverb (half-rate reverb), 10 s, solo)
+d4 $ n "0 .. 7" # s "arpy" # room 0.5 # legato 0.5
+evaluate: parse 531 us, check 354 us (checker in SDRAM), scheduler 97 us
+--
+tick: 3446 blocks, avg 1294 cycles, max 13145; idle blocks (no start) 3394: avg 1129, max 2246; 52 blocks with starts: avg 12053, max 13145
+noteOn: 52 (avg 1.0 overrides), avg 10201 cycles, max 11499; noteOffs 52; most starts in one block 1
+late (blocks): 0: 52, 1: 0, 2: 0, 3+: 0; dropped 0, capped 0, superseded 0, unmapped 0
+main loop: update() 309558 calls, 472 ms in 10000 ms (4.7 %), longest call 1210 us; longest gap between main-loop passes 1201 us
+scheduler: queries 106, idle update() calls 304264, window splits 0, horizon skips 0, window 1/16 cycle; mapping 53 events, avg 4816 cycles
+audio load: avg 30 %, max 40 %
+players: most sounding at a noteOn 3 (cap 16), avg 1.0; retriggered own track's oldest 52, faded by voices 2, faded for the cap 0; stale noteOffs 0; audio blocks most in use 12 of 70
+governor: smoothed load max 31 % (now 31 %); cap at noteOns min 16, avg 16 (max 16); faded by the governor 0
+per slot (wall time, interrupts included): windows, avg us, max us
+  d4: 106, 275, 301
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 19465 B below the top of RAM; heap end 32768 B below: 13303 B to spare
+
+== set 14 of 15 (reverb d6: one clap every 4 cycles, tail rings out, 14 s, solo)
+d6 $ s "<cp ~ ~ ~>" # room 0.9
+evaluate: parse 1264 us, check 176 us (checker in SDRAM), scheduler 80 us
+--
+tick: 4825 blocks, avg 976 cycles, max 18619; idle blocks (no start) 4822: avg 965, max 2078; 3 blocks with starts: avg 18528, max 18619
+noteOn: 3 (avg 1.0 overrides), avg 16970 cycles, max 17057; noteOffs 2; most starts in one block 1
+late (blocks): 0: 3, 1: 0, 2: 0, 3+: 0; dropped 0, capped 0, superseded 0, unmapped 0
+main loop: update() 454504 calls, 637 ms in 14000 ms (4.5 %), longest call 1065 us; longest gap between main-loop passes 1060 us
+scheduler: queries 151, idle update() calls 446692, window splits 0, horizon skips 0, window 1/16 cycle; mapping 3 events, avg 4378 cycles
+audio load: avg 27 %, max 35 %
+players: most sounding at a noteOn 0 (cap 16), avg 0.0; retriggered own track's oldest 0, faded by voices 0, faded for the cap 0; stale noteOffs 0; audio blocks most in use 13 of 70
+governor: smoothed load max 30 % (now 30 %); cap at noteOns min 16, avg 16 (max 16); faded by the governor 0
+per slot (wall time, interrupts included): windows, avg us, max us
+  d6: 151, 127, 216
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 19465 B below the top of RAM; heap end 32768 B below: 13303 B to spare
+
+== set 15 of 15 (MIDI: ch1 C E G C, ch2 chords + CC74, 20 s, solo)
+d1 $ s "bd*4"
+d9 $ n "0 4 7 12" # velocity "0.5 1" # legato 0.5
+d10 $ n "<c'maj e'min>" # midichan 1 # ccn 74 # ccv (range 0 127 sine) # legato 1
+evaluate: parse 2113 us, check 864 us (checker in SDRAM), scheduler 246 us
+--
+tick: 6893 blocks, avg 1366 cycles, max 23640; idle blocks (no start) 6839: avg 1232, max 2806; 54 blocks with starts: avg 18262, max 23640
+noteOn: 150 (avg 0.2 overrides), avg 5581 cycles, max 13461; noteOffs 92; most starts in one block 1
+late (blocks): 0: 150, 1: 0, 2: 0, 3+: 0; dropped 0, capped 0, superseded 0, unmapped 0
+main loop: update() 666560 calls, 1132 ms in 20000 ms (5.6 %), longest call 1723 us; longest gap between main-loop passes 1094 us
+scheduler: queries 648, idle update() calls 656843, window splits 0, horizon skips 0, window 1/16 cycle; mapping 150 events, avg 2791 cycles
+audio load: avg 24 %, max 36 %
+players: most sounding at a noteOn 0 (cap 16), avg 0.0; retriggered own track's oldest 0, faded by voices 0, faded for the cap 0; stale noteOffs 0; audio blocks most in use 13 of 70
+governor: smoothed load max 30 % (now 18 %); cap at noteOns min 16, avg 16 (max 16); faded by the governor 0
+per slot (wall time, interrupts included): windows, avg us, max us
+  d1: 216, 123, 155
+  d9: 216, 199, 227
+  d10: 216, 516, 604
+heap: 15504 B in use, 28520 B free in the arena
+stack: evaluator deepest 19465 B below the top of RAM; heap end 32768 B below: 13303 B to spare
+

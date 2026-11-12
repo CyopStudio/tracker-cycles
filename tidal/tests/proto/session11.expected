@@ -1,0 +1,8 @@
+msg: d1 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: d2 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: d3 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: d1 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: App : ControlPattern
+> setcps (120/60/4)
+> d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+menu launch: [d2 $  (now)] [jumpMod 2 2  (every 2 cycles)] [jumpMod 2 4  (every 4 cycles)] [jumpMod 2 8  (every 8 cycles)] [jumpMod 2 16  (every 16 cycles)] [jumpIn 2 1  (after 1 cycle)] [jumpIn 2 2  (after 2 cycles)] [jumpIn 2 4  (after 4 cycles)]

@@ -2,7 +2,6 @@
 #include "fileManagerDefs.h"
 #include "log.h"
 #include "mtAudioEngine.h"
-#include "mtAudioExport.h"
 #include "mtConfig.h"
 #include "mtStructs.h"
 
@@ -82,16 +81,10 @@ void cFileManager::update()
         case fmPreviewSamplesFromSD: break;
         case fmDeleteInstruments: instrumentDelete.update(); break;
 
-        case fmLoadWorkspacePattern: updateLoadWorkspacePattern(); break;
 
-        case fmExportSound: updateExportSound(); break;
-        case fmExportProjectSamples: updateExportProjectSamples(); break;
-        case fmSaveRecordedSound: recordingSave.update(); break;
 
         case fmImportSampleFromSampleEditor: sampleMemorySave.update(); break;
 
-        case fmImportModFile: updateImportModFile(); break;
-        case fmExportModFile: updateExportModFile(); break;
 
         case fmReloadSamples: sampleMemoryReload.update(); break;
 
@@ -137,11 +130,7 @@ uint8_t cFileManager::getProgress()
         }
         case fmImportingSamplesToWorkspace: return sampleImport.getProgress() * 100;
         case fmCopyingInstrumentsInWorkspace: return instrumentCopy.getProgress() * 100;
-        case fmExportingProjectSamples:
-            actualMemoryTransfered = getTotalSamplesMemoryExported();
             break;
-        case fmSavingImportingRecordedSound:
-        case fmSavingRecordedSound: return recordingSave.getProgress();
         default: return 100;
     }
 
@@ -245,50 +234,13 @@ bool cFileManager::importSampleToProject(char* filePath, char* fileName, uint8_t
                                                                : FileManagerOperation::kLeft);
 }
 
-bool cFileManager::importModAfterLoadNewProject(char* path, char* name)
-{
-    // pobranie nazwy otwieranego projektu tu
-    strcpy(impFileData.path, path);
-    strcat(impFileData.path, "/");
-    strcat(impFileData.path, name);
+// Tracker Cycles (plan 4a): MOD / IT import and IT export are removed; the
+// project screen's remaining calls get these no-ops until 4e replaces it.
+bool cFileManager::importModAfterLoadNewProject(char*, char*) { return false; }
+float cFileManager::importMod_getProgress() { return 0.0f; }
+uint8_t cFileManager::exportItFile_getProgress() { return 0; }
+uint8_t cFileManager::exportItFile() { return 0; }
 
-    strcpy(impFileData.filename, name);
-
-    char modName[PROJECT_NAME_SIZE + 1]{ 0 };
-
-    for (uint8_t a = 0; a < sizeof(modName); a++)
-    {
-        if (impFileData.filename[a] != '.')
-        {
-            modName[a] = impFileData.filename[a];
-        }
-        else
-        {
-            break;
-        }
-    }
-
-    // PROJECT_NAME_SIZE
-    strncpy(currentProjectName, modName, PROJECT_NAME_SIZE);
-    currentProjectName[PROJECT_NAME_SIZE - 1] = 0;
-
-    importModFileAfterNewProject = 1;
-
-    return true;
-}
-
-bool cFileManager::saveRecordedSound(char* dirPath,
-                                     char* fileName,
-                                     std::optional<int8_t> importSlot,
-                                     int16_t* leftChannelAddress,
-                                     int16_t* rightChannelAddress,
-                                     uint32_t length)
-{
-    stopAutosave();
-
-    return recordingSave.saveRecordedSound(
-      dirPath, fileName, importSlot, leftChannelAddress, rightChannelAddress, length);
-}
 
 bool cFileManager::saveProject(char* projectPathToSave, char* projectNameToSave)
 {
@@ -314,31 +266,6 @@ bool cFileManager::deleteInstruments(uint8_t instrumentSlotFrom, uint8_t instrum
     return instrumentDelete.deleteInstruments(instrumentSlotFrom, instrumentSlotTo);
 }
 
-bool cFileManager::loadWorkspacePattern(uint8_t index)
-{
-    assert(index > 0);
-
-    stopAutosave(); // TODO: sprawdzic czy nie opoznia ladowania patternu
-
-    // to wyjatek który moze byc wywolywany podczas exportu songa
-    if (status != fmIdle && status != fmExportingSoundSong && status != fmExportingSoundSongStems &&
-        status != fmSavingProjectToWorkspace)
-        return false;
-    if (currentOperation != fmNoOperation && currentOperation != fmExportSound &&
-        currentOperation != fmSaveWorkspaceProject)
-        return false;
-
-    currentPattern = index;
-
-    if (status != fmExportingSoundSong && status != fmExportingSoundSongStems)
-    {
-        status = fmLoadingPatternFromWorkspace;
-    }
-
-    currentOperationStep = 0;
-    currentOperation = fmLoadWorkspacePattern;
-    return true;
-}
 
 bool cFileManager::deleteProjectOrFolder(char* projectPath)
 {
@@ -613,11 +540,6 @@ void cFileManager::startAudioEngine()
 //-----------------------------------------------------------------------------------------------------
 //------------------------------------- -----------------------------------------------
 //-----------------------------------------------------------------------------------------------------
-bool cFileManager::isPatternLoading()
-{
-    return (status == fmLoadingPatternFromWorkspace) ||
-           (currentOperation == fmLoadWorkspacePattern);
-}
 
 bool cFileManager::projectExist(char* path, char* name)
 {

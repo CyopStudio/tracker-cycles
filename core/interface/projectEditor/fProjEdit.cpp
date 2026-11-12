@@ -1,5 +1,4 @@
 #include "mtSliceDetector.h"
-#include <mtAudioExport.h>
 #include <mtRandomNameGenerator.h>
 
 #include "core/interfaceMenuPopup.h"
@@ -9,10 +8,7 @@
 
 #include "mtAudioEngine.h"
 #include "mtPadBoard.h"
-#include "sampleRecorder/sampleRecorder.h"
 
-#include "performanceMode/performanceEngine.h"
-#include "performanceMode/performanceMode.h"
 
 #include "FileBrowser.h"
 #include "fileManager.h"
@@ -47,7 +43,6 @@ static void functOpenProject();
 static void functImportMod();
 static void functSaveProject();
 static void functSaveAsProject();
-static void functExport();
 //****************************************************
 // New project
 static void functSaveChangesCancelNewProject();
@@ -73,20 +68,7 @@ static void functSaveChangesSaveOpen();
 static void functOpenProjectMod();
 //****************************************************
 // Export
-static void functExportSong();
-static void functExportSongStems();
-static void functExportPattern();
-static void functExportPatternStems();
-static void functExportToMOD();
-static void functExportSamples();
-static void functExportCancel();
-static void functExportGoBack();
-static void functExportProjectSamplesCancel();
-static void functSaveChangesCancelExportMod();
-static void functSaveChangesDontSaveExportMod();
-static void functSaveChangesSaveExportMod();
 
-static void functClockWarningPopupButtons(uint8_t button, uint8_t state);
 //****************************************************
 static void functSwitchModule(uint8_t button);
 
@@ -112,27 +94,7 @@ static void makeMoveOnActiveList(int16_t moveDir);
 void cProjectEditor::update()
 {
     uint8_t managerStatus = newFileManager.getStatus();
-    if (managerStatus == fmExportSoundEnd)
-    {
-        PE->showExportWindow();
-        PE->setExportWindowFuncts();
-        ip->unblockAllInputs();
-        newFileManager.clearStatus();
-        interfaceGlobals.refreshFileExplorer = true;
-
-        if (saveClockConfig > 0 && saveClockConfig < 3)
-        {
-            mtConfig.midi.clkIn = saveClockConfig;
-        }
-    }
-    else if (managerStatus == fmExportModEnd)
-    {
-        PE->showExportWindow();
-        PE->setExportWindowFuncts();
-        ip->unblockAllInputs();
-        newFileManager.clearStatus();
-    }
-    else if (managerStatus == fmSaveEnd)
+    if (managerStatus == fmSaveEnd)
     {
         ip->unblockAllInputs();
         newFileManager.clearStatus();
@@ -167,10 +129,6 @@ void cProjectEditor::update()
                 newFileManager.importModAfterLoadNewProject(afterSavePath, afterSaveName);
                 PE->ip->blockAllInputs();
             }
-        }
-        else if (operation == exportModAfterSave)
-        {
-            functExportToMOD();
         }
 
         cleanupAfterSaveData();
@@ -264,10 +222,10 @@ void cProjectEditor::setDefaultScreenFunct()
 
     ip->setButtonObj(interfaceButton0, buttonPress, functNewProject);
     ip->setButtonObj(interfaceButton1, buttonPress, functOpenProject);
-    ip->setButtonObj(interfaceButton2, buttonPress, functImportMod);
+    // Tracker Cycles (plan 4a): MOD / IT import removed
     ip->setButtonObj(interfaceButton3, buttonPress, functSaveProject);
     ip->setButtonObj(interfaceButton4, buttonPress, functSaveAsProject);
-    ip->setButtonObj(interfaceButton5, buttonPress, functExport);
+    // Tracker Cycles (plan 4a): no export (audio, stems, samples)
 
     ip->setButtonObj(interfaceButtonPlay, buttonPress, functPlayAction);
 
@@ -284,27 +242,7 @@ void cProjectEditor::setDefaultScreenFunct()
     ip->setPadsGlobal(functPads);
 }
 
-void cProjectEditor::setExportWindowFuncts()
-{
-    PE->ip->clearButtonsRange(interfaceButton0, interfaceButton7);
 
-    PE->ip->setButtonObj(interfaceButton0, buttonPress, functExportSong);
-    PE->ip->setButtonObj(interfaceButton1, buttonPress, functExportSongStems);
-    PE->ip->setButtonObj(interfaceButton2, buttonPress, functExportPattern);
-    PE->ip->setButtonObj(interfaceButton3, buttonPress, functExportPatternStems);
-    PE->ip->setButtonObj(interfaceButton4, buttonPress, functExportToMOD);
-    PE->ip->setButtonObj(interfaceButton5, buttonPress, functExportSamples);
-
-    PE->ip->setButtonObj(interfaceButton7, buttonPress, functExportGoBack);
-
-    PE->ip->clearButton(interfaceButtonPlay);
-}
-
-void cProjectEditor::setClockWarningScreenFunct()
-{
-    ip->setButtonObj(interfaceButton6, functClockWarningPopupButtons);
-    ip->setButtonObj(interfaceButton7, functClockWarningPopupButtons);
-}
 //==============================================================================================================
 //==============================================================================================================
 static void functPlayAction()
@@ -385,33 +323,11 @@ uint8_t cProjectEditor::loadProjectValues()
     mtPadBoard.configureInstrumentPlayer(8);
 
     //----------------------------------------------------------------------------------------------------
-    sampleRecorder.recorderConfig.gainLineIn = mtProject.values.gainLineIn;
-    sampleRecorder.recorderConfig.gainMicHigh = mtProject.values.gainMicHigh;
-    sampleRecorder.recorderConfig.gainMicLow = mtProject.values.gainMicLow;
-    sampleRecorder.recorderConfig.gainRadio = mtProject.values.gainRadio;
-    sampleRecorder.recorderConfig.monitor = mtProject.values.monitor;
-    sampleRecorder.recorderConfig.radioFreq = mtProject.values.radioFreq;
-    sampleRecorder.recorderConfig.source =
-      mtProject.values.source >= sourceCount ? 0 : mtProject.values.source;
-
-    //----------------------------------------------------------------------------------------------------
-    // performance mode i inne
-    for (uint8_t i = 0; i < kMaxAllTracksInTrackers; i++)
-    {
-        mtProject.perfTracksPatterns[i] = 1;
-    }
-
+    // Tracker Cycles (plan 4a): no sample recorder / performance mode settings
     for (uint8_t i = 0; i < kSampleTracks; i++)
     {
-        // paterny na trakach w performance mode
-        if (mtProject.values.perfTracksPatterns[i] < 1 ||
-            mtProject.values.perfTracksPatterns[i] > 255)
-        {
-            mtProject.values.perfTracksPatterns[i] = 1;
-        }
-
         // globalne mute trackow
-        if (mtProject.values.trackMute[i] >= trackMasterModeCount)
+        if (mtProject.values.trackMute[i] >= 2 /* trackMasterModeCount */)
             mtProject.values.trackMute[i] = 0;
 
         engine.muteTrack(i, mtProject.values.trackMute[i]);
@@ -419,32 +335,12 @@ uint8_t cProjectEditor::loadProjectValues()
 
     for (uint8_t i = 0; i < kMaxMidiTracksInTrackers; i++)
     {
-        if (mtProject.values.midiTrackMute[i] >= trackMasterModeCount)
+        if (mtProject.values.midiTrackMute[i] >= 2 /* trackMasterModeCount */)
         {
             mtProject.values.midiTrackMute[i] = 0;
         }
     }
 
-    for (uint8_t i = 0; i < 12; i++)
-    {
-        if (mtProject.values.perfFxPlaces[i] > performance.getFxCount() - 1)
-        {
-            mtProject.values.perfFxPlaces[i] = (i + 1 < performance.getFxCount()) ? i + 1 : 0;
-        }
-        if (mtProject.values.perfSelectedValues[i] > 3)
-            mtProject.values.perfSelectedValues[i] = 0;
-
-        // if(mtProject.values.perfFxValues[place][0] > 255 ||
-        // mtProject.values.perfFxValues[place][0] < -255)
-        if (mtProject.values.perfFxValues[i][0] != 0)
-            mtProject.values.perfFxValues[i][0] = 0;
-        if (mtProject.values.perfFxValues[i][1] > 255 || mtProject.values.perfFxValues[i][1] < -255)
-            mtProject.values.perfFxValues[i][1] = 0;
-        if (mtProject.values.perfFxValues[i][2] > 255 || mtProject.values.perfFxValues[i][2] < -255)
-            mtProject.values.perfFxValues[i][2] = 0;
-        if (mtProject.values.perfFxValues[i][3] > 255 || mtProject.values.perfFxValues[i][3] < -255)
-            mtProject.values.perfFxValues[i][3] = 0;
-    }
     //----------------------------------------------------------------------------------------------------
     // song pattern
     if (mtProject.values.globalTempo > 1000)
@@ -553,8 +449,6 @@ static void functStopPatternYes()
     {
         case cProjectEditor::stopActionOpenProject: functOpenProjectMod(); break;
         case cProjectEditor::stopActionNewProject: functNewProject(); break;
-        case cProjectEditor::stopActionExport: functExport(); break;
-        case cProjectEditor::stopActionExportIt: functExportToMOD(); break;
         case cProjectEditor::stopActionImportMod: functOpenProjectMod(); break;
         default: break;
     }
@@ -570,11 +464,6 @@ static void functStopPatternNo()
         case cProjectEditor::stopActionOpenProject:
             PE->showProjectBrowser(false);
             PE->setProjectBrowserFunct();
-            break;
-        // case cProjectEditor::stopActionExport:
-        case cProjectEditor::stopActionExportIt:
-            PE->showExportWindow();
-            PE->setExportWindowFuncts();
             break;
         case cProjectEditor::stopActionImportMod:
             PE->showModBrowser(false);
@@ -873,19 +762,6 @@ static void functNewFolderConfirm()
     PE->setProjectBrowserFunct();
 }
 
-static void functExport()
-{
-    if (sequencer.isPlay())
-    {
-        PE->showStopPatternWindow();
-        PE->setStopPatternFunct();
-        PE->stopAction = cProjectEditor::stopActionExport;
-        return;
-    }
-
-    PE->setExportWindowFuncts();
-    PE->showExportWindow();
-}
 
 //===============================================================================================================
 // New Project
@@ -1153,15 +1029,6 @@ void cProjectEditor::functShowSaveLastWindowBeforeOpen()
     showSaveLastWindow();
 }
 
-void cProjectEditor::functShowSaveLastWindowBeforeExportToMod()
-{
-    PE->ip->blockAllInputsExceptScreenButtons();
-    PE->ip->clearButtonsRange(interfaceButton0, interfaceButton7);
-    PE->ip->setButtonObj(interfaceButton5, buttonPress, functSaveChangesCancelExportMod);
-    PE->ip->setButtonObj(interfaceButton6, buttonPress, functSaveChangesDontSaveExportMod);
-    PE->ip->setButtonObj(interfaceButton7, buttonPress, functSaveChangesSaveExportMod);
-    showSaveLastWindow();
-}
 
 static void functDeleteFileFolder()
 {
@@ -1320,210 +1187,6 @@ static void functDeleteMod_Confirm()
     PE->openBrowser(cProjectEditor::kOpenMod);
 }
 
-//===============================================================================================================
-// export
-char currentExportPath[PATCH_SIZE];
-
-static void functExportSong()
-{
-    if (PE->checkClockConfig(exportSong))
-    {
-        return;
-    }
-
-    PE->startExport(exportSong);
-}
-
-static void functExportSongStems()
-{
-    if (PE->checkClockConfig(exportSongStems))
-    {
-        return;
-    }
-
-    PE->startExport(exportSongStems);
-}
-
-static void functExportPattern()
-{
-    if (PE->checkClockConfig(exportPattern))
-    {
-        return;
-    }
-
-    PE->startExport(exportPattern);
-}
-
-static void functExportPatternStems()
-{
-    if (PE->checkClockConfig(exportPatternStems))
-    {
-        return;
-    }
-
-    PE->startExport(exportPatternStems);
-}
-
-bool cProjectEditor::checkClockConfig(uint8_t source)
-{
-    if (mtConfig.midi.clkIn != 0)
-    {
-        PE->saveExportSource = source;
-        PE->showClockWarning();
-        PE->setClockWarningScreenFunct();
-        return true;
-    }
-    else
-    {
-        PE->saveClockConfig = 0;
-    }
-
-    return false;
-}
-
-void cProjectEditor::startExport(uint8_t source)
-{
-    if (newFileManager.exportSound(source))
-    {
-        PE->ip->setButtonObj(interfaceButton7, buttonPress, functExportCancel);
-        PE->ip->blockAllInputsExcept(interfaceButton7);
-
-        PE->showLabelDuringExport();
-    }
-}
-
-static void functExportToMOD()
-{
-    if (sequencer.isPlay())
-    {
-        PE->showStopPatternWindow();
-        PE->setStopPatternFunct();
-        PE->stopAction = cProjectEditor::stopActionExportIt;
-        return;
-    }
-
-    if (newFileManager.isProjectChanged() || (mtProject.values.projectNotSavedFlag & 1))
-    {
-        PE->functShowSaveLastWindowBeforeExportToMod();
-        return;
-    }
-
-    PE->setExportWindowFuncts();
-    PE->showExportWindow();
-    display.processDisplayUpdateImmediate();
-
-    if (newFileManager.exportItFile())
-    {
-        PE->ip->blockAllInputs();
-    }
-}
-
-static void functExportSamples()
-{
-    if (sequencer.isPlay())
-    {
-        PE->showStopPatternWindow();
-        PE->setStopPatternFunct();
-        PE->stopAction = cProjectEditor::stopActionExport;
-        return;
-    }
-
-    if (newFileManager.exportProjectSamples())
-    {
-        PE->ip->setButtonObj(interfaceButton7, buttonPress, functExportProjectSamplesCancel);
-        PE->ip->blockAllInputsExcept(interfaceButton7);
-        PE->showLabelDuringExport();
-    }
-}
-
-static void functExportProjectSamplesCancel()
-{
-    newFileManager.exportProjectSamplesCancel();
-
-    PE->showExportWindow();
-}
-
-static void functSaveChangesCancelExportMod()
-{
-    PE->ip->unblockAllInputs();
-    PE->setExportWindowFuncts();
-    PE->showExportWindow();
-}
-
-static void functExportCancel()
-{
-    newFileManager.exportSoundCancel();
-
-    PE->showExportWindow();
-}
-
-static void functSaveChangesDontSaveExportMod()
-{
-    // ignore save - but no clear flags here because after export project is still open
-    // mtProject.values.projectNotSavedFlag = 0;
-    // newFileManager.clearChangeFlags();
-
-    if (newFileManager.exportItFile())
-    {
-        PE->ip->blockAllInputs();
-    }
-    else
-    {
-
-        PE->ip->unblockAllInputs();
-    }
-
-    PE->setExportWindowFuncts();
-    PE->showExportWindow();
-    display.processDisplayUpdateImmediate();
-}
-
-static void functSaveChangesSaveExportMod()
-{
-    PE->afterSaveOperation = cProjectEditor::AfterSaveOperation::exportModAfterSave;
-
-    PE->ip->unblockAllInputs();
-    PE->setExportWindowFuncts();
-    PE->showExportWindow();
-
-    PE->saveProject();
-}
-
-static void functExportGoBack()
-{
-    PE->setDefaultScreenFunct();
-    PE->showDefaultScreen();
-}
-
-static void functClockWarningPopupButtons(uint8_t button, uint8_t state)
-{
-    if (state != buttonPress)
-    {
-        return;
-    }
-
-    if (button == interfaceButton6)
-    {
-        PE->setExportWindowFuncts();
-        PE->showExportWindow();
-    }
-    else if (button == interfaceButton7)
-    {
-        PE->saveClockConfig = mtConfig.midi.clkIn;
-        mtConfig.midi.clkIn = 0;
-
-        switch (PE->saveExportSource)
-        {
-            case exportSong: PE->startExport(exportSong); break;
-            case exportSongStems: PE->startExport(exportSongStems); break;
-            case exportPattern: PE->startExport(exportPattern); break;
-            case exportPatternStems: PE->startExport(exportPatternStems); break;
-            default: break;
-        }
-    }
-}
-
-//===============================================================================================================
 static void functSwitchModule(uint8_t button)
 {
     PE->eventFunct(eventSwitchModule, PE, &button, 0);

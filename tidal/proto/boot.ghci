@@ -1,0 +1,51 @@
+-- Tracker Cycles prototype boot script (our own; not Tidal's BootTidal.hs).
+-- Set oAddress to where SuperDirt runs: the WSL default gateway with NAT
+-- networking (ip route show default | awk '{print $3}'), or 127.0.0.1 in
+-- mirrored mode or when SuperDirt runs in the same machine/VM.
+:set -XOverloadedStrings
+:set prompt ""
+:set prompt-cont ""
+import Sound.Tidal.Context
+
+tidal <- startTidal (superdirtTarget {oAddress = "127.0.0.1", oPort = 57120, oLatency = 0.1}) defaultConfig
+
+-- Tracker Cycles' own control (docs/tidal_voices.md): how many notes a
+-- sample track (d1-d8) lets ring, default 1. SuperDirt ignores it, so a
+-- note with 1 voice gets its track's own cut group (unless it has a cut):
+-- each such note cuts the previous one, as on the Tracker.
+:{
+let voices = pI "voices"
+    tcRoute :: Int -> ControlPattern -> ControlPattern
+    tcRoute i pat
+      | i <= 8 = fix (|< cut (pure i)) (voices 1) (pat |< voices 1)
+      | otherwise = pat
+    p i = streamReplace tidal (fromIntegral i) . tcRoute i
+    hush = streamHush tidal
+    -- mute / solo (editor v2: Play + pad): the pattern keeps running silently
+    mute i = streamMute tidal (fromIntegral (i :: Int))
+    unmute i = streamUnmute tidal (fromIntegral (i :: Int))
+    unmuteAll = streamUnmuteAll tidal
+    once = streamOnce tidal
+    setcps = once . cps
+    d1 = p 1
+    d2 = p 2
+    d3 = p 3
+    d4 = p 4
+    d5 = p 5
+    d6 = p 6
+    d7 = p 7
+    d8 = p 8
+    d9 = p 9
+    d10 = p 10
+    d11 = p 11
+    d12 = p 12
+    d13 = p 13
+    d14 = p 14
+    d15 = p 15
+    d16 = p 16
+    -- transitions, as in Tidal's BootTidal.hs: jumpMod 1 4 $ ... switches d1
+    -- at the next multiple of 4 cycles, jumpIn 1 2 $ ... two cycles after
+    -- the next cycle start
+    jumpMod i t = transition tidal True (Sound.Tidal.Context.jumpMod t) (fromIntegral i) . tcRoute i
+    jumpIn i t = transition tidal True (Sound.Tidal.Context.jumpIn t) (fromIntegral i) . tcRoute i
+:}

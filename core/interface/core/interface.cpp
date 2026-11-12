@@ -12,14 +12,13 @@
 #include "imageViewer/imageViewer.h"
 #include "instrumentEditor/instrumentEditor.h"
 #include "masterParams/masterParams.h"
-#include "patternEditor/patternEditor.h"
-#include "performanceMode/performanceMode.h"
+#include "placeholder/placeholder.h"
+#include "tidalEditor/tidalEditor.h"
+#include "mtAudioEngine.h"
 #include "projectEditor/projectEditor.h"
 #include "sampleEditor/sampleEditor.h"
 #include "sampleImporter/sampleImporter.h"
 #include "samplePlayback/samplePlayback.h"
-#include "sampleRecorder/sampleRecorder.h"
-#include "songEditor/songEditor.h"
 
 #include "fileManager.h"
 #include "mtConfig.h"
@@ -57,14 +56,18 @@ const uint8_t Interface::modulesCount = 13;
 const hModule Interface::modules[modulesCount] = {
     &projectEditor,    // 0
     &sampleImporter,   // 1
-    &patternEditor,    // 2
+#ifdef TIDAL_EDITOR
+    &tidalEditorModule,      // 2 (was the pattern editor: the device Tidal editor, plan 4d)
+#else
+    &tidalPlaceholder,       // 2 (test images without the editor)
+#endif
     &samplePlayback,   // 3
-    &songEditor,       // 4
+    &songPlaceholder,        // 4 (was the song editor)
     &instrumentEditor, // 5
     &sampleEditor,     // 6
     &configEditor,     // 7
-    &sampleRecorder,   // 8
-    &performanceMode,  // 9
+    &recorderPlaceholder,    // 8 (was the sample recorder)
+    &performancePlaceholder, // 9 (was performance mode)
     &imageViewer,      // 10
     nullptr,           // 11
     &masterParams,     // 12
@@ -100,7 +103,6 @@ void Interface::begin(Platform* platform, Synth* synth)
     Interface::platform = platform;
     Interface::fileSystem = platform->getFileSystem();
     Interface::ip = &::ip;
-    patternEditor.initExternalRamState();
     Interface::synth = synth;
     operatingMode = mtOperatingModeStartup;
 
@@ -264,7 +266,11 @@ void Interface::processStartScreen()
 #ifdef TRACKER_MINI
             initSpecialMiniTrackerButtons();
 #endif
-            activateModule(&patternEditor, 0);
+#ifdef TIDAL_EDITOR
+            activateModule(&tidalEditorModule, 0);
+#else
+            activateModule(&tidalPlaceholder, 0);
+#endif
             unmuteAudioOutByKey();
 
 #ifdef TRACKER_MINI
@@ -468,7 +474,7 @@ void Interface::activateModule(hModule module, uint32_t options)
     ip->clearGlobalPads();
 
     onScreenModule = module;
-    if (module != &patternEditor)
+    if ((hModule)module != (hModule)Interface::modules[2])
     {
         songTimer.show();
     }
@@ -579,17 +585,17 @@ void Interface::toggleActiveModule(uint8_t state)
 
 bool Interface::isSongScreenActive()
 {
-    return isOnScreenModule(&songEditor);
+    return false;  // Tracker Cycles: no song editor
 }
 
 bool Interface::isPatternScreenActive()
 {
-    return isOnScreenModule(&patternEditor);
+    return false;  // Tracker Cycles: no pattern editor (its slot: placeholder / Tidal screen)
 }
 
 bool Interface::isPerformanceModeScreenActive()
 {
-    return isOnScreenModule(&performanceMode);
+    return false;  // Tracker Cycles: no performance mode
 }
 
 bool Interface::isMasterScreenActive()

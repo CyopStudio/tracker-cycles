@@ -1,0 +1,18 @@
+> setcps (120/60/4)
+> d3 $ n "0 .. 7" # s "arpy" # sound "<1 2>"
+> d16 $ (n "c e g") |< s "midi" |< midichan 7
+> hush
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast (rev 2)) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # sound "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5
+
+d16 $ n "c e g"

@@ -1,0 +1,39 @@
+msg: empty: Instrument, Note, Screen 1-8 or FX start a block; Up / Down leave
+msg: s pattern: pads pick instruments
+msg: + bd  (gap: more pads insert more)
+msg: removed the step before the gap
+msg: + sd  (gap: more pads insert more)
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+d5 $ s "hh sd"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5
+msg: n pattern: pads enter notes
+msg: + 9  (gap: more pads insert more)
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+d5 $ s "hh sd"
+
+d6 $ n "7 9" # s "bd"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5
+msg: replace: wheel to choose, ok to apply, cancel to close
+menu replace: [drum pattern] [hi-hats] [euclid] [melody] [notes] [silence]

@@ -1,0 +1,18 @@
+msg: s pattern: pads pick instruments
+msg: n pattern: pads enter notes
+msg: n pattern: pads enter notes
+msg: s pattern: pads pick instruments
+msg: ERROR MIDI blocks (d9-d16) have no s pattern
+msg: n pattern: pads enter notes
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ (every 4 (fast 2) $ s "ho*2 [~ sd] bd sd" # gain 1) # n "7"
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5

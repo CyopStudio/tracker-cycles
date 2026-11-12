@@ -1,0 +1,56 @@
+msg: Op # : ControlPattern
+msg: d1 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: setcps (Right: its numbers, Down: the blocks, jog: the BPM, Play sends it)
+msg: d2 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: gap 1 of 1: pads / Screen 3-6 insert, Delete removes the step before
+msg: MAlt : Pat Double
+msg: new d2 block: Note / Instrument / Screen 1-8 start it, Up / Down leave it
+msg: d3 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+msg: n pattern: pads enter notes
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d2 $ n "0" # s "bd"
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5
+msg: block duplicated (the copy is selected; Up / Down: the blocks)
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d2 $ n "0" # s "bd"
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5
+msg: block deleted (Up / Down: the blocks around)
+msg: d2 block 1 of 2 (Up / Down: blocks, Right: into it, Insert + pad: new block above)
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d2 $ n "0" # s "bd"
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5

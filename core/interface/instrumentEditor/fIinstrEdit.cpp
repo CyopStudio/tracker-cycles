@@ -13,7 +13,6 @@
 #include "core/interface.h"
 #include "cr_section_macros.h"
 #include "fileManager.h"
-#include "performanceMode/performanceMode.h"
 #include "util_math.h"
 #include "util_string.h"
 
@@ -972,10 +971,6 @@ static void functDelete(uint8_t state)
 
 static void functSwitchModule(uint8_t button)
 {
-    if (!performanceMode.canPerformanceModeContinueAfterSwitchingTo(button))
-    {
-        performanceMode.turnOffAtEndOfPattern();
-    }
 
     IE->isEffectsWindow = false;
     IE->eventFunct(eventSwitchModule, IE, &button, 0);

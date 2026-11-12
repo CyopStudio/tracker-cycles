@@ -1,12 +1,19 @@
 #include "Platform.h"
 #include "Profiler.h"
 #include "TrackerImpl.h"
+#include "../tidal/audio_profile.h"
+#include "../tidal/reverb_bench.h"
+#include "../tidal/folder_bench.h"
+#include "../tidal/editor_bench.h"
+#include "../tidal/tidal_editor.h"
+#include "../tidal/tidal_bench.h"
+#include "../tidal/tidal_tick.h"
+#include "../tidal/tidal_player.h"
 #include "mtWavetableEnvelopes.h"
 #include "core/interface.h"
 #include "elapsedMillis.h"
 #include "fileManager.h"
 #include "mtAudioEngine.h"
-#include "mtAudioExport.h"
 #include "mtConfig.h"
 #include "mtHardware.h"
 #include "mtMidi.h"
@@ -123,7 +130,6 @@ void TrackerImpl::init(Platform* platform)
     sequencer.init();
     sequencer.setCrcCalculator(platform->getCrcCalculator());
     padsBacklight.init(500, platform->getLeds());
-    exporter.init(platform->getFileSystem());
     Profiler::getInstance()->init();
     newFileManager.setCrcCalculator(platform->getCrcCalculator());
 
@@ -170,12 +176,19 @@ void TrackerImpl::update()
     display.update();
     engine.updateSdStream();
     padsBacklight.update();
-    exporter.update();
     sliceDetector.update();
     newFileManager.update();
     mtInterface.update();
     engine.updateSdStream();
     sequencer.update();
+    tidalBenchUpdate(platform);    // no-op unless built with -DTIDAL_BENCH
+    tidalEditorBenchUpdate(platform);  // no-op unless built with -DTIDAL_EDITOR_BENCH
+    tidalTickUpdate(platform);     // no-op unless built with -DTIDAL_TICK
+    tidalPlayerUpdate(platform);   // the Tidal file player (not in the test builds)
+    tidalEditorUpdate(platform);   // the device editor (-DTIDAL_EDITOR)
+    audioProfileUpdate(platform);  // no-op unless built with -DAUDIO_PROFILE
+    reverbBenchUpdate(platform);   // no-op unless built with -DREVERB_BENCH
+    folderBenchUpdate(platform);   // no-op unless built with -DFOLDER_BENCH
 }
 
 void TrackerImpl::updateAudioBuffers(void* left, void* right, int length)
@@ -189,7 +202,9 @@ void TrackerImpl::updateAudioBuffers(void* left, void* right, int length)
         midiSetAudioBlockStartUs(platform->getTimer()->micros());
     }
     Profiler::getInstance()->startMeasuringAudio();
+    AUDIO_PROFILE_MARK(apStart);
     midiUpdate();
+    AUDIO_PROFILE_MARK(apMidi);
 
     // Exact hardware I2S sample rate:
     // - IMX (Tracker+ and Tracker Mini): PLL4 = 24 MHz * (37 + 15168/24000) / 2 / 4 / 10 / 256 = 44100.0 Hz
@@ -202,11 +217,20 @@ void TrackerImpl::updateAudioBuffers(void* left, void* right, int length)
 
     float updateIntervalSeconds = length / kAudioSampleRate;
     sequencer.tick(updateIntervalSeconds);
+    tidalTick();  // no-op unless built with -DTIDAL_TICK
+    tidalPlayerTick();  // the Tidal file player (not in the test builds)
+    AUDIO_PROFILE_MARK(apSeq);
 
     engine.update();
+    AUDIO_PROFILE_MARK(apPlayers);
 
     engine.updateAudioBuffers(left, right, length);
+#ifdef AUDIO_PROFILE
+    AUDIO_PROFILE_MARK(apGraph);
+    audioProfileBlock(apMidi - apStart, apSeq - apMidi, apPlayers - apSeq, apGraph - apPlayers);
+#endif
     Profiler::getInstance()->stopMeasuringAudio();
+    reverbBenchBlock();  // no-op unless built with -DREVERB_BENCH (outside the audio-load measurement)
 }
 
 void TrackerImpl::updateInputAudioBuffers(void* dataI2s, void* dataUsb, int length)

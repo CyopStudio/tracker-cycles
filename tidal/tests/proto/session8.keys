@@ -1,0 +1,7 @@
+hw:shift+pad3 hw:down hw:down hw:down hw:right hw:pad13 hw:pad16 hw:pad48 hw:pad20 hw:delete
+hw:left hw:left hw:delete hw:delete
+hw:shift+pad13 hw:down hw:down hw:down hw:right hw:down hw:pad13 hw:pad17 hw:delete
+hw:shift+pad1 hw:down hw:right hw:right hw:right hw:down hw:down hw:right hw:down hw:down hw:delete hw:delete
+hw:right hw:right hw:right hw:right hw:delete
+hw:shift+pad3 hw:play hw:shift+pad13 hw:play
+print

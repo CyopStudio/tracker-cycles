@@ -1,3 +1,4 @@
+#include "mtSequencer.h"
 #include "mtAudioEngine.h"
 #include "Platform.h"
 #include "VoiceStreamManager.h"
@@ -11,10 +12,8 @@
 #include "mtMidi.h"
 #include "mtMasterEnhancer.h"
 #include "mtStructs.h"
-#include "sampleRecorder/sampleRecorder.h"
 #include "tempoSyncRateValues.h"
 #include "util.h"
-#include <Recorder.h>
 
 static constexpr int kSdStreamBufferSize = (256 + 64) * 1024;
 extern uint8_t externalRamScratchBuff[];
@@ -113,10 +112,6 @@ AudioOutput* audioEngine::getAudioOutput()
     return &output;
 }
 
-ExportQueues* audioEngine::getExportQueues()
-{
-    return &exportQueues;
-}
 
 MixerAndFxs<audioEngine::kVoices>* audioEngine::getMixerAndFx()
 {
@@ -134,21 +129,16 @@ audioEngine::audioEngine()
     {
         connectVoiceToMixer(instrumentPlayer[voiceIdx].getAudioVoice(), &mixerAndFxs, voiceIdx);
         connectVoiceToOutput(instrumentPlayer[voiceIdx].getAudioVoice(), &output, voiceIdx);
-        connectVoiceToExportQueue(
-          instrumentPlayer[voiceIdx].getAudioVoice(), &exportQueues, voiceIdx);
     }
 #ifdef FEATURE_SYNTH
     connectSynthToMixer(&mixerAndFxs, &synthVoice);
-    connectSynthToExportQueue(&synthVoice, &exportQueues);
     connectSynthToOutput(&synthVoice, &output);
 #endif
 
     connectInputToOutput(&input, &output);
     connectInputToMixer(&input, &mixerAndFxs);
     connectMixerToOutput(&mixerAndFxs, &output);
-    connectMixerToExportQueue(&mixerAndFxs, &exportQueues);
     connectSpecialInputsToOutput(&output);
-    connectOutputToExportQueue(&output, &exportQueues);
 
     for (int channel = 0; channel < AudioOutput::kChannelsCount; channel++)
     {
@@ -272,9 +262,7 @@ void audioEngine::init(Platform* platform, [[maybe_unused]] Synth* synth)
 
 AUDIO_CORE_RAM void audioEngine::update()
 {
-    recorder.update();
-
-    if (!recorder.isRecordingActive())
+    // Tracker Cycles: no sample recorder (it was only skipped while recording)
     {
         currentTempo = sequencer.getCurrentTempo();
 
@@ -630,27 +618,6 @@ void audioEngine::connectSynthToMixer(MixerAndFxs<kVoices>* mixerAndFxs, SynthVo
     }
 }
 
-void audioEngine::connectSynthToExportQueue(SynthVoice* synth, ExportQueues* exportQueues)
-{
-    for (int synthIdx = 0; synthIdx < kSynthParts; synthIdx++)
-    {
-        connections.push_back(new AudioConnection(
-          synth->getPanningAmplifier(synthIdx, SynthVoice::Channels::kRight),
-          0,
-          exportQueues->getQueue(
-            ExportQueues::ExportChannels::kRight,
-            (mtAudioExport::enStem)((int)mtAudioExport::stem_synth_1 + synthIdx)),
-          0));
-
-        connections.push_back(new AudioConnection(
-          synth->getPanningAmplifier(synthIdx, SynthVoice::Channels::kLeft),
-          0,
-          exportQueues->getQueue(
-            ExportQueues::ExportChannels::kLeft,
-            (mtAudioExport::enStem)((int)mtAudioExport::stem_synth_1 + synthIdx)),
-          0));
-    }
-}
 
 void audioEngine::connectSynthToOutput(SynthVoice* synth, AudioOutput* output)
 {
@@ -713,92 +680,10 @@ void audioEngine::connectSpecialInputsToOutput(AudioOutput* output)
 }
 
 #ifndef PLATFORM_IMX
-void audioEngine::connectVoiceToExportQueue(AudioVoice* voice, ExportQueues* exportQueues, int idx)
-{
-    connections.push_back(new AudioConnection(
-      voice->getMonoToStereo(),
-      ExportQueues::ExportChannels::kLeft,
-      exportQueues->getQueue(ExportQueues::ExportChannels::kLeft,
-                             (mtAudioExport::enStem)((int)mtAudioExport::stem_tracks_start + idx)),
-      0));
-
-    connections.push_back(new AudioConnection(
-      voice->getMonoToStereo(),
-      ExportQueues::ExportChannels::kRight,
-      exportQueues->getQueue(ExportQueues::ExportChannels::kRight,
-                             (mtAudioExport::enStem)((int)mtAudioExport::stem_tracks_start + idx)),
-      0));
-}
 #else
-void audioEngine::connectVoiceToExportQueue(AudioVoice* voice, ExportQueues* exportQueues, int idx)
-{
-    connections.push_back(new AudioConnection(
-      voice->getPanningAmplifier(AudioVoice::VoiceChannels::kLeft),
-      0,
-      exportQueues->getQueue(ExportQueues::ExportChannels::kLeft,
-                             (mtAudioExport::enStem)((int)mtAudioExport::stem_tracks_start + idx)),
-      0));
-
-    connections.push_back(new AudioConnection(
-      voice->getPanningAmplifier(AudioVoice::VoiceChannels::kRight),
-      0,
-      exportQueues->getQueue(ExportQueues::ExportChannels::kRight,
-                             (mtAudioExport::enStem)((int)mtAudioExport::stem_tracks_start + idx)),
-      0));
-}
 #endif
 
-void audioEngine::connectMixerToExportQueue(MixerAndFxs<kVoices>* mixerAndFxs,
-                                            ExportQueues* exportQueues)
-{
 
-    connections.push_back(
-      new AudioConnection(mixerAndFxs->getPolyverb(),
-                          ExportQueues::ExportChannels::kLeft,
-                          exportQueues->getQueue(ExportQueues::ExportChannels::kLeft,
-                                                 mtAudioExport::enStem::stem_reverb),
-                          0));
-
-    connections.push_back(
-      new AudioConnection(mixerAndFxs->getPolyverb(),
-                          ExportQueues::ExportChannels::kRight,
-                          exportQueues->getQueue(ExportQueues::ExportChannels::kRight,
-                                                 mtAudioExport::enStem::stem_reverb),
-                          0));
-
-    connections.push_back(
-      new AudioConnection(mixerAndFxs->getDelay(),
-                          ExportQueues::ExportChannels::kLeft,
-                          exportQueues->getQueue(ExportQueues::ExportChannels::kLeft,
-                                                 mtAudioExport::enStem::stem_delay),
-                          0));
-
-    connections.push_back(
-      new AudioConnection(mixerAndFxs->getDelay(),
-                          ExportQueues::ExportChannels::kRight,
-                          exportQueues->getQueue(ExportQueues::ExportChannels::kRight,
-                                                 mtAudioExport::enStem::stem_delay),
-                          0));
-}
-
-void audioEngine::connectOutputToExportQueue(AudioOutput* output, ExportQueues* exportQueues)
-{
-    connections.push_back(
-      new AudioConnection(output->getFinalMixer(AudioOutput::OutputChannels::kLeft),
-                          exportQueues->getQueue(ExportQueues::ExportChannels::kLeft,
-                                                 mtAudioExport::enStem::stem_master)));
-    connections.push_back(
-      new AudioConnection(output->getFinalMixer(AudioOutput::OutputChannels::kRight),
-                          exportQueues->getQueue(ExportQueues::ExportChannels::kRight,
-                                                 mtAudioExport::enStem::stem_master)));
-    connections.push_back(
-      new AudioConnection(output->getFinalMixer(AudioOutput::OutputChannels::kLeft),
-                          exportQueues->getChannelRms(ExportQueues::ExportChannels::kLeft)));
-
-    connections.push_back(
-      new AudioConnection(output->getFinalMixer(AudioOutput::OutputChannels::kRight),
-                          exportQueues->getChannelRms(ExportQueues::ExportChannels::kRight)));
-}
 
 AUDIO_CORE_RAM void audioEngine::endAllFx(bool synthOnly)
 {
@@ -822,31 +707,6 @@ AUDIO_CORE_RAM void audioEngine::endAllFx(bool synthOnly)
 #endif
 }
 
-void audioEngine::performanceModeEndAll()
-{
-    for (uint8_t i = 0; i < 8; i++)
-    {
-        instrumentPlayer[i].endCutoffPerformanceMode();
-        instrumentPlayer[i].endEndPointPerformanceMode();
-        instrumentPlayer[i].endFilterTypePerformanceMode();
-        instrumentPlayer[i].endGranularPositionPerformanceMode();
-        instrumentPlayer[i].endPanningPerformanceMode();
-        instrumentPlayer[i].endDelaySendPerformanceMode();
-        instrumentPlayer[i].endReverbSendPerformanceMode();
-        instrumentPlayer[i].endSamplePlaybackPerformanceMode();
-        instrumentPlayer[i].endStartPointPerformanceMode();
-        instrumentPlayer[i].endTunePerformanceMode();
-        instrumentPlayer[i].endVolumePerformanceMode();
-        instrumentPlayer[i].endWavetableWindowPerformanceMode();
-        instrumentPlayer[i].endAmpLfoRatePerformanceMode();
-        instrumentPlayer[i].endCutoffLfoRatePerformanceMode();
-        instrumentPlayer[i].endPositionLfoRatePerformanceMode();
-        instrumentPlayer[i].endPanningLfoRatePerformanceMode();
-        instrumentPlayer[i].endFinetuneLfoRatePerformanceMode();
-        instrumentPlayer[i].endBitDepthPerformanceMode();
-        instrumentPlayer[i].endOverdrivePerformanceMode();
-    }
-}
 
 #ifdef PLATFORM_IMX
 void audioEngine::refreshOutputSourceOutsideTheRecorder()
@@ -1716,6 +1576,13 @@ playerEngine::playerEngine()
             playMemPtr[channel]->setSamplePointsSource(playMemPtr[0]);
         }
     }
+#ifndef PLATFORM_IMX
+    for (int k = 1; k < AudioVoice::kPlayers; k++)
+    {
+        audioVoice.getPlayer(k)->envelopeReleaseNoteOn(RELEASE_NOTE_ON_VAL);
+        audioVoice.getPlayer(k)->setSamplePointsSource(nullptr);
+    }
+#endif
 }
 
 AUDIO_CORE_RAM void playerEngine ::modGlide(uint16_t value)
@@ -2100,6 +1967,12 @@ void playerEngine::setInterpolationEnable(bool value)
     {
         playMemPtr[channel]->setInterpolationEnable(value);
     }
+#ifndef PLATFORM_IMX
+    for (int k = 0; k < AudioVoice::kPlayers; k++)
+    {
+        audioVoice.getPlayer(k)->setInterpolationEnable(value);
+    }
+#endif
 }
 
 float playerEngine ::fmap(float x, float in_min, float in_max, float out_min, float out_max)
@@ -2113,6 +1986,7 @@ uint8_t playerEngine ::noteOnWithoutInstrument(std::vector<int16_t*> addr,
                                                uint8_t note,
                                                int8_t velocity)
 {
+    tidalRestoreStock();  // Tracker Cycles polyphony: stock notes use player 0
 
     initEnvelopesParameters(envAmp, (envelopeGenerator::strEnv*)&passEnvelope);
 
@@ -2438,6 +2312,15 @@ void playerEngine::init(
     {
         playMemPtr[channel]->init(timer, channel, nChannel);
     }
+#ifndef PLATFORM_IMX
+    // Tracker Cycles polyphony: the extra players never stream (no stream
+    // buffer: voiceIdx -1); the Tidal allocator keeps streamed instruments
+    // on player 0
+    for (int k = 1; k < AudioVoice::kPlayers; k++)
+    {
+        audioVoice.getPlayer(k)->init(timer, 0, -1);
+    }
+#endif
 }
 
 uint32_t playerEngine::getEnvelopeWtPosMod()

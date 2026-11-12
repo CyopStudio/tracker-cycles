@@ -1,0 +1,41 @@
+# Property checks for golden cases that use randomness. Our random numbers
+# are deterministic like Tidal's but not Tidal's (its generator is only
+# defined in GPL source), so these cases skip the exact event comparison
+# and check behaviour instead. One case per line, checks separated by " | ":
+#   subset CODE   every event is one that `d1 $ CODE` produces too
+#   like CODE     same number of events at the same times as CODE (values
+#                 ignored)
+#   count A B     number of events in [A, B]
+#   key K A B     fraction of events carrying control K in [A, B]
+#   value K A B   every event's control K is in [A, B)
+# Cycles come from cases.txt. Counts: N events, keep probability q.
+euclid_degrade | subset s "bd(3,8)" | count 0 3
+degrade_mini   | subset s "hh*8" | count 8 24
+degrade_prob   | subset s "hh*8" | count 6 15
+choice         | subset stack [s "bd", s "sd", s "hh"] | count 4 4
+degradeBy      | subset s "hh*8" | count 4 12
+sometimesBy    | subset stack [s "bd*8", s "bd*8" # speed 2] | count 16 16 | key speed 0.2 0.8
+sometimes      | subset stack [s "bd*8", s "bd*8" # speed 2] | count 16 16 | key speed 0.2 0.8
+often          | subset stack [s "bd*8", s "bd*8" # speed 2] | count 16 16 | key speed 0.5 1
+rarely         | subset stack [s "bd*8", s "bd*8" # speed 2] | count 16 16 | key speed 0 0.5
+almostNever    | subset stack [s "bd*8", s "bd*8" # speed 2] | count 16 16 | key speed 0 0.3
+almostAlways   | subset stack [s "bd*8", s "bd*8" # speed 2] | count 16 16 | key speed 0.7 1
+someCyclesBy   | subset stack [s "bd*2", s "bd*2" # speed 2] | count 8 8
+rand           | like s "bd*4" | value pan 0 1
+irand          | like s "drum*4" | value n 0 8
+degrade          | subset s "hh*8" | count 4 12
+unDegradeBy      | subset s "hh*8" | count 1 8
+sometimesByp     | subset stack [s "bd*8", s "bd*8" # speed 2] | count 16 16 | key speed 0.2 0.8
+sometimesBy_fast | subset stack [s "bd*4", s "bd*8"] | count 6 18
+someCycles       | subset stack [s "bd*2", s "bd*2" # speed 2] | count 8 8
+shuffle          | like n "0*4" | value n 0 4
+scramble         | like n "0*4" | value n 0 4
+perlin           | like s "bd*8" | value pan 0 1
+randcat          | subset stack [s "a*2", s "b*3"] | count 8 12
+choose           | like n "0*4" | value n 0 8
+cycleChoose      | like n "0" | value n 0 8
+wchoose          | like n "0*4" | value n 0 8
+wrandcat         | subset stack [s "a*2", s "b*3"] | count 8 12
+brand            | subset s "bd*8" | count 4 12
+brandBy          | subset s "bd*8" | count 1 8
+randslice        | like s "bev*4" | value begin 0 1 | value end 0.25 1.01

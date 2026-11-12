@@ -1,0 +1,11 @@
+down right right right wrap pick:rev%20$%20... ok
+down down wheel+ wheel+
+undo undo
+next next down right down down wheel-
+eval
+prev prev down right right right down down down delete
+undo
+down right right right down right down down right wrap pick:|+%20n%2012 ok
+eval
+next next next next next next next replace pick:drum%20pattern ok eval
+print

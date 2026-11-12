@@ -1,3 +1,4 @@
+#include "../tidal/tidal_editor.h"
 #include "ProjectSave.h"
 
 #include "VoiceStreamManager.h"
@@ -541,6 +542,7 @@ void ProjectSave::saveProjectFinish()
     //-----------------------------------
 
     mtProject.values.projectNotSavedFlag = 0;
+    tidalProjectSaved();  // Tracker Cycles (plan 4e): the code into the (now saved) project folder
 
     newFileManager.setStatus(fmSaveEnd);
     newFileManager.setCurrentOperation(fmNoOperation);

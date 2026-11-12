@@ -1,37 +1,27 @@
 ## Summary & Goal
-<!-- Explain WHY this change is being made and what problem or musical workflow it addresses. Keep each PR focused on a single feature or bug fix. -->
+<!-- WHY this change: the musical or editing problem it solves. One feature or fix per PR. -->
 
 
 ## Behavior & Changes
-<!-- Describe WHAT changed: user-facing behavior, UI screens, button combinations (on both Original/Plus and Tracker Mini if applicable), and key technical details. -->
+<!-- WHAT changed for the player: controls, messages, screen; and the key technical details. -->
 
 
-## Target Devices
-<!-- Check all devices for which this feature/fix is built: -->
-- [ ] **Original Polyend Tracker** (`MK66`)
-- [ ] **Polyend Tracker+** (`IMX`)
-- [ ] **Polyend Tracker Mini** (`IMX`)
-
-## Hardware Testing Status
-<!-- Please be explicit about which physical devices you have tested yourself and which devices still need testing by community members who own them.
-     Note for testers: You can download ready-to-flash .ptf files from the "Checks" tab -> "polyend-tracker-ce-firmware" artifact on this PR! -->
-
-| Device | Tested on Hardware by Author | Needs Community Hardware Testing | Not Applicable | Notes / Tested By |
-| :--- | :---: | :---: | :---: | :--- |
-| **Original Tracker** (`MK66`) | [ ] | [ ] | [ ] | |
-| **Tracker+** (`IMX`) | [ ] | [ ] | [ ] | |
-| **Tracker Mini** (`IMX`) | [ ] | [ ] | [ ] | |
+## Hardware Testing (Original Tracker)
+<!-- Tested on an Original Polyend Tracker? Testers: the "tracker-cycles-firmware" artifact on the Checks tab has a ready-to-flash .ptf. -->
+- [ ] Tested on hardware by the author
+- [ ] Needs testing by someone with an Original Tracker
 
 ## How to Test
-<!-- Provide clear, step-by-step instructions so reviewers and community testers can verify this PR on their hardware: -->
+<!-- Step-by-step instructions to verify this on the Tracker (or in the prototype): -->
 1. 
 2. 
 3. 
 
-## Developer Checklist
-- [ ] I have read and understood the Contribution & Pull Request Guidelines (`CONTRIBUTING.md`).
-- [ ] This PR implements **one single feature or bug fix** (no unrelated refactors or formatting sweeps).
-- [ ] `make all` compiles cleanly for all three devices (`Original`, `Plus`, `Mini`).
-- [ ] Memory usage (`SRAM_DTC`, `EXTERNAL_RAM`, `FLASH`) was checked and stays within safe hardware headroom.
-- [ ] No heap allocations (`new`/`malloc`) or SD card I/O were added to real-time audio callbacks.
-- [ ] Existing `.mt` projects, `.pti` instruments, `.pts` synth patches, and `mtConfig` settings remain backward-compatible.
+## Checklist
+- [ ] I have read `CONTRIBUTING.md`.
+- [ ] One feature or fix (no unrelated refactors or formatting sweeps).
+- [ ] `make -C tidal test` and `make -C tidal smoke` pass (changed `.expected` files explained above).
+- [ ] `make original` builds; flash / RAM / SDRAM use checked.
+- [ ] New or changed Tidal functions have golden cases captured from Tidal (`make -C tidal golden`).
+- [ ] Nothing allocates, touches the SD card or blocks in the audio interrupt; long main-loop work is done in small steps.
+- [ ] Existing `.tidal` files, projects and instruments still load.

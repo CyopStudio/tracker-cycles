@@ -1,7 +1,13 @@
-### Polyend Tracker CE
+### Tracker Cycles
 
 * **[Home](Home)**
 * **[Changelog](CHANGELOG)**
+* **[Functions & syntax](tidal_code_tree)**
+* **[Control mapping](tidal_control_mapping)**
+* **[Voices](tidal_voices)**
+* **[Sample folders](tidal_sample_folders)**
+
+#### Inherited from CE
 
 #### User Guides
 * **[Custom Themes & Fonts](custom_themes_and_fonts)**

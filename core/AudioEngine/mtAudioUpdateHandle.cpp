@@ -21,8 +21,7 @@ AUDIO_CORE_RAM void playerEngine::update()
     envelopeCondition[envAmp] =
       ((mtProject.instrument[currentInstrument_idx].envelope[envAmp].enable == 1) ||
        (trackControlParameter[(int)controlType::sequencerMode][envelopesControlValue[envAmp]]) ||
-       (trackControlParameter[(int)controlType::sequencerMode2][envelopesControlValue[envAmp]]) ||
-       (trackControlParameter[(int)controlType::performanceMode][envelopesControlValue[envAmp]]));
+       (trackControlParameter[(int)controlType::sequencerMode2][envelopesControlValue[envAmp]]));
     envelopeCondition[envCutoff] = (mtProject.instrument[currentInstrument_idx].filterEnable == 1);
     envelopeCondition[envPan] = true;
     envelopeCondition[envWtPos] =
@@ -95,8 +94,6 @@ inline void playerEngine::handleUpdateEnvelope(uint8_t type, bool enableConditio
                 (trackControlParameter[(int)controlType::sequencerMode]
                                       [(int)parameterList::lfoAmp]) ||
                 (trackControlParameter[(int)controlType::sequencerMode2]
-                                      [(int)parameterList::lfoAmp]) ||
-                (trackControlParameter[(int)controlType::performanceMode]
                                       [(int)parameterList::lfoAmp]))
             {
                 if (playMemPtr[0]->envelopeGetState() != 0)
@@ -109,14 +106,7 @@ inline void playerEngine::handleUpdateEnvelope(uint8_t type, bool enableConditio
                         {
                             uint8_t mostSignificantLFORate =
                               mtProject.instrument[currentInstrument_idx].lfo[envAmp].speed;
-                            if (trackControlParameter[(int)controlType::performanceMode]
-                                                     [(int)parameterList::lfoAmp])
-                            {
-                                mostSignificantLFORate = currentPerformanceValues.lfoAmpRate;
-                            }
-                            else if ((trackControlParameter[(int)controlType::sequencerMode2]
-                                                           [(int)parameterList::lfoAmp]) ||
-                                     (trackControlParameter[(int)controlType::performanceMode]
+                            if ((trackControlParameter[(int)controlType::sequencerMode2]
                                                            [(int)parameterList::lfoAmp]))
                             {
                                 mostSignificantLFORate = currentSeqModValues.lfoAmpRate;
@@ -142,8 +132,6 @@ inline void playerEngine::handleUpdateEnvelope(uint8_t type, bool enableConditio
                 (trackControlParameter[(int)controlType::sequencerMode]
                                       [envelopesControlValue[type]]) ||
                 (trackControlParameter[(int)controlType::sequencerMode2]
-                                      [envelopesControlValue[type]]) ||
-                (trackControlParameter[(int)controlType::performanceMode]
                                       [envelopesControlValue[type]]))
             {
                 bool isActiveEnvelope = ((envelopePtr[type]->isKeyPressed() == 1) ||
@@ -154,8 +142,6 @@ inline void playerEngine::handleUpdateEnvelope(uint8_t type, bool enableConditio
                     (trackControlParameter[(int)controlType::sequencerMode]
                                           [envelopesControlValue[type]]) ||
                     (trackControlParameter[(int)controlType::sequencerMode2]
-                                          [envelopesControlValue[type]]) ||
-                    (trackControlParameter[(int)controlType::performanceMode]
                                           [envelopesControlValue[type]]))
                 {
                     if (isActiveEnvelope)
@@ -214,8 +200,6 @@ inline void playerEngine::handleUpdateEndReleaseAction()
                 (trackControlParameter[(int)controlType::sequencerMode]
                                       [envelopesControlValue[i]]) ||
                 (trackControlParameter[(int)controlType::sequencerMode2]
-                                      [envelopesControlValue[i]]) ||
-                (trackControlParameter[(int)controlType::performanceMode]
                                       [envelopesControlValue[i]]))
             {
                 currentEnvelopeModification[i] = 0;
@@ -289,12 +273,7 @@ inline void playerEngine::handleUpdateRefreshTune()
         refreshRegister &= (~TUNE_MASK);
 
         int8_t localTune;
-        if (trackControlParameter[(int)controlType::performanceMode]
-                                 [(int)parameterList::tune])
-        {
-            localTune = currentPerformanceValues.tune;
-        }
-        else if (trackControlParameter[(int)controlType::sequencerMode]
+        if (trackControlParameter[(int)controlType::sequencerMode]
                                       [(int)parameterList::tune] ||
                  trackControlParameter[(int)controlType::sequencerMode2]
                                       [(int)parameterList::tune])
@@ -351,11 +330,6 @@ inline void playerEngine::handleUpdateRefreshPanning()
             localPanning = mtProject.instrument[currentInstrument_idx].panning;
         }
 
-        if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::panning])
-        {
-            localPanning = (int16_t)clamp<int>(
-              (int)localPanning + (int)performanceMod.panning, (int)PANNING_MIN, (int)PANNING_MAX);
-        }
 
         localPanning = (int16_t)clamp<int>(
           (int)localPanning + (int)localPanningMod, (int)PANNING_MIN, (int)PANNING_MAX);
@@ -376,12 +350,7 @@ inline void playerEngine::handleUpdateRefreshCutoff()
 
         float localCutoff = 0.0f;
 
-        if (trackControlParameter[(int)controlType::performanceMode]
-                                 [(int)parameterList::filterCutoff])
-        {
-            localCutoff = currentPerformanceValues.filterCutoff;
-        }
-        else if (trackControlParameter[(int)controlType::sequencerMode]
+        if (trackControlParameter[(int)controlType::sequencerMode]
                                       [(int)parameterList::filterCutoff] ||
                  trackControlParameter[(int)controlType::sequencerMode2]
                                       [(int)parameterList::filterCutoff])
@@ -429,11 +398,6 @@ void playerEngine::handleUpdateRefreshDelay()
             localDelaySend = mtProject.instrument[currentInstrument_idx].delaySend;
         }
 
-        if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::delaySend])
-        {
-            localDelaySend = clamp<int>(
-              (int)localDelaySend + (int)performanceMod.delaySend, (int)SEND_MIN, (int)SEND_MAX);
-        }
 
         if (((muteState == MUTE_DISABLE) && (onlyDelayMuteState == MUTE_DISABLE)) ||
             ((engine.forceDelaySend == 1) && !mtProject.values.trackMute[nChannel]))
@@ -466,12 +430,6 @@ void playerEngine::handleUpdateRefreshReverb()
             localReverbSend = mtProject.instrument[currentInstrument_idx].reverbSend;
         }
 
-        if (trackControlParameter[(int)controlType::performanceMode]
-                                 [(int)parameterList::reverbSend])
-        {
-            localReverbSend = clamp<int>(
-              (int)localReverbSend + (int)performanceMod.reverbSend, (int)SEND_MIN, (int)SEND_MAX);
-        }
 
         if (((muteState == 0) && (onlyReverbMuteState == 0)) ||
             ((engine.forceReverbSend == 1) && !mtProject.values.trackMute[nChannel]))
@@ -492,11 +450,7 @@ inline void playerEngine::handleUpdateRefreshOverdrive()
         uint8_t overdrive;
         refreshRegister &= (~OVERDRIVE_MASK);
 
-        if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::overdrive])
-        {
-            overdrive = currentPerformanceValues.overdrive;
-        }
-        else if (trackControlParameter[(int)controlType::sequencerMode]
+        if (trackControlParameter[(int)controlType::sequencerMode]
                                       [(int)parameterList::overdrive] ||
                  trackControlParameter[(int)controlType::sequencerMode2]
                                       [(int)parameterList::overdrive])
@@ -519,11 +473,7 @@ inline void playerEngine::handleUpdateRefreshBitDepth()
         uint8_t bitDepth;
         refreshRegister &= (~BIT_DEPTH_MASK);
 
-        if (trackControlParameter[(int)controlType::performanceMode][(int)parameterList::bitDepth])
-        {
-            bitDepth = currentPerformanceValues.bitDepth;
-        }
-        else if (trackControlParameter[(int)controlType::sequencerMode]
+        if (trackControlParameter[(int)controlType::sequencerMode]
                                       [(int)parameterList::bitDepth] ||
                  trackControlParameter[(int)controlType::sequencerMode2]
                                       [(int)parameterList::bitDepth])
@@ -548,8 +498,6 @@ inline void playerEngine::handleUpdateRefreshWtPos()
             (!trackControlParameter[(int)controlType::sequencerMode]
                                    [(int)parameterList::lfoWavetablePosition]) &&
             (!trackControlParameter[(int)controlType::sequencerMode2]
-                                   [(int)parameterList::lfoWavetablePosition]) &&
-            (!trackControlParameter[(int)controlType::performanceMode]
                                    [(int)parameterList::lfoWavetablePosition]))
         {
             currentEnvelopeModification[envWtPos] = 0;
@@ -560,12 +508,7 @@ inline void playerEngine::handleUpdateRefreshWtPos()
           mtProject.instrument[currentInstrument_idx].sample.wavetableWindowNumber;
         uint32_t localWtPos = 0;
 
-        if (trackControlParameter[(int)controlType::performanceMode]
-                                 [(int)parameterList::wavetablePosition])
-        {
-            localWtPos = currentPerformanceValues.wavetablePosition;
-        }
-        else if (trackControlParameter[(int)controlType::sequencerMode]
+        if (trackControlParameter[(int)controlType::sequencerMode]
                                       [(int)parameterList::wavetablePosition] ||
                  trackControlParameter[(int)controlType::sequencerMode2]
                                       [(int)parameterList::wavetablePosition])
@@ -617,12 +560,7 @@ inline void playerEngine::handleUpdateRefreshGranPos()
         int32_t localGranPosisionMod = currentEnvelopeModification[envGranPos] * MAX_16BIT;
 
         uint16_t localGranPosition = 0;
-        if (trackControlParameter[(int)controlType::performanceMode]
-                                 [(int)parameterList::granularPosition])
-        {
-            localGranPosition = currentPerformanceValues.granularPosition;
-        }
-        else if (trackControlParameter[(int)controlType::sequencerMode]
+        if (trackControlParameter[(int)controlType::sequencerMode]
                                       [(int)parameterList::granularPosition] ||
                  trackControlParameter[(int)controlType::sequencerMode2]
                                       [(int)parameterList::granularPosition])
@@ -719,8 +657,7 @@ inline void playerEngine::handleUpdateRefreshAmpLFO()
         if ((mtProject.instrument[currentInstrument_idx].envelope[envAmp].enable) &&
             (!trackControlParameter[(int)controlType::sequencerMode][(int)parameterList::lfoAmp]) &&
             (!trackControlParameter[(int)controlType::sequencerMode2]
-                                   [(int)parameterList::lfoAmp]) &&
-            (!trackControlParameter[(int)controlType::performanceMode][(int)parameterList::lfoAmp]))
+                                   [(int)parameterList::lfoAmp]))
         {
             uint8_t curAmpLoop = mtProject.instrument[currentInstrument_idx].envelope[envAmp].loop;
             if (curAmpLoop == 1 || curAmpLoop == 3)
@@ -766,8 +703,6 @@ inline void playerEngine::handleUpdateRefreshCutoffLFO()
                 (!trackControlParameter[(int)controlType::sequencerMode]
                                        [(int)parameterList::lfoCutoff]) &&
                 (!trackControlParameter[(int)controlType::sequencerMode2]
-                                       [(int)parameterList::lfoCutoff]) &&
-                (!trackControlParameter[(int)controlType::performanceMode]
                                        [(int)parameterList::lfoCutoff]))
             {
                 uint8_t curCutoffLoop = mtProject.instrument[currentInstrument_idx].envelope[envCutoff].loop;
@@ -819,8 +754,6 @@ inline void playerEngine::handleUpdateRefreshWtPosLFO()
                 (!trackControlParameter[(int)controlType::sequencerMode]
                                        [(int)parameterList::lfoWavetablePosition]) &&
                 (!trackControlParameter[(int)controlType::sequencerMode2]
-                                       [(int)parameterList::lfoWavetablePosition]) &&
-                (!trackControlParameter[(int)controlType::performanceMode]
                                        [(int)parameterList::lfoWavetablePosition]))
             {
                 uint8_t curWtLoop = mtProject.instrument[currentInstrument_idx].envelope[envWtPos].loop;
@@ -875,8 +808,6 @@ inline void playerEngine::handleUpdateRefreshGranPosLFO()
                 (!trackControlParameter[(int)controlType::sequencerMode]
                                        [(int)parameterList::lfoGranularPosition]) &&
                 (!trackControlParameter[(int)controlType::sequencerMode2]
-                                       [(int)parameterList::lfoGranularPosition]) &&
-                (!trackControlParameter[(int)controlType::performanceMode]
                                        [(int)parameterList::lfoGranularPosition]))
             {
                 uint8_t curGranLoop = mtProject.instrument[currentInstrument_idx].envelope[envGranPos].loop;
@@ -920,8 +851,6 @@ inline void playerEngine::handleUpdateRefreshPanningLFO()
             (!trackControlParameter[(int)controlType::sequencerMode]
                                    [(int)parameterList::lfoPanning]) &&
             (!trackControlParameter[(int)controlType::sequencerMode2]
-                                   [(int)parameterList::lfoPanning]) &&
-            (!trackControlParameter[(int)controlType::performanceMode]
                                    [(int)parameterList::lfoPanning]))
         {
             uint8_t curPanLoop = mtProject.instrument[currentInstrument_idx].envelope[envPan].loop;
@@ -962,8 +891,6 @@ inline void playerEngine::handleUpdateRefreshFinetuneLFO()
             (!trackControlParameter[(int)controlType::sequencerMode]
                                    [(int)parameterList::lfoFinetune]) &&
             (!trackControlParameter[(int)controlType::sequencerMode2]
-                                   [(int)parameterList::lfoFinetune]) &&
-            (!trackControlParameter[(int)controlType::performanceMode]
                                    [(int)parameterList::lfoFinetune]))
         {
             uint8_t curFineLoop = mtProject.instrument[currentInstrument_idx].envelope[envFinetune].loop;

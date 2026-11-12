@@ -10,7 +10,7 @@
 //=====================================================================
 
 #ifndef FW_EDITION_NAME
-#define FW_EDITION_NAME "CE"
+#define FW_EDITION_NAME "Cycles"
 #endif
 #ifndef FW_VER_MAJOR
 #define FW_VER_MAJOR 1
@@ -37,8 +37,9 @@ const uint8_t PRODUCT_VER_3 = FW_VER_PATCH;
 const uint8_t PRODUCT_BETA = FW_VER_BETA;
 
 //=====================================================================
-const char firmwareVersionLabelFormat[] = "%d.%d.%d " FW_EDITION_NAME;
-const char firmwareVersionLabelFormatBeta[] = "%d.%d.%d " FW_EDITION_NAME " beta %d";
+// shown in the Config menu and on the start screen: "tracker-cycles 1.0.0"
+const char firmwareVersionLabelFormat[] = "tracker-cycles %d.%d.%d";
+const char firmwareVersionLabelFormatBeta[] = "tracker-cycles %d.%d.%d beta %d";
 
 const uint8_t PROJECT_FILE_VERSION = 17;   // wersja struktury pliku projektu
 const uint8_t INSTRUMENT_FILE_VERSION = 9; // wersja struktury pliku instrumentu

@@ -467,17 +467,30 @@ void cDisplay::update()
     //=================================================================================================
     //=================================================================================================
 
-    if (!displayDriver->isCoProEmpty())
+    // Several steps per main-loop pass while the coprocessor keeps up
+    // (Tracker Cycles: one step per pass made a full redraw ~30 passes,
+    // about a second while Tidal patterns kept the main loop busy). Same
+    // steps in the same order, just sooner; a swap waits for the frame, so
+    // the coprocessor is busy after it and the loop stops there.
+    const uint32_t stepsStartUs = timer->micros();
+    for (int steps = 0; steps < 6; steps++)
     {
-        return;
-    }
+        if (!displayDriver->isCoProEmpty())
+        {
+            return;
+        }
 
-    switch (updateStep)
-    {
-        case 0: step1(); break; // jesli jakas kontrolka w kolejce odswiezania, odswieza ja
-        case 1: step2(); break; // zapisz DL z porzedniego kroku do ramu ukladu graficznego
-        case 2: step3(); break; // oswiez cały ekran
-        default: updateStep = 0; break;
+        switch (updateStep)
+        {
+            case 0: step1(); break; // jesli jakas kontrolka w kolejce odswiezania, odswieza ja
+            case 1: step2(); break; // zapisz DL z porzedniego kroku do ramu ukladu graficznego
+            case 2: step3(); break; // oswiez cały ekran
+            default: updateStep = 0; break;
+        }
+        if (timer->micros() - stepsStartUs > 2000)
+        {
+            return;
+        }
     }
 }
 

@@ -5,7 +5,6 @@
 #include "display.h"
 
 #include "mtSequencer.h"
-#include "patternEditor/patternEditor.h"
 
 cSongTimer songTimer;
 
@@ -72,7 +71,7 @@ void cSongTimer::refresh()
     if (sequencer.isPlay())
         actualData.step = sequencer.getActualPos();
     else
-        actualData.step = patternEditor.trackerPattern.actualStep;
+        actualData.step = 0;  // Tracker Cycles: no pattern editor
 
     // przerwanie operacji jesli dane do wyswietlenia nie ulegly zmianie
     if (lastData.step == actualData.step && lastData.seconds == actualData.seconds &&

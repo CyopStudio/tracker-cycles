@@ -1,0 +1,42 @@
+Tracker Cycles reverb bench v1: one variant per audio block, test signal, output discarded
+(cycles per 128-sample block incl. dry/wet mix; % of the 2902 us block = 522360 cycles)
+
+=== capture 1 of 3 (stopped (nothing playing)), 30 s after boot, sequencer stopped
+audio load without the bench (Profiler): avg 9 %, max 7 %
+row variant                                   int KB   SD KB  avg cyc  max cyc  avg %   runs
+  0 stock, both buffers SDRAM (as shipped)         0      64    89727    89862  17.1    400
+  1 stock, buffer 1 internal                      32      32    59388    59534  11.3    400
+  2 stock, buffer 2 internal                      32      32    75502    75683  14.4    400
+  3 stock, both internal (aliased)                64       0    45527    45667   8.7    400
+  4 bench, full rate, SDRAM (= row 0?)             0      64    95335    95482  18.2    400
+  5 full rate, diffusers internal                  4      64    81801    82056  15.6    400
+  6 half rate, SDRAM                               0      32    54551    54707  10.4    400
+  7 half rate, diffusers internal                  2      32    46447    46655   8.8    400
+  8 half rate, all internal                       32       0    31435    31576   6.0    400
+
+=== capture 2 of 3 (light playback), 70 s after boot, sequencer playing
+audio load without the bench (Profiler): avg 24 %, max 48 %
+row variant                                   int KB   SD KB  avg cyc  max cyc  avg %   runs
+  0 stock, both buffers SDRAM (as shipped)         0      64    89752    90711  17.1    400
+  1 stock, buffer 1 internal                      32      32    59423    60352  11.3    400
+  2 stock, buffer 2 internal                      32      32    75536    76438  14.4    400
+  3 stock, both internal (aliased)                64       0    45579    46504   8.7    400
+  4 bench, full rate, SDRAM (= row 0?)             0      64    95377    96315  18.2    400
+  5 full rate, diffusers internal                  4      64    81880    82935  15.6    400
+  6 half rate, SDRAM                               0      32    54594    55488  10.4    400
+  7 half rate, diffusers internal                  2      32    46544    47592   8.9    400
+  8 half rate, all internal                       32       0    31473    32430   6.0    400
+
+=== capture 3 of 3 (heavy playback), 110 s after boot, sequencer playing
+audio load without the bench (Profiler): avg 43 %, max 93 %
+row variant                                   int KB   SD KB  avg cyc  max cyc  avg %   runs
+  0 stock, both buffers SDRAM (as shipped)         0      64    89744    90844  17.1    400
+  1 stock, buffer 1 internal                      32      32    59422    60478  11.3    400
+  2 stock, buffer 2 internal                      32      32    75534    76513  14.4    400
+  3 stock, both internal (aliased)                64       0    45574    46597   8.7    400
+  4 bench, full rate, SDRAM (= row 0?)             0      64    95364    96354  18.2    400
+  5 full rate, diffusers internal                  4      64    81874    83068  15.6    400
+  6 half rate, SDRAM                               0      32    54600    55670  10.4    400
+  7 half rate, diffusers internal                  2      32    46549    47655   8.9    400
+  8 half rate, all internal                       32       0    31472    32311   6.0    400
+

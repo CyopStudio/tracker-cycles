@@ -3,6 +3,15 @@
 #include "AudioStream.h"
 
 #include "reverb.h"
+#include "reverb_half.h"
+
+// Tracker Cycles: the Original Tracker runs the reverb at half rate
+// (Polyverb/reverb_half.h: ~10 % of the audio block instead of ~17 %)
+#ifndef PLATFORM_IMX
+using PolyverbReverb = ReverbHalf;
+#else
+using PolyverbReverb = Reverb;
+#endif
 
 class AudioEffectPolyverb : public AudioStream
 {
@@ -41,7 +50,7 @@ class AudioEffectPolyverb : public AudioStream
 
   private:
     audio_block_t* inputQueueArray[2];
-    Reverb reverb;
+    PolyverbReverb reverb;
     uint16_t* buffer;
     uint16_t* buffer2;
     bool isBlockedUpdate;

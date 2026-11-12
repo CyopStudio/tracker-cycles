@@ -1,0 +1,14 @@
+> setcps (120/60/4)
+> d3 $ n "808" # s "arpy" # speed "<1 2>" |+ n 12
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ n "0 .. 7"
+
+d3 $ n "808" # s "arpy" # speed "<1 2>" |+ n 2
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5

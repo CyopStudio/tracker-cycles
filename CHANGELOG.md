@@ -1,110 +1,53 @@
 # Changelog
 
-All notable changes to the **Polyend Tracker Community Edition (CE)** firmware across **Original Tracker** (`MK66`), **Tracker+** and **Tracker Mini** (`IMX`) are documented in this file.
+Notable changes to **Tracker Cycles**, TidalCycles-style live coding for the Original Polyend Tracker (MK66). Tracker Cycles is a fork of [Polyend Tracker Community Edition (CE)](https://github.com/polyend/tracker-ce); for the changes in CE itself, see its own changelog.
 
 ---
 
-## [1.0.0] - Initial Community Edition Release
-
-> **⚠️ Important :: Project Compatibility Notice:**
-> To support dedicated per-step **Micro-move (`m`)** and **Volume (`V`)** columns alongside **`Fx1`** and **`Fx2`**, pattern files (`.mtp`) have been updated to a new format (**Version 6**).
-> 
-> - **Loading old projects works automatically**: Existing projects created on official/older firmwares load seamlessly and are upgraded in memory.
->   
-> - **Saving updates the project to Version 6 (not backward-compatible with older firmware)**: Once you save a project on Community Edition firmware, its saved `.mtp` pattern files cannot be read by older firmwares. **Please make a backup of your `Projects/` folder on your SD card or use `Save As` to save under a new project name, if you ever plan to roll back to an older firmware.**
+## [1.0.0] - First release
 
 ### Added
 
-1. **Open Synth SDK & New `CHIP` + `DIRT` Synthesizer Engines (Tracker+ & Tracker Mini)**
-   * Added a new Open Synth SDK allowing the community to add new synthesizer engines. `CHIP` is the first implementation of this open architecture.
-   * Added **`DIRT`** (wave-shaping/distortion synth).
-   * See [`docs/custom_synth_sdk.md`](docs/custom_synth_sdk.md) to learn more about developing your own engines.
+* **Tidal pattern engine.** Patterns are written in real Tidal syntax and evaluated on the Tracker. The engine is type-checked like GHC would, and checked against event lists captured from Tidal 1.10.3 (241 exact cases; random functions are checked by their behaviour).
+  * About 140 functions and operators: time, structure, randomness, layering, harmony, signals, pairs (`within`, `zoom` …), conditional ones (`fix`, `contrast`), restarts (`qtrigger`) and the operator families (`#`, `|+|` … `|%|`, `|**|`, `|<|`, `|>|`). The list is in `docs/tidal_code_tree.md`.
+  * `d1`–`d8` play the 8 sample tracks. `d9`–`d16` send MIDI notes, CCs, pitch bend, program changes and aftertouch (`midichan`, `ccn`, `ccv`, `midibend`, `progNum`, `miditouch`); a pattern with no `n` / `note` sends just those messages.
+  * `setcps` sets the tempo; MIDI clock out follows it.
+  * `slice` plays one part of a sample per event (begin / end), exactly on the Tracker; `splice` also fits the part to the event's length.
+  * `mute` / `unmute` / solo / `hush`; launch modes `jumpMod` / `jumpIn`.
+* **Scheduler.** Patterns are queried on the main loop ahead of time, so the audio interrupt only plays the notes that are due.
+* **Sound mapping.** Tidal controls map onto the Tracker's engine: gain, pan, filters, resonance, delay / reverb sends, bit crush, overdrive, sample start / end, envelopes, pitch and slices.
+  * `# voices 1-3` (Tracker Cycles' own control) gives a track overlapping notes. The editor adds or raises it when an edit brings in layering (`jux`, `off`, `superimpose`, echoes, `ghost`, stacks, chords); a value you lower yourself stays.
+  * A load-driven governor keeps at most 16 notes sounding.
+* **Code editor on the Tracker.** A structured editor works on the code tree, so the code is always valid.
+  * Two editing modes, switched with Rec. Cursor mode (the default) moves token by token and line by line, like a text editor that only allows valid code. Tree mode moves through the code tree.
+  * The jog wheel changes values in steps that suit what they mean. The pads enter notes, instruments and chords.
+  * Screen 1 / 2 open the functions and controls menus, which only offer choices that type-check (alphabetical). Screen 3–6 put `[ ]`, `< >`, `{ }%4` or a euclid `( )` around the step at once; Screen 7 is random choice `|`; Screen 8 changes an operator (`#` → `|+` …) or adds one.
+  * Shift + Screen 1–8: step marks `*`, `/`, `!`, `@`, a layer `,` (chords, polyrhythms), `""` (a number as a pattern), `?` / `..` / a line break by context, and undo.
+  * Delete unwraps functions and operators and never leaves a hole. Insert adds a `$` function or a `#` control depending on where the cursor is. Copy, paste and block duplication.
+  * Play evaluates the block; hold Pattern and press pads to mute, Shift + Pattern to solo.
+  * Functions that layer notes (`jux`, `off`, echoes, stacks, chords) add `# voices` for you.
+  * Evaluating flashes the block green (accepted) or red (refused).
+  * Several blocks per `dN`, line breaks, and block comments (edited on the Tracker's naming keyboard).
+  * Each event's steps light up as they sound.
+  * The status view (Shift + Master) shows tempo, audio load, voices and errors.
+* **Projects.** The code is saved with the project as `<Name>.tidal`, and the working copy is saved about 2 s after each edit. Instruments, samples and settings load and save as before.
+* **Tidal sample folders.** Shift + Sample Loader loads a `/Tidal/<folder>/` of WAV files as one sliced instrument, so `s "bd:3"` works as in SuperDirt.
+  * It converts most WAV formats and reports refused files in `/tidal_folders.txt`.
+  * Loading waits whenever the scheduler needs the main loop, so it doesn't cost notes.
 
-2. **Modular Sample Editor Effect & Generator Plugins (All 3 Devices)**
-   * Added hot-swappable DSP plugins loaded from `/Effects/*.ptfx` on the SD card. 
-   * Supports up to **12 parameters** (across 3 pages) and up to **128 installed plugins**.
-   * Added the complete `.ptfx` SDK, `ptfx_builder.py`, and 6 reference effects/generators (`Add Silence`, `Analog Kick Gen`, `Chiptune Voice Gen`, `Multi-Mode Filter`, `Stereo Delay`, `Stereo to Mono`) in [`editor-fx-sdk/`](editor-fx-sdk/).
-   * See [`docs/modular_effects_system.md`](docs/modular_effects_system.md) to learn more about developing your own plugins.
+### Changed
 
-3. **Wavetable Envelopes (`WT Env`), Wavetable LFOs (`WT LFO`) & Step FX (`w` / `y`) (All 3 Devices)**
-   * Added `WT Env` and `WT LFO` modulation types across all 7 instrument parameters (`Volume`, `Panning`, `Cutoff`, `Wavetable Position`, `Granular Position`, `Granular Length`, `Finetune`) with **128 Factory (`F 001`–`F 128`)** and **128 User (`U 001`–`U 128`)** morphable contours and dual-axis `Warp X/Y` shaping.
-   * Load your own wavetables to overwrite the 128 User shapes, by uploading them to `/Envelopes/*.wav`
-   * Added `w` (WT Volume Env) and `y` (WT Filter Env) pattern step FX for per-step envelope duration/warp/ADSR shaping.
-   * See [`docs/wavetable_envelopes.md`](docs/wavetable_envelopes.md).
+* **Audio CPU load.** Idle voices, delay and reverb no longer process silence; the reverb runs at half rate. Together these cut the base audio load from about 60 % to about 7 %.
+* **Reduced firmware.** The pattern editor, song mode, step sequencer, performance mode, sample recorder, audio export and MOD / IT import / export are removed. The Tracker is a Tidal instrument now.
+* **Version label.** The firmware is named `PolyendTracker_Cycles_<version>.ptf` and shows `tracker-cycles <version>`.
 
-4. **Custom Color Themes & Font Packages (All 3 Devices)**
-   * You can now create your own themes and load them from `/Themes/*.json` on your SD Card (up to 29 custom themes alongside the 3 built-in themes) and custom antialiased font packages from `/Fonts/*.ptfont` (up to 30 custom fonts) selectable in `Config > General > Theme / Font`.
-   * Create your own with the [Web Theme & Font Editor](https://polyend.github.io/tracker-theme-editor/) ([`polyend/tracker-theme-editor`](https://github.com/polyend/tracker-theme-editor)). For more information see: [`docs/custom_themes_and_fonts.md`](docs/custom_themes_and_fonts.md).
+### Known limitations
 
-5. **Performance Mode Enhancement (All 3 Devices)**
-   * Added page toggling between Sample Tracks and MIDI/Synth Tracks in Performance Mode. Just keep pressing `[Perform]` to toggle between the views.
-   * Oh, for OG Tracker users, there's a small surprise that goes along well with this change.
-
-6. **Hybrid SD Card Sample Streaming (All 3 Devices)**
-   * Long samples  (`256 KB` and larger) now keep only their initial attack in sample memory while streaming the rest of the audio directly from the SD card in the background. This lets you load a massive amount of stems, loops, and recordings into a single project while using only a fraction of your sample RAM.
-     
-   * **What Streams on Each Device**:
-     * **Tracker+ & Tracker Mini**: Streams **`One-Shot`**, **`Forward Loop`**, **`Backward Loop`**, **`Ping-Pong Loop`**, **`Slice`**, and **`Beat Slice`** instruments (`Wavetable` and `Granular` instruments remain fully in RAM).
-       
-     * **Original Tracker**: Streams **`One-Shot`**, **`Forward Loop`**, **`Backward Loop`**, and **`Ping-Pong Loop`** instruments, while keeping **`Slice`** and **`Beat Slice`** instruments (alongside `Wavetable` and `Granular`) fully in RAM to keep performance solid across multiple tracks.
-       
-   * **Works Transparently with the Sample Editor**: You can still edit streamed samples in the Sample Editor or switch play modes at any time. The Tracker automatically loads the full sample into RAM while you edit it and returns to streaming once your edits are applied. This excludes very long sample however, due to RAM restrictions. If you plan to stream multi-minutes samples, please prepare them outside of the device.
-   * See [`docs/developer_guide.md`](docs/developer_guide.md#3-copy-on-write-workspaceinstruments-incremental-project-saver--hybrid-sd-streaming) for technical details.
-
-7. **`Slice` & `Beat Slice` Instruments can now `Play Thru` (All 3 Devices)**
-   * Added a per-instrument **`Play Thru`** (`Off` / `On`) setting on the **`More`** page of the **Sample Playback** screen for both **`Slice`** and **`Beat Slice`** modes.
-   * When **`Play Thru`** is **`On`**, triggering any slice starts at that slice marker and continues playing through subsequent slices until the note is released (`Note Off` / `CUT` / `FAD`) or the end of the sample is reached.
-
-8. **Dedicated Micro-move (`m`) & Volume (`V`) Step View (All 3 Devices)**
-   * Each pattern step now stores dedicated **Micro-move (`m`)** (`0..100`) and **Volume / Velocity (`V`)** (`0..100`) values in addition to its two custom step FX slots (**`Fx1`** and **`Fx2`**), freeing both FX slots for creative use.
-   * Pressing **`[Note]`** in Pattern View while the cursor is already on the **`Note`** column toggles the two effect columns between the standard **`[Fx1 | Fx2]`** view and the new **`[m | V]`** view.
-   * Unquantized live recording (**Record Micro-move**) and velocity recording (**Record Velocity**) now write directly into the dedicated **`m`** and **`V`** step fields instead of occupying **`Fx1`** and **`Fx2`**.
-   * Full support in **`[m | V]`** view for Jog-wheel / `±` editing, Pad entry, `Delete`, `Copy` / `Paste`, `Invert`, `Undo` / `Redo`, and the **`Fill`** tool (`Constant`, `From-To`, `Random`, `Euclidean`).
-
-9. **Granular Length Automation & Step FX (`z`) (All 3 Devices)**
-   * Added **`Granular Length`** as a modulatable parameter in **Instrument Automation**, allowing you to animate grain size over time using an Envelope, LFO and the new Wavetable Envelope or LFOs.
-   * Added the **`z`** step FX (`0`–`100%`) to control grain length on a per-step basis (`0–50%` gives fine `1.0–100.0 ms` control for tight micro-grains, while `50–100%` sweeps `100.0–1000.0 ms` for lush clouds).
-     
-10. **More Chance Conditions (All 3 Devices)**
-   * Spiced up the **`Chance` (`C`)** step FX beyond percentage probability (`C  0`–`C100`) with conditional and cycle-based modes inspired by the Polyend Play:
-     * **Group with Last (`C GL`)**: Plays only if the previous conditional step evaluated on the same track played.
-     * **Not Last (`C !L`)**: Plays only if the previous conditional step evaluated on the same track was skipped.
-     * **Play N / Skip M (`C1:1`–`C6:6`)**: Plays the step for `N` consecutive pattern playthroughs, then skips it for `M` playthroughs (`N, M` in `1..6`).
-     * **Skip N / Play M (`CS11`–`CS66`)**: Skips the step for `N` consecutive pattern playthroughs, then plays it for `M` playthroughs (`N, M` in `1..6`).
-     
-11. **Reactivated Multi-Folder SD Card Image Viewer (All 3 Devices)**
-   * Reactivated and expanded the JPEG image viewer under `Config > Info` with three user folders (`Reference`, `Notes`, and `Custom` in `/Images/<Folder>/1.jpg` … `48.jpg`), supporting Left/Right, Jog-wheel, and direct Pad `1–48` selection.
-   * See [`docs/image_viewer.md`](docs/image_viewer.md).
-
-### Changed & Fixed
-
- * **Live Recording Improvements (All 3 Devices)**:
-	* You can now play much tigther notes on single-armed tracks. As in: If you play a second note before releasing the first, it won't get lost.
-	* Audible first note after preroll, and configurable first-note recording timing threshold (if you tend to play early).
-	  
-* **Exact `44100 Hz` Offline Audio Export (All 3 Devices)**:
-	* Fixed sample rate drift during offline master and stem export so rendered `.wav` files match real-time `44100 Hz` playback pitch and timing.
-	* Also removed excessive silence at end of renders.
-	  
-* **Removed clicks on rendered samples and editor effects (All 3 devices)**
-	* No more clicks at the end of your samples.
-	  
-* **MIDI Overhaul (All 3 devices)**
-	* Fixed USB MIDI enumeration for Windows 11 (March 2026 update).
-	* Fixed long-term tempo drift and overhauled how MIDI Clock is sent out. Timing is now ~15× tighter and stays locked over hours of playback.
-	* Fixed an issue where the Tracker could start slightly late (by one clock tick) when pressing Play on an external master clock or DAW. Step 1 now fires dead-on the downbeat.
-	* The Tracker now responds to MIDI `Continue` and `Song Position Pointer` messages.
-	* Improved how the Tracker follows incoming MIDI Clock when your computer or master device sends slightly uneven clock bursts, and fixed the `Clock Sync Delay` setting so fine-tuning your setup's latency works predictably.
-	* Fixed low-level USB and TRS MIDI buffer issues that could occasionally drop clocks, notes, or CC automation during busy patterns.
-	
-* **Faster Project Loading & Saving (All 3 Devices)**:
-	* Opening a project no longer duplicates all of its audio samples into a temporary folder on the SD card before loading them into memory. Instead, samples are loaded directly from your project folder, making even large, sample-heavy projects open in a fraction of the time while drastically reducing SD card wear.
-	* Saving changes to your current project now only writes out samples whose audio was actually edited or newly added, while pattern edits and instrument parameter tweaks save almost instantly. (`Save As` still saves a complete, standalone copy of your project and all its samples).
-	  
-* **Major Internal Memory, SDRAM & Audio Engine Optimization (All 3 Devices)**:
-	* Reclaimed internal SRAM and SDRAM across all three devices to power Hybrid SD Card Sample Streaming while keeping 100% of the original sample RAM pool intact (`11.25 MB` on Original Tracker / `60 MB` on Tracker+ & Tracker Mini), leaving generous internal RAM headroom (`~128 KB` free on Original Tracker, `~22.5 KB` `SRAM_ITC` + `~21.5 KB` `SRAM_DTC` + `~9.3 KB` `SRAM_OC` on Tracker+ & Tracker Mini) and up to `~29 MB` (`IMX`) / `~5.3 MB` (`MK66`) of reclaimable SDRAM for future community ideas.
-	* Optimized real-time audio rendering for cleaner playback on heavy multi-track projects.
-	  
-* **Open-Source Build Consolidation (All 3 Devices)**:
-	* Unified `core/`, `platforms/mk66/`, `platforms/imx/`, `synth/`, `util/`, and `editor-fx-sdk/` into a single monorepo built via a top-level [`Makefile`](Makefile) and [`version.mk`](version.mk).
-	* Removed the proprietary NES emulator and repurposed its `EXTERNAL_RAM` region (`externalRamScratchBuff`, `768 KB`) as the shared scratch pool for `.ptfx` plugins, offline audio export, SD `.wav` preview, and modal file browsers. (Sorry gamers).
+* Original Tracker (MK66) only.
+* No SuperCollider synths. Playback rate is approximated through tuning. `chop` / `striate` are not available on the device yet.
+* No lambdas, `let` or user-defined functions. Tuples are pairs only. `echoWith` / `plyWith` are limited to 8 layers.
+* Random functions follow Tidal's probabilities, not Tidal's values.
+* At most 48 instruments and 48 files per sample folder, and about 7.5 MB of sample memory.
+* Loading a sample folder can pause the screen briefly; load folders before a performance.
+* While several patterns play, a menu with many choices opens at once but can take a moment to finish checking which choices fit ("checking k of N"); the same menu in the same kind of place is remembered and opens checked.
+* A sample whose name has no letters (`808 5.wav` → `808_5`) can't be used in a pattern; rename the file to include a letter.
