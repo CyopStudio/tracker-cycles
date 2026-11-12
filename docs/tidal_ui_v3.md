@@ -86,6 +86,10 @@ Status (2026-11-11, RC11 `PolyendTrac_CyclesRC11.ptf`, not yet run): built. Quic
 
 **D5. Tests.** Smoke sessions for each key in cursor mode. Unit checks for the token walk (a round trip of Left / Right over every token of the example file, Up / Down over line breaks).
 
+## After D (RC11-RC24, 2026-11-12)
+
+Done and in use on the device: gaps and bars as cursor stops, bracket-only cursor, mode colours, Play / Pattern swapped, the Shift row of step marks, brackets at once, Screen 8 changing operators, menu names (functions / controls / effects / operators), alphabetical menus, the highlight stall, auto `# voices`, the function jog dropouts, the highlight redraw split (RC23: "sooooo much better"), and the pre-release optimisations (RC24: cursor tokens, autosave pacing, block heights, menus by type context).
+
 ## Stage E: release
 
 The user's device pass on the last RC, then the release flow in CLAUDE.md (develop, `release/1.0.0`, `main` + tag `v1.0.0`).

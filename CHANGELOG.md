@@ -21,8 +21,11 @@ Notable changes to **Tracker Cycles**, TidalCycles-style live coding for the Ori
 * **Code editor on the Tracker.** A structured editor works on the code tree, so the code is always valid.
   * Two editing modes, switched with Rec. Cursor mode (the default) moves token by token and line by line, like a text editor that only allows valid code. Tree mode moves through the code tree.
   * The jog wheel changes values in steps that suit what they mean. The pads enter notes, instruments and chords.
-  * The Screen buttons open the structure menus (`$`, `#`, `[ ]`, `< >`, `{ }`, euclid, `|`, operators), which only offer choices that type-check.
-  * Delete unwraps functions and operators and never leaves a hole. Insert adds a `$` function or a `#` control depending on where the cursor is. Shift + Screen 1–3 add `# gain`, `# room` and `# delay`. Undo, copy, paste and block duplication.
+  * Screen 1 / 2 open the functions and controls menus, which only offer choices that type-check (alphabetical). Screen 3–6 put `[ ]`, `< >`, `{ }%4` or a euclid `( )` around the step at once; Screen 7 is random choice `|`; Screen 8 changes an operator (`#` → `|+` …) or adds one.
+  * Shift + Screen 1–8: step marks `*`, `/`, `!`, `@`, a layer `,` (chords, polyrhythms), `""` (a number as a pattern), `?` / `..` / a line break by context, and undo.
+  * Delete unwraps functions and operators and never leaves a hole. Insert adds a `$` function or a `#` control depending on where the cursor is. Copy, paste and block duplication.
+  * Play evaluates the block; hold Pattern and press pads to mute, Shift + Pattern to solo.
+  * Functions that layer notes (`jux`, `off`, echoes, stacks, chords) add `# voices` for you.
   * Evaluating flashes the block green (accepted) or red (refused).
   * Several blocks per `dN`, line breaks, and block comments (edited on the Tracker's naming keyboard).
   * Each event's steps light up as they sound.
