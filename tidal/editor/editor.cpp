@@ -254,8 +254,90 @@ bool Editor::recheck(Program& p, Text& err) const {
 // ---------------------------------------------------------------------------
 // in-place edits
 
+// ---- voices for layering functions (user, after RC15) -------------------------------
+// Overlapping notes on one sample track only ring with `# voices N` (else
+// each note cuts the last, docs/tidal_voices.md). How many a block's code
+// asks for: jux / superimpose / off 2, echoes and ghost 3, stack / layer /
+// "[a, b]" one per layer, chords 3; nested ones multiply; at most 3 (the
+// Tracker's players per track).
+static uint16_t findControlApp(const Program& p, uint16_t n, const char* name);
+static EditSpec spec(EditKind k, uint16_t target, const Text& code);
+namespace {
+bool nameIn(const char* n, std::initializer_list<const char*> names);
+}
+
+static int layersOf(const Program& p, uint16_t list) {
+    return list && p.at(list).kind == Kind::List ? p.childCount(list) : 1;
+}
+
+static int voicesNeeded(const Program& p, uint16_t n) {
+    if (!n) return 1;
+    const Node& x = p.at(n);
+    int inner = 1;
+    for (uint16_t c = x.first; c; c = p.at(c).next) {
+        const int v = voicesNeeded(p, c);
+        if (v > inner) inner = v;
+    }
+    int factor = 1;
+    if (x.kind == Kind::App && x.first && p.at(x.first).kind == Kind::Fn) {
+        const char* f = lib((int)p.at(x.first).a).name;
+        const uint16_t a0 = p.at(x.first).next;  // the first argument
+        if (nameIn(f, {"jux", "juxBy", "superimpose", "off", "overlay"})) {
+            factor = 2;
+        } else if (nameIn(f, {"stut", "echo", "stutter", "echoWith", "stutWith"})) {
+            if (a0 && p.at(a0).kind == Kind::Num) {  // the count
+                const Rational r = nodeRational(p.at(a0));
+                factor = (int)(r.num / (int32_t)(r.den ? r.den : 1));
+            } else {
+                factor = 3;
+            }
+        } else if (nameIn(f, {"ghost", "ghost'", "rolled", "rolledBy"})) {
+            factor = 3;
+        } else if (nameIn(f, {"stack", "layer"})) {
+            factor = layersOf(p, a0);
+        }
+    } else if (x.kind == Kind::MSub || x.kind == Kind::MAlt) {
+        factor = x.kind == Kind::MSub ? p.childCount(n) : 1;  // [a, b]: layers at once (<a, b> too)
+        if (x.kind == Kind::MAlt && p.childCount(n) > 1) factor = p.childCount(n);
+    } else if (x.kind == Kind::MChord) {
+        factor = 3;
+    }
+    const int v = factor * inner;
+    return v < 1 ? 1 : v > kMaxVoices ? kMaxVoices : v;
+}
+
+// Inside an open edit: the block now needs more voices than before the edit
+// and has fewer: raise a literal `voices`, or add `# voices N` to the whole
+// pattern (part of the same undo step). A voices the user lowered stays,
+// unless an edit adds more layering.
+void Editor::raiseVoices() {
+    if (cps_ || slot_ >= kSampleSlots) return;
+    const uint16_t b = prog_->block[slot_];
+    const uint16_t root = b ? prog_->at(b).first : 0;
+    if (!root) return;
+    const int need = voicesNeeded(*prog_, root);
+    if (need <= voicesBefore_ || need <= 1) return;
+    if (const uint16_t app = findControlApp(*prog_, b, "voices")) {
+        const uint16_t arg = prog_->at(prog_->at(app).first).next;
+        if (!arg || prog_->at(arg).kind != Kind::Num) return;  // a pattern ("<1 3>"): as the user wrote it
+        const Rational have = nodeRational(prog_->at(arg));
+        if (have.den == 1 && have.num >= need) return;
+        setNodeRational(prog_->at(arg), makeRational(need, 1), 0);
+        voicesAdded_ = need;
+        return;
+    }
+    EditSpec sp = spec(EditKind::WrapOp, root, "voices " + tnum(need));
+    sp.op = "#";
+    sp.left = true;
+    if (applySpec(sp)) voicesAdded_ = need;
+}
+
 bool Editor::beginEdit() {
     if (prog_->checkpointOpen()) prog_->rollback(*cp_);  // never nest
+    {
+        const uint16_t b = prog_->block[slot_];
+        voicesBefore_ = b && !cps_ ? voicesNeeded(*prog_, prog_->at(b).first) : 1;
+    }
     Error e;
     trackerBefore_ = !trackerMode_ || cps_ || trackerCheck(*prog_, slot_, e);
     const uint16_t roots[2] = {prog_->block[slot_], prog_->cpsExpr};
@@ -272,6 +354,7 @@ void Editor::abortEdit() {
 
 bool Editor::endEdit(uint16_t cursor, bool check) {
     gapSeq_ = 0;
+    if (check) raiseVoices();
     Text err;
     if (check && !recheck(*prog_, err)) {
         abortEdit();
@@ -1245,7 +1328,9 @@ Label Editor::cursorInfo() const {
 void Editor::act(Action a) {
     padAgain_ = -1;  // a slot pad twice in a row only
     dropEmptyBlocks();
+    voicesAdded_ = 0;
     actOne(a);
+    noteVoices();
     dropEmptyBlocks();
     cursorSettle();
 }

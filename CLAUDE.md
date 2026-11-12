@@ -226,6 +226,14 @@ to upstream CE.
     the LP / HP filter, progNum / miditouch go out before the MIDI note;
     coarse refused in Tracker mode. 254 golden cases, 212 types. Flash
     969,276 B (92.4 %, +11.9 KB).
+    Voices for layering (user, RC16 PolyendTrac_CyclesRC16.ptf, not yet
+    run): an edit that raises what a sample block's code needs
+    (voicesNeeded: jux / juxBy / superimpose / off / overlay 2, stut / echo
+    / stutter / echoWith / stutWith their count, ghost / rolled / chords 3,
+    stack / layer / "[a, b]" / "<a, b>" per layer; nested multiply; cap 3)
+    adds `# voices N` or raises a literal voices in the same undo step
+    (Editor::raiseVoices in endEdit); never lowers; MIDI blocks and
+    loaded files untouched; the message says "(+ # voices N ...)".
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

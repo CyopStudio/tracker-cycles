@@ -350,6 +350,16 @@ private:
     bool entryDone(uint16_t seq0, int pos0);  // after a pad entry: start a chord there
     void chordAdd(const Text& code, const Label& label);
     void ensureVoices();
+    int voicesBefore_ = 1;  // what the block's code needed when the open edit began
+    int voicesAdded_ = 0;   // an edit raised / added `voices` to this (the message says so)
+    void raiseVoices();
+    void noteVoices() {
+        if (!voicesAdded_ || messageError_) return;
+        Label m;
+        m.printf("  (+ # voices %d: overlapping notes)", voicesAdded_);
+        message_ += m;
+        voicesAdded_ = 0;
+    }
     void openChords();
     bool flow(bool right, uint16_t from);  // Left / Right past the end of a leaf / sequence
     void flowInto(bool right, uint16_t n);

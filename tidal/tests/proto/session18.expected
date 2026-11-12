@@ -1,6 +1,6 @@
-msg: pattern modifiers: stack [x, x]
+msg: pattern modifiers: stack [x, x]  (+ # voices 2: overlapping notes)
 msg: list gap 2 of 2: Insert copies an element in, Paste / Replace insert, Delete removes the one before
-msg: inserted a copy into the list
+msg: inserted a copy into the list  (+ # voices 3: overlapping notes)
 msg: list gap 2 of 3: Insert copies an element in, Paste / Replace insert, Delete removes the one before
 msg: insert: s "bd sd"
 setcps (120/60/4)
@@ -9,7 +9,7 @@ setcps (120/60/4)
 d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
 
 -- hats
-d2 $ stack [s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine, s "bd sd", s "hh*8" # gain 0.8 # pan sine]
+d2 $ stack [s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine, s "bd sd", s "hh*8" # gain 0.8 # pan sine] # voices 3
 
 d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
 
@@ -27,14 +27,14 @@ msg: list gap 0 of 1: Insert copies an element in, Paste / Replace insert, Delet
 msg: pasted s "hh*8" # gain 0.8 # pan sine into the list
 msg: List : list
 > setcps (120/60/4)
-> d2 $ stack [s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine]
+> d2 $ stack [s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine] # voices 3
 setcps (120/60/4)
 
 -- kick and snare
 d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
 
 -- hats
-d2 $ stack [s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine]
+d2 $ stack [s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine] # voices 3
 
 d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
 

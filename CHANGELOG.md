@@ -16,7 +16,7 @@ Notable changes to **Tracker Cycles**, TidalCycles-style live coding for the Ori
   * `mute` / `unmute` / solo / `hush`; launch modes `jumpMod` / `jumpIn`.
 * **Scheduler.** Patterns are queried on the main loop ahead of time, so the audio interrupt only plays the notes that are due.
 * **Sound mapping.** Tidal controls map onto the Tracker's engine: gain, pan, filters, resonance, delay / reverb sends, bit crush, overdrive, sample start / end, envelopes, pitch and slices.
-  * `# voices 1-3` (Tracker Cycles' own control) gives a track overlapping notes.
+  * `# voices 1-3` (Tracker Cycles' own control) gives a track overlapping notes. The editor adds or raises it when an edit brings in layering (`jux`, `off`, `superimpose`, echoes, `ghost`, stacks, chords); a value you lower yourself stays.
   * A load-driven governor keeps at most 16 notes sounding.
 * **Code editor on the Tracker.** A structured editor works on the code tree, so the code is always valid.
   * Two editing modes, switched with Rec. Cursor mode (the default) moves token by token and line by line, like a text editor that only allows valid code. Tree mode moves through the code tree.

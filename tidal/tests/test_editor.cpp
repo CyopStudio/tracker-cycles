@@ -492,6 +492,51 @@ void testEditorModel(int& pass, int& fail) {
         EXPECT(!ec.cursorMode(), "Rec: tree mode");
     }
 
+    // layering functions add `# voices N` to sample blocks (user, after RC15)
+    {
+        static Program pv;
+        static Checkpoint cv;
+        static uint8_t uv[64 * 1024];
+        static Editor ev(pv, cv, uv, (int)sizeof uv);
+        RecOutput ov;
+        ev.setOutput(&ov);
+        Label er;
+        auto wrapWith = [&](const char* file, int slot, const char* prefix) {
+            ev.loadText(file, (int)strlen(file), er);
+            ev.gotoSlot(slot);
+            ev.act(Action::Home);
+            ev.act(Action::Right);  // into the block: its pattern
+            ev.act(Action::MenuModifiers);
+            int pick = -1;
+            for (int i = 0; i < (int)ev.menu().size() && pick < 0; i++)
+                if (!strncmp(ev.menu()[i].label.c_str(), prefix, strlen(prefix))) pick = i;
+            if (pick < 0) {
+                ev.act(Action::Cancel);
+                return std::string("(no item ") + prefix + ") open " + std::to_string(ev.menuOpen()) + " n " +
+                       std::to_string(ev.menu().size()) + " msg " + ev.message().c_str() + " first " +
+                       (ev.menu().size() ? ev.menu()[0].label.c_str() : "");
+            }
+            ev.selectMenu(pick);
+            ev.act(Action::Confirm);
+            return fileOf(ev);
+        };
+        std::string f = wrapWith("d1 $ s \"bd sd\"\n", 0, "jux rev");
+        EXPECT(f.find("jux rev $ s \"bd sd\" # voices 2") != std::string::npos ||
+                   f.find("(jux rev $ s \"bd sd\") # voices 2") != std::string::npos,
+               "jux adds # voices 2\n%s", f.c_str());
+        f = wrapWith("d1 $ s \"bd sd\"\n", 0, "off 0.25");
+        EXPECT(f.find("# voices 2") != std::string::npos, "off adds # voices 2\n%s", f.c_str());
+        f = wrapWith("d1 $ s \"bd sd\"\n", 0, "stut 3");
+        EXPECT(f.find("# voices 3") != std::string::npos, "stut 3 adds # voices 3\n%s", f.c_str());
+        f = wrapWith("d1 $ s \"bd sd\" # voices 1\n", 0, "rev $");
+        EXPECT(f.find("voices 1") != std::string::npos, "no layering: a voices 1 stays\n%s", f.c_str());
+        f = wrapWith("d1 $ s \"bd sd\" # voices 1\n", 0, "superimpose");
+        EXPECT(f.find("voices 2") != std::string::npos && f.find("voices 1") == std::string::npos,
+               "superimpose raises voices 1 to 2\n%s", f.c_str());
+        f = wrapWith("d9 $ n \"0 4\"\n", 8, "jux rev");
+        EXPECT(f.find("voices") == std::string::npos, "MIDI blocks: no voices\n%s", f.c_str());
+    }
+
     // the control mapping (editor/controls.*), shared with the device
     Control c;
     EXPECT(ctlFromId("pad13", c) && c == padCtl(12), "pad13");

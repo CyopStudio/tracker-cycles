@@ -6,7 +6,7 @@ menu operator: [#] [|+] [+|] [|-|] [|-] [-|] [|*|] [|*] [*|] [|/|] [|/] [/|] [|%
 msg: Fn gain : function
 msg: Op |+| : ControlPattern
 menu operators: ["0,7,10" +| x] ["0,4,7" +| x] ["<0 3 5>" + x] ["<0 12>" |+ x] [x |+ 12] [x + "<0 12>"] [x * 2] [|+ n 12] [|+ note 7] [|+ speed 2] [|+ gain 0.8] [|+ pan 0.5] [|+ cutoff 1000] [|- n 12] [|- note 7] [|- speed 2] [|- gain 0.8] [|- pan 0.5] [|- cutoff 1000] [|* n 12] [|* note 7] [|* speed 2] [|* gain 0.8] [|* pan 0.5] [|* cutoff 1000] [|/ n 12] [|/ note 7] [|/ speed 2] [|/ gain 0.8] [|/ pan 0.5] [|/ cutoff 1000] [|< n 12] [|< note 7] [|< speed 2] [|< gain 0.8] [|< pan 0.5] [|< cutoff 1000] [|> n 12] [|> note 7] [|> speed 2] [|> gain 0.8] [|> pan 0.5] [|> cutoff 1000] [>| n "0 3 5 7"] [>| s "bd*4"] [>| gain "1 0.8"] [<| n "0 3 5 7"] [<| s "bd*4"] [<| gain "1 0.8"] [+| n "0 3 5 7"] [+| gain "1 0.8"] [|>| n "0 3 5 7"] [|>| s "bd*4"] [|>| gain "1 0.8"] [|+| n "0 3 5 7"] [|+| gain "1 0.8"]
-msg: operators: "0,7,10" +| x
+msg: operators: "0,7,10" +| x  (+ # voices 3: overlapping notes)
 msg: operators: x |+ 12
 msg: n pattern: pads enter notes
 setcps (120/60/4)
@@ -17,7 +17,7 @@ d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
 -- hats
 d2 $ s "hh*8" |+| gain 0.8 # pan sine
 
-d3 $ n ("[0, 7, 10]" +| "0 .. 7") # s "arpy" # speed "<1 2>"
+d3 $ n ("[0, 7, 10]" +| "0 .. 7") # s "arpy" # speed "<1 2>" # voices 3
 
 -- MIDI channel 1
 d9 $ n ("c'maj e'min" |+ 12) # legato 0.5

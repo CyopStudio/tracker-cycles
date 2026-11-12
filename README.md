@@ -103,7 +103,7 @@ Tracker Cycles evaluates real Tidal syntax: function application, `$`, `.`, oper
   * Playback rate (`speed`, `loopAt`) is approximated through tuning.
   * The reverb and delay are global: `size`, `delaytime` and `delayfeedback` set them for everything (the last note wins). `coarse` isn't available (use `crush`).
   * `chop` and `striate` are not available on the device yet: the editor accepts them, but evaluating refuses them.
-* **Voices:** each track plays one note at a time unless you ask for more with `# voices 2` or `# voices 3` (Tracker Cycles' own control). In total at most 16 notes sound, fewer when the CPU is busy.
+* **Voices:** each track plays one note at a time unless you ask for more with `# voices 2` or `# voices 3` (Tracker Cycles' own control). The editor adds it for you when an edit brings in overlapping notes: `jux`, `superimpose`, `off` (2), `stut` / `echo` / `stutter` / `echoWith` (their count), `ghost`, `rolled`, chords (3), `stack` / `layer` / `"[a, b]"` (one per layer). In total at most 16 notes sound, fewer when the CPU is busy.
 * **Samples:** `s` picks one of the project's 48 instruments by name. Sample folders (below) bring back Tidal's `s "bd:3"` folder lookup.
 * **Language:** there are no lambdas, `let`, user-defined functions or type annotations. Tuples are pairs only. `echoWith` and `plyWith` are limited to 8 layers.
 * **Random values:** they follow Tidal's probabilities but differ from Tidal's actual values.

@@ -17,7 +17,7 @@ d5 $ n "[0, 4, 7] [2, 5] 12" # s "bd" # voices 3
 -- MIDI channel 1
 d9 $ n "c'maj e'min" # legato 0.5
 menu chord: [e'maj] [e'min] [e'maj7] [e'dom7] [e'min7] [e'dim] [e'dim7] [e'aug] [e'sus2] [e'sus4] [e'six] [e'five]
-msg: chord: e'min
+msg: chord: e'min  (+ # voices 3: overlapping notes)
 menu chord: [e'maj] [e'min] [e'maj7] [e'dom7] [e'min7] [e'dim] [e'dim7] [e'aug] [e'sus2] [e'sus4] [e'six] [e'five] [single note 4]
 msg: chord: single note 4
 setcps (120/60/4)

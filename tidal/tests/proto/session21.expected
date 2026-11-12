@@ -14,7 +14,7 @@ d9 $ n "c'maj e'min" # legato 0.5
 setcps (122/60/4)
 
 -- hats
-d2 $ stack [s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine]
+d2 $ stack [s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine, s "hh*8" # gain 0.8 # pan sine] # voices 3
 
 -- new hats
 d3 $ s "hh*8" # gain 0.8
