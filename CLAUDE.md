@@ -251,7 +251,8 @@ to upstream CE.
     + Screen 8 = unmute all (Action::UnmuteAll), Shift+Pattern alone still
     hush. Asked: per-track voices above 3 (answer in the reply: players
     are wired to their track's chain; raise kPlayers per track, keep the
-    global sounding cap).
+    global sounding cap). Parked for V2 (user): docs/tidal_voices.md "V2
+    (parked)".
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

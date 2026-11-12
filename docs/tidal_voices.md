@@ -184,3 +184,18 @@ are polyphony listening sets (chords on d4, overlapping bass on d5,
 echoes on d3). The report adds a `players:` line (most sounding, average,
 retriggers, cap steals, stale noteOffs, audio blocks in use) and the heap
 in use.
+
+## V2 (parked, user 2026-11-12): more players per track
+
+Asked after RC17: let a busy track ring more than 3 notes when others use 1.
+Players can't move between tracks (each is wired into its track's filter /
+crusher / pan / sends chain), so the plan is more players per track
+(`AudioVoice::kPlayers`, `playerEngine::kTidalPlayers`, `tc::kMaxVoices`,
+`voicesNeeded` cap) with the global sounding cap (8-16, load-driven)
+staying the real budget. Idle players cost no CPU (silence = no block).
+Internal RAM: `instrumentPlayer[8]` is 18.8 KB at 3 players, ~300-350 B
+per extra player (4 per track ~+2.7 KB, 5 ~+5.5 KB, 6 ~+8 KB); build 5 and
+check the heap on the status view. With it: a "voices full on dN" warning
+in the info box and, optionally, a same-track-only rule at the cap (a new
+note cuts its own track's oldest, never another track's).
+
