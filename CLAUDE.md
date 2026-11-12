@@ -312,6 +312,10 @@ to upstream CE.
     left the cursor off any token, so cursor mode's next Left / Right went
     to the block's start; checkMenu now settles, cursorMove / cursorLine
     settle first.
+    Release plan (user, 2026-11-12): RC24 device pass incl. the pending MIDI
+    tests (MIDI out never checked on hardware), then the example project
+    (tracker-cycles1.tidal + the project's files, the user's own samples)
+    in docs/ExampleProject/, then the release flow (Git section).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
