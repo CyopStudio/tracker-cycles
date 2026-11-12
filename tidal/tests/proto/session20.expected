@@ -11,7 +11,7 @@ msg: [ ] (number -> pattern): "[4 4]"
 msg: Fn rev : function
 msg: replace function: fast 2
 msg: replace function: (# room 0.3)
-menu replace function: [(|+ n 12)] [(|+ note 7)] [(|+ speed 2)] [(|+ gain 0.8)] [(|+ pan 0.5)] [(|+ cutoff 1000)] [(|- n 12)] [(|- note 7)] [(|- speed 2)] [(|- gain 0.8)] [(|- pan 0.5)] [(|- cutoff 1000)] [(|* n 12)] [(|* note 7)] [(|* speed 2)] [(|* gain 0.8)] [(|* pan 0.5)] [(|* cutoff 1000)] [(|/ n 12)] [(|/ note 7)] [(|/ speed 2)] [(|/ gain 0.8)] [(|/ pan 0.5)] [(|/ cutoff 1000)] [(|< n 12)] [(|< note 7)] [(|< speed 2)] [(|< gain 0.8)] [(|< pan 0.5)] [(|< cutoff 1000)] [(|> n 12)] [(|> note 7)] [(|> speed 2)] [(|> gain 0.8)] [(|> pan 0.5)] [(|> cutoff 1000)]
+menu replace function: [(|+ cutoff 1000)] [(|- cutoff 1000)] [(|* cutoff 1000)] [(|/ cutoff 1000)] [(|< cutoff 1000)] [(|> cutoff 1000)] [(|+ gain 0.8)] [(|- gain 0.8)] [(|* gain 0.8)] [(|/ gain 0.8)] [(|< gain 0.8)] [(|> gain 0.8)] [(|+ n 12)] [(|- n 12)] [(|* n 12)] [(|/ n 12)] [(|< n 12)] [(|> n 12)] [(|+ note 7)] [(|- note 7)] [(|* note 7)] [(|/ note 7)] [(|< note 7)] [(|> note 7)] [(|+ pan 0.5)] [(|- pan 0.5)] [(|* pan 0.5)] [(|/ pan 0.5)] [(|< pan 0.5)] [(|> pan 0.5)] [(|+ speed 2)] [(|- speed 2)] [(|* speed 2)] [(|/ speed 2)] [(|< speed 2)] [(|> speed 2)]
 > setcps (121/60/5)
 > d2 $ often (# room 0.3) $ s "hh*8" # gain 0.8 # pan sine
 setcps (121/60/5)

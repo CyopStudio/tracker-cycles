@@ -3,7 +3,7 @@ hw:shift+insert
 hw:insert
 hw:shift+pad1
 replace
-menu:1
+pick:hi-hats
 hw:play
 hw:play
 msg

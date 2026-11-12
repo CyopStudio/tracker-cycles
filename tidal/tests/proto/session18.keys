@@ -2,7 +2,7 @@ hw:shift+pad2
 hw:shift+insert
 hw:right
 hw:fx1
-menu:76
+pick:stack%20[x,%20x]
 hw:play
 msg
 hw:right
@@ -12,7 +12,7 @@ msg
 hw:left
 msg
 replace
-menu:14
+pick:s%20"bd%20sd"
 hw:play
 msg
 print

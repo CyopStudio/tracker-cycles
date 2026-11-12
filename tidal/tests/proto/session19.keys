@@ -6,7 +6,7 @@ hw:shift+jog+
 msg
 replace
 menulist
-menu:6
+pick:138
 hw:play
 msg
 hw:shift+s8

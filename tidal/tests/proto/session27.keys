@@ -23,13 +23,13 @@ hw:shift+pad3
 hw:note
 hw:s8
 menulist
-menu:0
+pick:"0,7,10"%20+|%20x
 hw:s8
 msg
 hw:shift+pad13
 hw:note
 hw:s8
-menu:4
+pick:x%20|+%2012
 hw:s8
 msg
 hw:shift+pad3

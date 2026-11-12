@@ -106,11 +106,15 @@ void testEditorModel(int& pass, int& fail) {
 
     // OK on an item before it was checked: applied (and checked) then
     for (Editor* e : {&eager, &lazy}) e->act(Action::MenuModifiers);  // FX1
-    lazy.selectMenu(3);  // unchecked: lazy has checked nothing yet
+    // eager's item 3, found by label in lazy's still unchecked list (it may
+    // sit elsewhere: lazy lists items that don't fit yet, menus are sorted)
     eager.selectMenu(3);
     const std::string want = eager.menu()[3].label.c_str();
-    const std::string got = lazy.menu()[3].label.c_str();
-    EXPECT(want == got, "item 3: %s vs %s", want.c_str(), got.c_str());
+    int at = -1;
+    for (int i = 0; i < (int)lazy.menu().size() && at < 0; i++)
+        if (want == lazy.menu()[i].label.c_str()) at = i;
+    EXPECT(at >= 0, "item %s in the unchecked menu", want.c_str());
+    lazy.selectMenu(at < 0 ? 0 : at);
     for (Editor* e : {&eager, &lazy}) e->act(Action::Confirm);
     EXPECT(fileOf(lazy) == fileOf(eager), "an unchecked item applied");
 

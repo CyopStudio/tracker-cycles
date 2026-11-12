@@ -12,7 +12,8 @@
 //     --boot FILE                 GHCi boot script (default proto/boot.ghci)
 //     --keys "a b c"              run editor actions headless, e.g.
 //                                 "down right wheel+ wrap menu:3 ok eval"
-//                                 extra tokens: menu:N  shot:FILE.png  wait:MS
+//                                 extra tokens: menu:N  pick:LABEL (%20 = space)
+//                                 shot:FILE.png  wait:MS
 //                                 print (file text to stdout)
 //                                 log (backend log, e.g. GHCi replies)
 //                                 hw:CONTROL / hw:shift+CONTROL presses a
@@ -82,7 +83,32 @@ static bool runKeys(Editor& ed, Framebuffer& fb, const std::string& keys) {
     std::string tok;
     while (in >> tok) {
         if (tok.rfind("menu:", 0) == 0) {
-            ed.selectMenu(atoi(tok.c_str() + 5));
+            const int i = atoi(tok.c_str() + 5);
+            if (getenv("TC_TRACE_PICKS"))  // one line per menu:N (sessions -> pick:LABEL)
+                fprintf(stderr, "MENUPICK %s\n", ed.menuOpen() && i >= 0 && i < (int)ed.menu().size()
+                                                     ? ed.menu()[i].label.c_str() : "\x01");
+            ed.selectMenu(i);
+        } else if (tok.rfind("pick:", 0) == 0) {
+            // pick:LABEL = the open menu's item with that label (%20 = space,
+            // %25 = %): sessions that survive menu order changes
+            std::string want;
+            for (size_t k = 5; k < tok.size(); k++) {
+                if (tok[k] == '%' && k + 2 < tok.size()) {
+                    want += (char)strtol(tok.substr(k + 1, 2).c_str(), nullptr, 16);
+                    k += 2;
+                } else {
+                    want += tok[k];
+                }
+            }
+            int found = -1;
+            for (int i = 0; i < (int)ed.menu().size() && found < 0; i++)
+                if (want == ed.menu()[i].label.c_str()) found = i;
+            if (found < 0) {
+                fprintf(stderr, "pick: no menu item '%s'\n", want.c_str());
+                printf("pick: no menu item '%s'\n", want.c_str());
+            } else {
+                ed.selectMenu(found);
+            }
         } else if (tok.rfind("shot:", 0) == 0) {
             if (!writeShot(ed, fb, tok.c_str() + 5)) fprintf(stderr, "can't write %s\n", tok.c_str() + 5);
         } else if (tok.rfind("hw:", 0) == 0) {

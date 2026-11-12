@@ -2956,6 +2956,51 @@ void Editor::openReplace() {
     openMenu(listGap() ? "insert" : "replace");
 }
 
+// Function / control menus in alphabetical order (user, after RC18), case
+// ignored and a leading "# " / symbol skipped; ties keep the library order.
+// Sorted through an index and moved once each (items are ~700 B).
+static const char* sortKey(const char* l) {
+    while (*l && !((*l >= 'a' && *l <= 'z') || (*l >= 'A' && *l <= 'Z') || (*l >= '0' && *l <= '9'))) l++;
+    return l;
+}
+static int keyCmp(const char* a, const char* b) {
+    a = sortKey(a);
+    b = sortKey(b);
+    for (;; a++, b++) {
+        int ca = (unsigned char)*a, cb = (unsigned char)*b;
+        if (ca >= 'A' && ca <= 'Z') ca += 32;
+        if (cb >= 'A' && cb <= 'Z') cb += 32;
+        if (ca != cb || !ca) return ca - cb;
+    }
+}
+void Editor::sortMenu(MenuList& items) {
+    const int n = (int)items.size();
+    uint8_t idx[kMenuMax];
+    for (int i = 0; i < n; i++) idx[i] = (uint8_t)i;
+    for (int i = 1; i < n; i++)
+        for (int k = i; k > 0 && keyCmp(items[idx[k - 1]].label.c_str(), items[idx[k]].label.c_str()) > 0; k--) {
+            const uint8_t t = idx[k];
+            idx[k] = idx[k - 1];
+            idx[k - 1] = t;
+        }
+    bool done[kMenuMax] = {};
+    for (int start = 0; start < n; start++) {  // apply the permutation: item k := old item idx[k]
+        if (done[start] || idx[start] == start) continue;
+        menuTmp_ = items[start];
+        int k = start;
+        for (;;) {
+            done[k] = true;
+            const int j = idx[k];
+            if (j == start) {
+                items[k] = menuTmp_;
+                break;
+            }
+            items[k] = items[j];
+            k = j;
+        }
+    }
+}
+
 void Editor::openWrap(WrapMode mode) {
     if (!cursor_ || prog_->at(cursor_).kind == Kind::Block) return error("select a pattern first");
     bool controlsOnly = mode == WrapMode::Controls || mode == WrapMode::Fx;
@@ -3051,6 +3096,7 @@ void Editor::openWrap(WrapMode mode) {
                 add(Text("(# ") + e.name + " " + controlDefault(e.name) + ")");
             }
         }
+        sortMenu(items);
         return (void)openMenu("replace function");
     }
     if (mode == WrapMode::Fx) {
@@ -3060,6 +3106,7 @@ void Editor::openWrap(WrapMode mode) {
             Text rhs = Text(e.name) + " " + controlDefault(e.name);
             addOp("#", rhs, true, "# " + rhs);
         }
+        sortMenu(items);
         return (void)openMenu("FX");
     }
     if (mode == WrapMode::Ops) {  // |+ |- |* |/ |< |> with a control
@@ -3119,6 +3166,7 @@ void Editor::openWrap(WrapMode mode) {
             if (tryWrapApp(head, nn, &sp)) items.push_back(MenuItem{head + " $ ...", sp, nn});
         }
         addLists();  // last, so the menu's other items keep their places
+        sortMenu(items);
         return (void)openMenu(mode == WrapMode::Dollar ? "$ functions" : "pattern modifiers");
     }
     if (controlsOnly) addControls();
@@ -3140,6 +3188,7 @@ void Editor::openWrap(WrapMode mode) {
         if (mode == WrapMode::All) addControls();
         if (mode == WrapMode::All) addLists();
     }
+    sortMenu(items);
     openMenu(controlsOnly ? "add control" : mode == WrapMode::Functions ? "functions" : "wrap");
 }
 

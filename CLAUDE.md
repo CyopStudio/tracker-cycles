@@ -253,6 +253,14 @@ to upstream CE.
     are wired to their track's chain; raise kPlayers per track, keep the
     global sounding cap). Parked for V2 (user): docs/tidal_voices.md "V2
     (parked)".
+    Menus sorted (user, RC19 PolyendTrac_CyclesRC19.ptf, not yet run): the
+    $ / modifiers / functions, # / add control / FX and replace-function
+    menus are alphabetical (Editor::sortMenu: index sort, case ignored,
+    leading "# " / symbols skipped, permutation applied with one temp
+    item); notes, samples (pad order), brackets, chords, launch, operators
+    and Replace's value lists keep their order. Smoke sessions pick items
+    by label (`pick:LABEL`, %20 = space; TC_TRACE_PICKS=1 prints what a
+    menu:N picked) so menu order changes don't break them.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

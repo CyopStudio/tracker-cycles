@@ -3,7 +3,7 @@ hw:shift+pad1
 hw:shift+insert
 hw:right
 hw:fx1
-menu:0
+pick:fast%202%20$%20...
 hw:play
 hw:instr
 hw:shift+pad3
@@ -17,7 +17,7 @@ hw:shift+pad2
 hw:shift+insert
 hw:right
 hw:fx1
-menu:76
+pick:stack%20[x,%20x]
 hw:play
 hw:right
 hw:insert
@@ -26,7 +26,7 @@ hw:shift+insert
 hw:insert
 hw:shift+pad3
 replace
-menu:1
+pick:hi-hats
 hw:play
 hw:shift+config
 type:new_hats

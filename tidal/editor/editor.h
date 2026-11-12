@@ -405,6 +405,8 @@ private:
     void doUnwrap();
     void evaluate();
     MenuList& menuBuild();  // clears the menu storage for a new menu; items are only collected
+    void sortMenu(MenuList& items);  // alphabetical (function / control menus)
+    MenuItem menuTmp_;
     bool openMenu(const Label& title);  // checks (or starts checking) and opens; false if empty
     bool buildOnly_ = false;            // while building: try* fill the spec without trying it
     bool lazyMenus_ = false;
