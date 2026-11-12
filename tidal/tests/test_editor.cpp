@@ -370,11 +370,95 @@ void testEditorModel(int& pass, int& fail) {
         EXPECT(labels(em) == first, "reopened: the same %zu items", first.size());
         em.act(Action::Cancel);
         em.act(Action::Down);
-        em.act(Action::WheelUp);  // an edit
+        em.act(Action::WheelUp);  // an edit that keeps every type
         em.act(Action::Up);
         em.act(Action::Replace);
-        EXPECT(em.menuOpen() && em.checkMenu(0) > 0, "after an edit: checked again");
+        EXPECT(em.menuOpen() && em.checkMenu(0) == 0, "after an edit keeping the types: the same context, reused");
+        const std::vector<std::string> reused = labels(em);
         em.act(Action::Cancel);
+        // ... and it is what a full check gives there (an eager editor, same code)
+        {
+            static Program pq;
+            static Checkpoint cq;
+            static uint8_t uq[32 * 1024];
+            static Editor eq(pq, cq, uq, (int)sizeof uq);
+            static char text[8192];
+            em.fileText(text, sizeof text);
+            eq.loadText(text, (int)strlen(text), er);
+            eq.gotoSlot(0);
+            eq.act(Action::Home);
+            eq.act(Action::Right);
+            eq.act(Action::Replace);
+            EXPECT(labels(eq) == reused, "reused menu = a full check (%zu vs %zu items)", labels(eq).size(),
+                   reused.size());
+            eq.act(Action::Cancel);
+        }
+        em.act(Action::Down);  // a different context (a number argument): checked
+        em.act(Action::Replace);
+        EXPECT(em.menuOpen() && em.checkMenu(0) > 0, "another type context: checked");
+        em.act(Action::Cancel);
+    }
+
+    // menus cached by type context (RC24): at every cursor stop of the
+    // example code, a cached (lazy) menu has exactly the items a full check
+    // gives; reuse across places must never change a menu
+    {
+        static Program pl, pe;
+        static Checkpoint cl, ce;
+        static uint8_t ul[32 * 1024], ue[32 * 1024];
+        static Editor lz(pl, cl, ul, (int)sizeof ul), eg(pe, ce, ue, (int)sizeof ue);
+        static char text[16384];
+        FILE* fp = fopen("proto/example.tidal", "rb");
+        const int len = fp ? (int)fread(text, 1, sizeof text - 1, fp) : 0;
+        if (fp) fclose(fp);
+        text[len] = 0;
+        Label er;
+        lz.setLazyMenus(true);
+        lz.loadText(text, len, er);
+        eg.loadText(text, len, er);
+        lz.setCursorMode(true);
+        eg.setCursorMode(true);
+        int checked = 0, reused = 0, bad = 0;
+        const Action menus[] = {Action::MenuModifiers, Action::MenuFx, Action::Struct2, Action::Replace};
+        for (int slot : {0, 1, 2, 8}) {
+            lz.gotoSlot(slot);
+            eg.gotoSlot(slot);
+            for (int step = 0; step < 40; step++) {
+                for (Action m : menus) {
+                    lz.act(m);
+                    eg.act(m);
+                    bool wasReused = false;
+                    if (lz.menuOpen()) {
+                        wasReused = lz.checkMenu(0) == 0;
+                        if (wasReused) reused++;
+                        while (lz.checkMenu(8) > 0) {}
+                        checked++;
+                    }
+                    if (lz.menuOpen() != eg.menuOpen() || (lz.menuOpen() && labels(lz) != labels(eg))) {
+                        if (bad++ < 1) {
+                            printf("  menu mismatch in d%d step %d action %s at %s: open %d/%d, %zu vs %zu items (%s)\n",
+                                   slot + 1, step, actionName(m), eg.cursorInfo().c_str(), lz.menuOpen(), eg.menuOpen(),
+                                   labels(lz).size(), labels(eg).size(), lz.menuTitle().c_str());
+                            for (auto& l : labels(lz)) printf("    lazy: %s\n", l.c_str());
+                            for (auto& l : labels(eg)) printf("    eager: %s\n", l.c_str());
+                            printf("    lazy at: %s (slot %d, empty row %d) / eager at: %s (slot %d, empty row %d)\n", lz.cursorInfo().c_str(), lz.slot(), lz.emptyRowIndex(), eg.cursorInfo().c_str(), eg.slot(), eg.emptyRowIndex());
+                            printf("    lazy msg: %s / eager msg: %s\n", lz.message().c_str(), eg.message().c_str());
+                            static char fa[8192], fb[8192];
+                            lz.fileText(fa, sizeof fa);
+                            eg.fileText(fb, sizeof fb);
+                            printf("    files %s, from the cache: %d\n", strcmp(fa, fb) ? "DIFFER" : "same", (int)wasReused);
+                        }
+                    }
+                    if (lz.menuOpen()) lz.act(Action::Cancel);
+                    if (eg.menuOpen()) eg.act(Action::Cancel);
+                }
+                lz.act(Action::Right);
+                eg.act(Action::Right);
+            }
+        }
+        EXPECT(bad == 0, "cached menus = full checks at every stop (%d menus, %d reused, %d mismatches)", checked,
+               reused, bad);
+        EXPECT(reused > checked / 4, "type contexts repeat: %d of %d menus reused", reused, checked);
     }
 
     // UI v3 C: the evaluate flash: green when accepted, red when refused,

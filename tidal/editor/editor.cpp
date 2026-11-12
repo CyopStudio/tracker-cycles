@@ -91,6 +91,7 @@ static const char* const kDefaultInstruments[kInstrumentSlots] = {
 Editor::Editor(Program& prog, Checkpoint& cp, uint8_t* undoArena, int undoBytes)
     : prog_(&prog), cp_(&cp), undoArena_(undoArena), undoCap_(undoBytes) {
     for (auto& s : state_) s = SlotState::Empty;
+    memset(tokSpans_, 0, sizeof tokSpans_);  // kept zero from here on (cursor.cpp clears what it used)
     // 48 instrument slots, one per pad (the Tracker has 48 sample
     // instruments). Default: Dirt-Samples folders, so SuperDirt plays them.
     for (int i = 0; i < kInstrumentSlots; i++) setInstrument(i, kDefaultInstruments[i]);
@@ -633,12 +634,27 @@ int Editor::checkMenu(int n) {
     }
     if (menuOpen_ && !menuTouched_ && menu_.size() == 1 && menuNext_ == 1) {
         applyMenuItem(0, onOperator());  // one item left: as if it had been the only one
+        // (outside act(): settle the cursor as an act() would, cursor mode
+        // otherwise sent the next Left / Right to the block's start)
+        dropEmptyBlocks();
+        cursorSettle();
         return 0;
     }
-    if (menuOpen_ && menuKey_ && menuNext_ >= menu_.size() && cacheKey_ != menuKey_) {  // remember the survivors
-        cacheKey_ = menuKey_;
-        cacheCount_ = menu_.size();
-        for (int i = 0; i < cacheCount_; i++) cacheLabel_[i] = fnvStr(2166136261u, menu_[i].label.c_str());
+    if (menuOpen_ && menuKey_ && menuNext_ >= menu_.size()) {  // remember the survivors
+        int at = -1, oldest = 0;
+        for (int i = 0; i < kMenuCache && at < 0; i++)
+            if (menuCache_[i].key == menuKey_) at = i;
+        if (at < 0) {
+            for (int i = 1; i < kMenuCache; i++)
+                if (menuCache_[i].used < menuCache_[oldest].used) oldest = i;
+            at = oldest;
+            MenuCache& c = menuCache_[at];
+            c.key = menuKey_;
+            c.count = menu_.size();
+            for (int i = 0; i < c.count; i++) c.label[i] = fnvStr(2166136261u, menu_[i].label.c_str());
+        }
+        menuCache_[at].used = ++menuUse_;
+        menuKey_ = 0;  // stored
     }
     if (menuOpen_ && menuChecking_ && menuNext_ >= menu_.size()) {  // lazily checked: done
         menuChecking_ = false;
@@ -653,15 +669,37 @@ int Editor::checkMenu(int n) {
 // A menu with one item that fits applies it at once (user, after
 // Editor14): no menu to confirm. Lazily checked menus (the device) do the
 // same when checking leaves one item before the user touched the menu.
-// What decides a menu's checked contents: its title, where the cursor is,
-// the code version (changes_), and the items it was built with.
+// What decides a menu's checked contents (UI v3 A3, by type context since
+// RC24): the menu and its items, and the types where they would go: the
+// target's kind / type, its parent (kind, function / operator, which child,
+// every child's type: polymorphic operands tie them), its grandparent's
+// kind / type, the slot kind and Tracker mode. Not the block or the code
+// version: the same situation anywhere reuses the result.
 uint32_t Editor::menuKeyNow() const {
+    const Program& p = *prog_;
     uint32_t h = fnvStr(2166136261u, menuTitle_.c_str());
-    h = fnvNum(h, cursor_);
-    h = fnvNum(h, gapSeq_);
-    h = fnvNum(h, (uint32_t)gapPos_);
-    h = fnvNum(h, (uint32_t)onOp_ | (uint32_t)cps_ << 1 | (uint32_t)slot_ << 2);
-    h = fnvNum(h, changes_);
+    h = fnvNum(h, (uint32_t)onOp_ | (uint32_t)cps_ << 1 | (uint32_t)(slot_ >= kSampleSlots) << 2 |
+                      (uint32_t)trackerMode_ << 3 | (uint32_t)(gapSeq_ != 0) << 4);
+    const uint16_t t = gapSeq_ ? gapSeq_ : cursor_;
+    if (t) {
+        const Node& x = p.at(t);
+        h = fnvNum(h, (uint32_t)x.kind | (uint32_t)x.type << 8);
+        if (x.kind == Kind::Fn || x.kind == Kind::Op) h = fnvNum(h, x.a);
+        const uint16_t par = p.parentOf(t);
+        if (par) {
+            const Node& pn = p.at(par);
+            h = fnvNum(h, (uint32_t)pn.kind | (uint32_t)pn.type << 8 | 0x10000u);
+            if (pn.kind == Kind::Op) h = fnvNum(h, pn.a);
+            if (pn.kind == Kind::App && pn.first && p.at(pn.first).kind == Kind::Fn) h = fnvNum(h, p.at(pn.first).a);
+            int idx = 0;
+            for (uint16_t c = pn.first; c; c = p.at(c).next, idx++) {
+                if (c == t) h = fnvNum(h, 0x20000u | (uint32_t)idx);
+                h = fnvNum(h, p.at(c).type);
+            }
+            const uint16_t gp = p.parentOf(par);
+            if (gp) h = fnvNum(h, (uint32_t)p.at(gp).kind | (uint32_t)p.at(gp).type << 8 | 0x40000u);
+        }
+    }
     h = fnvNum(h, (uint32_t)menu_.size());
     for (const MenuItem& it : menu_) h = fnvStr(h, it.label.c_str());
     return h ? h : 1;
@@ -672,12 +710,17 @@ bool Editor::openMenu(const Label& title) {
     menuNext_ = 0;
     menuTitle_ = title;
     menuKey_ = lazyMenus_ && !menuFolders_ ? menuKeyNow() : 0;
-    if (menuKey_ && menuKey_ == cacheKey_) {  // checked before, nothing changed: its survivors
+    const MenuCache* hit = nullptr;
+    for (int i = 0; i < kMenuCache && menuKey_ && !hit; i++)
+        if (menuCache_[i].key == menuKey_) hit = &menuCache_[i];
+    if (hit) {  // checked before in the same type context: its survivors
+        menuCache_[hit - menuCache_].used = ++menuUse_;
+        menuKey_ = 0;
         int w = 0;
         for (int i = 0; i < menu_.size(); i++) {
             const uint32_t lh = fnvStr(2166136261u, menu_[i].label.c_str());
             bool keep = false;
-            for (int k = 0; k < cacheCount_ && !keep; k++) keep = cacheLabel_[k] == lh;
+            for (int k = 0; k < hit->count && !keep; k++) keep = hit->label[k] == lh;
             if (!keep) continue;
             if (w != i) menu_[w] = menu_[i];
             menu_[w].checked = true;  // its cursor comes from applying it (cursor 0)

@@ -3,6 +3,7 @@
 // Host numbers only show relative changes; the device's SDRAM is uncached.
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <time.h>
 
 #include "editor.h"
@@ -40,6 +41,7 @@ int main() {
         return 1;
     }
     ed.gotoSlot(3);
+    if (getenv("TC_CURSOR")) ed.setCursorMode(true);
     const tc::CodeGeometry g{96, 17, 8, 398};
     const int n = 2000;
     tc::layoutCode(ed, 0, g, gScr, gScratch);  // warm up
@@ -47,5 +49,20 @@ int main() {
     for (int i = 0; i < n; i++) tc::layoutCode(ed, i * 0.01, g, gScr, gScratch);
     const double us = (nowUs() - t0) / n;
     printf("layoutCode: %.1f us per call (%d lines)\n", us, gScr.n);
+    // edit frames: a jog step on a number (d4's 10), then the layout
+    ed.setCursorMode(true);  // still in d4 (gotoSlot(3) again would start a new block)
+    ed.act(tc::Action::Right);  // every' | 10
+    printf("on: %s\n", ed.cursorInfo().c_str());
+    const int m = 500;
+    double t1 = nowUs();
+    for (int i = 0; i < m; i++) ed.act(i % 2 ? tc::Action::WheelDown : tc::Action::WheelUp);
+    const double editUs = (nowUs() - t1) / m;
+    t1 = nowUs();
+    for (int i = 0; i < m; i++) {
+        ed.act(i % 2 ? tc::Action::WheelDown : tc::Action::WheelUp);
+        tc::layoutCode(ed, i * 0.01, g, gScr, gScratch);
+    }
+    const double both = (nowUs() - t1) / m;
+    printf("after an edit: %.1f us per layout (the edit itself %.1f us)\n", both - editUs, editUs);
     return 0;
 }

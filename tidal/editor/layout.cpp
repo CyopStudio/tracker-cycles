@@ -13,6 +13,21 @@ namespace {
 
 constexpr uint32_t kSpansClean = 0x5C1EA9u;
 
+// A fingerprint of n's subtree: what its rendering (so its height) depends on.
+uint32_t nodeHash(const Program& p, uint16_t n, uint32_t h) {
+    if (!n) return h;
+    const Node& x = p.at(n);
+    auto mix = [&](uint32_t v) { h = (h ^ v) * 16777619u; };
+    mix((uint32_t)x.kind | (uint32_t)x.flags << 8);
+    mix(x.a);
+    mix(x.b);
+    if (x.kind == Kind::MWord || x.kind == Kind::MChord)  // string ids: their text
+        for (const char* c = p.str((int)x.a); c && *c; c++) mix((uint8_t)*c);
+    for (uint16_t c = x.first; c; c = p.at(c).next) h = nodeHash(p, c, h);
+    mix(0xFFu);  // end of children
+    return h;
+}
+
 // Zero the spans of n's subtree (what the renderer wrote for one block).
 void clearSpans(const Program& p, uint16_t n, LayoutScratch& s) {
     if (!n) return;
@@ -59,6 +74,8 @@ int layoutText(const Editor& ed, uint16_t blk, bool cps, bool cur, bool lit, int
         memset(s.spans, 0, sizeof s.spans);
         s.clean = kSpansClean;
         s.heightKey = 0;
+        s.nKnown = 0;
+        s.geomKey = 0;
     }
     Renderer r(s.text, kLayoutText + 1, s.spans);
     r.setBreaks(true);
@@ -176,6 +193,11 @@ void setText(CodeLine& l, const char* t) {
     l.n = (uint8_t)(n < 255 ? n : 255);
 }
 
+struct BlockHeightCache {
+    LayoutScratch::BlockHeight e[kMaxBlocks + 2];
+    int n;
+};
+
 struct Row {
     uint16_t blk;  // 0 = setcps or the empty current slot
     int slot;
@@ -220,6 +242,13 @@ void layoutCode(const Editor& ed, double now, const CodeGeometry& g, CodeScreen&
     for (int k = 0; k < nrows; k++) mix(rows[k].blk);
     if (key == 0) key = 1;
     const bool haveHeights = s.clean == kSpansClean && s.heightKey == key && s.nHeights == nrows;
+    // the code changed: blocks whose nodes / comment / dN are as before keep
+    // their height (an edit touches one block); others are measured again
+    const uint32_t geom = (uint32_t)g.cols | (uint32_t)g.lineH << 10 | (uint32_t)g.blockGap << 20;
+    if (s.clean == kSpansClean && s.geomKey != geom) s.nKnown = 0;
+    s.geomKey = geom;
+    BlockHeightCache fresh;
+    fresh.n = 0;
     int heights[kMaxBlocks + 2];
     int curY = 0, curH = 0, y = 0;
     for (int k = 0; k < nrows; k++) {
@@ -227,14 +256,25 @@ void layoutCode(const Editor& ed, double now, const CodeGeometry& g, CodeScreen&
         int h;
         if (haveHeights) {
             h = s.heights[k];
+        } else if (!rw.blk && rw.idx != -2) {
+            h = g.lineH + g.blockGap;  // the empty placeholder
         } else {
-            int lines = 1;
-            if (rw.idx == -2 || rw.blk) layoutText(ed, rw.blk, rw.idx == -2, false, false, rw.slot, now, g.cols, s, lines);
-            const bool hasComment = rw.idx >= 0 && p.blockComment(rw.idx)[0];
-            h = (rw.blk || rw.idx == -2) ? (hasComment ? g.lineH : 0) + lines * g.lineH + g.blockGap
-                                         : g.lineH + g.blockGap;
-            s.heights[k] = (int16_t)h;
+            const uint16_t root = rw.idx == -2 ? p.cpsExpr : rw.blk;
+            uint32_t hh = nodeHash(p, root, 2166136261u ^ (uint32_t)(rw.idx == -2));
+            if (rw.idx >= 0)
+                for (const char* c = p.blockComment(rw.idx); *c; c++) hh = (hh ^ (uint8_t)*c) * 16777619u;
+            h = -1;
+            for (int i = 0; i < s.nKnown && h < 0; i++)
+                if (s.known[i].blk == root && s.known[i].hash == hh) h = s.known[i].h;
+            if (h < 0) {
+                int lines = 1;
+                layoutText(ed, rw.blk, rw.idx == -2, false, false, rw.slot, now, g.cols, s, lines);
+                const bool hasComment = rw.idx >= 0 && p.blockComment(rw.idx)[0];
+                h = (hasComment ? g.lineH : 0) + lines * g.lineH + g.blockGap;
+            }
+            if (fresh.n < kMaxBlocks + 2) fresh.e[fresh.n++] = LayoutScratch::BlockHeight{root, hh, (int16_t)h};
         }
+        if (!haveHeights) s.heights[k] = (int16_t)h;
         if (isCur(rw)) {
             curY = y;
             curH = h;
@@ -245,6 +285,8 @@ void layoutCode(const Editor& ed, double now, const CodeGeometry& g, CodeScreen&
     if (!haveHeights) {
         s.heightKey = key;
         s.nHeights = nrows;
+        for (int i = 0; i < fresh.n; i++) s.known[i] = fresh.e[i];
+        s.nKnown = fresh.n;
     }
     const int scroll = curY + curH > g.areaH ? curY + curH - g.areaH : 0;
     out.scroll = (int16_t)scroll;

@@ -323,6 +323,13 @@ private:
     bool headGap_ = false;  // cursor mode: the bar before the block's expression (cursor_ = its root)
     bool preSym_ = false;   // cursor mode: the bar before an operator / `$` (cursor_ = that node; RC17 notes)
     mutable int tokN_ = 0, tokLines_ = 0;
+    // kept while the code / block don't change (layout asks every frame);
+    // only the spans the last render wrote are cleared (no 16 KB memset)
+    mutable bool tokValid_ = false;
+    mutable uint32_t tokKey_ = 0;
+    mutable uint16_t tokUsed_[kMaxNodes];
+    mutable int tokUsedN_ = 0;
+    void tokRecord(uint16_t n) const;
     uint16_t tokAt_ = 0xFFFF;  // the current token's first character (tells '[' from ']')
     int buildTokens() const;   // the current block's tokens (0: none)
     void tokOwners(uint16_t n, int len) const;
@@ -466,9 +473,19 @@ private:
     bool menuChecking_ = false; // a lazily checked menu has unchecked items (message says so)
     // The last fully checked lazy menu (UI v3 A3): reopened at the same place
     // with no edit in between, its surviving items need no checking again.
-    uint32_t menuKey_ = 0, cacheKey_ = 0;
-    int cacheCount_ = 0;
-    uint32_t cacheLabel_[kMenuMax];
+    // Checked menus remembered by type context (user's idea after RC13,
+    // done after RC23): the same menu where the target and its surroundings
+    // have the same types is instant, in any block; applying still checks.
+    static constexpr int kMenuCache = 8;
+    struct MenuCache {
+        uint32_t key;
+        uint32_t used;  // last use (replace the oldest)
+        int count;
+        uint32_t label[kMenuMax];  // survivors' label hashes
+    };
+    MenuCache menuCache_[kMenuCache] = {};
+    uint32_t menuUse_ = 0;
+    uint32_t menuKey_ = 0;
     uint32_t menuKeyNow() const;
     bool menuFolders_ = false;  // the items are folder names for out_->loadFolder (no edit)
     void openFolders();

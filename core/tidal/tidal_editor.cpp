@@ -454,8 +454,11 @@ void tidalEditorUpdate(Platform* platform) {
             gSeenChanges = gEd->changes();
             gChangedMs = now;
         }
+        // the SD write (open, write, close) blocks the main loop: only while
+        // the scheduler has 0.2 s queued, so it can't cost notes (it waits
+        // otherwise; nothing playing counts as ahead)
         if (gLoaded && gEd->changes() != gSavedChanges && now - gChangedMs >= 2000 &&
-            newFileManager.getCurrentOperation() == fmNoOperation) {
+            newFileManager.getCurrentOperation() == fmNoOperation && tidalPlayerAheadSeconds() >= 0.2f) {
             const int n = renderProgram(*reinterpret_cast<tc::Program*>(progRaw));
             char m[96];
             if (n >= 0 && tidalPlayerWriteText(kWorkspaceTidal, saveText, n, m, sizeof m)) gSavedChanges = gEd->changes();

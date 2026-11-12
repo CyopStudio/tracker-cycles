@@ -83,6 +83,16 @@ struct LayoutScratch {
     uint32_t heightKey;
     int nHeights;
     int16_t heights[kMaxBlocks + 2];
+    // per block (after an edit only the changed blocks are measured again):
+    // its node fingerprint and height, for the geometry geomKey
+    struct BlockHeight {
+        uint16_t blk;
+        uint32_t hash;
+        int16_t h;
+    };
+    BlockHeight known[kMaxBlocks + 2];
+    int nKnown;
+    uint32_t geomKey;
     Span spans[kMaxNodes];
     char text[kLayoutText + 1];
     CodeStyle style[kLayoutText];

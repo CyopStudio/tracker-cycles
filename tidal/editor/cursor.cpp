@@ -60,14 +60,28 @@ static bool exprContainer(Kind k) {
            k == Kind::Block || k == Kind::List;
 }
 
+void Editor::tokRecord(uint16_t n) const {
+    if (!n || tokUsedN_ >= kMaxNodes) return;
+    tokUsed_[tokUsedN_++] = n;
+    for (uint16_t c = prog_->at(n).first; c; c = prog_->at(c).next) tokRecord(c);
+}
+
 int Editor::buildTokens() const {
+    const Program& p = *prog_;
+    const int empty = emptyRowIndex();
+    const uint16_t b = cps_ || empty >= 0 ? 0 : p.block[slot_];
+    // the same code and block as last time: the tokens stand (no edit open)
+    uint32_t key = 2166136261u;
+    for (uint32_t v : {changes_, (uint32_t)slot_, (uint32_t)b, (uint32_t)cps_, (uint32_t)(empty + 1)})
+        key = (key ^ v) * 16777619u;
+    const bool open = p.checkpointOpen();
+    if (tokValid_ && !open && key == tokKey_) return tokN_;
+    tokValid_ = false;
     tokN_ = 0;
     tokLines_ = 0;
-    const Program& p = *prog_;
-    if (cps_ || emptyRowIndex() >= 0) return 0;
-    const uint16_t b = p.block[slot_];
+    for (int i = 0; i < tokUsedN_; i++) tokSpans_[tokUsed_[i]] = Span{0, 0};  // what the last render wrote
+    tokUsedN_ = 0;
     if (!b) return 0;
-    memset(tokSpans_, 0, sizeof tokSpans_);
     Renderer r(tokText_, kTokText + 1, tokSpans_);
     r.setBreaks(true);
     int n = r.blockNode(p, b);
@@ -144,6 +158,9 @@ int Editor::buildTokens() const {
     }
     for (; gi < gapN_; gi++) add(gaps_[gi].at, gaps_[gi].at, gaps_[gi].seq, kTokGap, gaps_[gi].pos);
     tokLines_ = line + 1;
+    tokRecord(b);  // the nodes whose spans this render wrote (cleared next time)
+    tokValid_ = !open;
+    tokKey_ = key;
     return tokN_;
 }
 
@@ -212,6 +229,7 @@ static int gapChar(const Program& p, const Span* spans, uint16_t seq, int pos) {
 
 void Editor::cursorMove(int dir) {
     if (cps_ || (!cursor_ && !gapSeq_)) return navigate(dir < 0 ? Action::Left : Action::Right);
+    cursorSettle();  // not on a token (an edit from outside a key): onto its first one first
     if (!buildTokens()) return;
     int i = -1;
     const int at = tokenIndex();
@@ -235,6 +253,7 @@ void Editor::cursorMove(int dir) {
 
 void Editor::cursorLine(int dir) {
     int col = 0;
+    cursorSettle();
     if (cps_) {
         if (dir < 0) return navigate(Action::Up);
         blockStep(1);

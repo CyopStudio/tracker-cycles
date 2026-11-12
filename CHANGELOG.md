@@ -46,5 +46,5 @@ Notable changes to **Tracker Cycles**, TidalCycles-style live coding for the Ori
 * Random functions follow Tidal's probabilities, not Tidal's values.
 * At most 48 instruments and 48 files per sample folder, and about 7.5 MB of sample memory.
 * Loading a sample folder can pause the screen briefly; load folders before a performance.
-* While several patterns play, a menu with many choices (e.g. Replace on a whole block) opens at once but takes a moment to finish checking which choices fit ("checking k of N"). The highlights pause until it's done.
+* While several patterns play, a menu with many choices opens at once but can take a moment to finish checking which choices fit ("checking k of N"); the same menu in the same kind of place is remembered and opens checked.
 * A sample whose name has no letters (`808 5.wav` → `808_5`) can't be used in a pattern; rename the file to include a letter.

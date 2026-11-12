@@ -295,6 +295,23 @@ to upstream CE.
     backgrounds as before.
     RC23 (user, 2026-11-12): "sooooo much better! feels snappier overall"
     (RC20-RC22 changes confirmed in use with it).
+    Pre-release optimisations (user: "do all 4"; RC24 PolyendTrac_CyclesRC24
+    .ptf, not yet run): (1) cursor-mode tokens kept while the code / block
+    stay (tokKey_; layout asked every frame: two 16 KB memsets + renders;
+    `make layoutbench` cursor mode 8.9 -> 6.0 us, like tree mode); spans
+    cleared from the list of nodes the last render wrote (tokUsed_);
+    (2) the autosave's SD write waits for 0.2 s of queued notes;
+    (3) after an edit only blocks whose node fingerprint changed are
+    measured again (LayoutScratch::known; edit frames 10.8 -> 8.2 us);
+    (4) checked menus remembered by type context (8 entries: menu + items,
+    target kind / type, parent kind / function / child index / children's
+    types, grandparent, slot kind, Tracker mode), not by place + code
+    version; a walk over every stop of the example: 640 menus, 237 reused,
+    all equal to a full check (test_editor). Found by that test: a lazily
+    auto-applied menu (one item left, applied from checkMenu outside act)
+    left the cursor off any token, so cursor mode's next Left / Right went
+    to the block's start; checkMenu now settles, cursorMove / cursorLine
+    settle first.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
