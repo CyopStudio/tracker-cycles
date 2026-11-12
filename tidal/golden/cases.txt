@@ -265,3 +265,31 @@ compress_bad      1  compress (0.5, 1.5) $ s "a b"
 wchoose           2  n (segment 4 $ wchoose [(0, 0.25), (2, 0.5), (7, 0.25)])
 wrandcat          4  wrandcat [(s "a*2", 0.5), (s "b*3", 0.5)]
 name_digits       1  s "808_-_kick_5 808-bd-5 606-kick:1"
+
+# ---- batch 3 (2026-11-12) ----
+stutter           1  stutter 4 (1/16) $ s "bd sd"
+ghost             1  ghost $ s "~ sn"
+ghost_p           1  ghost' (1/16) $ s "bd" # gain 0.8 # speed 2
+iter_r            4  iter' 4 $ s "a b c d"
+rangex            1  cutoff (rangex 20 2000 "0 0.5 1")
+quantise          1  n (quantise 1 "0.4 1.5 2.5 -0.5 2.6")
+quantise_q        1  n (quantise 4 "0.3 1.13")
+isaw              1  cutoff (segment 4 isaw)
+envL              2  gain (segment 4 envL)
+envLR             2  gain (segment 4 envLR)
+envEq             1  gain (segment 4 envEq)
+envEqR            1  gain (segment 4 envEqR)
+append            4  append (s "a b") (s "c")
+fast_append       2  fastAppend (s "a b") (s "c")
+slow_append       2  slowAppend (s "a") (s "c d")
+repeat_cycles     4  repeatCycles 2 $ s "<a b c>"
+fold_every        6  foldEvery [2, 3] (fast 2) $ s "a b"
+fix               1  fix (# crush 4) (n 1) $ n "0 1 2 1" # s "x"
+fix_s             1  fix (fast 2) (s "sd") $ s "bd sd"
+unfix             1  unfix (# crush 4) (s "bd") $ s "bd sd"
+contrast          1  contrast (# crush 4) (# speed 2) (n "1") $ n "0 1" # s "x"
+chew              1  chew 4 "0 1 [2 3]" $ n "0 .. 7" # s "x"
+chew_speed        1  chew 4 "0 [1 2]" $ n "0 .. 3" # s "x" # speed 2
+brand             2  struct (segment 8 brand) $ s "bd"
+brandBy           2  struct (segment 8 $ brandBy 0.25) $ s "bd"
+randslice         2  randslice 4 $ s "bev*4"

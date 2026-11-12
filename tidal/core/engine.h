@@ -115,6 +115,9 @@ constexpr int kMaxEvalDepth = 64;
 // number of events written to `out` (at most `cap`), or -1 with `err` set
 // (unsupported function, arena full, time overflow, ...).
 int queryPattern(const Program& p, uint16_t expr, Arc arc, Event* out, int cap, Error& err);
+// qtrigger / trigger: the cycle at which the queried block took effect (the
+// scheduler sets it per slot before querying; 0 elsewhere)
+void setQueryTrigger(Q cycle);
 
 // Render a value for tests / debugging ("bd", "3.5", "t").
 int formatVal(const Program& p, const Val& v, char* buf, int cap);

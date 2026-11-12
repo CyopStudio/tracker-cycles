@@ -32,6 +32,12 @@ enum class TMod : uint8_t {
     Delay,      // send 0..100
     Cc,         // MIDI: number << 8 | value
     Bend,       // MIDI: pitch bend 0..16383 (8192 = none)
+    // batch 3 (2026-11-12)
+    RevSize,    // global reverb size 0..65535 = 0..1 (the Tracker has one reverb: the last event's wins)
+    DelayTime,  // global delay time, ms
+    DelayFb,    // global delay feedback 0..99 %
+    Program,    // MIDI: program change 0..127 (sent before the note)
+    Touch,      // MIDI: channel aftertouch 0..127
     Count
 };
 
@@ -121,7 +127,8 @@ private:
     int kS_ = -1, kN_ = -1, kNote_ = -1, kSpeed_ = -1, kGain_ = -1, kAmp_ = -1, kVelocity_ = -1, kPan_ = -1,
         kCutoff_ = -1, kHcutoff_ = -1, kBandf_ = -1, kRes_ = -1, kHres_ = -1, kShape_ = -1, kDistort_ = -1,
         kCrush_ = -1, kRoom_ = -1, kDelay_ = -1, kBegin_ = -1, kEnd_ = -1, kAttack_ = -1, kRelease_ = -1,
-        kLegato_ = -1, kSustain_ = -1, kMidichan_ = -1, kCcn_ = -1, kCcv_ = -1, kBend_ = -1, kVoices_ = -1;
+        kLegato_ = -1, kSustain_ = -1, kMidichan_ = -1, kCcn_ = -1, kCcv_ = -1, kBend_ = -1, kVoices_ = -1,
+        kSize_ = -1, kDelayTime_ = -1, kDelayFb_ = -1, kDjf_ = -1, kProg_ = -1, kTouch_ = -1;
 };
 
 }  // namespace tc

@@ -74,6 +74,10 @@ static const ControlDef kControls[] = {
     {"amp", 'f'},     {"velocity", 'f'}, {"attack", 'f'},  {"release", 'f'}, {"hresonance", 'f'},
     {"distort", 'f'}, {"midichan", 'f'}, {"ccn", 'f'},     {"ccv", 'f'},     {"midibend", 'f'},
     {"voices", 'i'},
+    // batch 3 (2026-11-12): global FX (the Tracker has one reverb / delay), DJ
+    // filter, MIDI program / aftertouch; coarse for the host (no decimator)
+    {"size", 'f'},    {"delaytime", 'f'}, {"delayfeedback", 'f'}, {"djf", 'f'}, {"coarse", 'f'},
+    {"progNum", 'f'}, {"miditouch", 'f'},
 };
 int controlCount() { return (int)(sizeof kControls / sizeof kControls[0]); }
 const ControlDef& controlDef(int key) { return kControls[key]; }
@@ -93,6 +97,9 @@ static const char* controlFor(const char* fn) {
     if (!strcmp(fn, "bpf")) return "bandf";
     if (!strcmp(fn, "att")) return "attack";
     if (!strcmp(fn, "rel")) return "release";
+    if (!strcmp(fn, "sz")) return "size";
+    if (!strcmp(fn, "delayt")) return "delaytime";
+    if (!strcmp(fn, "delayfb")) return "delayfeedback";
     return fn;
 }
 
@@ -202,6 +209,9 @@ enum class Fn : uint8_t {
     PlyWith, Rolled, RolledBy, ToScale, ToScaleP,
     Degrade, UnDegradeBy, SometimesByP, SomeCycles, Shuffle, Scramble, Perlin, Randcat, Choose, ChooseBy,
     CycleChoose, Within, WithinP, Zoom, Compress, WChoose, WRandcat,
+    // batch 3 (2026-11-12); callLib3
+    Stutter, Ghost, GhostP, IterR, Rangex, Quantise, Isaw, EnvL, EnvLR, EnvEq, EnvEqR, Brand, BrandBy, Append,
+    FastAppend, RepeatCycles, FoldEvery, Fix, Unfix, Contrast, Randslice, Chew, QTrigger, Trigger,
     // operators
     OpUnionR, OpUnionL, OpNum, ShiftL, ShiftR,
 };
@@ -258,6 +268,15 @@ static const FnInfo& fnInfo(int id) {
             {"within", Fn::Within},     {"within'", Fn::WithinP},     {"zoom", Fn::Zoom},
             {"compress", Fn::Compress}, {"wchoose", Fn::WChoose},     {"wrandcat", Fn::WRandcat},
             {"|>|", Fn::OpUnionR},      {"|<|", Fn::OpUnionL},
+            {"stutter", Fn::Stutter},   {"ghost", Fn::Ghost},         {"ghost'", Fn::GhostP},
+            {"iter'", Fn::IterR},       {"rangex", Fn::Rangex},       {"quantise", Fn::Quantise},
+            {"isaw", Fn::Isaw},         {"envL", Fn::EnvL},           {"envLR", Fn::EnvLR},
+            {"envEq", Fn::EnvEq},       {"envEqR", Fn::EnvEqR},       {"brand", Fn::Brand},
+            {"brandBy", Fn::BrandBy},   {"append", Fn::Append},       {"slowAppend", Fn::Append},
+            {"fastAppend", Fn::FastAppend}, {"repeatCycles", Fn::RepeatCycles}, {"foldEvery", Fn::FoldEvery},
+            {"fix", Fn::Fix},           {"unfix", Fn::Unfix},         {"contrast", Fn::Contrast},
+            {"randslice", Fn::Randslice}, {"chew", Fn::Chew},         {"qtrigger", Fn::QTrigger},
+            {"trigger", Fn::Trigger},
             {"<~", Fn::ShiftL},         {"~>", Fn::ShiftR},
         };
         for (int id = 0; id < libCount() && id < 256; id++) {
@@ -400,6 +419,9 @@ struct Pat {
         SetCtlP,  // x with control key = q2 + q * (value of pattern y)
         Inv,      // x with its booleans flipped
         Degrade,  // x without the events whose random value is < v (neg: only those)
+        EveryF,   // foldEvery: node f applied to x on cycles divisible by q
+        Match,    // fix / contrast: x's control events that y matches at their onset (neg: those it doesn't)
+        ClipCycles,  // x with each whole cut at cycle boundaries (what `|*| pure` does to structure)
     };
     K k = Silence;
     uint16_t node = 0;      // Node: expression; Apply: function expression
@@ -737,7 +759,7 @@ private:
     __attribute__((noinline)) void qApp(uint16_t head, const Pat* extra, uint16_t at, Arc a);
     // Cases with big Pat arrays live outside callLib so its (recursive)
     // frame stays small: the M4 stack is tight.
-    __attribute__((noinline)) void qIter(const Pat& x, int64_t k, Arc a);
+    __attribute__((noinline)) void qIter(const Pat& x, int64_t k, Arc a, bool back = false);
     __attribute__((noinline)) void qList(Fn fn, uint16_t list, Arc a);
     __attribute__((noinline)) void qEchoLayers(const Pat& x, int64_t count, Q t, float fb, uint8_t gain, Arc a);
     void binop(int id, const Pat& l, const Pat& r, Arc a);
@@ -777,6 +799,15 @@ private:
     __attribute__((noinline)) void qChoose(Fn fn, const Pat* sel, uint16_t list, Arc a);
     bool pairArg(const Pat& p, Val& a, Val& b, uint16_t at);
     __attribute__((noinline)) void qWeighted(Fn fn, uint16_t list, Arc a);
+    // batch 3 (2026-11-12)
+    __attribute__((noinline)) void callLib3(Fn fn, const Pat* const* all, int n, uint16_t at, Arc a);
+    __attribute__((noinline)) void qGhost(const Pat& x, Q t, Arc a);
+    __attribute__((noinline)) void qMatch(const Pat& x, const Pat& cond, bool matched, Arc a);
+    __attribute__((noinline)) void qFoldEvery(uint16_t list, uint16_t f, const Pat& x, Arc a);
+    __attribute__((noinline)) void qChew(const Pat& x, int64_t n, const Pat& idx, Arc a);
+    __attribute__((noinline)) void qMapNum(Fn fn, const Pat& lo, const Pat& hi, const Pat& x, Arc a);
+    __attribute__((noinline)) void qRandslice(const Pat& x, int64_t n, Arc a);
+    bool ctlsMatch(const Ev& cond, const Ev& e) const;
 };
 
 void Eval::query(const Pat& p, Arc a) {
@@ -822,6 +853,26 @@ void Eval::query(const Pat& p, Arc a) {
             break;
         }
         case Pat::Degrade: qDegrade(*p.x, num(p.v), p.neg, 0, a); break;
+        case Pat::EveryF: {
+            const int64_t k = qfloor(p.q);
+            forCycles(a, [&](Arc sub, int64_t c) {
+                if (k > 0 && imod(c, k) == 0) queryApply(p.node, *p.x, sub);
+                else query(*p.x, sub);
+            });
+            break;
+        }
+        case Pat::Match: qMatch(*p.x, *p.y, !p.neg, a); break;
+        case Pat::ClipCycles:
+            forCycles(a, [&](Arc sub, int64_t c) {
+                const int m = top;
+                query(*p.x, sub);
+                for (int i = m; i < top; i++)
+                    if (gArena[i].hasWhole) {
+                        gArena[i].whole.s = qmax(gArena[i].whole.s, qint(c));
+                        gArena[i].whole.e = qmin(gArena[i].whole.e, qint(c + 1));
+                    }
+            });
+            break;
         case Pat::Inv: {
             const int m = top;
             query(*p.x, a);
@@ -993,6 +1044,19 @@ void Eval::qSignal(Fn f, Arc a) {
         case Fn::Saw: v = pos; break;
         case Fn::Tri: v = pos < 0.5f ? 2 * pos : 2 - 2 * pos; break;
         case Fn::Square: v = pos < 0.5f ? 0 : 1; break;
+        case Fn::Isaw: v = 1 - pos; break;
+        // the envelopes run once, over the first cycle (absolute time)
+        case Fn::EnvL:
+        case Fn::EnvLR:
+        case Fn::EnvEq:
+        case Fn::EnvEqR: {
+            float t = qfloat(a.s);
+            t = t < 0 ? 0 : t > 1 ? 1 : t;
+            const float u = 1 - t, kHalfPi = 1.57079632679f;
+            const float w = f == Fn::EnvEq ? sinf(kHalfPi * u) : cosf(kHalfPi * u);
+            v = f == Fn::EnvL ? t : f == Fn::EnvLR ? 1 - t : sqrtf(w > 0 ? w : 0);  // (cos rounds just below 0 at 1)
+            break;
+        }
         default: break;
     }
     Ev* e = push();
@@ -1650,12 +1714,12 @@ uint32_t Eval::miniSeed(uint16_t n) {
     return count;
 }
 
-void Eval::qIter(const Pat& x, int64_t k, Arc a) {
+void Eval::qIter(const Pat& x, int64_t k, Arc a, bool back) {
     Pat rots[64];
     for (int64_t i = 0; i < k; i++) {
         rots[i].k = Pat::Shift;
         rots[i].x = &x;
-        rots[i].q = -qlazy(i, k);
+        rots[i].q = back ? qlazy(i, k) : -qlazy(i, k);  // iter: rotL, iter': rotR
     }
     qCat(rots, (int)k, a);
 }
@@ -2966,11 +3030,350 @@ void Eval::callLib(int id, const Pat* args, int nargs, const Pat* extra, uint16_
             return;
         default: {
             if (fi.fn >= Fn::EveryP && fi.fn <= Fn::WRandcat) return callLib2(fi.fn, all.p, n, at, a);
+            if (fi.fn >= Fn::Stutter && fi.fn <= Fn::Trigger) return callLib3(fi.fn, all.p, n, at, a);
             char m[64];
             snprintf(m, sizeof m, "%s is not implemented in the engine yet", lib(id).name);
             return fail(m, at);
         }
     }
+}
+
+static Q gTrigger{0, 1};
+void setQueryTrigger(Q cycle) { gTrigger = cycle; }
+
+// ---- batch 3 (2026-11-12): stutter, ghost, fix, chew ... ---------------------------
+// Semantics from Tidal's documentation, checked against GHCi (golden/cases.txt,
+// "batch 3").
+void Eval::callLib3(Fn fn, const Pat* const* all, int n, uint16_t at, Arc a) {
+    auto need = [&](int k) {
+        if (n < k) fail("function is missing arguments", at);
+        return n >= k;
+    };
+    auto fnArg = [&](int i) -> uint16_t {
+        if (all[i]->k != Pat::Node) {
+            fail("expected a function", at);
+            return 0;
+        }
+        return all[i]->node;
+    };
+    switch (fn) {
+        case Fn::Stutter: {  // stutter n t x = echoWith n t id x: n copies, each t later
+            if (!need(3)) return;
+            const Pat& x = *all[2];
+            withParam(*all[0], a, [&](const Val& cv, Arc s1) {
+                withParam(*all[1], s1, [&](const Val& tv, Arc s2) {
+                    const int64_t count = intOf(cv);
+                    if (count > 32) return fail("stutter: at most 32", at);
+                    const Q t = timeOf(tv);
+                    for (int64_t k = 0; k < count && !bad(); k++) {
+                        Pat sh;
+                        sh.k = Pat::Shift;
+                        sh.x = &x;
+                        sh.q = t * qint(k);
+                        query(sh, s2);
+                    }
+                });
+            });
+            return;
+        }
+        case Fn::Ghost:
+            if (need(1)) qGhost(*all[0], Q{1, 8}, a);
+            return;
+        case Fn::GhostP: {
+            if (!need(2)) return;
+            const Pat& x = *all[1];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) { qGhost(x, timeOf(v), sub); });
+            return;
+        }
+        case Fn::IterR: {
+            if (!need(2)) return;
+            const Pat& x = *all[1];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) {
+                const int64_t k = intOf(v);
+                if (k == 0) return query(x, sub);
+                if (k < 0 || k > 64) return fail("iter': 1..64 supported", at);
+                qIter(x, k, sub, true);
+            });
+            return;
+        }
+        case Fn::Rangex:
+            if (need(3)) qMapNum(fn, *all[0], *all[1], *all[2], a);
+            return;
+        case Fn::Quantise:
+            if (need(2)) qMapNum(fn, *all[0], *all[0], *all[1], a);
+            return;
+        case Fn::Isaw:
+        case Fn::EnvL:
+        case Fn::EnvLR:
+        case Fn::EnvEq:
+        case Fn::EnvEqR: return qSignal(fn, a);
+        case Fn::Brand:
+        case Fn::BrandBy: {  // rand < probability, continuous like rand (same random stream)
+            auto put = [&](float prob, Arc sub) {
+                Ev* e = push();
+                if (!e) return;
+                e->hasWhole = false;
+                e->part = sub;
+                e->isMap = false;
+                e->nctl = 0;
+                e->v = boolV(rnd(sub.s, 0) < prob);
+            };
+            if (fn == Fn::Brand) return put(0.5f, a);
+            if (!need(1)) return;
+            withParam(*all[0], a, [&](const Val& v, Arc sub) { put(num(v), sub); });
+            return;
+        }
+        case Fn::Append: {  // cat [a, b]
+            if (!need(2)) return;
+            const Pat two[2] = {*all[0], *all[1]};
+            qCat(two, 2, a);
+            return;
+        }
+        case Fn::FastAppend:  // fastcat [a, b]
+            if (!need(2)) return;
+            qCompress(*all[0], Q{0, 1}, Q{1, 2}, a);
+            qCompress(*all[1], Q{1, 2}, Q{1, 1}, a);
+            return;
+        case Fn::RepeatCycles: {  // each cycle of x played n times
+            if (!need(2)) return;
+            const Pat& x = *all[1];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) {
+                const int64_t k = intOf(v);
+                if (k < 1) return;
+                forCycles(sub, [&](Arc s2, int64_t c) {
+                    Pat sh;
+                    sh.k = Pat::Shift;
+                    sh.x = &x;
+                    sh.q = qint(c - idivFloor(c, k));
+                    query(sh, s2);
+                });
+            });
+            return;
+        }
+        case Fn::FoldEvery:
+            if (need(3) && all[0]->k == Pat::Node) qFoldEvery(all[0]->node, fnArg(1), *all[2], a);
+            return;
+        case Fn::Fix:
+        case Fn::Unfix:
+        case Fn::Contrast: {  // contrast f g cond x = f (x where cond matches) + g (the rest)
+            const bool both = fn == Fn::Contrast;
+            if (!need(both ? 4 : 3)) return;
+            const uint16_t f = fnArg(0), g = both ? fnArg(1) : 0;
+            const Pat& cond = *all[both ? 2 : 1];
+            const Pat& x = *all[both ? 3 : 2];
+            Pat yes, no;
+            yes.k = no.k = Pat::Match;
+            yes.x = no.x = &x;
+            yes.y = no.y = &cond;
+            no.neg = true;
+            if (fn == Fn::Unfix) query(yes, a);
+            else queryApply(f, yes, a);
+            if (fn == Fn::Fix) query(no, a);
+            else queryApply(fn == Fn::Unfix ? f : g, no, a);
+            return;
+        }
+        case Fn::Randslice: {
+            if (!need(2)) return;
+            const Pat& x = *all[1];
+            withParam(*all[0], a, [&](const Val& v, Arc sub) { qRandslice(x, intOf(v), sub); });
+            return;
+        }
+        case Fn::Chew: {
+            if (!need(3)) return;
+            withParam(*all[0], a, [&](const Val& v, Arc sub) { qChew(*all[2], intOf(v), *all[1], sub); });
+            return;
+        }
+        case Fn::QTrigger:
+        case Fn::Trigger: {  // the pattern's cycle 0 where the block took effect (qtrigger: next whole cycle)
+            if (!need(1)) return;
+            Q t = gTrigger;
+            if (fn == Fn::QTrigger) t = qint(-qfloor(-t));
+            Pat sh;
+            sh.k = Pat::Shift;
+            sh.x = all[0];
+            sh.q = t;
+            query(sh, a);
+            return;
+        }
+        default: return fail("not implemented", at);
+    }
+}
+
+// ghost' t x: x, plus quieter, shorter, higher copies 1.5t and 2.5t later
+// (gain * 0.7, end 0.2, speed * 1.25), and one of the first 2.5t after that
+void Eval::qGhost(const Pat& x, Q t, Arc a) {
+    const uint8_t gain = (uint8_t)controlKey("gain"), end = (uint8_t)controlKey("end"),
+                  speed = (uint8_t)controlKey("speed");
+    // f p = p |*| gain 0.7 |> end 0.2 |*| speed 1.25 (|*| with a pure value
+    // cuts each event at cycle boundaries: GHCi, golden ghost)
+    auto fOf = [&](const Pat& p, Pat* f3) {  // f3: four Pats, the last is f p
+        f3[0].k = Pat::ClipCycles;
+        f3[0].x = &p;
+        f3[1].k = Pat::MulCtl;
+        f3[1].x = &f3[0];
+        f3[1].key = speed;
+        f3[1].v = numF(1.25f);
+        f3[2].k = Pat::SetCtl;
+        f3[2].x = &f3[1];
+        f3[2].key = end;
+        f3[2].v = numF(0.2f);
+        f3[3].k = Pat::MulCtl;
+        f3[3].x = &f3[2];
+        f3[3].key = gain;
+        f3[3].v = numF(0.7f);
+    };
+    const Q t1 = t * Q{3, 2}, t2 = t * Q{5, 2};
+    Pat fx[4], h, g, fh[4], gh;
+    fOf(x, fx);
+    h.k = g.k = Pat::Shift;  // h x = t1 ~> f x, g x = t2 ~> f x
+    h.x = g.x = &fx[3];
+    h.q = t1;
+    g.q = t2;
+    fOf(h, fh);
+    gh.k = Pat::Shift;  // g (h x)
+    gh.x = &fh[3];
+    gh.q = t2;
+    query(x, a);
+    query(h, a);
+    query(g, a);
+    query(gh, a);
+}
+
+// Every control of cond is in e with the same value (Tidal: a submap).
+bool Eval::ctlsMatch(const Ev& cond, const Ev& e) const {
+    const Ctl* c = ctls(cond);
+    const Ctl* x = ctls(e);
+    for (int i = 0; i < cond.nctl; i++) {
+        bool hit = false;
+        for (int j = 0; j < e.nctl && !hit; j++) {
+            if (x[j].key != c[i].key) continue;
+            if ((x[j].tag == 's') != (c[i].tag == 's')) break;
+            hit = c[i].tag == 's' ? !strcmp(valStr(P, x[j].str), valStr(P, c[i].str)) : fabsf(x[j].f - c[i].f) < 1e-6f;
+        }
+        if (!hit) return false;
+    }
+    return true;
+}
+
+// x's events that cond matches at their onset (matched) or doesn't (!matched)
+void Eval::qMatch(const Pat& x, const Pat& cond, bool matched, Arc a) {
+    const int m = top;
+    query(x, a);
+    const int me = top;
+    int w = m;
+    for (int i = m; i < me && !bad(); i++) {
+        bool hit = false;
+        if (gArena[i].isMap) {
+            const Q t = gArena[i].hasWhole ? gArena[i].whole.s : gArena[i].part.s;
+            const int c0 = top;
+            query(cond, Arc{t, t});
+            for (int j = c0; j < top && !hit; j++)
+                if (gArena[j].isMap && ctlsMatch(gArena[j], gArena[i])) hit = true;
+            top = c0;
+        }
+        if (hit == matched) gArena[w++] = gArena[i];
+    }
+    top = w;
+}
+
+// foldEvery [n1, n2 ..] f x = every n1 f (every n2 f (.. x))
+void Eval::qFoldEvery(uint16_t list, uint16_t f, const Pat& x, Arc a) {
+    const int k = listLen(list);
+    if (k > kMaxLayers) return fail("foldEvery: at most 8 numbers");
+    Pat ev[kMaxLayers];
+    const Pat* cur = &x;
+    for (int i = k - 1; i >= 0; i--) {
+        Val v;
+        bool found;
+        sampleAt(listAt(list, i), Q{0, 1}, v, found);
+        if (!found) return fail("foldEvery: the list needs numbers");
+        ev[i].k = Pat::EveryF;
+        ev[i].x = cur;
+        ev[i].node = f;
+        ev[i].q = qint(intOf(v));
+        cur = &ev[i];
+    }
+    query(*cur, a);
+}
+
+// rangex lo hi x: exp (range (log lo) (log hi) x); quantise q x: round (x * q) / q
+// (Haskell's round: halves to even)
+void Eval::qMapNum(Fn fn, const Pat& lo, const Pat& hi, const Pat& x, Arc a) {
+    const int m = top;
+    query(x, a);
+    for (int i = m; i < top && !bad(); i++) {
+        Ev& e = gArena[i];
+        if (e.isMap || e.v.t != VT::Num) return fail(fn == Fn::Rangex ? "rangex needs numbers" : "quantise needs numbers");
+        const Q t = e.hasWhole ? e.whole.s : e.part.s;
+        const int saveTop = top;
+        Val l, h;
+        bool f1, f2 = true;
+        sampleAt(lo, t, l, f1);
+        if (fn == Fn::Rangex) sampleAt(hi, t, h, f2);
+        top = saveTop;
+        if (!f1 || !f2) continue;
+        if (fn == Fn::Rangex) {
+            const float a0 = logf(num(l)), a1 = logf(num(h));
+            e.v = numF(expf(a0 + num(e.v) * (a1 - a0)));
+        } else {
+            const float q = num(l);
+            if (q == 0) continue;
+            const float r = rintf(num(e.v) * q);  // to nearest, halves to even
+            e.v = q == 1 ? numQ(qint((int64_t)r)) : numF(r / q);
+        }
+    }
+}
+
+// randslice n x: each event plays a random one of n slices (begin / end, which win)
+void Eval::qRandslice(const Pat& x, int64_t n, Arc a) {
+    if (n <= 0) return;
+    const uint8_t kb = (uint8_t)controlKey("begin"), ke = (uint8_t)controlKey("end");
+    const int m = top;
+    query(x, a);
+    for (int i = m; i < top && !bad(); i++) {
+        Ev& e = gArena[i];
+        if (!e.isMap) return fail("randslice needs a control pattern");
+        const Q t = e.hasWhole ? e.whole.s : e.part.s;
+        int64_t k = (int64_t)(rnd(t, 7) * (float)n);
+        if (k >= n) k = n - 1;
+        const float b = (float)k / (float)n, en = (float)(k + 1) / (float)n;
+        Ctl* w = ctlWrite(e, 2);
+        if (!w) return;
+        bool hb = false, he = false;
+        for (int c = 0; c < e.nctl; c++) {
+            if (w[c].key == kb) w[c] = ctlOf(kb, 'f', numF(b)), hb = true;
+            if (w[c].key == ke) w[c] = ctlOf(ke, 'f', numF(en)), he = true;
+        }
+        if (!hb && e.nctl < kMaxCtl) w[e.nctl++] = ctlOf(kb, 'f', numF(b));
+        if (!he && e.nctl < kMaxCtl) w[e.nctl++] = ctlOf(ke, 'f', numF(en));
+    }
+}
+
+// chew: bite, with each piece's speed changed by how much it was squeezed
+// (a slice of 1/n played in an event of length d: speed * (1/n) / d)
+void Eval::qChew(const Pat& x, int64_t n, const Pat& idx, Arc a) {
+    if (n <= 0) return;
+    const uint8_t speed = (uint8_t)controlKey("speed");
+    const int m = top;
+    query(idx, a);
+    const int ie = top;
+    for (int i = m; i < ie && !bad(); i++) {
+        if (!gArena[i].hasWhole) continue;
+        const int64_t k = imod(intOf(gArena[i].v), n);
+        const Q d = gArena[i].whole.e - gArena[i].whole.s;
+        if (d.n <= 0) continue;
+        Pat z, sp;
+        z.k = Pat::Zoom;
+        z.x = &x;
+        z.q = qlazy(k, n);
+        z.q2 = qlazy(k + 1, n);
+        sp.k = Pat::MulCtl;
+        sp.x = &z;
+        sp.key = speed;
+        sp.v = numF((1.0f / (float)n) / qfloat(d));
+        qSqueeze(sp, gArena[i].whole, gArena[i].part);
+    }
+    drop(m, ie);
 }
 
 int queryPattern(const Program& p, uint16_t expr, Arc arc, Event* out, int cap, Error& err) {

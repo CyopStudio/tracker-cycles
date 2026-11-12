@@ -230,6 +230,7 @@ private:
         bool pending;      // a switch at `at` is pending
         Q at;              // switch cycle
         Q h;               // horizon: everything before h is queued
+        Q trig;            // the cycle `expr` took effect at (qtrigger / trigger)
         bool failed;
         Error err;
     };

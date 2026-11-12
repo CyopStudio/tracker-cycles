@@ -84,16 +84,16 @@ The full control reference is in [`tidal/README.md`](tidal/README.md).
 
 ## What it plays
 
-Tracker Cycles evaluates real Tidal syntax: function application, `$`, `.`, operators and sections, mini-notation strings, lists and pairs. It supports more than 100 functions and operators. Each one is type-checked like GHC would, and checked against event lists captured from Tidal 1.10.3. The full list is in [`docs/tidal_code_tree.md`](docs/tidal_code_tree.md) (section 7). Highlights:
+Tracker Cycles evaluates real Tidal syntax: function application, `$`, `.`, operators and sections, mini-notation strings, lists and pairs. It supports about 140 functions and operators. Each one is type-checked like GHC would, and checked against event lists captured from Tidal 1.10.3. The full list is in [`docs/tidal_code_tree.md`](docs/tidal_code_tree.md) (section 7). Highlights:
 
-* **Time:** `fast` `slow` `hurry` `rev` `iter` `ply` `linger` `segment` `every` `every'` `whenmod` `inside` `outside` `within` `within'` `zoom` `compress` `trunc` `fastGap` `swingBy` `press` `rot` `<~` `~>`
-* **Structure:** `struct` `mask` `euclid` (and `Inv` / `Full` / `Off`) `sew` `stitch` `while` `wedge` `bite` `squeeze` `select` `run` `scan` `range`
-* **Samples:** `slice` `splice` `loopAt`, sample folders with `s "bd:3"`
-* **Random:** `degradeBy` `sometimesBy` (and friends) `someCyclesBy` `shuffle` `scramble` `rand` `irand` `perlin` `choose` `wchoose` `randcat` `wrandcat`
-* **Layering:** `superimpose` `off` `jux` `juxBy` `stut` `echo` `echoWith` `chunk` `chunk'` `plyWith` `layer` `pickF` `selectF`
+* **Time:** `fast` `slow` `hurry` `rev` `iter` `iter'` `ply` `linger` `segment` `every` `every'` `foldEvery` `whenmod` `repeatCycles` `qtrigger` `trigger` `inside` `outside` `within` `within'` `zoom` `compress` `trunc` `fastGap` `swingBy` `press` `rot` `<~` `~>`
+* **Structure:** `struct` `mask` `euclid` (and `Inv` / `Full` / `Off`) `sew` `stitch` `while` `wedge` `bite` `squeeze` `select` `run` `scan` `range` `rangex` `quantise` `fix` `unfix` `contrast` `append` `fastAppend`
+* **Samples:** `slice` `randslice` `splice` `chew` `loopAt`, sample folders with `s "bd:3"`
+* **Random:** `degradeBy` `sometimesBy` (and friends) `someCyclesBy` `shuffle` `scramble` `rand` `irand` `brand` `brandBy` `perlin` `choose` `wchoose` `randcat` `wrandcat`
+* **Layering:** `superimpose` `off` `jux` `juxBy` `stut` `stutter` `echo` `echoWith` `ghost` `chunk` `chunk'` `plyWith` `layer` `pickF` `selectF`
 * **Harmony:** `scale` `toScale` `arp` `rolled` `rolledBy`, chord names (`"c'maj e'min7"`)
-* **Signals:** `sine` `cosine` `saw` `tri` `square`
-* **Controls:** `s` `n` `note` `gain` `pan` `cutoff` `resonance` `hpf` `bandf` `delay` `room` `crush` `shape` `begin` `end` `speed` `legato` `attack` `release` `cut` and more, plus the MIDI controls on d9–d16
+* **Signals:** `sine` `cosine` `saw` `isaw` `tri` `square` `envL` `envLR` `envEq` `envEqR`
+* **Controls:** `s` `n` `note` `gain` `pan` `cutoff` `resonance` `hpf` `bandf` `delay` `room` `crush` `shape` `begin` `end` `speed` `legato` `attack` `release` `cut` `djf` `size` `delaytime` `delayfeedback` and more, plus the MIDI controls on d9–d16 (`ccn` / `ccv`, `midibend`, `progNum`, `miditouch`)
 * **Operators:** `#` and the `|+|` `|-|` `|*|` `|/|` `|%|` `|**|` `|<|` `|>|` families, `+ - * /`
 
 ### Differences from TidalCycles
@@ -101,7 +101,7 @@ Tracker Cycles evaluates real Tidal syntax: function application, `$`, `.`, oper
 * **Sound:** the Tracker's sample engine replaces SuperDirt.
   * There are no SuperCollider synths (`superpiano` and so on).
   * Playback rate (`speed`, `loopAt`) is approximated through tuning.
-  * Reverb and delay sizes are global.
+  * The reverb and delay are global: `size`, `delaytime` and `delayfeedback` set them for everything (the last note wins). `coarse` isn't available (use `crush`).
   * `chop` and `striate` are not available on the device yet: the editor accepts them, but evaluating refuses them.
 * **Voices:** each track plays one note at a time unless you ask for more with `# voices 2` or `# voices 3` (Tracker Cycles' own control). In total at most 16 notes sound, fewer when the CPU is busy.
 * **Samples:** `s` picks one of the project's 48 instruments by name. Sample folders (below) bring back Tidal's `s "bd:3"` folder lookup.

@@ -834,6 +834,29 @@ static std::string srcString(const char* code, int cycles = 1) {
     return out;
 }
 
+// qtrigger / trigger: the pattern's cycle 0 where the block took effect
+// (setQueryTrigger, the scheduler's switch cycle); 0 = as written
+static void testTrigger() {
+    static Program p;
+    const char* text = "d1 $ qtrigger $ n \"<0 1 2>\"\n\nd2 $ trigger $ n \"<0 1 2>\"\n";
+    Error pe, ce, qe;
+    EXPECT(parseFile(p, text, (int)strlen(text), pe) && checkProgram(p, ce), "trigger: parse %s %s", pe.msg, ce.msg);
+    auto first = [&](int slot, Q from, Q& whole, double& v) {
+        int n = queryPattern(p, p.at(p.block[slot]).first, Arc{from, from + Q{1, 1}}, gEvents, 4096, qe);
+        if (n <= 0) return false;
+        whole = gEvents[0].whole.s;
+        v = gEvents[0].ctl[0].f;
+        return true;
+    };
+    Q w;
+    double v;
+    setQueryTrigger(Q{3, 2});  // took effect at 1.5: qtrigger restarts at cycle 2, trigger at 1.5
+    EXPECT((first(0, Q{2, 1}, w, v) && w == Q{2, 1} && v == 0), "qtrigger: cycle 2 plays the pattern's cycle 0 (%g)", v);
+    EXPECT((first(1, Q{2, 1}, w, v) && w == Q{3, 2} && v == 0), "trigger: the pattern's cycle 0 from 1.5 (%g)", v);
+    setQueryTrigger(Q{0, 1});
+    EXPECT((first(0, Q{2, 1}, w, v) && v == 2), "no trigger: cycle 2 as written (%g)", v);
+}
+
 static void testEventSrc() {
 #if TC_EVENT_SRC
     struct C {
@@ -1027,6 +1050,7 @@ int main() {
     testRefinement();
     testGolden();
     testEventSrc();
+    testTrigger();
     testScheduler(gPass, gFail);
     testMapping(gPass, gFail);
     testEditorModel(gPass, gFail);

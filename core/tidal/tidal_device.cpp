@@ -178,8 +178,32 @@ int DeviceVoice::pickPlayer(int slot, uint8_t instr, int voices, uint32_t now) {
     return freeK;
 }
 
+// The Tracker's one reverb and delay (batch 3: size / delaytime /
+// delayfeedback): set when a note asks for a value other than the last one.
+// Interrupt-safe setters (a value under AudioNoInterrupts); the project's
+// own settings (Master screen) aren't changed.
+static void globalFx(const tc::Entry& e) {
+    static int32_t lastSize = -1, lastTime = -1, lastFb = -1;
+    for (int i = 0; i < e.nmods; i++) {
+        const int32_t v = e.modVal[i];
+        switch ((tc::TMod)e.modId[i]) {
+            case tc::TMod::RevSize:
+                if (v != lastSize) engine.setReverbSize((float)v / 65535.0f), lastSize = v;
+                break;
+            case tc::TMod::DelayTime:
+                if (v != lastTime) engine.setDelayTime((uint16_t)v), lastTime = v;
+                break;
+            case tc::TMod::DelayFb:
+                if (v != lastFb) engine.setDelayFeedback((uint8_t)v), lastFb = v;
+                break;
+            default: break;
+        }
+    }
+}
+
 uint16_t DeviceVoice::noteOn(int slot, const tc::Entry& e, uint32_t late) {
     if (slot < audioEngine::kVoices) {
+        globalFx(e);
         const uint32_t now = e.block + late;
         const int k = pickPlayer(slot, e.chan, e.voices ? e.voices : 1, now);
         const uint16_t serial = (uint16_t)((serial_[slot][k] + 1) & 0x3FFF);
@@ -196,6 +220,8 @@ uint16_t DeviceVoice::noteOn(int slot, const tc::Entry& e, uint32_t late) {
     for (int i = 0; i < e.nmods; i++) {
         if (e.modId[i] == (uint8_t)tc::TMod::Cc) sendCC(e.modVal[i] >> 8, e.modVal[i] & 0x7F, ch, false);
         else if (e.modId[i] == (uint8_t)tc::TMod::Bend) sendPitchbend((int16_t)(e.modVal[i] - 8192), ch, false);
+        else if (e.modId[i] == (uint8_t)tc::TMod::Program) sendProgramChange((uint8_t)e.modVal[i], ch, false);
+        else if (e.modId[i] == (uint8_t)tc::TMod::Touch) sendAfterTouch((uint8_t)e.modVal[i], ch, false);
     }
     sendMidiNoteOn(e.note, e.vel, ch, false);
     return 0;

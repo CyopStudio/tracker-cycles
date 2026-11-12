@@ -235,6 +235,22 @@ void testEffects() {
                 o.mod(TMod::Reverb) == 30 && o.mod(TMod::Delay) == 100,
             "pan %d drive %d bits %d room %d delay %d", o.mod(TMod::Pan), o.mod(TMod::Overdrive),
             o.mod(TMod::BitDepth), o.mod(TMod::Reverb), o.mod(TMod::Delay));
+    // batch 3: global reverb size / delay time / feedback, the DJ filter
+    o = one(0, "s \"bd\" # size 0.5 # delaytime 0.25 # delayfeedback 0.6");
+    MEXPECT(o.mod(TMod::RevSize) == 32768 && o.mod(TMod::DelayTime) == 250 && o.mod(TMod::DelayFb) == 60,
+            "size %d delaytime %d delayfeedback %d", o.mod(TMod::RevSize), o.mod(TMod::DelayTime),
+            o.mod(TMod::DelayFb));
+    o = one(0, "s \"bd\" # sz 2 # delayt 9 # delayfb 2");  // aliases, clamped
+    MEXPECT(o.mod(TMod::RevSize) == 65535 && o.mod(TMod::DelayTime) == 3500 && o.mod(TMod::DelayFb) == 99,
+            "clamps: %d %d %d", o.mod(TMod::RevSize), o.mod(TMod::DelayTime), o.mod(TMod::DelayFb));
+    o = one(0, "s \"bd\" # djf 0.25");
+    MEXPECT(o.mod(TMod::CutoffLP) == 32768 && o.mod(TMod::CutoffHP) < 0, "djf 0.25: low-pass half open");
+    o = one(0, "s \"bd\" # djf 0.75");
+    MEXPECT(o.mod(TMod::CutoffHP) == 32768 && o.mod(TMod::CutoffLP) < 0, "djf 0.75: high-pass");
+    o = one(0, "s \"bd\" # djf 0.5");
+    MEXPECT(o.e.nmods == 0, "djf 0.5: no filter");
+    o = one(0, "s \"bd\" # cutoff 300 # djf 0.2");
+    MEXPECT(o.mod(TMod::CutoffLP) == cutoffRef(300), "an explicit filter wins over djf");
     o = one(0, "s \"bd\" # crush 2 # distort 0.7 # shape 0.2");
     MEXPECT(o.mod(TMod::BitDepth) == 4 && o.mod(TMod::Overdrive) == 70, "crush 2 -> %d, drive %d",
             o.mod(TMod::BitDepth), o.mod(TMod::Overdrive));
@@ -304,6 +320,8 @@ void testMidi() {
             "d12: chan %d note %d vel %d dur %u", o.e.chan, o.e.note, o.e.vel, o.e.dur);
     o = one(9, "n 0 # ccn 7 # ccv 64 # midibend 100");
     MEXPECT(o.e.chan == 1 && o.mod(TMod::Cc) == (7 << 8 | 64) && o.mod(TMod::Bend) == 8292, "cc / bend");
+    o = one(8, "n 0 # progNum 5 # miditouch 90");
+    MEXPECT(o.mod(TMod::Program) == 5 && o.mod(TMod::Touch) == 90, "program / aftertouch");
     o = one(8, "n 0 # ccn 7");
     MEXPECT(o.mod(TMod::Cc) < 0, "ccn without ccv");
     o = one(8, "n 0 # gain 2");

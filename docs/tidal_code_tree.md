@@ -366,7 +366,41 @@ cases (exact events; random ones by property, golden/random.txt).
   `wchoose`, `wrandcat`. Tidal's plain `(Time, Time)` / `[(a, Double)]`
   are typed with patterns here (literals are patterns), values read at
   time 0.
-- Later: `ur`, `fix`, `chew`, `spread`, `foldEvery`, `ghost`.
+- Later: `ur`, `spread` (batch 3 has `fix`, `chew`, `foldEvery`, `ghost`).
+
+### 7.3 Batch 3 (2026-11-12)
+
+Typed from `:t` in GHCi (Tidal 1.10.3); 26 golden cases (23 exact, 3 by
+property), `qtrigger` / `trigger` by a unit check (they need the
+scheduler).
+
+- Time / structure: `iter'`, `repeatCycles`, `foldEvery` (at most 8
+  numbers), `append` / `slowAppend`, `fastAppend`, `qtrigger`, `trigger`
+- Layering: `stutter`, `ghost`, `ghost'`
+- Conditional: `fix`, `unfix`, `contrast` (an event matches when every
+  control of the condition is in it with the same value, sampled at the
+  event's onset)
+- Signals: `isaw`, `envL`, `envLR`, `envEq`, `envEqR` (the envelopes run
+  once over cycle 0; with `qtrigger` they start when the block does),
+  `rangex`, `quantise` (rounds halves to even, like Haskell)
+- Random: `brand`, `brandBy` (the same random stream as `rand`)
+- Samples: `randslice` (begin / end: exact on the device), `chew` (`bite`
+  with speed changes: approximate on the device, like `splice`)
+- Controls: `size` / `sz`, `delaytime` / `delayt`, `delayfeedback` /
+  `delayfb` (the Tracker's one reverb / delay: the last note that sets
+  one wins; the project's own settings aren't changed), `djf` (on the
+  Tracker's filter: low-pass below 0.5, high-pass above), `progNum` and
+  `miditouch` (d9-d16: program change before the note, aftertouch);
+  `coarse` is host only (no sample-rate reduction on the Tracker)
+- Engine notes: `qtrigger` / `trigger` shift the pattern so its cycle 0
+  is where the block took effect (the scheduler's switch cycle; `qtrigger`
+  rounds up to a whole cycle); elsewhere (editor checks, golden tests)
+  nothing moves. `ghost`'s `|*| gain 0.7` takes structure from both
+  sides, so each ghost layer is cut at cycle boundaries before the next
+  shift (as GHCi shows).
+- Not in Tidal 1.10.3's library: `euclidOffFull`, `resetCycles` (a
+  BootTidal statement); `ifp` / `whenT` need predicate functions (no
+  lambdas here).
 
 ---
 

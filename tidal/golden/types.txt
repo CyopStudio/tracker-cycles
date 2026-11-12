@@ -106,6 +106,31 @@ choose :: [a] -> Pattern a
 chooseBy :: Pattern Double -> [a] -> Pattern a
 cycleChoose :: [a] -> Pattern a
 toScale' :: Num a => Int -> [a] -> Pattern Int -> Pattern a
+stutter :: Integral i => i -> Time -> Pattern a -> Pattern a
+ghost :: Pattern ValueMap -> Pattern ValueMap
+ghost' :: Time -> Pattern ValueMap -> Pattern ValueMap
+iter' :: Pattern Int -> Pattern c -> Pattern c
+rangex :: (Functor f, Floating b) => b -> b -> f b -> f b
+quantise :: (Functor f, RealFrac b) => b -> f b -> f b
+isaw :: (Fractional a, Real a) => Pattern a
+envL :: Pattern Double
+envLR :: Pattern Double
+envEq :: Pattern Double
+envEqR :: Pattern Double
+brand :: Pattern Bool
+brandBy :: Pattern Double -> Pattern Bool
+append :: Pattern a -> Pattern a -> Pattern a
+fastAppend :: Pattern a -> Pattern a -> Pattern a
+slowAppend :: Pattern a -> Pattern a -> Pattern a
+repeatCycles :: Pattern Int -> Pattern a -> Pattern a
+foldEvery :: [Int] -> (Pattern a -> Pattern a) -> Pattern a -> Pattern a
+fix :: (ControlPattern -> ControlPattern) -> ControlPattern -> ControlPattern -> ControlPattern
+unfix :: (ControlPattern -> ControlPattern) -> ControlPattern -> ControlPattern -> ControlPattern
+contrast :: (ControlPattern -> ControlPattern) -> (ControlPattern -> ControlPattern) -> ControlPattern -> ControlPattern -> ControlPattern
+randslice :: Pattern Int -> ControlPattern -> ControlPattern
+chew :: Pattern Int -> Pattern Int -> ControlPattern -> ControlPattern
+qtrigger :: Pattern a -> Pattern a
+trigger :: Pattern a -> Pattern a
 s :: Pattern String -> ControlPattern
 sound :: Pattern String -> ControlPattern
 n :: Pattern Note -> ControlPattern
@@ -147,6 +172,16 @@ bpf :: Pattern Double -> ControlPattern
 att :: Pattern Double -> ControlPattern
 rel :: Pattern Double -> ControlPattern
 voices :: Pattern Int -> ControlPattern
+size :: Pattern Double -> ControlPattern
+sz :: Pattern Double -> ControlPattern
+delaytime :: Pattern Double -> ControlPattern
+delayt :: Pattern Double -> ControlPattern
+delayfeedback :: Pattern Double -> ControlPattern
+delayfb :: Pattern Double -> ControlPattern
+djf :: Pattern Double -> ControlPattern
+coarse :: Pattern Double -> ControlPattern
+progNum :: Pattern Double -> ControlPattern
+miditouch :: Pattern Double -> ControlPattern
 # :: Unionable b => Pattern b -> Pattern b -> Pattern b
 |+| :: (Applicative a, Num b) => a b -> a b -> a b
 |+ :: Num a => Pattern a -> Pattern a -> Pattern a

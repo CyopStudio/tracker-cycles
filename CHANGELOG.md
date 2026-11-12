@@ -8,8 +8,8 @@ Notable changes to **Tracker Cycles**, TidalCycles-style live coding for the Ori
 
 ### Added
 
-* **Tidal pattern engine.** Patterns are written in real Tidal syntax and evaluated on the Tracker. The engine is type-checked like GHC would, and checked against event lists captured from Tidal 1.10.3 (215 exact cases; random functions are checked by their behaviour).
-  * More than 100 functions and operators: time, structure, randomness, layering, harmony, signals, pairs (`within`, `zoom` …) and the operator families (`#`, `|+|` … `|%|`, `|**|`, `|<|`, `|>|`). The list is in `docs/tidal_code_tree.md`.
+* **Tidal pattern engine.** Patterns are written in real Tidal syntax and evaluated on the Tracker. The engine is type-checked like GHC would, and checked against event lists captured from Tidal 1.10.3 (241 exact cases; random functions are checked by their behaviour).
+  * About 140 functions and operators: time, structure, randomness, layering, harmony, signals, pairs (`within`, `zoom` …), conditional ones (`fix`, `contrast`), restarts (`qtrigger`) and the operator families (`#`, `|+|` … `|%|`, `|**|`, `|<|`, `|>|`). The list is in `docs/tidal_code_tree.md`.
   * `d1`–`d8` play the 8 sample tracks. `d9`–`d16` send MIDI notes and CCs (`midichan`, `ccn`, `ccv`, `midibend`).
   * `setcps` sets the tempo; MIDI clock out follows it.
   * `slice` plays one part of a sample per event (begin / end), exactly on the Tracker; `splice` also fits the part to the event's length.

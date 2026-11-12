@@ -36,3 +36,6 @@ choose           | like n "0*4" | value n 0 8
 cycleChoose      | like n "0" | value n 0 8
 wchoose          | like n "0*4" | value n 0 8
 wrandcat         | subset stack [s "a*2", s "b*3"] | count 8 12
+brand            | subset s "bd*8" | count 4 12
+brandBy          | subset s "bd*8" | count 1 8
+randslice        | like s "bev*4" | value begin 0 1 | value end 0.25 1.01

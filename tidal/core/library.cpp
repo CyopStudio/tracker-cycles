@@ -135,6 +135,39 @@ static const LibEntry kLib[] = {
     FN("chooseBy", "Pat Double -> [Pat a] -> Pat a", Random, Full, nullptr),
     FN("cycleChoose", "[Pat a] -> Pat a", Random, Full, nullptr),
     FN("toScale'", "Num a => Pat Int -> [Pat a] -> Pat Int -> Pat a", Harmony, Full, nullptr),
+    // ---- batch 3 (2026-11-12): signatures from :t in GHCi, Tidal 1.10.3 -----
+    // (plain Int / Time / [Int] arguments as patterns read at time 0, as above)
+    FN("stutter", "Pat Int -> Pat Time -> Pat a -> Pat a", Layer, Full, "4 (1/16)"),
+    FN("ghost", "Pat Control -> Pat Control", Layer, Full, nullptr),
+    FN("ghost'", "Pat Time -> Pat Control -> Pat Control", Layer, Full, "(1/16)"),
+    FN("iter'", "Pat Int -> Pat a -> Pat a", Time, Full, "4"),
+    FN("rangex", "Frac a => Pat a -> Pat a -> Pat a -> Pat a", Signal, Full, "200 4000"),
+    FN("quantise", "Frac a => Pat a -> Pat a -> Pat a", Signal, Full, "1"),
+    FN("isaw", "Frac a => Pat a", Signal, Full, nullptr),
+    FN("envL", "Pat Double", Signal, Full, nullptr),
+    FN("envLR", "Pat Double", Signal, Full, nullptr),
+    FN("envEq", "Pat Double", Signal, Full, nullptr),
+    FN("envEqR", "Pat Double", Signal, Full, nullptr),
+    FN("brand", "Pat Bool", Random, Full, nullptr),
+    FN("brandBy", "Pat Double -> Pat Bool", Random, Full, "0.3"),
+    FN("append", "Pat a -> Pat a -> Pat a", Structure, Full, nullptr),
+    FN("fastAppend", "Pat a -> Pat a -> Pat a", Structure, Full, nullptr),
+    FN("slowAppend", "Pat a -> Pat a -> Pat a", Structure, Full, nullptr),
+    FN("repeatCycles", "Pat Int -> Pat a -> Pat a", Time, Full, "2"),
+    FN("foldEvery", "[Pat Int] -> (Pat a -> Pat a) -> Pat a -> Pat a", Time, Full, "[3, 5] (fast 2)"),
+    FN("fix", "(Pat Control -> Pat Control) -> Pat Control -> Pat Control -> Pat Control", Structure, Full,
+       "(# crush 4) (n 1)"),
+    FN("unfix", "(Pat Control -> Pat Control) -> Pat Control -> Pat Control -> Pat Control", Structure, Full,
+       "(# crush 4) (n 1)"),
+    FN("contrast",
+       "(Pat Control -> Pat Control) -> (Pat Control -> Pat Control) -> Pat Control -> Pat Control -> Pat Control",
+       Structure, Full, "(# crush 4) (# speed 2) (n 1)"),
+    FN("randslice", "Pat Int -> Pat Control -> Pat Control", Sample, Full, "4"),
+    FN("chew", "Pat Int -> Pat Int -> Pat Control -> Pat Control", Sample, Approx, "4 \"0 1 [2 3]\""),
+    // restart from the pattern's cycle 0 when the block takes effect (qtrigger:
+    // at the next cycle boundary); the scheduler knows when (setQueryTrigger)
+    FN("qtrigger", "Pat a -> Pat a", Time, Full, nullptr),
+    FN("trigger", "Pat a -> Pat a", Time, Full, nullptr),
     // ---- controls -----------------------------------------------------------
     CTL("s", "String"),
     CTL("sound", "String"),
@@ -180,6 +213,17 @@ static const LibEntry kLib[] = {
     // Tracker Cycles' own (not in Tidal: `let voices = pI "voices"`, see
     // docs/tidal_voices.md): notes a sample track lets ring, 1-3 (default 1)
     CTL("voices", "Int"),
+    // batch 3 (2026-11-12); sz / delayt / delayfb are Tidal's aliases
+    CTL("size", "Double"),
+    CTL("sz", "Double"),
+    CTL("delaytime", "Double"),
+    CTL("delayt", "Double"),
+    CTL("delayfeedback", "Double"),
+    CTL("delayfb", "Double"),
+    CTL("djf", "Double"),
+    CTL("coarse", "Double"),
+    CTL("progNum", "Double"),
+    CTL("miditouch", "Double"),
     // ---- operators (fixities from GHCi :info, Tidal 1.10.3) ------------------
     OP("#", "Pat a -> Pat a -> Pat a", 9, Left, true),
     OP("|+|", "Num a => Pat a -> Pat a -> Pat a", 9, Left, true),

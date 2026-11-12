@@ -24,6 +24,7 @@ constexpr float kDefaultAmp = 0.4f;
 constexpr int kMinBits = 4;        // Tracker BIT_DEPTH_MIN
 constexpr int kMaxBits = 16;
 constexpr int kMaxEnvMs = 10000;   // Tracker ATTACK_MAX / RELEASE_MAX
+constexpr int kMaxDelayMs = 3500;  // Tracker DELAY_TIME_MAX / MAX_SHORT_DELAY_TIME
 // The Tracker filter: cutoff c in 0..1 picks entry i = c x 477 of a table
 // of 20 Hz x 2^(i / 50).
 constexpr float kFilterSteps = 477.0f, kFilterOctaveSteps = 50.0f, kFilterLowHz = 20.0f;
@@ -102,6 +103,10 @@ const CtlRule kCtlRules[] = {
     {"att", kSample, nullptr},      {"release", kSample, nullptr},  {"rel", kSample, nullptr},
     {"cut", kSample, nullptr},      {"midichan", kMidi, nullptr},   {"ccn", kMidi, nullptr},
     {"ccv", kMidi, nullptr},        {"midibend", kMidi, nullptr},   {"voices", kSample, nullptr},
+    {"size", kSample, nullptr},     {"sz", kSample, nullptr},       {"delaytime", kSample, nullptr},
+    {"delayt", kSample, nullptr},   {"delayfeedback", kSample, nullptr}, {"delayfb", kSample, nullptr},
+    {"djf", kSample, nullptr},      {"progNum", kMidi, nullptr},    {"miditouch", kMidi, nullptr},
+    {"coarse", kNowhere, "isn't available on the Tracker (no sample-rate reduction: use crush)"},
     {"orbit", kNowhere, "isn't available on the Tracker (one effects bus)"},
     {"unit", kNowhere, "isn't available on the Tracker (no cycle-relative speed)"},
 };
@@ -184,6 +189,12 @@ void TrackerMapper::init(const TrackerHost* host, float sampleRate) {
     kCcn_ = controlKey("ccn");
     kCcv_ = controlKey("ccv");
     kBend_ = controlKey("midibend");
+    kSize_ = controlKey("size");
+    kDelayTime_ = controlKey("delaytime");
+    kDelayFb_ = controlKey("delayfeedback");
+    kDjf_ = controlKey("djf");
+    kProg_ = controlKey("progNum");
+    kTouch_ = controlKey("miditouch");
     instrumentsChanged();
     resetWarnings();
 }
@@ -242,7 +253,9 @@ bool TrackerMapper::map(const Program& p, int slot, const Event& e, float, float
     int filters = 0;
     bool hasRes = false, hasHres = false, hasPan = false, hasDrive = false, hasCrush = false, hasRoom = false,
          hasDelay = false, hasBegin = false, hasEnd = false, hasAttack = false, hasRelease = false,
-         hasLegato = false, hasSustain = false, hasChan = false, hasCcn = false, hasCcv = false, hasBend = false;
+         hasLegato = false, hasSustain = false, hasChan = false, hasCcn = false, hasCcv = false, hasBend = false,
+         hasSize = false, hasDelayTime = false, hasDelayFb = false, hasDjf = false, hasProg = false, hasTouch = false;
+    float size = 0, delayTime = 0, delayFb = 0, djf = 0.5f, prog = 0, touch = 0;
     float voices = 1;
     float res = 0, hres = 0, pan = 0.5f, drive = 0, crush = 16, room = 0, delay = 0, begin = 0, end = 1, attack = 0,
           release = 0, legato = 1, sustain = 0, chan = 0, ccn = 0, ccv = 0, bend = 0;
@@ -306,6 +319,18 @@ bool TrackerMapper::map(const Program& p, int slot, const Event& e, float, float
             bend = v, hasBend = true;
         } else if (k == kVoices_) {
             voices = v;
+        } else if (k == kSize_) {
+            size = v, hasSize = true;
+        } else if (k == kDelayTime_) {
+            delayTime = v, hasDelayTime = true;
+        } else if (k == kDelayFb_) {
+            delayFb = v, hasDelayFb = true;
+        } else if (k == kDjf_) {
+            djf = v, hasDjf = true;
+        } else if (k == kProg_) {
+            prog = v, hasProg = true;
+        } else if (k == kTouch_) {
+            touch = v, hasTouch = true;
         }
     }
     const float ratio = (amp / kDefaultAmp) * powf(clampf(gain, 0.0f, 2.0f), 4.0f) * velocity;
@@ -324,6 +349,8 @@ bool TrackerMapper::map(const Program& p, int slot, const Event& e, float, float
         if (hasCcn && hasCcv)
             m.set(TMod::Cc, (uint16_t)(clampi((int)lroundf(ccn), 0, 127) << 8 | clampi((int)lroundf(ccv), 0, 127)));
         if (hasBend) m.set(TMod::Bend, (uint16_t)clampi(8192 + (int)lroundf(bend), 0, 16383));
+        if (hasProg) m.set(TMod::Program, (uint16_t)clampi((int)lroundf(prog), 0, 127));
+        if (hasTouch) m.set(TMod::Touch, (uint16_t)clampi((int)lroundf(touch), 0, 127));
     } else {  // ---- sample track
         if (!hasName) {
             w.noSound++;
@@ -363,6 +390,20 @@ bool TrackerMapper::map(const Program& p, int slot, const Event& e, float, float
             const bool hp = t == TMod::CutoffHP;
             if (hp ? hasHres : hasRes) m.set(TMod::Resonance, unit16(hp ? hres : res));
         }
+        // djf (DJ filter): below 0.5 a low-pass closing towards 0, above a
+        // high-pass opening towards 1, 0.5 none; an explicit filter wins
+        if (hasDjf && fabsf(djf - 0.5f) > 0.001f) {
+            if (filter >= 0) {
+                w.filterClash++;
+            } else if (djf < 0.5f) {
+                m.set(TMod::CutoffLP, unit16(clampf(djf * 2.0f, 0.0f, 1.0f)));
+            } else {
+                m.set(TMod::CutoffHP, unit16(clampf((djf - 0.5f) * 2.0f, 0.0f, 1.0f)));
+            }
+        }
+        if (hasSize) m.set(TMod::RevSize, unit16(clampf(size, 0.0f, 1.0f)));
+        if (hasDelayTime) m.set(TMod::DelayTime, (uint16_t)clampi((int)lroundf(delayTime * 1000.0f), 1, kMaxDelayMs));
+        if (hasDelayFb) m.set(TMod::DelayFb, (uint16_t)clampi((int)lroundf(delayFb * 100.0f), 0, 99));
         if (hasPan) m.set(TMod::Pan, percent(pan));
         if (hasDrive) m.set(TMod::Overdrive, percent(drive));
         if (hasCrush) m.set(TMod::BitDepth, (uint16_t)clampi((int)lroundf(crush), kMinBits, kMaxBits));

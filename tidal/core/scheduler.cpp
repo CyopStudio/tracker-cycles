@@ -64,7 +64,7 @@ void Scheduler::init(Program* live, Event* buf, int cap, Mapper* mapper, Entry* 
         Slot& s = slot_[i];
         s.expr = s.next = 0;
         s.pending = false;
-        s.at = s.h = Q{0, 1};
+        s.at = s.h = s.trig = Q{0, 1};
         s.failed = false;
         s.err = Error();
         ring_[i].e = storage + i * kRingSize;
@@ -286,7 +286,9 @@ bool Scheduler::queryWindow(int i, Q s, Q e) {
         Error err;
         stats_.queries++;
         mapper_->begin(i);
+        setQueryTrigger(sl.trig);
         int n = queryPattern(*live_, sl.expr, Arc{s, e}, buf_, bufCap_, err);
+        setQueryTrigger(Q{0, 1});
         bool tooMany = n < 0;
         int cnt = 0;
         const Anchor& a = anchorFor(s);
@@ -420,6 +422,7 @@ int Scheduler::update(uint32_t (*clockUs)(), uint32_t budgetUs) {
             s.expr = s.next;
             s.next = 0;
             s.pending = false;
+            s.trig = s.at;
             if (s.h > s.at) truncate(i, sampleAt(s.at));  // after a skip
         }
         if (!s.expr) {  // silent until the switch (or for good)

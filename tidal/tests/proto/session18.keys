@@ -2,7 +2,7 @@ hw:shift+pad2
 hw:shift+insert
 hw:right
 hw:fx1
-menu:63
+menu:76
 hw:play
 msg
 hw:right
@@ -12,7 +12,7 @@ msg
 hw:left
 msg
 replace
-menu:13
+menu:14
 hw:play
 msg
 print

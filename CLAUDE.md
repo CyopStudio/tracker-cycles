@@ -217,6 +217,15 @@ to upstream CE.
     partner is marked (cursorTokenChars, kCellPair 0x2E2440); `slice`
     (engine qSplice without speed / unit, Device Full; 3 golden cases).
     Flash 957,404 B (91.3 %).
+    Function batch 3 (2026-11-12, RC15 PolyendTrac_CyclesRC15.ptf, not yet
+    run): 24 functions + 10 controls (docs/tidal_code_tree.md 7.3; callLib3,
+    Pat kinds EveryF / Match / ClipCycles); qtrigger / trigger read the
+    slot's switch cycle (Scheduler::Slot::trig -> setQueryTrigger before
+    each query); size / delaytime / delayfeedback set the global reverb /
+    delay from DeviceVoice::noteOn (globalFx, only on change), djf maps to
+    the LP / HP filter, progNum / miditouch go out before the MIDI note;
+    coarse refused in Tracker mode. 254 golden cases, 212 types. Flash
+    969,276 B (92.4 %, +11.9 KB).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
