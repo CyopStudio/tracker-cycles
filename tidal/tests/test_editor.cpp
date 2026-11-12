@@ -11,6 +11,7 @@
 
 #include "controls.h"
 #include "editor.h"
+#include "library.h"
 
 using namespace tc;
 
@@ -547,6 +548,37 @@ void testEditorModel(int& pass, int& fail) {
                "superimpose raises voices 1 to 2\n%s", f.c_str());
         f = wrapWith("d9 $ n \"0 4\"\n", 8, "jux rev");
         EXPECT(f.find("voices") == std::string::npos, "MIDI blocks: no voices\n%s", f.c_str());
+    }
+
+    // the function jog (user, after RC21: jogging on `rev` dropped audio):
+    // the fitting functions are worked out once per spot, not per detent
+    {
+        static Program pj2;
+        static Checkpoint cj2;
+        static uint8_t uj2[64 * 1024];
+        static Editor ej2(pj2, cj2, uj2, (int)sizeof uj2);
+        RecOutput oj2;
+        ej2.setOutput(&oj2);
+        const char* f = "d6 $ every' 10 9 (jux rev) $ every' 4 3 (slow \"[1 4]\") $ n \"0 1\" # s \"x\"\n";
+        Label er;
+        ej2.loadText(f, (int)strlen(f), er);
+        ej2.setCursorMode(true);
+        ej2.gotoSlot(5);
+        for (int i = 0; i < 4; i++) ej2.act(Action::Right);  // every' 10 9 jux | rev
+        EXPECT(ej2.prog().at(ej2.cursor()).kind == Kind::Fn && !strcmp(lib((int)ej2.prog().at(ej2.cursor()).a).name, "rev"),
+               "on rev (%s)", ej2.cursorInfo().c_str());
+        ej2.act(Action::WheelUp);
+        const int first = jogFitTrials();
+        EXPECT(first > 0 && first < 60, "first detent: %d trial checks (not one per library entry)", first);
+        int later = 0;
+        for (int i = 0; i < 10; i++) {
+            ej2.act(Action::WheelUp);
+            later += jogFitTrials() == first ? 0 : 1;  // the list wasn't rebuilt
+        }
+        EXPECT(later == 0, "later detents reuse the list");
+        ej2.jog(5, false);
+        EXPECT(!ej2.messageIsError() && fileOf(ej2).find("jux rev)") == std::string::npos, "5 detents in one edit: %s",
+               ej2.message().c_str());
     }
 
     // the control mapping (editor/controls.*), shared with the device

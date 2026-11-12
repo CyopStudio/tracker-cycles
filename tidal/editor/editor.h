@@ -97,6 +97,7 @@ enum class Action {
     UnmuteAll,                         // Pattern held + Screen 8 (RC17 notes)
 };
 const char* actionName(Action a);
+int jogFitTrials();  // trial checks the last function / operator jog list took
 bool actionFromName(const char* s, Action& out);
 
 enum class SlotState { Empty, Edited, Playing, Error };
@@ -422,6 +423,12 @@ private:
     bool lazyMenus_ = false;
     int menuNext_ = 0;                  // first item not checked yet
     void wheelFn(int dir);
+    // the functions / operators that fit at the jog's spot (wheelFn / wheelOp)
+    void jogFits(bool op);
+    FixVec<int16_t, 256> fits_;
+    bool fitValid_ = false, fitOp_ = false;
+    uint16_t fitNode_ = 0;
+    uint32_t fitChanges_ = 0;
 
     // candidate helpers: build a copy with the cursor node replaced by parsed
     // code (expression or mini-notation). Returns null if it doesn't check.

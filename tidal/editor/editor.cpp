@@ -1228,7 +1228,7 @@ void Editor::jog(int n, bool fast) {
     const Action a = dir > 0 ? (fast ? Action::WheelUpFast : Action::WheelUp)
                              : (fast ? Action::WheelDownFast : Action::WheelDown);
     const Kind k = cursor_ && !menuOpen_ && !kbdOpen_ ? prog_->at(cursor_).kind : Kind::None;
-    if (k == Kind::Num || k == Kind::MNum || k == Kind::MNote) {
+    if (k == Kind::Num || k == Kind::MNum || k == Kind::MNote || k == Kind::Fn || (k == Kind::Op && onOperator())) {
         jogMul_ = count;  // one edit of count steps
         act(a);
         jogMul_ = 1;
@@ -2007,8 +2007,8 @@ void Editor::wheel(int dir, bool fast) {
         (void)top;
         return info(cursorInfo());
     }
-    if (prog_->at(cursor_).kind == Kind::Fn) return wheelFn(dir);
-    if (prog_->at(cursor_).kind == Kind::Op) return wheelOp(dir);
+    if (prog_->at(cursor_).kind == Kind::Fn) return wheelFn(dir * jogMul_);
+    if (prog_->at(cursor_).kind == Kind::Op) return wheelOp(dir * jogMul_);
     if (onOperator()) return info("$: Delete unwraps it, Shift+Screen 7 puts a line break before it");
     if (prog_->at(cursor_).kind == Kind::MReplicate && !(prog_->at(cursor_).flags & kBare)) {
         // x!n: the count (RC14, Shift+Screen 6 makes these)
@@ -2087,29 +2087,85 @@ void Editor::wheel(int dir, bool fast) {
 }
 
 // Wheel on a function name: step through the functions that type-check here.
-void Editor::wheelFn(int dir) {
-    FixVec<int, 256> ok;
-    int cur = (int)prog_->at(cursor_).a;
-    for (int id = 0; id < libCount(); id++) {
-        if (libIsOp(id) || libIsAlias(id)) continue;
-        if (id == cur) {
-            ok.push_back(id);
-            continue;
-        }
-        if (!beginEdit()) return;
-        prog_->at(cursor_).a = (uint32_t)id;
-        Text err;
-        if (recheck(*prog_, err)) ok.push_back(id);
-        abortEdit();
+// Jog on a function's name / an operator's symbol (user, after RC21:
+// "scrolling on rev caused audio dropouts"): each detent used to type-check
+// the whole block once per library entry (~120 trials, up to 8 detents a
+// pass). Now the functions that fit at this spot are worked out once and
+// kept while the jog goes on (only this spot's own swaps happen meanwhile):
+// an entry with the very same type needs no trial (only the Tracker-mode
+// check), one with the same number of arguments one trial, others can't
+// fit. The list is alphabetical (like the menus); n detents = one edit.
+static int gFitTrials = 0;  // trial checks made by the last jogFits (tests)
+int jogFitTrials() { return gFitTrials; }
+static int sigArity(const char* sig) {
+    int depth = 0, n = 0;
+    for (const char* c = sig; *c; c++) {
+        if (*c == '(' || *c == '[') depth++;
+        else if (*c == ')' || *c == ']') depth--;
+        else if (depth == 0 && c[0] == '-' && c[1] == '>') n++;
     }
+    return n;
+}
+
+void Editor::jogFits(bool op) {
+    if (fitValid_ && fitNode_ == cursor_ && fitChanges_ == changes_ && fitOp_ == op) return;
+    fits_.clear();
+    gFitTrials = 0;
+    const int cur = (int)prog_->at(cursor_).a;
+    const char* sig = lib(cur).sig;
+    const int arity = sigArity(sig);
+    for (int id = 0; id < libCount(); id++) {
+        if (op != libIsOp(id) || libIsAlias(id)) continue;
+        // a control only swaps with a control, a function with a function
+        if ((lib(id).cat == Cat::Control) != (lib(cur).cat == Cat::Control)) continue;
+        bool fit = id == cur;
+        if (!fit && !strcmp(lib(id).sig, sig)) {
+            fit = !trackerMode_ || !trackerLibIssue(id, slot_);
+        } else if (!fit && sigArity(lib(id).sig) == arity) {
+            gFitTrials++;
+            if (op) {
+                EditSpec sp;
+                sp.kind = EditKind::SetOp;
+                sp.target = cursor_;
+                sp.launch = id;
+                uint16_t nn;
+                fit = trySpec(sp, nn);
+            } else {
+                if (!beginEdit()) return;
+                prog_->at(cursor_).a = (uint32_t)id;
+                Text err;
+                fit = recheck(*prog_, err);
+                abortEdit();
+            }
+        }
+        if (fit && !fits_.push_back((int16_t)id)) break;
+    }
+    for (int a = 1; a < (int)fits_.size() && !op; a++)  // functions alphabetical; operators by family (as the menu)
+        for (int k = a; k > 0 && strcmp(lib(fits_[k - 1]).name, lib(fits_[k]).name) > 0; k--) {
+            const int16_t t = fits_[k];
+            fits_[k] = fits_[k - 1];
+            fits_[k - 1] = t;
+        }
+    fitValid_ = true;
+    fitNode_ = cursor_;
+    fitOp_ = op;
+    fitChanges_ = changes_;
+}
+
+void Editor::wheelFn(int dir) {
+    jogFits(false);
+    const int n = (int)fits_.size(), cur = (int)prog_->at(cursor_).a;
     int at = 0;
-    for (int i = 0; i < (int)ok.size(); i++)
-        if (ok[i] == cur) at = i;
-    int next = ok[(at + dir + (int)ok.size()) % (int)ok.size()];
-    if (next == cur) return info("no other function fits here");
+    for (int i = 0; i < n; i++)
+        if (fits_[i] == cur) at = i;
+    if (n < 2) return info("no other function fits here");
+    const int next = fits_[((at + dir) % n + n) % n];
     if (!beginEdit()) return;
     prog_->at(cursor_).a = (uint32_t)next;
-    if (endEdit(cursor_)) info(lib(next).name);
+    if (endEdit(cursor_)) {      // one check (it also adds # voices for jux ...), not one per function
+        fitChanges_ = changes_;  // still this spot's list
+        info(lib(next).name);
+    }
 }
 
 // Empty slot: create its (empty) block and put the cursor on it.
@@ -2977,27 +3033,13 @@ void Editor::openMini(int k) {
 }
 
 void Editor::wheelOp(int dir) {
-    int ok[48];
-    int n = 0;
-    const int cur = (int)prog_->at(cursor_).a;
-    for (int id = 0; id < libCount() && n < 48; id++) {
-        if (!libIsOp(id)) continue;
-        if (id == cur) {
-            ok[n++] = id;
-            continue;
-        }
-        EditSpec s;
-        s.kind = EditKind::SetOp;
-        s.target = cursor_;
-        s.launch = id;
-        uint16_t nn;
-        if (trySpec(s, nn)) ok[n++] = id;
-    }
+    jogFits(true);
+    const int n = (int)fits_.size(), cur = (int)prog_->at(cursor_).a;
     int at = 0;
     for (int i = 0; i < n; i++)
-        if (ok[i] == cur) at = i;
+        if (fits_[i] == cur) at = i;
     if (n < 2) return info("no other operator fits here");
-    const int next = ok[(at + dir + n) % n];
+    const int next = fits_[((at + dir) % n + n) % n];
     EditSpec s;
     s.kind = EditKind::SetOp;
     s.target = cursor_;
@@ -3005,6 +3047,7 @@ void Editor::wheelOp(int dir) {
     uint16_t nn;
     if (doSpec(s, nn)) {
         onOp_ = true;
+        fitChanges_ = changes_;
         info(lib(next).name);
     }
 }

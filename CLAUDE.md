@@ -271,6 +271,15 @@ to upstream CE.
     (FX2), "operators"; FX1 / FX2 labels "functions" / "effects". MPoly
     layers count for voices. Smoke sessions converted by replaying them
     on the previous build with a key trace (Shift keys -> action names).
+    Jog on a function name dropped audio (user, `jux rev` in a heavy
+    block; RC22 PolyendTrac_CyclesRC22.ptf, not yet run): wheelFn type-
+    checked the block once per library entry (~120) per detent, up to 8
+    detents a pass. Now jogFits() works out what fits at the spot once
+    (same signature: no trial; same arity, same function / control kind:
+    one trial; else skipped) and keeps it while only this spot's swaps
+    happen (fitNode_ / fitChanges_); n detents = one edit; functions
+    alphabetical, operators in family order. 15 trials on the user's
+    block instead of ~120 per detent (test_editor).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
