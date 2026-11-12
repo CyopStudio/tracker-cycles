@@ -140,7 +140,7 @@ only in these keys, the rest (jog, pads, menus, Screen keys) is the same:
 
 | Cursor mode | |
 | :--- | :--- |
-| ← → | previous / next token in text order (names, numbers, a string's quotes, its steps and the gaps between them, brackets, `*2` …, `$` / `#` / operators; the bar before the pattern; the `dN` top); stays in the block. On a bracket or quote only it is the cursor, its partner is marked |
+| ← → | previous / next token in text order (names, numbers, a string's quotes, its steps and the gaps between them, brackets, `*2` …, `$` / `#` / operators and a bar before each of them; the bar before the pattern; the `dN` top); stays in the block. On a bracket or quote only it is the cursor, its partner is marked. On the bar before `$` / `#`: Insert adds a `$` function / `#` control right there, Delete unwraps the symbol |
 | ↑ ↓ | the token at the same column on the line above / below (line breaks); past the first / last line: the block above (its last line) / below (its first line) |
 | Delete | the token under the cursor: a step becomes `~` (a `~` goes); a function's name: unwrap it (a control behind an operator, `# gain 1`, goes with its operator); `$` / `#` / an operator: unwrap; `[` / `<` / `{`: the brackets go, the steps stay; `*` / `?` / `(`: unwrap; an argument: what it belongs to is unwrapped (never a `??`); the `dN` top: the block |
 | Shift + Delete | Backspace: the same for the token to the left (in a gap: the step before it); never the `dN` top |
@@ -170,7 +170,7 @@ The prototype starts in cursor mode; `--mode tree` starts in tree mode
 | Screen 8 | | OK | Enter / F8 |
 | Pattern (held) + pad N | mute / unmute dN (keeps its timing, Tidal's `mute`); several pads in one hold are fine | OK | hold Space + digit |
 | Shift + Pattern + pad N | solo dN (everything else muted); again = unmute all | | |
-| Pattern alone (released, no pad) | unmute all | | Space |
+| Pattern + Screen 8 | unmute all (Pattern alone does nothing) | | hold Space + F8 |
 | Shift + Pattern alone | hush | | `h` |
 | Delete while Pattern is held | cancel (releasing Pattern then does nothing) | | |
 | Insert | copy step / element, or add a `# control`; at a block's top: arm a new block (the next slot pad N adds an empty `dN $ silence` above the current block) | | `i` |

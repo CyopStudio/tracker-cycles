@@ -428,7 +428,7 @@ void testEditorModel(int& pass, int& fail) {
         }
         // d1 $ every 4 (fast 2) $ s " bd * 2 [ ~ sd ] bd sd " # gain 1, and the gaps
         // between steps (5 outside the brackets, 3 inside)
-        EXPECT(fwd.size() == 30, "d1 has 21 tokens, 8 gaps and the bar before the pattern, walked %d", (int)fwd.size());
+        EXPECT(fwd.size() == 32, "d1 has 21 tokens, 8 gaps and 3 bars (the pattern, $, #), walked %d", (int)fwd.size());
         int ops = 0;
         for (const St& x : fwd) ops += x.op;
         EXPECT(ops == 2, "two symbols ($ and #): %d", ops);
@@ -452,12 +452,12 @@ void testEditorModel(int& pass, int& fail) {
         EXPECT(ec.slot() == 0 && ec.prog().at(ec.cursor()).kind == Kind::Block, "Up: line 0's top");
 
         load(kFile);
-        for (int i = 0; i < 26; i++) ec.act(Action::Right);  // `gain`
+        for (int i = 0; i < 28; i++) ec.act(Action::Right);  // `gain`
         ec.act(Action::Delete);
         EXPECT(fileOf(ec).find("bd sd\" # gain") == std::string::npos && fileOf(ec).find("d1 $ every") != std::string::npos,
                "Delete on a control's name: `# gain 1` goes\n%s", fileOf(ec).c_str());
         ec.gotoSlot(0);
-        for (int i = 0; i < 12; i++) ec.act(Action::Right);  // `[`
+        for (int i = 0; i < 13; i++) ec.act(Action::Right);  // `[`
         ec.act(Action::Delete);
         EXPECT(fileOf(ec).find("\"bd*2 ~ sd bd sd\"") != std::string::npos, "Delete on `[`: the brackets go\n%s",
                fileOf(ec).c_str());
@@ -471,25 +471,33 @@ void testEditorModel(int& pass, int& fail) {
         ec.act(Action::Insert);  // on `every`: the $ functions
         EXPECT(ec.menuOpen(), "Insert on a function name opens the $ menu");
         ec.act(Action::Cancel);
-        for (int i = 0; i < 27; i++) ec.act(Action::Right);  // `1` of gain 1
+        for (int i = 0; i < 29; i++) ec.act(Action::Right);  // `1` of gain 1
         ec.act(Action::Insert);
         EXPECT(ec.menuOpen(), "Insert behind a pattern opens the # menu");
         ec.act(Action::Cancel);
         // the gaps: Insert copies the step before, Delete acts on the step after
         load(kFile);
-        for (int i = 0; i < 7; i++) ec.act(Action::Right);  // from `every`: the gap before `bd*2`
+        for (int i = 0; i < 8; i++) ec.act(Action::Right);  // from `every`: the gap before `bd*2`
         EXPECT(ec.gapSeq() && ec.gapPos() == 0, "a gap stop before the first step");
         ec.act(Action::Delete);  // bd -> ~
         EXPECT(fileOf(ec).find("\"~*2 [~ sd]") != std::string::npos, "Delete at a gap: the step after\n%s",
                fileOf(ec).c_str());
         ec.act(Action::Undo);
         ec.gotoSlot(0);
-        for (int i = 0; i < 11; i++) ec.act(Action::Right);  // the gap after `bd*2`
+        for (int i = 0; i < 12; i++) ec.act(Action::Right);  // the gap after `bd*2`
         ec.act(Action::Insert);
         EXPECT(fileOf(ec).find("\"bd*2 bd*2 [~ sd]") != std::string::npos, "Insert at a gap: a copy\n%s",
                fileOf(ec).c_str());
         ec.act(Action::ToggleCursorMode);
         EXPECT(!ec.cursorMode(), "Rec: tree mode");
+        ec.act(Action::ToggleCursorMode);
+        // the bars before `$` and `#` (RC17 notes): Insert adds there, Delete unwraps
+        load(kFile);
+        for (int i = 0; i < 4; i++) ec.act(Action::Right);  // every 4 fast 2 | $
+        EXPECT(std::string(ec.cursorInfo().c_str()).find("before $") == 0, "a stop before $ (%s)", ec.cursorInfo().c_str());
+        ec.act(Action::Delete);
+        EXPECT(fileOf(ec).find("d1 $ s \"bd*2") != std::string::npos, "Delete there unwraps the $\n%s", fileOf(ec).c_str());
+        ec.act(Action::Undo);
     }
 
     // layering functions add `# voices N` to sample blocks (user, after RC15)

@@ -51,14 +51,14 @@ The screen shows your code: a `setcps` line and blocks `d1` to `d16`.
 3. Turn the **jog wheel** to change the value under the cursor (numbers, notes, sample names, functions). **Shift + jog** takes bigger steps; on a sample it changes the file index (`bd` → `bd:1` …).
 4. In a `"..."` sequence the **pads** enter values (notes on the keyboard layout, or the 48 instruments in an `s` pattern). Holding pads together enters a chord.
 5. Press **Play** to evaluate the block. It flashes, and its `dN` turns green.
-6. Hold **Pattern** and press a slot pad to mute / unmute it. **Shift + Pattern** alone is `hush`.
+6. Hold **Pattern** and press a slot pad to mute / unmute it; Pattern + Screen 8 unmutes all. **Shift + Pattern** alone is `hush`.
 
 ### Main controls
 
 | Control | Action |
 | :--- | :--- |
 | Play | evaluate the block (Shift: silence it) |
-| Pattern (held) + pad N | mute / unmute dN (Shift: solo); Pattern alone: unmute all, Shift + Pattern alone: `hush` |
+| Pattern (held) + pad N | mute / unmute dN (Shift: solo); Pattern + Screen 8: unmute all; Shift + Pattern alone: `hush` (Pattern alone does nothing) |
 | Shift + pad N | go to dN; the same pad twice in a row: a new dN block |
 | Shift + ↑ / ↓ | previous / next block |
 | Screen 1–8 | structure menus: `$` functions, `#` controls, `[ ]`, `< >`, `{ }`, `( , )` euclid, `\|`, operators |

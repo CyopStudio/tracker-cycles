@@ -7,12 +7,15 @@ msg: 3
 msg: d1 evaluated
 > mute 1
 msg: d1 muted
+msg: Pattern: hold it and press a pad to mute, Screen 8 to unmute all
 > unmuteAll
 msg: unmuted all
 > d1 silence
 msg: d1 silenced (Play plays it again)
 msg: # shape 0.3: jog changes it
 msg: undone
+msg: before #: Insert adds a # control here, Delete unwraps it
+msg: FX: # gain 1
 setcps (120/60/4)
 
 -- kick and snare
@@ -24,4 +27,4 @@ d2 $ fast 2 $ s "hh*8" # gain 0.8 # pan sine
 d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
 
 -- MIDI channel 1
-d9 $ n "c'maj e'min" # legato 0.5
+d9 $ n "c'maj e'min" # gain 1 # legato 0.5

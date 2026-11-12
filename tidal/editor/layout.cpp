@@ -80,9 +80,9 @@ int layoutText(const Editor& ed, uint16_t blk, bool cps, bool cur, bool lit, int
             for (int i = sp.start; i < sp.end && i < n; i++) s.flags[i] |= kCellLit;
         }
     int ta, tb, pa, pb;
-    if (cur && !cps && ed.headGap() && ed.cursor()) {  // the bar before the pattern
-        const int at = s.spans[ed.cursor()].start;
-        if (at < n) s.flags[at] |= kCellGap;
+    int barAt;
+    if (cur && !cps && ed.cursorBarChar(barAt)) {  // a bar: before the pattern / an operator / `$`
+        if (barAt < n) s.flags[barAt] |= kCellGap;
     } else if (cur && !cps && ed.cursorTokenChars(ta, tb, pa, pb)) {  // just the bracket / quote / dN
         for (int i = ta; i < tb && i < n; i++) s.flags[i] |= kCellSel;
         for (int i = pa; i < pb && i < n; i++) s.flags[i] |= kCellPair;

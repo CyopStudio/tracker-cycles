@@ -43,7 +43,7 @@ static const struct { const char* name; Action a; } kActions[] = {
     {"kbdtype", Action::KbdType}, {"kbdok", Action::KbdOk},       {"kbdcancel", Action::KbdCancel},
     {"kbdclear", Action::KbdClear}, {"cursormode", Action::ToggleCursorMode},
     {"backspace", Action::Backspace}, {"qshape", Action::QuickShape},
-    {"repeat", Action::StepRepeat}, {"weight", Action::StepWeight},
+    {"repeat", Action::StepRepeat}, {"weight", Action::StepWeight}, {"unmuteall", Action::UnmuteAll},
 };
 
 const char* actionName(Action a) {
@@ -779,7 +779,7 @@ static uint16_t valueOf(const Program& p, uint16_t step) {
 }
 
 void Editor::enterNumber(int v, bool rest) {
-    headGap_ = false;
+    headGap_ = preSym_ = false;
     padAgain_ = -1;
     if (!padNumeric()) return error("pads enter numbers inside a numeric pattern");
     Text n = tnum(v);
@@ -817,7 +817,7 @@ int Editor::cursorInstrument() const {
 }
 
 void Editor::enterInstrument(int i) {
-    headGap_ = false;
+    headGap_ = preSym_ = false;
     padAgain_ = -1;
     if (!padInstruments()) return error("pads pick instruments inside an s pattern");
     if (i < 0 || i >= kInstrumentSlots || !samples_[i][0])
@@ -1029,7 +1029,7 @@ void Editor::gotoSlot(int s) {
 
 void Editor::gotoSlotTree(int s) {
     if (s < 0 || s >= kSlots) return;
-    headGap_ = false;
+    headGap_ = preSym_ = false;
     dropEmptyBlocks();
     cps_ = false;
     pending_ = 0;
@@ -1293,6 +1293,11 @@ Label Editor::cursorInfo() const {
     if (!cursor_)
         return "empty: Instrument, Note, Screen 1-8 or FX start a block; Up / Down leave";
     if (headGap_) return "start of the pattern: Insert adds a $ function in front, Delete the token after";
+    if (preSym_) {
+        const Node& sn = prog_->at(cursor_);
+        if (sn.kind == Kind::App) return "before $: Insert adds a $ function here, Delete unwraps the $";
+        return "before " + Label(lib((int)sn.a).name) + ": Insert adds a # control here, Delete unwraps it";
+    }
     if (cps_ && cursor_ == prog_->cpsExpr && prog_->at(cursor_).kind != Kind::Num)
         return "setcps (Right: its numbers, Down: the blocks, jog: the BPM, Play sends it)";
     const Node& n = prog_->at(cursor_);
@@ -1341,18 +1346,18 @@ void Editor::actOne(Action a) {
         switch (a) {
             case Action::SelLeft: case Action::SelRight: case Action::Struct3: case Action::Struct4:
             case Action::Struct5: case Action::Struct6: case Action::Struct7: case Action::Delete:
-            case Action::Copy: case Action::Evaluate: case Action::PlayCancel:
+            case Action::Copy: case Action::Evaluate: case Action::PlayCancel: case Action::UnmuteAll:
                 break;
             default: selA_ = selB_ = selSeq_ = 0; break;
         }
     }
     switch (a) {  // the bar before the pattern lasts for the cursor keys and the ones that use it
         case Action::Left: case Action::Right: case Action::Up: case Action::Down: case Action::Insert:
-        case Action::Delete: case Action::Backspace: case Action::Evaluate: case Action::PlayCancel:
+        case Action::Delete: case Action::Backspace: case Action::Evaluate: case Action::PlayCancel: case Action::UnmuteAll:
         case Action::Hush: case Action::SilenceSlot: case Action::Save:
             break;
         default:
-            if (!menuOpen_) headGap_ = false;
+            if (!menuOpen_) headGap_ = preSym_ = false;
             break;
     }
     if (a == Action::SelLeft || a == Action::SelRight) return selectMove(a == Action::SelLeft ? -1 : 1);
@@ -1360,7 +1365,7 @@ void Editor::actOne(Action a) {
     switch (a) {  // these keep the cursor on the operator's symbol; the rest leave it
         case Action::WheelUp: case Action::WheelDown: case Action::WheelUpFast: case Action::WheelDownFast:
         case Action::Replace: case Action::Left: case Action::Right: case Action::Up:
-        case Action::Evaluate: case Action::PlayCancel: case Action::Confirm: case Action::Cancel:
+        case Action::Evaluate: case Action::PlayCancel: case Action::UnmuteAll: case Action::Confirm: case Action::Cancel:
         case Action::Delete: case Action::Backspace:  // Delete on a symbol unwraps it (not the whole expression)
             break;
         case Action::Down:
@@ -1375,7 +1380,7 @@ void Editor::actOne(Action a) {
             case Action::WheelUp: case Action::WheelDown: case Action::WheelUpFast: case Action::WheelDownFast:
             case Action::Replace: case Action::Undo: case Action::Evaluate: case Action::Hush:
             case Action::Save: case Action::Copy: case Action::Paste: case Action::JumpCps:
-            case Action::ToggleTrackerMode: case Action::PlayCancel: case Action::Confirm: case Action::Cancel:
+            case Action::ToggleTrackerMode: case Action::PlayCancel: case Action::UnmuteAll: case Action::Confirm: case Action::Cancel:
             case Action::NextSlot: case Action::PrevSlot: case Action::Home: case Action::BlockUp:
             case Action::BlockDown:
                 break;
@@ -1400,7 +1405,7 @@ void Editor::actOne(Action a) {
         switch (a) {
             case Action::Left: case Action::Right: case Action::Up: case Action::Down:
             case Action::Delete: case Action::Insert: case Action::Paste: case Action::Replace:
-            case Action::PlayCancel: case Action::Evaluate: case Action::Hush: case Action::SilenceSlot:
+            case Action::PlayCancel: case Action::UnmuteAll: case Action::Evaluate: case Action::Hush: case Action::SilenceSlot:
                 break;
             case Action::Wrap: case Action::Struct1: case Action::Struct2: case Action::Struct3:
             case Action::Struct4: case Action::Struct5: case Action::Struct6: case Action::Struct7:
@@ -1414,7 +1419,7 @@ void Editor::actOne(Action a) {
             case Action::Delete: case Action::Struct1: case Action::Struct2: case Action::Struct3:
             case Action::Struct4: case Action::Struct5: case Action::Struct6: case Action::Struct7:
             case Action::Struct8: case Action::MenuModifiers: case Action::MenuFx:
-            case Action::PlayCancel: case Action::Evaluate: case Action::Hush: case Action::MenuChords:
+            case Action::PlayCancel: case Action::UnmuteAll: case Action::Evaluate: case Action::Hush: case Action::MenuChords:
             case Action::SilenceSlot: case Action::Backspace: case Action::ToggleCursorMode:
             case Action::StepRepeat: case Action::StepWeight:
                 break;
@@ -1511,6 +1516,7 @@ void Editor::actOne(Action a) {
         case Action::Struct7:
         case Action::Struct8: openStruct((int)a - (int)Action::Struct1); break;
         case Action::MenuModifiers: openWrap(WrapMode::Modifiers); break;
+        case Action::UnmuteAll: unmuteAll(); break;
         case Action::PlayCancel:
             playUsed_ = true;  // releasing Play does nothing now
             info("cancelled");
@@ -2406,8 +2412,8 @@ void Editor::playDown(bool shift) {
     playHeld_ = true;
     playShift_ = shift;
     playUsed_ = false;
-    info(shift ? "Shift+Pattern: pad = solo, release = hush, Delete = cancel"
-               : "Pattern: pad = mute / unmute, release = unmute all, Delete = cancel");
+    info(shift ? "Shift+Pattern: pad = solo, Screen 8 = unmute all, release = hush, Delete = cancel"
+               : "Pattern: pad = mute / unmute, Screen 8 = unmute all");
 }
 
 void Editor::playUp() {
@@ -2418,6 +2424,12 @@ void Editor::playUp() {
         act(Action::Hush);
         return;
     }
+    // Pattern alone does nothing (RC17 notes: unmute all is Pattern + Screen 8)
+    info("Pattern: hold it and press a pad to mute, Screen 8 to unmute all");
+}
+
+void Editor::unmuteAll() {
+    playUsed_ = true;  // releasing Pattern then does nothing
     bool any = false;
     for (int s = 0; s < kSlots; s++) any |= muted_[s];
     for (int s = 0; s < kSlots; s++) muted_[s] = false;

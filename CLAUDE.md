@@ -244,6 +244,14 @@ to upstream CE.
     stutter's plain args don't split; swingBy splits per outer cycle and
     leaves unshifted notes whole; select = floor (f * (n-1)), selectF =
     floor (f * n) (we rounded both). 284/284 golden cases match.
+    RC17 notes (RC18 PolyendTrac_CyclesRC18.ptf, not yet run): a bar stop
+    before every `$` / operator in cursor mode (kTokPre, preSym_; Insert
+    there: `$` wraps what follows the `$`, `#` wraps the operator's left
+    side, Delete unwraps the symbol); Pattern alone does nothing, Pattern
+    + Screen 8 = unmute all (Action::UnmuteAll), Shift+Pattern alone still
+    hush. Asked: per-track voices above 3 (answer in the reply: players
+    are wired to their track's chain; raise kPlayers per track, keep the
+    global sounding cap).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

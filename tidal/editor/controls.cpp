@@ -140,6 +140,7 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
             return {};
         }
         if (c == Control::Delete) return act(Action::PlayCancel, "cancel");  // Pattern held
+        if (c == Control::Screen7) return act(Action::UnmuteAll, "unmute all");
         return {};
     }
     if (isPad(c)) {

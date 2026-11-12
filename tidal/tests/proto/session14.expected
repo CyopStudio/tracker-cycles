@@ -6,6 +6,7 @@ msg: d1 muted
 > unmute 1
 msg: d1 unmuted
 > mute 2
+msg: Pattern: hold it and press a pad to mute, Screen 8 to unmute all
 > unmuteAll
 msg: unmuted all
 > mute 1

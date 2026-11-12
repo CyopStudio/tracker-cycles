@@ -90,6 +90,7 @@ enum class Action {
     Backspace,                         // Shift+Delete in cursor mode: the token to the left
     QuickShape,                        // Shift+Screen 4 (RC14): # shape 0.3
     StepRepeat, StepWeight,            // Shift+Screen 6 / 7 (RC14): the step at the cursor as x!2 / x@2
+    UnmuteAll,                         // Pattern held + Screen 8 (RC17 notes)
 };
 const char* actionName(Action a);
 bool actionFromName(const char* s, Action& out);
@@ -203,6 +204,7 @@ public:
     // pressed: unmute all (Shift+Play: hush); Delete while held cancels.
     void playDown(bool shift);
     void playUp();
+    void unmuteAll();
     bool playHeld() const { return playHeld_; }
     void mutePad(int slot);
     bool muted(int s) const { return muted_[s]; }
@@ -275,6 +277,9 @@ public:
     void setCursorMode(bool on);
     // the bar before the block's pattern (cursor mode; Insert: a $ function in front)
     bool headGap() const { return headGap_; }
+    // cursor mode: the character a bar cursor stands before (the start of
+    // the pattern, or an operator / `$`); false: no bar of that kind
+    bool cursorBarChar(int& at) const;
     // Cursor mode, on a bracket / quote / modifier symbol / the dN: just
     // that token's characters [a, b) are the cursor, and its partner (the
     // other bracket or quote; pa == pb: none) is marked (RC13 user). False:
@@ -284,7 +289,7 @@ public:
 private:
     // ---- cursor mode (cursor.cpp) ----
     bool cursorMode_ = false;
-    enum : uint8_t { kTokNode, kTokSym, kTokTop, kTokGap, kTokHead };
+    enum : uint8_t { kTokNode, kTokSym, kTokTop, kTokGap, kTokHead, kTokPre };
     struct Tok {
         uint16_t start, end;  // characters of the rendered block
         uint16_t node;
@@ -292,7 +297,8 @@ private:
         uint16_t pos;         // kTokGap: the gap's position in its sequence (node)
         uint8_t kind;         // kTokNode: select node; kTokSym: its operator symbol; kTokTop: the block's
                               // top; kTokGap: a gap between steps of "..." (node = the sequence);
-                              // kTokHead: the bar before the expression (node = its root)
+                              // kTokHead: the bar before the expression (node = its root);
+                              // kTokPre: the bar before an operator / `$` (node = it)
     };
     static constexpr int kTokText = 4096, kTokMax = 1024;
     // scratch (SDRAM on the device, with the editor): the current block
@@ -309,6 +315,7 @@ private:
     mutable int gapN_ = 0;
     void tokGaps(uint16_t n) const;
     bool headGap_ = false;  // cursor mode: the bar before the block's expression (cursor_ = its root)
+    bool preSym_ = false;   // cursor mode: the bar before an operator / `$` (cursor_ = that node; RC17 notes)
     mutable int tokN_ = 0, tokLines_ = 0;
     uint16_t tokAt_ = 0xFFFF;  // the current token's first character (tells '[' from ']')
     int buildTokens() const;   // the current block's tokens (0: none)

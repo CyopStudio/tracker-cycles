@@ -17,7 +17,7 @@ uint16_t stepOf(const Program& p, uint16_t n);  // editor.cpp
 
 void Editor::setCursorMode(bool on) {
     cursorMode_ = on;
-    headGap_ = false;
+    headGap_ = preSym_ = false;
     selA_ = selB_ = selSeq_ = 0;
     tokAt_ = 0xFFFF;
     cursorSettle();
@@ -133,6 +133,7 @@ int Editor::buildTokens() const {
                    !((tokText_[j] == '(' || tokText_[j] == ')') && exprContainer(k)))
                 j++;
         const bool sym = k == Kind::Op || (k == Kind::App && (p.at(o).flags & kDollar));
+        if (sym) add(i, i, o, kTokPre);  // the bar before it: Insert puts a $ function / # control there
         add(i, j, o, sym ? kTokSym : kTokNode);
         col += j - i;
         i = j;
@@ -148,6 +149,11 @@ int Editor::tokenIndex() const {
             if (toks_[i].kind == kTokHead) return i;
         return -1;
     }
+    if (preSym_) {
+        for (int i = 0; i < tokN_; i++)
+            if (toks_[i].kind == kTokPre && toks_[i].node == cursor_) return i;
+        return -1;
+    }
     if (gapSeq_) {
         for (int i = 0; i < tokN_; i++)
             if (toks_[i].kind == kTokGap && toks_[i].node == gapSeq_ && toks_[i].pos == gapPos_) return i;
@@ -158,7 +164,9 @@ int Editor::tokenIndex() const {
     int best = -1;
     for (int i = 0; i < tokN_; i++) {
         const Tok& t = toks_[i];
-        if (t.node != cursor_ || t.kind == kTokGap || t.kind == kTokHead || (t.kind == kTokSym) != sym) continue;
+        if (t.node != cursor_ || t.kind == kTokGap || t.kind == kTokHead || t.kind == kTokPre ||
+            (t.kind == kTokSym) != sym)
+            continue;
         if (t.start == tokAt_) return i;
         if (best < 0) best = i;
     }
@@ -172,6 +180,7 @@ void Editor::setToken(int i) {
     gapSeq_ = t.kind == kTokGap ? t.node : 0;
     gapPos_ = t.pos;
     headGap_ = t.kind == kTokHead;
+    preSym_ = t.kind == kTokPre;
     tokAt_ = t.start;
 }
 
@@ -179,7 +188,7 @@ int Editor::tokenNear(int line, int col) const {
     int best = -1, bestD = 0x7FFF;
     for (int i = 0; i < tokN_; i++) {
         const Tok& t = toks_[i];
-        if (t.line != line || t.kind == kTokGap || t.kind == kTokHead) continue;  // Up / Down land on tokens
+        if (t.line != line || t.kind == kTokGap || t.kind == kTokHead || t.kind == kTokPre) continue;  // tokens only
         const int a = t.col, z = t.col + (t.end - t.start);
         const int d = col < a ? a - col : col >= z ? col - z + 1 : 0;
         if (d < bestD) {
@@ -270,7 +279,7 @@ void Editor::cursorLine(int dir) {
 }
 
 void Editor::cursorSettle() {
-    if (headGap_) return;
+    if (headGap_ || preSym_) return;
     if (!cursorMode_ || menuOpen_ || kbdOpen_ || cps_ || gapSeq_ || selSeq_ || !cursor_) return;
     if (!buildTokens() || tokenIndex() >= 0) return;
     // on a node with no token of its own (an application, a whole operator
@@ -278,7 +287,7 @@ void Editor::cursorSettle() {
     const Span sp = tokSpans_[cursor_];
     for (int i = 0; i < tokN_; i++)
         if (toks_[i].start >= sp.start && toks_[i].start < sp.end && toks_[i].kind != kTokHead &&
-            toks_[i].kind != kTokGap)
+            toks_[i].kind != kTokGap && toks_[i].kind != kTokPre)
             return setToken(i);
 }
 
@@ -295,6 +304,20 @@ void Editor::cursorDelete(bool back) {
         const int c = tokenIndex();
         if (c < 0 || c + 1 >= tokN_) return;
         setToken(c + 1);
+    }
+    if (preSym_) {  // the bar before `$` / `#`: Delete = the symbol (unwrap), Backspace = the token before
+        buildTokens();
+        const int c = tokenIndex();
+        if (c < 0) return;
+        if (back) {
+            if (c == 0 || toks_[c - 1].kind == kTokTop || toks_[c - 1].kind == kTokHead)
+                return error("nothing to the left");
+            setToken(c - 1);
+            if (gapSeq_) return deleteAtGap();
+            back = false;  // now on the token before: delete it
+        } else if (c + 1 < tokN_) {
+            setToken(c + 1);
+        }
     }
     if (back && gapSeq_) return deleteAtGap();  // the bar: the step before it
     if (!back && gapSeq_ && !listGap()) {     // the bar: the token after it (a step: ~)
@@ -367,6 +390,19 @@ void Editor::cursorInsert() {
     if (headGap_) {  // before the pattern: a $ function in front of all of it
         headGap_ = false;
         return openWrap(WrapMode::Modifiers);
+    }
+    if (preSym_) {  // before `$`: a function on what follows it; before an operator: # on its left side
+        preSym_ = false;
+        const Program& q = *prog_;
+        const Node& n = q.at(cursor_);
+        if (n.kind == Kind::App) {
+            uint16_t last = n.first;
+            while (last && q.at(last).next) last = q.at(last).next;
+            if (last) cursor_ = last;
+            return openWrap(WrapMode::Modifiers);
+        }
+        if (n.first) cursor_ = n.first;
+        return openWrap(WrapMode::Fx);
     }
     if (gapSeq_ && !listGap()) {  // a gap in "...": a copy of the step before it (the first: after it)
         const uint16_t seq = gapSeq_;
@@ -453,8 +489,16 @@ void Editor::stepSuffix(bool repeat) {
     info(code + ": jog changes the count");
 }
 
+bool Editor::cursorBarChar(int& at) const {
+    if (!cursorMode_ || cps_ || !(headGap_ || preSym_) || !cursor_ || !buildTokens()) return false;
+    const int c = tokenIndex();
+    if (c < 0) return false;
+    at = toks_[c].start;
+    return true;
+}
+
 bool Editor::cursorTokenChars(int& a, int& b, int& pa, int& pb) const {
-    if (!cursorMode_ || cps_ || gapSeq_ || headGap_ || selSeq_ || !cursor_ || onOperator()) return false;
+    if (!cursorMode_ || cps_ || gapSeq_ || headGap_ || preSym_ || selSeq_ || !cursor_ || onOperator()) return false;
     if (!buildTokens()) return false;
     const int c = tokenIndex();
     if (c < 0) return false;
