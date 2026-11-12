@@ -8,7 +8,7 @@ Each stage ends with a device build (`PolyendTrac_CyclesRCn.ptf`), host tests an
 
 ## Stage A: audio and correctness (critical)
 
-Status: A1-A3, B1-B2, C done and confirmed on the device (RC10, user: "all those changes work"). Parked until after D (user): the highlights still stop while a menu checks its items while patterns play ("it's ok for the menu to take a second to load, but when the highlights stop it feels like a crash").
+Status: A1-A3, B1-B2, C done and confirmed on the device (RC10, user: "all those changes work"). RC13 (not yet run): the highlights take priority over menu checking (no check while a highlight redraw is pending or just queued; the progress message redraws every 300 ms at most). Parked until after D (user): the highlights still stop while a menu checks its items while patterns play ("it's ok for the menu to take a second to load, but when the highlights stop it feels like a crash").
 
 **A1. A fast jog drops audio.**
 * Cause (from the code): every jog detent is a complete edit (checkpoint, apply, type-check, Tracker check, undo step), and `functPot` runs up to 16 of them per encoder event. Nothing waits for the scheduler, which queries on the same main loop.

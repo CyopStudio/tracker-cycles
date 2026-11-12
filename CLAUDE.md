@@ -194,6 +194,16 @@ to upstream CE.
     application (headOf); cursorSettle() after every act / slot pad moves
     a non-token cursor onto its first token. Editor +40 KB SDRAM (token
     scratch), flash 950,252 B (90.6 %).
+    RC12 (user ask on RC11): cursor mode stops on the gaps between steps
+    in "..." (kTokGap tokens from tokGaps(); Insert there copies the step
+    before, Delete acts on the step after, Shift+Delete removes the one
+    before); cursor colour per mode (CodeScreen::tokenMode: purple
+    0x52306E cursor mode, blue tree mode). RC13 (parked stall, not yet
+    run): no menu check in a pass whose highlight redraw is pending or was
+    queued < 40 ms ago (unless checking waited 120 ms;
+    tidalEditorLitQueued); the "checking k of N" progress redraws at most
+    every 300 ms. Next if it still hitches: cheaper trial checks (type
+    prefilter). Flash 953,220 B (90.9 %).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =

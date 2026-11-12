@@ -534,6 +534,7 @@ void cTidalEditorModule::update()
         display.setControlData(code_, (void*)&scr);
         display.refreshControl(code_);
         display.synchronizeRefresh();
+        tidalEditorLitQueued(ms);
     }
 }
 

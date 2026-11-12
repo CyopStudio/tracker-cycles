@@ -23,6 +23,8 @@ bool tidalEditorTakeDirty();
 void tidalEditorSetDirty();
 // The sounding steps changed (highlighting): only the code view needs a redraw.
 bool tidalEditorTakeLitDirty();
+// the view queued a highlight redraw at `ms` (menu checking waits for it)
+void tidalEditorLitQueued(uint32_t ms);
 // The code area laid out for `g` (SDRAM; valid until the next call).
 const tc::CodeScreen& tidalEditorLayout(const tc::CodeGeometry& g);
 const char* tidalEditorStatus();  // load message / "" when fine
