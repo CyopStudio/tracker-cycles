@@ -1273,7 +1273,7 @@ folders listed in the project (e.g. a manifest) on project load.
 ## Build
 - `make original` -> build/PolyendTracker_Cycles_<ver>.ptf (the editor
   firmware; test images: CUSTOM_DEFINES=-DTIDAL_TICK etc.)
-  (version in version.mk, ORIGINAL_VER_*; currently 1.0.0)
+  (version in version.mk, ORIGINAL_VER_*; currently 1.0.1)
 - `make clean`, `make version`
 - Makefiles don't track flags: `make clean` after changing CUSTOM_DEFINES.
 - Confirm `make original` still builds after firmware-side changes. In this

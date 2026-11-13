@@ -76,7 +76,7 @@ The Tracker runs the whole of Tidal's pattern model itself. Patterns are queried
 
 ## Getting started
 
-1. Copy `PolyendTracker_Cycles_1.0.0.ptf` to `/Firmware/` on the card and update from **Config → Firmware**.
+1. Copy `PolyendTracker_Cycles_1.0.1.ptf` to `/Firmware/` on the card and update from **Config → Firmware**.
 2. Press **Shift + pad 1** to go to `d1`, then **Instrument** to start a block with your first sample.
 3. Turn the jog wheel to change things, tap pads to enter steps, and press **Play**.
 

@@ -7,7 +7,7 @@ Tracker Cycles turns the Original Polyend Tracker into a standalone live-coding 
 It is a fork of [Polyend Tracker Community Edition (CE)](https://github.com/polyend/tracker-ce). The step sequencer, pattern editor and song mode have been replaced by a Tidal pattern engine and a structured code editor. The sample engine, instruments, sample loader and editor, mixer, effects and MIDI are the Tracker's own.
 
 * **Hardware:** Original Polyend Tracker (MK66) only. Tracker+ and Tracker Mini are not supported.
-* **Version:** 1.0.0. See [`CHANGELOG.md`](CHANGELOG.md).
+* **Version:** 1.0.1. See [`CHANGELOG.md`](CHANGELOG.md).
 * Tracker Cycles is inspired by [TidalCycles](https://tidalcycles.org). It is an independent implementation and is not affiliated with the TidalCycles project or with Polyend.
 
 ---
@@ -25,7 +25,7 @@ Back up your SD card before flashing. Tracker Cycles has no patterns or songs: i
 1. Download `PolyendTracker_Cycles_<version>.ptf` from [Releases](../../releases).
 2. Copy it to the `/Firmware/` folder on the Tracker's microSD card.
 3. On the Tracker: **Config → Firmware → Firmware update**, select the file and confirm.
-4. After the reboot, **Config → Firmware** shows `tracker-cycles 1.0.0`.
+4. After the reboot, **Config → Firmware** shows `tracker-cycles 1.0.1`.
 
 ### Recovery
 
@@ -149,7 +149,7 @@ The [Dirt-Samples](https://github.com/tidalcycles/Dirt-Samples) set used by Supe
 Requirements: GNU Arm Embedded Toolchain 10.3-2021.10 (`arm-none-eabi-gcc`), `make` and `python3`. See [`CLAUDE.md`](CLAUDE.md) for the developer notes.
 
 ```bash
-make original              # -> build/PolyendTracker_Cycles_1.0.0.ptf
+make original              # -> build/PolyendTracker_Cycles_1.0.1.ptf
 make -C tidal test         # host tests: engine, editor, golden cases from Tidal
 make -C tidal smoke        # editor sessions in the desktop prototype
 tidal/run_proto.sh         # the desktop prototype (needs GHC + Tidal + SuperDirt for sound)
