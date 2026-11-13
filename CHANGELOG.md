@@ -4,6 +4,15 @@ Notable changes to **Tracker Cycles**, TidalCycles-style live coding for the Ori
 
 ---
 
+## [1.0.1]
+
+### Changed
+
+* The example project is withdrawn for now. Its samples came from the Tracker's stock library, which may not be ours to share; a new example project is coming in [`docs/ExampleProject/`](docs/ExampleProject/).
+* The firmware is otherwise the same as 1.0.0.
+
+---
+
 ## [1.0.0] - First release
 
 ### Added

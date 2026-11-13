@@ -314,7 +314,12 @@ to upstream CE.
     settle first.
     Release plan (user, 2026-11-12): RC24 device pass incl. the pending MIDI
     tests (MIDI out never checked on hardware), then the example project
-    (tracker-cycles1.tidal + the project's files, the user's own samples)
+    (tracker-cycles1.tidal + the project's files; samples from the Original
+    Tracker's stock sample library, which every owner has). Removed again
+    (2026-11-13, user): Polyend's stock samples may not be ours to
+    redistribute; docs/ExampleProject/ says "coming soon", the user will
+    make a new one. The zip is still in git history (018bb32) and attached
+    to the v1.0.0 GitHub release (remove that asset on GitHub).
     in docs/ExampleProject/, then the release flow (Git section).
     MIDI (user, before the MIDI test; RC25 PolyendTrac_CyclesRC25.ptf, not
     yet run): velocity 1 (and no volume control) = MIDI velocity 127 (was
@@ -323,6 +328,13 @@ to upstream CE.
     noteOn / noteOff (dur 0); with neither it still plays note 60 (n 0).
     RC25 MIDI test (user, 2026-11-12): "Midi works flawlessly" (notes,
     chords, CCs, bend, program, aftertouch, midichan, clock).
+    RELEASED 1.0.0 (2026-11-12): release/1.0.0 off develop, merged into
+    main (3bbc41f "Release 1.0.0"), tag v1.0.0 pushed (the workflow builds
+    and publishes the GitHub release: CHANGELOG.md body, the .ptf, the
+    effects zip and docs/ExampleProject/tracker-cycles1.zip), merged back
+    into develop and feature/tidal. Next (1.1): editor.cpp split, CLAUDE.md
+    history to docs/history.md, label-based smoke navigation, then pages /
+    perform mode (docs/retrospective_2026-11.md); UPCOMING.md for changes.
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
@@ -1261,7 +1273,7 @@ folders listed in the project (e.g. a manifest) on project load.
 ## Build
 - `make original` -> build/PolyendTracker_Cycles_<ver>.ptf (the editor
   firmware; test images: CUSTOM_DEFINES=-DTIDAL_TICK etc.)
-  (version in version.mk, ORIGINAL_VER_*; currently 1.0.0)
+  (version in version.mk, ORIGINAL_VER_*; currently 1.0.1)
 - `make clean`, `make version`
 - Makefiles don't track flags: `make clean` after changing CUSTOM_DEFINES.
 - Confirm `make original` still builds after firmware-side changes. In this
