@@ -314,7 +314,8 @@ to upstream CE.
     settle first.
     Release plan (user, 2026-11-12): RC24 device pass incl. the pending MIDI
     tests (MIDI out never checked on hardware), then the example project
-    (tracker-cycles1.tidal + the project's files, the user's own samples)
+    (tracker-cycles1.tidal + the project's files; samples from the Original
+    Tracker's stock sample library, which every owner has)
     in docs/ExampleProject/, then the release flow (Git section).
     MIDI (user, before the MIDI test; RC25 PolyendTrac_CyclesRC25.ptf, not
     yet run): velocity 1 (and no volume control) = MIDI velocity 127 (was
