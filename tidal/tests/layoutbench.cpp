@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Host timing of the code view's layout (tidal/editor/layout.*): what a
 // highlight-only redraw costs before the display draws it. `make layoutbench`.
 // Host numbers only show relative changes; the device's SDRAM is uncached.

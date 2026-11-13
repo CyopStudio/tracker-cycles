@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Fixed-capacity string and vector for the editor model (plan 4d): the
 // subset of std::string / std::vector the editor uses, no heap. Overflow
 // truncates (strings) or drops (vectors) silently; `full()` tells.

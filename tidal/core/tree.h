@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Tracker Cycles code tree (see docs/tidal_code_tree.md).
 // Portable, no heap allocation: everything lives in a fixed Program pool.
 #pragma once

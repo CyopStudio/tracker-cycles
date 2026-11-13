@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Throwaway on-device folder bench (see folder_bench.h).
 //
 // Question: how long does the MK66 take to turn a Tidal sample folder

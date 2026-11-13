@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Tidal controls -> Tracker note entries (plan step 4c, design
 // docs/tidal_control_mapping.md). Runs on the main loop as the scheduler's
 // Mapper: resolves `s` to an instrument, `n` to a slice or pitch, and

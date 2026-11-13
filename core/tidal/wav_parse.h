@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // A forgiving WAV header walk, portable (host-tested in tidal/tests).
 // Editor18: the stock reader refused 10 of 26 files (e.g. Dirt-Samples' old
 // 808 ones). Here: the RIFF size is ignored (the file size counts), a data

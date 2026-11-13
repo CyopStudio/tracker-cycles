@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Device tick test build (plan step 4b on the MK66; only with -DTIDAL_TICK):
 // the Tidal scheduler (tidal/core/scheduler.*) plays test patterns on the
 // project's sample instruments. Queries run on the main loop, the audio

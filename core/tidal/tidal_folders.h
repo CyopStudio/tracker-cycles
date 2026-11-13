@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Tidal sample folders (docs/tidal_sample_folders.md, loader step 1): a
 // folder /Tidal/<name>/ of WAV files becomes ONE sliced instrument (files
 // sorted by name, a slice per file), so `s "<name>:3"` plays its fourth

@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Scheduler (plan step 4b, design docs/tidal_scheduler.md): queries each
 // slot's pattern on the main loop a little ahead of time into per-slot
 // single-producer / single-consumer rings; the audio interrupt (tick())

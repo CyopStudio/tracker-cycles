@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // See tidalEditor.h. Drawing follows the prototype's view (tidal/proto/view.cpp)
 // through the shared layout (tidal/editor/layout.*): the editor timing build
 // showed one CMD_TEXT per colour run costs ~24-29 B of display list, so the

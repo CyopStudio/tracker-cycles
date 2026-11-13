@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Cursor mode (UI v3 D, docs/tidal_ui_v3.md): the code as text, token by
 // token. Rec switches between it and the tree mode; both edit the same tree
 // with the same edits (EditSpec, undo, checks), only the cursor moves

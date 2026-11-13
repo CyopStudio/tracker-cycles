@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Throwaway on-device audio profiler (only with -DAUDIO_PROFILE): times
 // each stage of the audio callback and each node of the audio graph with
 // the Cortex-M cycle counter, and writes /audio_profile.txt. Map node

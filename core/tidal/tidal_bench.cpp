@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Throwaway on-device timing build (see tidal_bench.h). Blocks the main
 // loop while it runs (several seconds): the display and SD streaming
 // pause, audio keeps running in its interrupt.

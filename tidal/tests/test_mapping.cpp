@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Control mapping tests (docs/tidal_control_mapping.md): events from real
 // patterns through TrackerMapper against a fake project; every conversion
 // checked against values computed here by hand from the documented

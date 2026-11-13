@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Tracker Cycles Tidal file player (plan 4a stage 3): the normal firmware's
 // music source until the device editor (4d). Once the project's instruments
 // are loaded it reads /project.tidal from the card and evaluates every block

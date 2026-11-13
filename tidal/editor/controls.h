@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Original Tracker controls and what each one does in the editor.
 //
 // This is the button -> editor mapping the device editor (plan step 4d)

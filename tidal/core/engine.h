@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Query engine (plan step 2): a checked code tree -> events over a time
 // span, like Tidal's queryArc. Portable, no heap: events live in a fixed
 // arena, closures for higher-order functions live on the C stack.

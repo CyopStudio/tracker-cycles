@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Tracker Cycles: playerEngine::tidalNoteOn (plan 4c step 3, design
 // docs/tidal_control_mapping.md). Same steps as the sequencer's noteOn
 // (mtAudioNoteOnHandle.cpp), but the per-note overrides come from a Tidal

@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Loader for the golden files (golden/cases.txt, golden/expected.txt).
 // Test-only host code: uses the standard library freely. The engine's
 // golden comparison will use these structs once the query engine exists.

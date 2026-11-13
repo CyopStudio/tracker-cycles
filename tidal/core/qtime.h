@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Exact time for the query engine: 32-bit rationals, GCD-normalised
 // (CLAUDE.md "Engine constraints"). A result that doesn't fit 32 bits sets
 // qOverflow() and yields 0.

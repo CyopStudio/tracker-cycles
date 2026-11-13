@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Device tick test build (see tidal_tick.h and README.md).
 //
 // v13: same sets as v12, on the stripped firmware (plan 4a stage 2: no
