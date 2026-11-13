@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // The prototype's EditorOutput (tidal/editor/editor.h): turns the editor's
 // results into Tidal statements for a Backend (GHCi, our engine, or print),
 // as the prototype always did, writes the file on Save, and maps the engine

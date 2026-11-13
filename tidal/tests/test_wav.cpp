@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // core/tidal/wav_parse.h (the sample-folder loader's forgiving WAV walk) on
 // hand-made headers: the cases the stock reader refuses.
 #include <stdio.h>

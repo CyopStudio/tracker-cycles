@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Throwaway on-device audio profiler (see audio_profile.h). Captures
 // kBlocks audio blocks (~3 s) every kEveryMs starting at kFirstMs, so the
 // user can change project / play state / FX between captures. The main

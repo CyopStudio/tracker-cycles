@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Query engine. See engine.h. Behaviour notes (all checked against
 // golden/expected.txt, captured from Tidal 1.10.3):
 //  - A sequence squeezes each step into its slot of every cycle. Parts map

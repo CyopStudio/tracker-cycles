@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Tracker Cycles device editor (plan 4d step 3, -DTIDAL_EDITOR): the shared
 // editor (tidal/editor) on the FT812, in the Pattern key's module slot in
 // place of the Tidal status screen. Every button, pad and the jog go

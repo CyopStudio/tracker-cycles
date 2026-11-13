@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // See engine_backend.h. Message format checked against real Tidal 1.10.3
 // output (captured with a UDP listener in place of SuperDirt): one
 // /dirt/play message per bundle, arguments as key / value pairs sorted by

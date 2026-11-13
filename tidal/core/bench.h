@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Engine benchmark shared by the host (`make bench`) and the on-device
 // timing build (core/tidal/tidal_bench.cpp, -DTIDAL_BENCH): the same heavy
 // patterns, queried like the scheduler will (one cycle, quarter cycles).

@@ -50,7 +50,7 @@ Thanks for helping with Tracker Cycles: TidalCycles-style live coding on the Ori
 
 ## 4. Licences
 
-* Tracker Cycles is distributed under the repository's [`LICENSE`](LICENSE) (MIT License with a Wholesale Commercial Clone Restriction, inherited from Polyend Tracker CE). By submitting a PR you agree that your contribution is licensed under those terms.
+* Tracker Cycles has two licences. The parts written for it (`tidal/`, `core/tidal/`, `core/interface/tidalEditor/`, `core/AudioEngine/mtAudioTidal.cpp`) are GPL-3.0-or-later with an additional permission to combine them with Polyend Tracker CE ([`tidal/LICENSE`](tidal/LICENSE)). Everything inherited from CE is under the repository's [`LICENSE`](LICENSE) (MIT License with a Wholesale Commercial Clone Restriction). By submitting a PR you agree that your contribution is licensed under the licence of the files it changes. New files for Tracker Cycles go under the GPL: copy the two-line header from any of them.
 * **Don't copy or translate GPL / AGPL code.** Tidal's behaviour is implemented from its documentation and checked against its output. TidalCycles (GPL-3.0) and Strudel (AGPL-3.0) source code must not be copied or translated.
 * **Don't add sample sets** without a clear licence that allows redistribution (Dirt-Samples has none).
 * **Credit permissively licensed third-party code** you include in [`NOTICE.md`](NOTICE.md).

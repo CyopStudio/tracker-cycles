@@ -337,10 +337,14 @@ to upstream CE.
     perform mode (docs/retrospective_2026-11.md); UPCOMING.md for changes.
     RELEASED 1.0.1 (2026-11-13): the example project withdrawn (Polyend
     stock samples), firmware otherwise as 1.0.0; release/1.0.1 -> main
-    (2fdb432) + tag v1.0.1, back into develop / feature/tidal. Pending: the
-    GPL-3.0-or-later licence for the Tidal parts with a section 7
-    permission for CE (draft in licence-draft/, untracked and excluded,
-    waiting for Alex's OK; applies from the next release).
+    (2fdb432) + tag v1.0.1, back into develop / feature/tidal. Then (user,
+    Alex McLean approved): the Tidal parts are GPL-3.0-or-later with a
+    GPL-3.0 section 7 permission to combine them with Polyend Tracker CE
+    (tidal/LICENSE, tidal/COPYING, a two-line header in every covered
+    source file; tidal/editor/keyboard.h and core/tidal/reverb_bench.* keep
+    their CE / MIT licences); added to 1.0.1 by moving the v1.0.1 tag to a
+    second "Release 1.0.1" merge (firmware unchanged). New Tracker Cycles
+    files: copy the header (CONTRIBUTING.md).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
@@ -1261,6 +1265,10 @@ folders listed in the project (e.g. a manifest) on project load.
 - Keep engine code portable (no hardware deps) so it builds on the host.
 
 ## Licensing
+- Two licences: the Tidal parts (tidal/, core/tidal/, core/interface/
+  tidalEditor/, core/AudioEngine/mtAudioTidal.cpp) are GPL-3.0-or-later +
+  a section 7 permission for CE (tidal/LICENSE); CE's files (and our edits
+  in them) stay MIT + Wholesale Commercial Clone Restriction (LICENSE).
 - Do NOT translate or copy TidalCycles (GPL) source. Implement from
   documented behavior and verify against real Tidal output.
 - Do not copy Strudel (AGPL) code either.

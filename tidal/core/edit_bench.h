@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Editor timing bench (plan 4d, docs/tidal_device_editor.md section 4),
 // shared by the host (`make edbench`) and the on-device editor timing build
 // (core/tidal/editor_bench.cpp, -DTIDAL_EDITOR_BENCH). Measures what the

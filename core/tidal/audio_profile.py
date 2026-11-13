@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+# GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 """Name the nodes in /audio_profile.txt (from a -DAUDIO_PROFILE build).
 
 usage: audio_profile.py audio_profile.txt [firmware.axf]

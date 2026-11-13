@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Scheduler tests (docs/tidal_scheduler.md section 9): a fake interrupt
 // ticks the block clock, a fake main loop calls update() at irregular
 // intervals, a recording voice logs what would play. Expected onsets come

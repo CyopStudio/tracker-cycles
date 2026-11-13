@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Host engine benchmark (`make bench`): the shared cases in core/bench.cpp,
 // the same ones the on-device timing build runs.
 #include <stdio.h>

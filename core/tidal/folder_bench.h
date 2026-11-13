@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Throwaway on-device bench for Tidal sample folders (only with
 // -DFOLDER_BENCH, docs/tidal_sample_folders.md section 7): walks /Tidal/
 // the way a folder loader would (list folders, list and sort each folder's

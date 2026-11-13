@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Structured editor model (plan 4d): the prototype's editor, portable and
 // without heap so the device editor runs the same code. Operates on the
 // shared code tree (tidal/core); everything typed, every edit re-checked.

@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // The device editor's model side (plan 4d, -DTIDAL_EDITOR): the shared
 // editor (tidal/editor) with its storage in SDRAM, playing through the
 // Tidal player (tidal_player.h). The screen is interface/tidalEditor.

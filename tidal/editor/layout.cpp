@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // See layout.h. The rules are the prototype view's (tidal/proto/view.cpp
 // before step 3), unchanged: blocks in file order with setcps first and an
 // empty current slot's hint last; wrapping at spaces with continuation lines

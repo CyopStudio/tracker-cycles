@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Function library table (spec section 7). One row per function, control
 // or operator. Ids are table indices and must stay stable: only append.
 #pragma once

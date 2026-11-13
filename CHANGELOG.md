@@ -9,6 +9,7 @@ Notable changes to **Tracker Cycles**, TidalCycles-style live coding for the Ori
 ### Changed
 
 * The example project is withdrawn for now. Its samples came from the Tracker's stock library, which may not be ours to share; a new example project is coming in [`docs/ExampleProject/`](docs/ExampleProject/).
+* **Licence:** the parts written for Tracker Cycles (the pattern engine, the editor and their firmware glue) are now GPL-3.0-or-later, with an additional permission to combine them with Polyend Tracker CE, at the request of TidalCycles' author. Everything inherited from CE keeps CE's licence. See the README's licence section.
 * The firmware is otherwise the same as 1.0.0.
 
 ---

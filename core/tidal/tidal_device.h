@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // The Tidal scheduler's device side (plan 4c step 3): the project's
 // instruments for the mapper (DeviceHost) and the voices the audio
 // interrupt drives (DeviceVoice: playerEngine::tidalNoteOn on tracks 1-8,

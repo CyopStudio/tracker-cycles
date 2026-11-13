@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // See mapping.h and docs/tidal_control_mapping.md. Control semantics
 // follow Tidal / SuperDirt's documented behaviour: amplitude = amp x
 // min(gain, 2)^4 (x velocity), amp 0.4 by default; legato = note length as

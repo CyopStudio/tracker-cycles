@@ -163,6 +163,10 @@ tidal/run_proto.sh         # the desktop prototype (needs GHC + Tidal + SuperDir
 
 ## Credits & License
 
-* **Firmware base:** [Polyend Tracker Community Edition](https://github.com/polyend/tracker-ce) by Polyend and contributors, **MIT License with a Wholesale Commercial Clone Restriction** (see [`LICENSE`](LICENSE)). Tracker Cycles is under the same terms. Please don't sell compiled builds.
+Tracker Cycles has two licences:
+
+* **The Tidal parts are GPL-3.0-or-later**, with an extra permission to combine them with Polyend Tracker CE (see [`tidal/LICENSE`](tidal/LICENSE) and [`tidal/COPYING`](tidal/COPYING)). That covers everything written for Tracker Cycles: the pattern engine, the editor, the prototype and tests (`tidal/`), the firmware glue (`core/tidal/`), the editor's screen (`core/interface/tidalEditor/`) and `core/AudioEngine/mtAudioTidal.cpp`. Each of those files says so in its header.
+* **Everything inherited from CE keeps CE's licence:** [Polyend Tracker Community Edition](https://github.com/polyend/tracker-ce) by Polyend and contributors, **MIT License with a Wholesale Commercial Clone Restriction** (see [`LICENSE`](LICENSE)). This includes the changes Tracker Cycles made inside CE's own files.
+* The compiled firmware combines both. Anyone sharing it must also make the source available, as the GitHub releases do, and nobody may sell it (CE's licence).
 * **Inspiration:** [TidalCycles](https://tidalcycles.org) by Alex McLean and contributors. Tracker Cycles implements Tidal's documented behaviour independently and checks it against Tidal's output. No TidalCycles (GPL) or Strudel (AGPL) source code is used.
 * **Third-party components:** see [`NOTICE.md`](NOTICE.md).

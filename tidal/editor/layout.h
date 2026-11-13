@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // The editor's code area as styled lines (plan 4d step 3): what the
 // prototype's framebuffer view and the device's FT812 view both draw.
 // Portable, no heap; the caller gives the geometry (monospaced columns,

@@ -2,7 +2,7 @@
 
 ## Tracker Cycles
 
-Tracker Cycles (TidalCycles-style live coding for the Original Polyend Tracker) is a fork of Polyend Tracker Community Edition (CE) and is released under the same terms (MIT License with a Wholesale Commercial Clone Restriction, see [`LICENSE`](LICENSE)).
+Tracker Cycles (TidalCycles-style live coding for the Original Polyend Tracker) is a fork of Polyend Tracker Community Edition (CE). The parts written for Tracker Cycles (`tidal/`, `core/tidal/`, `core/interface/tidalEditor/`, `core/AudioEngine/mtAudioTidal.cpp`) are GPL-3.0-or-later with an additional permission to combine them with CE (see [`tidal/LICENSE`](tidal/LICENSE)), at the request of TidalCycles' author. Everything inherited from CE keeps CE's licence (MIT License with a Wholesale Commercial Clone Restriction, see [`LICENSE`](LICENSE)).
 
 * **TidalCycles** (tidalcycles.org, Alex McLean and contributors): Tracker Cycles follows Tidal's syntax and documented behaviour and was checked against Tidal 1.10.3's output (`tidal/golden/`, captured by running Tidal). No TidalCycles source code (GPL-3.0) is included or translated. Tracker Cycles is not affiliated with the TidalCycles project.
 * **Strudel** (AGPL-3.0): no Strudel source code is included.

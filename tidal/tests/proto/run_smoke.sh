@@ -1,4 +1,6 @@
 #!/bin/sh
+# Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+# GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 # Run each tests/proto/*.keys session against proto/example.tidal and compare
 # what it prints (statements sent + final file) with NAME.expected.
 # NAME.args (optional) adds options, e.g. --backend engine (highlighting),

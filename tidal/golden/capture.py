@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+# GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 """Capture golden event lists from real Tidal (GHCi).
 
 Reads golden/cases.txt, queries every case in GHCi with queryArc over

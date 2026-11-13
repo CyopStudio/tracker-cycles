@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Mock Original Tracker front panel around the 800x480 screen: screen
 // buttons, function buttons, jog wheel and the 48 pads, each labelled with
 // what it does right now and which keyboard key reaches it.

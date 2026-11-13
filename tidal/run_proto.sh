@@ -1,4 +1,6 @@
 #!/bin/sh
+# Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+# GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 # Launch the editor prototype window with the mock Tracker panel.
 # Rebuilds it first if any source changed (needs libsdl2-dev).
 #

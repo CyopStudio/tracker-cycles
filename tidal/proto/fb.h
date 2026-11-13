@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // 800x480 software framebuffer (the Tracker's screen size) with the
 // firmware's own L4 fonts, and a minimal PNG writer for screenshots.
 #pragma once

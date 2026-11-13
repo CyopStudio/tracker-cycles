@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // Plan step 3: our own engine + scheduler behind the prototype's Backend
 // interface, sending SuperDirt OSC (/dirt/play bundles) like Tidal does.
 // Runs the scheduler the way the device will: a "main loop" thread calls

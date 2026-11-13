@@ -1,3 +1,5 @@
+// Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+// GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // The editor model (tidal/editor) driven directly, without the prototype:
 // lazy menus give the same items as eager ones, a small undo arena drops
 // the oldest steps and still undoes the rest exactly, the output sees

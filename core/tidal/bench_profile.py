@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Tracker Cycles. Copyright (C) 2026 CyopStudio and Tracker Cycles contributors.
+# GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 """Name the PC-sampling profile in /tidal_bench.txt (bench v4).
 
 usage: bench_profile.py tidal_bench.txt [firmware.axf] [--top N]

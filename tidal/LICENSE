@@ -1,0 +1,47 @@
+Tracker Cycles: the TidalCycles-style pattern engine and code editor
+Copyright (C) 2026 CyopStudio and Tracker Cycles contributors
+
+This licence covers the parts of Tracker Cycles written for it:
+
+  tidal/                           the pattern engine, editor model, desktop
+                                   prototype, tests and golden test data
+  core/tidal/                      the firmware glue (player, editor,
+                                   device voices, sample-folder loader,
+                                   benches and test images)
+  core/interface/tidalEditor/      the editor's screen on the Tracker
+  core/AudioEngine/mtAudioTidal.cpp  the note entry point for Tidal events
+
+Two files in those folders keep their own licences: tidal/editor/keyboard.h
+reproduces the stock on-screen keyboard's layout tables (Polyend Tracker
+CE's licence), and core/tidal/reverb_bench.* follows Polyverb's reverb
+(MIT, as Polyverb).
+
+Everything else in this repository comes from Polyend Tracker Community
+Edition and stays under its own licence (the repository's top-level LICENSE,
+"MIT License with Wholesale Commercial Clone Restriction"), including the
+changes Tracker Cycles made inside Polyend Tracker CE's own files.
+
+The parts listed above are free software: you can redistribute them and/or
+modify them under the terms of the GNU General Public License as published
+by the Free Software Foundation, either version 3 of the License, or (at
+your option) any later version.
+
+They are distributed in the hope that they will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more
+details.
+
+You should have received a copy of the GNU General Public License along with
+this program (the file COPYING). If not, see <https://www.gnu.org/licenses/>.
+
+
+Additional permission under GNU GPL version 3 section 7
+
+If you modify this Program, or any covered work, by linking or combining it
+with Polyend Tracker Community Edition (or a modified version of that
+software), containing parts covered by the terms of the Polyend Tracker
+Community Edition License (MIT License with Wholesale Commercial Clone
+Restriction), the licensors of this Program grant you additional permission
+to convey the resulting work. Corresponding Source for a non-source form of
+such a combination shall include the source code for the parts of Polyend
+Tracker Community Edition used as well as that of the covered work.
