@@ -315,7 +315,11 @@ to upstream CE.
     Release plan (user, 2026-11-12): RC24 device pass incl. the pending MIDI
     tests (MIDI out never checked on hardware), then the example project
     (tracker-cycles1.tidal + the project's files; samples from the Original
-    Tracker's stock sample library, which every owner has)
+    Tracker's stock sample library, which every owner has). Removed again
+    (2026-11-13, user): Polyend's stock samples may not be ours to
+    redistribute; docs/ExampleProject/ says "coming soon", the user will
+    make a new one. The zip is still in git history (018bb32) and attached
+    to the v1.0.0 GitHub release (remove that asset on GitHub).
     in docs/ExampleProject/, then the release flow (Git section).
     MIDI (user, before the MIDI test; RC25 PolyendTrac_CyclesRC25.ptf, not
     yet run): velocity 1 (and no volume control) = MIDI velocity 127 (was

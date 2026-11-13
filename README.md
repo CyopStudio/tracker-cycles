@@ -83,7 +83,7 @@ The screen shows your code: a `setcps` line and blocks `d1` to `d16`.
 
 The full control reference is in [`tidal/README.md`](tidal/README.md).
 
-**Example project:** [`docs/ExampleProject/`](docs/ExampleProject/) has a complete project (instruments and code) to unzip onto the card.
+**Example project:** coming soon in [`docs/ExampleProject/`](docs/ExampleProject/): a complete project (instruments and code) to unzip onto the card.
 
 ---
 
