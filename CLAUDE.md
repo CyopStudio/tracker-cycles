@@ -335,6 +335,12 @@ to upstream CE.
     into develop and feature/tidal. Next (1.1): editor.cpp split, CLAUDE.md
     history to docs/history.md, label-based smoke navigation, then pages /
     perform mode (docs/retrospective_2026-11.md); UPCOMING.md for changes.
+    RELEASED 1.0.1 (2026-11-13): the example project withdrawn (Polyend
+    stock samples), firmware otherwise as 1.0.0; release/1.0.1 -> main
+    (2fdb432) + tag v1.0.1, back into develop / feature/tidal. Pending: the
+    GPL-3.0-or-later licence for the Tidal parts with a section 7
+    permission for CE (draft in licence-draft/, untracked and excluded,
+    waiting for Alex's OK; applies from the next release).
   - Delete inside "...": step -> `~` (keeps timing), `~` -> step removed.
   - Shift functions follow the printed labels: Copy / Shift+Copy = Paste,
     Insert / Shift+Insert = Home (block top), Delete / Shift+Delete =
