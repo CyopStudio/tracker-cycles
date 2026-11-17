@@ -14,7 +14,7 @@ namespace userPlayModes
 
 constexpr int kModeCount = 20;
 constexpr int kStepCount = 128;
-constexpr int kMaxPresets = 16;
+constexpr int kMaxPresets = 64;
 constexpr int kMaxLineLength = 255;
 constexpr int kFormatVersion = 1;
 
@@ -68,10 +68,10 @@ struct ParserConfig
 
 struct LoadReport
 {
-    uint32_t loadedModes;   // modes now played from the file
-    uint32_t rejectedModes; // modes in the file that failed and play built-in
-    uint16_t rejectedPresets;
-    bool fileRejected; // missing/unknown version: nothing loaded
+    uint32_t loadedModes;     // modes now played from the file
+    uint32_t rejectedModes;   // modes in the file that failed and play built-in
+    uint64_t rejectedPresets; // bit p - 1 for preset id p
+    bool fileRejected;        // missing/unknown version: nothing loaded
     int errorCount;
     int firstErrorLine; // 0 if none
 };
@@ -85,6 +85,36 @@ constexpr int kWarningLineSize = 48;
 // Writes the lines for the report and returns how many, or 0 when there is
 // nothing to warn about.
 int formatLoadWarning(const LoadReport& report, char (&lines)[kWarningLineCount][kWarningLineSize]);
+
+// ---- Writing a file (play mode editor) ----
+
+// Receives the file one line at a time, without the line ending.
+typedef void (*LineSink)(void* context, const char* line);
+
+// Writes every user-defined mode in the block, and the FX presets they use
+// (renumbered from 1 in order of first use), as a version 1 file. A mode is
+// written as its shortest repeating loop. Returns the number of modes written.
+int writeFile(const Block& block, const ParserConfig& config, LineSink sink, void* context);
+
+// ---- Editing the block (play mode editor) ----
+
+// Preset ids (bit id - 1) used by the steps of the modes in modeMask.
+uint64_t presetsInUse(const Block& block, uint32_t modeMask);
+
+// Returns the id (1-64) of a preset equal to `preset`, storing it in a slot
+// that no mode in `modeMask` uses if there is none. 0 when every slot is used.
+// A new preset is written before its id is returned, so a step can point to
+// it straight away while the sequencer is reading the block.
+int findOrAddPreset(Block& block, const FxPreset& preset, uint32_t modeMask);
+
+// Copies built-in mode `mode` (128 steps whose fxOption indexes
+// builtinPresets) into the block, then marks it user-defined. Returns false,
+// changing nothing the sequencer reads, if the presets do not fit.
+bool copyBuiltinMode(Block& block,
+                     int mode,
+                     const Step* builtinSteps,
+                     const FxPreset* builtinPresets,
+                     int builtinPresetCount);
 
 // Feed the file one line at a time (without the line ending) between begin()
 // and finish(). Modes are written into the block while its mask is cleared,
@@ -120,14 +150,14 @@ class Parser
     int currentMode = -1;
     int stepCount = 0;
     bool modeBroken = false;
-    uint32_t modeUsedPresets = 0;
+    uint64_t modeUsedPresets = 0; // bit p for preset id p
 
     uint32_t seenModes = 0;
     uint32_t pendingModes = 0;
     uint32_t brokenModes = 0;
-    uint32_t usedPresets[kModeCount] = {};
-    uint32_t definedPresets = 0;
-    uint32_t brokenPresets = 0;
+    uint64_t usedPresets[kModeCount] = {};
+    uint64_t definedPresets = 0;
+    uint64_t brokenPresets = 0;
     bool anyFxLine = false;
 
     int errorCount = 0;

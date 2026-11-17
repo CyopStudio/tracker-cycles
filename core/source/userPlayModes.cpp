@@ -197,6 +197,62 @@ void parseFile(FileSystem* fileSystem, FileSystem::FileHandle file, Parser& pars
     }
 }
 
+// The parser's view of the allowed FX, with today's value ranges.
+ParserConfig makeConfig(FxSpec (&fxSpecs)[kAllowedFxCount])
+{
+    for (int i = 0; i < kAllowedFxCount; i++)
+    {
+        const uint8_t type = kAllowedFx[i].type;
+        fxSpecs[i].name = kAllowedFx[i].name;
+        fxSpecs[i].type = type;
+        fxSpecs[i].min = sequencer.getFxMin(type);
+        fxSpecs[i].max = sequencer.getFxMax(type);
+        fxSpecs[i].isRoll = (type == Fx::FX_TYPE_ROLL);
+        if (fxSpecs[i].isRoll)
+        {
+            // Roll's lowest value means "no roll"; a preset always rolls.
+            fxSpecs[i].min = Fx::ROLL_PERIOD_1_1;
+        }
+    }
+    return ParserConfig{
+        fxSpecs, kAllowedFxCount, kBuiltinPresets, kBuiltinPresetCount, kRollStride
+    };
+}
+
+struct FileSinkContext
+{
+    FileSystem* fileSystem;
+    FileSystem::FileHandle file;
+    bool ok;
+};
+
+void writeLineToFile(void* context, const char* line)
+{
+    FileSinkContext* sink = static_cast<FileSinkContext*>(context);
+    const size_t length = strlen(line);
+    if (sink->fileSystem->writeFile(line, length, sink->file) != static_cast<int32_t>(length) ||
+        sink->fileSystem->writeFile("\n", 1, sink->file) != 1)
+    {
+        sink->ok = false;
+    }
+}
+
+// Makes `mode` user-defined (a copy of its built-in steps) if it is not yet.
+bool ensureUserMode(uint8_t mode)
+{
+    if (isModeUserDefined(mode))
+    {
+        return true;
+    }
+    Step steps[kStepCount];
+    for (int i = 0; i < kStepCount; i++)
+    {
+        steps[i] =
+          Step{ playOrderWithFx[mode][i].stepNumberToPlay, playOrderWithFx[mode][i].fxOption };
+    }
+    return copyBuiltinMode(userBlock, mode, steps, kBuiltinPresets, kBuiltinPresetCount);
+}
+
 } // namespace
 
 void init()
@@ -233,27 +289,7 @@ AUDIO_CORE_FLASH const FxPreset* getFxPreset(uint8_t mode, uint8_t fxOption)
 LoadReport loadFromWorkspace(FileSystem* fileSystem)
 {
     FxSpec fxSpecs[kAllowedFxCount];
-    for (int i = 0; i < kAllowedFxCount; i++)
-    {
-        const uint8_t type = kAllowedFx[i].type;
-        fxSpecs[i].name = kAllowedFx[i].name;
-        fxSpecs[i].type = type;
-        fxSpecs[i].min = sequencer.getFxMin(type);
-        fxSpecs[i].max = sequencer.getFxMax(type);
-        fxSpecs[i].isRoll = (type == Fx::FX_TYPE_ROLL);
-    }
-    // Roll's lowest value means "no roll"; a preset always rolls.
-    for (int i = 0; i < kAllowedFxCount; i++)
-    {
-        if (fxSpecs[i].isRoll)
-        {
-            fxSpecs[i].min = Fx::ROLL_PERIOD_1_1;
-        }
-    }
-
-    const ParserConfig config = {
-        fxSpecs, kAllowedFxCount, kBuiltinPresets, kBuiltinPresetCount, kRollStride,
-    };
+    const ParserConfig config = makeConfig(fxSpecs);
     Parser parser(userBlock, config);
     parser.begin();
 
@@ -337,6 +373,141 @@ int takeLoadWarning(const char*& title, const char* const*& lines)
     title = kWarningTitle;
     lines = warningLinePointers;
     return count;
+}
+
+// ---- Play mode editor ----
+
+bool isUserMode(uint8_t mode)
+{
+    return mode < kModeCount && isModeUserDefined(mode);
+}
+
+StepInfo getStepInfo(uint8_t mode, uint8_t index)
+{
+    const Step step = getStep(mode, index);
+    const FxPreset* preset = getFxPreset(mode, step.fxOption);
+    StepInfo info = { step.stepNumberToPlay, 0, 0, 100 };
+    if (preset != nullptr)
+    {
+        info.fxType = preset->type;
+        info.value = preset->value;
+        info.chance = preset->chance;
+    }
+    return info;
+}
+
+bool setStepNumber(uint8_t mode, uint8_t index, uint8_t stepNumber)
+{
+    if (mode >= kModeCount || index >= kStepCount || stepNumber < 1 || stepNumber > kStepCount ||
+        !ensureUserMode(mode))
+    {
+        return false;
+    }
+    userBlock.steps[mode][index].stepNumberToPlay = stepNumber;
+    return true;
+}
+
+bool setStepFx(uint8_t mode, uint8_t index, uint8_t fxType, int16_t value, uint8_t chance)
+{
+    if (mode >= kModeCount || index >= kStepCount || !ensureUserMode(mode))
+    {
+        return false;
+    }
+
+    uint8_t id = 0;
+    if (fxType != 0)
+    {
+        const FxPreset preset = { fxType, chance > 100 ? uint8_t(100) : chance, value };
+        const int found = findOrAddPreset(userBlock, preset, userBlock.userModeMask);
+        if (found == 0)
+        {
+            return false;
+        }
+        id = static_cast<uint8_t>(found);
+    }
+    userBlock.steps[mode][index].fxOption = id;
+    return true;
+}
+
+void resetMode(uint8_t mode)
+{
+    if (mode < kModeCount)
+    {
+        __atomic_and_fetch(&userBlock.userModeMask, ~(1u << mode), __ATOMIC_RELEASE);
+    }
+}
+
+int allowedFxCount()
+{
+    return kAllowedFxCount;
+}
+
+uint8_t allowedFxType(int index)
+{
+    return (index >= 0 && index < kAllowedFxCount) ? kAllowedFx[index].type : 0;
+}
+
+int allowedFxIndex(uint8_t fxType)
+{
+    for (int i = 0; i < kAllowedFxCount; i++)
+    {
+        if (kAllowedFx[i].type == fxType)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int16_t fxMin(uint8_t fxType)
+{
+    return fxType == Fx::FX_TYPE_ROLL ? int16_t(Fx::ROLL_PERIOD_1_1) : sequencer.getFxMin(fxType);
+}
+
+int16_t fxMax(uint8_t fxType)
+{
+    return sequencer.getFxMax(fxType);
+}
+
+int16_t fxDefault(uint8_t fxType)
+{
+    const int16_t value = sequencer.getFxDefault(fxType);
+    const int16_t low = fxMin(fxType);
+    const int16_t high = fxMax(fxType);
+    return value < low ? low : (value > high ? high : value);
+}
+
+bool save(FileSystem* fileSystem, const char* projectDir)
+{
+    bool ok = true;
+    if (userBlock.userModeMask == 0)
+    {
+        if (fileSystem->exists(kWorkspaceFilePath))
+        {
+            ok = fileSystem->remove(kWorkspaceFilePath);
+        }
+    }
+    else
+    {
+        auto [isOpen, file] = fileSystem->openFile(kWorkspaceFilePath, FileSystem::kWriteCreateNew);
+        if (!isOpen)
+        {
+            return false;
+        }
+        FxSpec fxSpecs[kAllowedFxCount];
+        const ParserConfig config = makeConfig(fxSpecs);
+        FileSinkContext context = { fileSystem, file, true };
+        writeFile(userBlock, config, writeLineToFile, &context);
+        fileSystem->closeFile(file);
+        ok = context.ok;
+    }
+
+    if (ok && projectDir != nullptr)
+    {
+        // Mirror the Workspace file into the project, or remove the project's.
+        copyWorkspaceFileToProject(fileSystem, projectDir, false);
+    }
+    return ok;
 }
 
 } // namespace userPlayModes

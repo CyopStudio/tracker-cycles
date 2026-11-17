@@ -19,6 +19,13 @@ constexpr int kRollRateCount = sizeof(kRollRates) / sizeof(kRollRates[0]);
 const char* const kRollTypes[] = { "flat", "down", "up", "notedown", "noteup", "noterandom" };
 constexpr int kRollTypeCount = sizeof(kRollTypes) / sizeof(kRollTypes[0]);
 
+// Preset id p (1-64) is bit p - 1 of a uint64_t. Bit 64 does not exist, so
+// ids are kept 1-based in the API and shifted here.
+uint64_t presetBit(int id)
+{
+    return uint64_t(1) << (id - 1);
+}
+
 char toLower(char c)
 {
     return (c >= 'A' && c <= 'Z') ? static_cast<char>(c - 'A' + 'a') : c;
@@ -272,7 +279,7 @@ void Parser::parseFx(const char* args, int lineNumber)
         return;
     }
 
-    const uint32_t bit = 1u << id;
+    const uint64_t bit = presetBit(id);
     if ((definedPresets | brokenPresets) & bit)
     {
         // Defined twice: neither definition is trusted.
@@ -422,7 +429,7 @@ void Parser::parseSteps(const char* text, int lineNumber)
         entry.fxOption = static_cast<uint8_t>(preset);
         if (preset != 0)
         {
-            modeUsedPresets |= 1u << preset;
+            modeUsedPresets |= presetBit(preset);
         }
     }
 
@@ -482,14 +489,14 @@ LoadReport Parser::finish()
         for (int i = 0; i < count; i++)
         {
             block.presets[i] = config.builtinPresets[i];
-            definedPresets |= 1u << (i + 1);
+            definedPresets |= presetBit(i + 1);
         }
     }
 
     uint32_t loaded = 0;
     if (!fileRejected)
     {
-        const uint32_t validPresets = definedPresets & ~brokenPresets;
+        const uint64_t validPresets = definedPresets & ~brokenPresets;
         for (int mode = 0; mode < kModeCount; mode++)
         {
             const uint32_t bit = 1u << mode;
@@ -506,7 +513,7 @@ LoadReport Parser::finish()
 
     report.loadedModes = loaded;
     report.rejectedModes = fileRejected ? 0 : ((seenModes | brokenModes) & ~loaded);
-    report.rejectedPresets = static_cast<uint16_t>((brokenPresets >> 1) & 0xFFFF);
+    report.rejectedPresets = brokenPresets;
     report.fileRejected = fileRejected;
     report.errorCount = errorCount;
     report.firstErrorLine = firstErrorLine;
@@ -610,6 +617,273 @@ int formatLoadWarning(const LoadReport& report, char (&lines)[kWarningLineCount]
         snprintf(lines[count++], kWarningLineSize, "A mode in the file has no steps.");
     }
     return count;
+}
+
+// ---- Writing a file ----
+
+namespace
+{
+
+const FxSpec* findSpec(const ParserConfig& config, uint8_t type)
+{
+    for (int i = 0; i < config.fxCount; i++)
+    {
+        if (config.fx[i].type == type)
+        {
+            return &config.fx[i];
+        }
+    }
+    return nullptr;
+}
+
+// "roll 1/4 down 60" / "volume 20": the part of an fx line after the id.
+// Returns false for an FX type the config does not know.
+bool formatPreset(const ParserConfig& config, const FxPreset& preset, char* out, int outSize)
+{
+    const FxSpec* spec = findSpec(config, preset.type);
+    if (spec == nullptr)
+    {
+        return false;
+    }
+
+    int length = 0;
+    if (spec->isRoll)
+    {
+        const int rate = preset.value % config.rollStride;
+        const int type = preset.value / config.rollStride;
+        if (rate < 1 || rate > kRollRateCount || type >= kRollTypeCount)
+        {
+            return false;
+        }
+        length = snprintf(out, outSize, "%s %s", spec->name, kRollRates[rate - 1]);
+        if (type != 0 && length < outSize)
+        {
+            length += snprintf(out + length, outSize - length, " %s", kRollTypes[type]);
+        }
+    }
+    else
+    {
+        length = snprintf(out, outSize, "%s %d", spec->name, preset.value);
+    }
+
+    if (preset.chance != 100 && length < outSize)
+    {
+        snprintf(out + length, outSize - length, " %d", preset.chance);
+    }
+    return true;
+}
+
+bool sameStep(const Step& a, const Step& b)
+{
+    return a.stepNumberToPlay == b.stepNumberToPlay && a.fxOption == b.fxOption;
+}
+
+// The shortest loop that, repeated, gives all 128 steps.
+int loopLength(const Step* steps)
+{
+    for (int length = 1; length < kStepCount; length++)
+    {
+        bool repeats = true;
+        for (int i = length; i < kStepCount && repeats; i++)
+        {
+            repeats = sameStep(steps[i], steps[i - length]);
+        }
+        if (repeats)
+        {
+            return length;
+        }
+    }
+    return kStepCount;
+}
+
+bool samePreset(const FxPreset& a, const FxPreset& b)
+{
+    return a.type == b.type && a.value == b.value && a.chance == b.chance;
+}
+
+} // namespace
+
+int writeFile(const Block& block, const ParserConfig& config, LineSink sink, void* context)
+{
+    const uint32_t modes = block.userModeMask;
+    char line[kMaxLineLength + 1];
+
+    sink(context, "# Custom play modes (C1-C20) for Polyend Tracker CE");
+    sink(context, "# Format: docs/user_play_modes.md");
+    snprintf(line, sizeof(line), "version %d", kFormatVersion);
+    sink(context, line);
+
+    // Renumber the presets the modes use: newId[old id] = 1, 2, ... in order of first use.
+    uint8_t newId[kMaxPresets + 1] = {};
+    int presetCount = 0;
+    for (int mode = 0; mode < kModeCount; mode++)
+    {
+        if (!((modes >> mode) & 1u))
+        {
+            continue;
+        }
+        for (int i = 0; i < kStepCount; i++)
+        {
+            const int id = block.steps[mode][i].fxOption;
+            if (id >= 1 && id <= kMaxPresets && newId[id] == 0)
+            {
+                newId[id] = static_cast<uint8_t>(++presetCount);
+            }
+        }
+    }
+
+    if (presetCount > 0)
+    {
+        sink(context, "");
+    }
+    for (int written = 1; written <= presetCount; written++)
+    {
+        for (int id = 1; id <= kMaxPresets; id++)
+        {
+            if (newId[id] != written)
+            {
+                continue;
+            }
+            char preset[64];
+            if (!formatPreset(config, block.presets[id - 1], preset, sizeof(preset)))
+            {
+                snprintf(preset, sizeof(preset), "unknown");
+            }
+            snprintf(line, sizeof(line), "fx %d %s", written, preset);
+            sink(context, line);
+        }
+    }
+
+    int modeCount = 0;
+    for (int mode = 0; mode < kModeCount; mode++)
+    {
+        if (!((modes >> mode) & 1u))
+        {
+            continue;
+        }
+        modeCount++;
+
+        sink(context, "");
+        snprintf(line, sizeof(line), "mode %d", mode + 1);
+        sink(context, line);
+
+        const Step* steps = block.steps[mode];
+        const int length = loopLength(steps);
+        int lineLength = 0;
+        for (int i = 0; i < length; i++)
+        {
+            const int id = steps[i].fxOption;
+            const int fx = (id >= 1 && id <= kMaxPresets) ? newId[id] : 0;
+            lineLength += snprintf(line + lineLength,
+                                   sizeof(line) - lineLength,
+                                   fx ? "%s%d:%d" : "%s%d",
+                                   lineLength ? " " : "",
+                                   steps[i].stepNumberToPlay,
+                                   fx);
+            if ((i % 16) == 15 || i == length - 1)
+            {
+                sink(context, line);
+                lineLength = 0;
+            }
+        }
+    }
+    return modeCount;
+}
+
+// ---- Editing the block ----
+
+uint64_t presetsInUse(const Block& block, uint32_t modeMask)
+{
+    uint64_t used = 0;
+    for (int mode = 0; mode < kModeCount; mode++)
+    {
+        if (!((modeMask >> mode) & 1u))
+        {
+            continue;
+        }
+        for (int i = 0; i < kStepCount; i++)
+        {
+            const int id = block.steps[mode][i].fxOption;
+            if (id >= 1 && id <= kMaxPresets)
+            {
+                used |= presetBit(id);
+            }
+        }
+    }
+    return used;
+}
+
+int findOrAddPreset(Block& block, const FxPreset& preset, uint32_t modeMask)
+{
+    const uint64_t used = presetsInUse(block, modeMask);
+    for (int id = 1; id <= kMaxPresets; id++)
+    {
+        if ((used & presetBit(id)) && samePreset(block.presets[id - 1], preset))
+        {
+            return id;
+        }
+    }
+    for (int id = 1; id <= kMaxPresets; id++)
+    {
+        if (!(used & presetBit(id)))
+        {
+            block.presets[id - 1] = preset;
+            __atomic_thread_fence(__ATOMIC_RELEASE);
+            return id;
+        }
+    }
+    return 0;
+}
+
+bool copyBuiltinMode(Block& block,
+                     int mode,
+                     const Step* builtinSteps,
+                     const FxPreset* builtinPresets,
+                     int builtinPresetCount)
+{
+    if (mode < 0 || mode >= kModeCount)
+    {
+        return false;
+    }
+
+    // The mode is not user-defined yet, so the sequencer does not read these
+    // steps: they can be written freely. Presets are added as if the mode
+    // already counted, so the ones it needs are not handed out twice.
+    const uint32_t bit = 1u << mode;
+    if (block.userModeMask & bit)
+    {
+        return true; // already user-defined
+    }
+    const uint32_t withMode = block.userModeMask | bit;
+
+    // Built-in fxOption n maps to the user preset in map[n].
+    uint8_t map[kMaxPresets + 1] = {};
+    for (int i = 0; i < kStepCount; i++)
+    {
+        block.steps[mode][i].stepNumberToPlay = builtinSteps[i].stepNumberToPlay;
+        block.steps[mode][i].fxOption = 0;
+    }
+    for (int i = 0; i < kStepCount; i++)
+    {
+        const int option = builtinSteps[i].fxOption;
+        if (option < 1 || option > builtinPresetCount || option > kMaxPresets)
+        {
+            continue;
+        }
+        if (map[option] == 0)
+        {
+            const int id = findOrAddPreset(block, builtinPresets[option - 1], withMode);
+            if (id == 0)
+            {
+                return false;
+            }
+            map[option] = static_cast<uint8_t>(id);
+        }
+        block.steps[mode][i].fxOption = map[option];
+    }
+
+    __atomic_store_n(&block.userModeMask, withMode, __ATOMIC_RELEASE);
+    return true;
 }
 
 } // namespace userPlayModes

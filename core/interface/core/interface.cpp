@@ -15,6 +15,7 @@
 #include "masterParams/masterParams.h"
 #include "patternEditor/patternEditor.h"
 #include "performanceMode/performanceMode.h"
+#include "playModeEditor/playModeEditor.h"
 #include "projectEditor/projectEditor.h"
 #include "sampleEditor/sampleEditor.h"
 #include "sampleImporter/sampleImporter.h"
@@ -658,6 +659,13 @@ void interfaceEnvents(uint8_t event, void* param1, void* param2, void* param3)
             // param1 = handle to source module, param2 = start options
             mtInterface.switchModuleToPrevious((hModule)param1,
                                                param2 == nullptr ? 0 : *((uint8_t*)param2));
+            break;
+        }
+        case eventActivatePlayModeEditor:
+        {
+            // param1 = handle to source module
+            mtInterface.deactivateModule((hModule)param1);
+            mtInterface.activateModule(&playModeEditor, 0);
             break;
         }
         case eventActivateGameModule:

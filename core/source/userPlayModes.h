@@ -49,6 +49,40 @@ const LoadReport& getLastLoadReport();
 // 0 when there is nothing to show.
 int takeLoadWarning(const char*& title, const char* const*& lines);
 
+// ---- Play mode editor ----
+// Edits go straight into the block the sequencer plays from, so they are heard
+// the next time the step plays. Editing a built-in mode first copies it into
+// the block. save() makes the edits permanent.
+
+struct StepInfo
+{
+    uint8_t stepNumber; // 1-128
+    uint8_t fxType;     // 0 = none
+    int16_t value;
+    uint8_t chance; // 0-100
+};
+
+bool isUserMode(uint8_t mode);
+StepInfo getStepInfo(uint8_t mode, uint8_t index);
+// False if the mode could not be made user-defined (the FX preset list is full).
+bool setStepNumber(uint8_t mode, uint8_t index, uint8_t stepNumber);
+// fxType 0 removes the step's FX. False if the FX preset list is full.
+bool setStepFx(uint8_t mode, uint8_t index, uint8_t fxType, int16_t value, uint8_t chance);
+// Back to the built-in mode (the user copy is dropped on the next save).
+void resetMode(uint8_t mode);
+
+// The FX a play mode may use, in menu order.
+int allowedFxCount();
+uint8_t allowedFxType(int index);
+int allowedFxIndex(uint8_t fxType); // -1 if not allowed
+int16_t fxMin(uint8_t fxType);
+int16_t fxMax(uint8_t fxType);
+int16_t fxDefault(uint8_t fxType);
+
+// Writes Workspace/playmodes.txt (or removes it when no mode is user-defined)
+// and mirrors it into projectDir ("<path>/<name>"), if not nullptr.
+bool save(FileSystem* fileSystem, const char* projectDir);
+
 } // namespace userPlayModes
 
 #endif /* SOURCE_USERPLAYMODES_H_ */

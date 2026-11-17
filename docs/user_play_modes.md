@@ -108,7 +108,54 @@ Values are the **raw values stored in a pattern**, which for some FX differ from
 
 ---
 
-## 3. Errors
+## 3. Play Mode Editor (Prototype, Original Tracker)
+
+Play modes can also be edited on the Tracker itself, in a grid with one lane per custom mode (`C1`–`C20`) and 128 rows. Edits are heard straight away, the next time the edited step plays.
+
+### Opening and Leaving the Editor
+
+* **Open it from Performance mode only**: hold **`[Shift]`** and press **`[Pattern]`**. Shift+Pattern in the Pattern editor (or anywhere else) does not open it. Custom play modes only play in Performance mode, which keeps running while the editor is open.
+* **`[Performance]`** goes back to Performance mode, still running.
+* Any other screen button leaves the editor, and Performance mode stops as it would if you left it directly (at the end of the pattern while playing).
+* **Tracker Mini**: not reachable yet. Shift with a function key selects another screen binding on the Mini, so there is no Shift+Pattern.
+
+### The Grid
+
+Four lanes are visible at a time. Each lane has four columns:
+
+| Column | Shows | Example |
+| :--- | :--- | :--- |
+| **Step** | The pattern step played at this position (1–128) | ` 12` |
+| **FX** | The FX letter, as in the Pattern editor (`--` = none) | `R ` |
+| **Value** | The FX value, shown as in the Pattern editor | `d 4` |
+| **Chance** | How often the FX plays | ` 60%` |
+
+* With no `playmodes.txt`, every lane shows its built-in mode.
+* A lane you have changed is marked with `*` (`C3 *`). The first change to a lane copies its built-in steps, so you always start from the default.
+* The title bar spells out the cell under the cursor, for example `C3 * 12 > step 4 R - Roll 4 60%`.
+* While a track plays the cursor's lane, a playhead line follows it.
+
+### Controls (Original Tracker)
+
+| Control | Action |
+| :--- | :--- |
+| **Arrows** | Move the cursor. `[Shift]`+Left/Right changes lane, `[Shift]`+Up/Down moves 16 rows. |
+| **Jog wheel** | Change the value under the cursor. In the FX column it steps through the FX allowed in play modes (section 2). |
+| **`[Note]` / `[Instr]` / `[Vol]` / `[Fx]`**, or screen buttons 1–4 | Jump to the Step / FX / Value / Chance column. |
+| **Pads 1–48** | In the Step column: set the step and move down one row. |
+| **`[Delete]`** | Remove the FX, or in the Step column put the step back to its own number. |
+| **`[Play]`** | Start / stop. |
+| Screen button 6, **Reset lane** | Put the lane back to its built-in mode. |
+| Screen button 7, **Revert** | Throw away unsaved edits and reload the saved file. |
+| Screen button 8, **Save** | Write `playmodes.txt` to the project folder and the Workspace. |
+
+* Unsaved edits are lost when another project is opened. They also stay in effect until then, even after leaving the editor.
+* **Save** only writes the lanes you changed, each as its shortest repeating loop.
+* Up to **64 different FX settings** (FX + value + chance) can be used across all 20 modes. Identical settings are shared, and settings no step uses any more are freed automatically. A message appears when the limit is reached.
+
+---
+
+## 4. Errors
 
 Errors never stop a project from opening. When the file has errors, a message titled **Custom Play Modes (playmodes.txt)** appears for 6 seconds once the project has opened:
 
@@ -132,7 +179,7 @@ Up to three modes are named (`C1, C2, C3 and 17 more`). The line number is the f
 
 ---
 
-## 4. Developer Notes
+## 5. Developer Notes
 
 * **Code**: [`core/source/userPlayModes.cpp`](../core/source/userPlayModes.cpp) (memory block, FX allow-list, SD reading, file copying) and [`core/source/userPlayModesParser.cpp`](../core/source/userPlayModesParser.cpp) (the parser, free of firmware headers so it can be built and tested on a desktop compiler). The built-in modes stay in flash in [`core/source/playModeDefs.h`](../core/source/playModeDefs.h).
 * **Sequencer**: [`Sequencer`](../core/source/mtSequencer.cpp) reads steps through `userPlayModes::getStep()` and FX through `userPlayModes::getFxPreset()`. A 32-bit mask selects, per mode, the built-in table or the user block. Nothing in the audio path touches the SD card.

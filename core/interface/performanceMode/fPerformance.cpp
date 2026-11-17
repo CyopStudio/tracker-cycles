@@ -272,6 +272,34 @@ bool cPerformanceMode::canPerformanceModeContinueAfterSwitchingTo(uint8_t button
             button == interfaceButtonParams);
 }
 
+void cPerformanceMode::leaveToModule(uint8_t button)
+{
+    if (!sequencer.isPerformanceMode())
+    {
+        dontClearPerformanceMode = 0;
+        return;
+    }
+    if (canPerformanceModeContinueAfterSwitchingTo(button))
+    {
+        dontClearPerformanceMode = 1;
+        return;
+    }
+    if (sequencer.isPlay())
+    {
+        turnOffAtEndOfPattern();
+        return;
+    }
+
+    // As stop() does when Performance mode itself is left.
+    dontClearPerformanceMode = 0;
+    if (performance.turnOff())
+    {
+        newFileManager.loadWorkspacePatternNow(mtProject.values.actualPattern);
+        sequencer.switchRamPatternsNow();
+    }
+    mtPadBoard.releaseAllInstruments();
+}
+
 void cPerformanceMode::setFxValue(int value)
 {
     for (uint8_t place = 0; place < 12; place++)
@@ -647,6 +675,15 @@ static void functCopyPaste()
 
 static void functSwitchModule(uint8_t button)
 {
+    // Shift+Pattern: the play mode editor, with Performance mode kept running
+    // so that edits are heard.
+    if (button == interfaceButtonPattern && PM->buttons->isButtonPressed(interfaceButtonShift))
+    {
+        PM->dontClearPerformanceMode = 1;
+        PM->eventFunct(eventActivatePlayModeEditor, PM, nullptr, nullptr);
+        return;
+    }
+
     if (sequencer.isPerformanceMode())
     {
         if (PM->canPerformanceModeContinueAfterSwitchingTo(button))
