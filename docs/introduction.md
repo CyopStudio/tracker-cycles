@@ -80,4 +80,4 @@ The Tracker runs the whole of Tidal's pattern model itself. Patterns are queried
 2. Press **Shift + pad 1** to go to `d1`, then **Instrument** to start a block with your first sample.
 3. Turn the jog wheel to change things, tap pads to enter steps, and press **Play**.
 
-The README has the full controls, the SD card layout and recovery instructions. Tracker Cycles is MIT-licensed (with CE's no-commercial-clones condition) and is not affiliated with Polyend or the TidalCycles project.
+The README has the full controls, the SD card layout and recovery instructions. The parts written for Tracker Cycles are GPL-3.0-or-later, with a permission to combine them with Polyend's Tracker CE, whose own parts keep CE's licence (no commercial clones). Tracker Cycles is not affiliated with Polyend or the TidalCycles project.
