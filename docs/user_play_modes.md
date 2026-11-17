@@ -108,16 +108,15 @@ Values are the **raw values stored in a pattern**, which for some FX differ from
 
 ---
 
-## 3. Play Mode Editor (Prototype, Original Tracker)
+## 3. Play Mode Editor (Prototype)
 
 Play modes can also be edited on the Tracker itself, in a grid with one lane per custom mode (`C1`–`C20`) and 128 rows. Edits are heard straight away, the next time the edited step plays.
 
 ### Opening and Leaving the Editor
 
-* **Open it from Performance mode only**: hold **`[Shift]`** and press **`[Pattern]`**. Shift+Pattern in the Pattern editor (or anywhere else) does not open it. Custom play modes only play in Performance mode, which keeps running while the editor is open.
-* **`[Performance]`** goes back to Performance mode, still running.
-* Any other screen button leaves the editor, and Performance mode stops as it would if you left it directly (at the end of the pattern while playing).
-* **Tracker Mini**: not reachable yet. Shift with a function key selects another screen binding on the Mini, so there is no Shift+Pattern.
+* **Open it from Performance mode only**: hold **`[Shift]`** and press **`[Pattern]`** (Tracker Mini: **`[Shift]`**+**`[Menu]`**). The same buttons do nothing special anywhere else. Custom play modes only play in Performance mode, which keeps running while the editor is open.
+* **`[Performance]`** goes back to Performance mode, still running. On the Tracker Mini, a short press of **`[Menu]`** does the same: the module menu opens with Perform selected.
+* Any other module (a module button, a Mini function key, or another choice in the Mini's module menu) leaves the editor, and Performance mode stops as it would if you left it directly (at the end of the pattern while playing).
 
 ### The Grid
 
@@ -135,7 +134,7 @@ Four lanes are visible at a time. Each lane has four columns:
 * The title bar spells out the cell under the cursor, for example `C3 * 12 > step 4 R - Roll 4 60%`.
 * While a track plays the cursor's lane, a playhead line follows it.
 
-### Controls (Original Tracker)
+### Controls
 
 | Control | Action |
 | :--- | :--- |
@@ -150,6 +149,7 @@ Four lanes are visible at a time. Each lane has four columns:
 | Screen button 8, **Save** | Write `playmodes.txt` to the project folder and the Workspace. |
 
 * Unsaved edits are lost when another project is opened. They also stay in effect until then, even after leaving the editor.
+* On the Tracker Mini the controls are the same; its **`[+1]`/`[-1]`/`[+10]`/`[-10]`** buttons act as the jog wheel.
 * **Save** only writes the lanes you changed, each as its shortest repeating loop.
 * Up to **64 different FX settings** (FX + value + chance) can be used across all 20 modes. Identical settings are shared, and settings no step uses any more are freed automatically. A message appears when the limit is reached.
 

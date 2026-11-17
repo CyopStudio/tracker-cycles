@@ -673,16 +673,25 @@ static void functCopyPaste()
     PM->lightUpPadBoard();
 }
 
+void cPerformanceMode::openPlayModeEditor()
+{
+    // Performance mode keeps running, so that edits are heard.
+    dontClearPerformanceMode = 1;
+    eventFunct(eventActivatePlayModeEditor, this, nullptr, nullptr);
+}
+
 static void functSwitchModule(uint8_t button)
 {
+#ifndef TRACKER_MINI
     // Shift+Pattern: the play mode editor, with Performance mode kept running
-    // so that edits are heard.
+    // so that edits are heard. (Not on the Mini, where Shift+Fn can be bound
+    // to Pattern: there it is Shift+Menu, see functMenu().)
     if (button == interfaceButtonPattern && PM->buttons->isButtonPressed(interfaceButtonShift))
     {
-        PM->dontClearPerformanceMode = 1;
-        PM->eventFunct(eventActivatePlayModeEditor, PM, nullptr, nullptr);
+        PM->openPlayModeEditor();
         return;
     }
+#endif
 
     if (sequencer.isPerformanceMode())
     {
@@ -954,11 +963,17 @@ static void functMenu(uint8_t state)
 {
     if (state == buttonPress)
     {
+        // Tracker Mini: Shift+Menu opens the play mode editor.
+        if (PM->buttons->isButtonPressed(interfaceButtonShift))
+        {
+            PM->openPlayModeEditor();
+            return;
+        }
         PM->dontClearPerformanceMode = 1;
         PM->hideFxNames();
         mtMenuPopup.showModulePopup(PM);
     }
-    else if (state == buttonRelease)
+    else if (state == buttonRelease && mtMenuPopup.isPopupVisible())
     {
         mtMenuPopup.hideModulePopup(PM);
     }

@@ -90,6 +90,7 @@ class cPerformanceMode : public ModuleBase
     // play mode editor): does what leaving Performance mode for `button`'s
     // module would do.
     void leaveToModule(uint8_t button);
+    void openPlayModeEditor();
 
     void toggleTrackPerformanceState(uint8_t track);
     void refreshPerformanceValuesForTrack(uint8_t track, uint8_t place);

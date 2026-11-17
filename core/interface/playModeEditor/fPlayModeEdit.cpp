@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstring>
 
+#include "core/interfaceMenuPopup.h"
 #include "core/interfacePopups.h"
 #include "display.h"
 #include "fileManager.h"
@@ -29,6 +30,7 @@ static void functEncoder(int16_t value);
 static void functSwitchModule(uint8_t button);
 static void functActionButton(uint8_t button, uint8_t state);
 static void functPads(uint8_t pad, uint8_t state, int16_t velo);
+static void functMenu(uint8_t state);
 
 namespace
 {
@@ -113,7 +115,8 @@ int16_t playheadFor(uint8_t lane)
 
 void cPlayModeEditor::update()
 {
-    if (!moduleRefresh)
+    // The Mini's module menu covers the grid while it is held.
+    if (!moduleRefresh || mtMenuPopup.isPopupVisible())
     {
         return;
     }
@@ -143,6 +146,8 @@ void cPlayModeEditor::start(uint32_t options)
     ip->setButtonObj(interfaceButtonSong, buttonPress, functSwitchModule);
     ip->setButtonObj(interfaceButtonPattern, buttonPress, functSwitchModule);
     ip->setButtonObj(interfaceButtonGame, buttonPress, functSwitchModule);
+
+    ip->setButtonObj(interfaceButtonMiniMenu, functMenu);
 
     lastPlayhead = -1;
     showDefaultScreen();
@@ -599,5 +604,20 @@ static void functPads(uint8_t pad, uint8_t state, int16_t velo)
     if (state == buttonPress)
     {
         PME->setStepFromPad(pad);
+    }
+}
+
+// Tracker Mini: the module menu, with Perform selected, so that a short press
+// of Menu goes back to Performance mode. The menu's choice goes through
+// functSwitchModule(), like the module buttons.
+static void functMenu(uint8_t state)
+{
+    if (state == buttonPress)
+    {
+        mtMenuPopup.showModulePopup(&performanceMode, functSwitchModule);
+    }
+    else if (state == buttonRelease && mtMenuPopup.isPopupVisible())
+    {
+        mtMenuPopup.hideModulePopup(PME);
     }
 }
