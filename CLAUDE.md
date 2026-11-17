@@ -1356,7 +1356,9 @@ folders listed in the project (e.g. a manifest) on project load.
   (2026-11-11, user): this is a real fork, main stops mirroring upstream.
   Release flow: feature/tidal -> develop, release/1.0.0 off develop, after
   the user's device pass merge it into main + tag v1.0.0 (the workflow
-  publishes the GitHub release), merge back into develop. Commit small
+  publishes the GitHub release), merge back into develop. Release notes:
+  write docs/releases/v<version>.md before tagging (the workflow uses it
+  as the release description, else CHANGELOG.md). Commit small
   and often. AI Co-authored-by trailers are allowed (user, 2026-11-11: CE's
   check removed from build.yml, CONTRIBUTING.md says so; not merged back
   into CE).
