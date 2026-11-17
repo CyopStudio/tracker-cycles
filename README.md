@@ -144,6 +144,25 @@ The [Dirt-Samples](https://github.com/tidalcycles/Dirt-Samples) set used by Supe
 
 ---
 
+## Sample Editor effects (optional)
+
+Each release also has `PolyendTracker_Cycles_Effects.zip`: add-on effects for the Tracker's **Sample Editor**, inherited from Polyend Tracker CE. They have nothing to do with Tidal; they process or create the samples your instruments play. Unzip the `Effects` folder to the root of the SD card (`/Effects/*.ptfx`). The Sample Editor finds them when you open it and lists them after its built-in effects.
+
+| Plugin | What it does | On the Original Tracker |
+| :--- | :--- | :--- |
+| `multimode_filter` | low-pass, band-pass, high-pass, notch or peak filter, with drive | ✓ |
+| `stereo_delay` | delay with feedback, dry / wet mix and a ring-out tail | ✓ (on mono samples) |
+| `transient_shaper` | boosts or cuts a sound's attack and sustain | ✓ |
+| `add_silence` | adds 10 ms – 5 s of silence at the start or end | ✓ |
+| `analog_kick_gen` | generates an analog-style kick drum (pitch, decay, click) | ✓ |
+| `chiptune_gen` | generates chiptune drums and tones (kick, snare, hi-hat, pulse, triangle, noise), with arpeggios | ✓ |
+| `haas` | stereo widening (delays one channel) | — Tracker+ / Mini only: the Original Tracker doesn't list it |
+| `stereo_to_mono` | turns a stereo sample into mono | — the Original Tracker's samples are always mono |
+
+Writing your own: [`docs/modular_effects_system.md`](docs/modular_effects_system.md) (CE's `.ptfx` SDK).
+
+---
+
 ## Building from source
 
 Requirements: GNU Arm Embedded Toolchain 10.3-2021.10 (`arm-none-eabi-gcc`), `make` and `python3`. See [`CLAUDE.md`](CLAUDE.md) for the developer notes.
