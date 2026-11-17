@@ -105,6 +105,12 @@ class InterfacePopups
 
     void showInfoPopup(const char* text1, const char* text2);
     void hideInfoPopup();
+    // A bold title above up to 3 lines of text; hides itself after timeSeconds.
+    // The strings must stay valid while the popup is shown.
+    void showTitledPopup(const char* title,
+                         const char* const* lines,
+                         uint8_t lineCount,
+                         uint8_t timeSeconds);
     //-------------------------------------
     // global popups functs
 

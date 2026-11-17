@@ -1453,6 +1453,62 @@ void InterfacePopups::showInfoPopup(const char* text1, const char* text2)
     display.synchronizeRefresh();
 }
 
+namespace
+{
+// Read-only styles for showTitledPopup(), kept in flash.
+const uint32_t kTitledPopupTitleStyle =
+  controlStyleCenterX | controlStyleCenterY | controlStyleFont4; // 17 Bold
+const uint32_t kTitledPopupLineStyle =
+  controlStyleCenterX | controlStyleCenterY | controlStyleFont2; // 17 Regular
+constexpr uint16_t kTitledPopupLineSpacing = 26;
+} // namespace
+
+void InterfacePopups::showTitledPopup(const char* title,
+                                      const char* const* lines,
+                                      uint8_t lineCount,
+                                      uint8_t timeSeconds)
+{
+    if (lineCount > textLinesCount - 1)
+    {
+        lineCount = textLinesCount - 1;
+    }
+
+    popupTimer = 0;
+    globalPopupDisplayTime = timeSeconds;
+
+    progressPopupTextColor = 0xffffffff;
+
+    textLines[0] = const_cast<char*>(title);
+    textStyles[0] = const_cast<uint32_t*>(&kTitledPopupTitleStyle);
+    textColors[0] = &progressPopupTextColor;
+    for (uint8_t i = 0; i < lineCount; i++)
+    {
+        textLines[i + 1] = const_cast<char*>(lines[i]);
+        textStyles[i + 1] = const_cast<uint32_t*>(&kTitledPopupLineStyle);
+        textColors[i + 1] = &progressPopupTextColor;
+    }
+
+    popupData.textLinesCount = lineCount + 1;
+    popupData.multiLineText = textLines;
+    popupData.multiLineStyle = textStyles;
+    popupData.multiLineColors = textColors;
+
+    // Lines are spread evenly over the height: one spacing per line, plus one.
+    display.setControlData(textPopup, &popupData);
+    display.setControlPosition(textPopup, 800 / 2, 480 / 2);
+    display.setControlSize(textPopup, 450, kTitledPopupLineSpacing * (lineCount + 2));
+    display.setControlStyle(
+      textPopup,
+      controlStyleShow | controlStyleCenterY | controlStyleCenterX | controlStyleBackground |
+        (display.getTheme().bottomScreenShadow > 0 ? controlStyleBottomShadow : 0) |
+        controlStyleNoTransparency);
+    display.setControlShow(textPopup);
+    display.refreshControl(textPopup);
+    display.setControlHide(progressBar);
+
+    display.synchronizeRefresh();
+}
+
 void InterfacePopups::hideInfoPopup()
 {
     display.setControlHide(progressBar);

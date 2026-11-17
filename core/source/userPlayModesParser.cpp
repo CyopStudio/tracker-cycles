@@ -1,5 +1,6 @@
 #include "userPlayModesParser.h"
 
+#include <cstdio>
 #include <cstring>
 
 namespace userPlayModes
@@ -510,6 +511,105 @@ LoadReport Parser::finish()
     report.errorCount = errorCount;
     report.firstErrorLine = firstErrorLine;
     return report;
+}
+
+namespace
+{
+
+// "C3", "C3 and C4", "C3, C4 and C7", "C1, C2, C3 and 17 more".
+void formatModeList(uint32_t modes, char* out, int outSize)
+{
+    constexpr int kMaxListed = 3;
+    int total = 0;
+    for (int mode = 0; mode < kModeCount; mode++)
+    {
+        total += (modes >> mode) & 1u;
+    }
+
+    const int listed = total > kMaxListed ? kMaxListed : total;
+    int length = 0;
+    int written = 0;
+    out[0] = 0;
+    for (int mode = 0; mode < kModeCount && written < listed; mode++)
+    {
+        if (!((modes >> mode) & 1u))
+        {
+            continue;
+        }
+        const char* separator = "";
+        if (written > 0)
+        {
+            separator = (written == listed - 1 && total == listed) ? " and " : ", ";
+        }
+        if (length < outSize)
+        {
+            length += snprintf(out + length, outSize - length, "%sC%d", separator, mode + 1);
+        }
+        written++;
+    }
+    if (total > listed && length < outSize)
+    {
+        snprintf(out + length, outSize - length, " and %d more", total - listed);
+    }
+}
+
+} // namespace
+
+int formatLoadWarning(const LoadReport& report, char (&lines)[kWarningLineCount][kWarningLineSize])
+{
+    if (report.fileRejected)
+    {
+        snprintf(lines[0], kWarningLineSize, "The file was not loaded:");
+        if (report.firstErrorLine > 0)
+        {
+            // Only a missing or wrong version line rejects a readable file.
+            snprintf(lines[1], kWarningLineSize, "its first line must be: version 1");
+        }
+        else
+        {
+            snprintf(lines[1], kWarningLineSize, "it is empty, unreadable or over 64 KB.");
+        }
+        snprintf(lines[2], kWarningLineSize, "All modes play their built-in version.");
+        return 3;
+    }
+
+    if (report.errorCount == 0 && report.rejectedModes == 0)
+    {
+        return 0;
+    }
+
+    int count = 0;
+    if (report.rejectedModes != 0)
+    {
+        // Longest list: "C10, C11, C12 and 17 more" (25 characters).
+        char modes[28];
+        formatModeList(report.rejectedModes, modes, sizeof(modes));
+        const bool one = (report.rejectedModes & (report.rejectedModes - 1)) == 0;
+        snprintf(lines[count++],
+                 kWarningLineSize,
+                 "%s %s %s errors.",
+                 one ? "Mode" : "Modes",
+                 modes,
+                 one ? "has" : "have");
+        snprintf(lines[count++],
+                 kWarningLineSize,
+                 one ? "It plays its built-in version." : "They play their built-in versions.");
+    }
+    else
+    {
+        snprintf(lines[count++], kWarningLineSize, "The file has errors, but all its");
+        snprintf(lines[count++], kWarningLineSize, "modes loaded.");
+    }
+
+    if (report.firstErrorLine > 0)
+    {
+        snprintf(lines[count++], kWarningLineSize, "First error: line %d.", report.firstErrorLine);
+    }
+    else
+    {
+        snprintf(lines[count++], kWarningLineSize, "A mode in the file has no steps.");
+    }
+    return count;
 }
 
 } // namespace userPlayModes

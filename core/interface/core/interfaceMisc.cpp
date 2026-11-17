@@ -4,6 +4,7 @@
 
 #include "fileManager.h"
 #include "songTimer.h"
+#include "userPlayModes.h"
 
 #include "Platform.h"
 #include "mtSleep.h"
@@ -397,6 +398,18 @@ void Interface::commonThingsUpdate()
                 fileManagerLastProgress = 0;
                 noProgressChangeCounter = 0;
             }
+        }
+    }
+
+    // After a project load whose playmodes.txt had errors, once the screen is up.
+    if (operatingMode == mtOperatingModeRun && newFileManager.getStatus() == fmIdle)
+    {
+        const char* title = nullptr;
+        const char* const* lines = nullptr;
+        const int lineCount = userPlayModes::takeLoadWarning(title, lines);
+        if (lineCount > 0)
+        {
+            mtPopups.showTitledPopup(title, lines, lineCount, 6);
         }
     }
 }

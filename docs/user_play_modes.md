@@ -3,7 +3,7 @@
 Performance Mode's **Play Mode** FX offers `Fwd`, `Back`, `Rnd` and twenty custom step orders, `C1`–`C20`. A project can replace any of these twenty with its own step orders, and give each step an FX to play, by including a plain-text file named **`playmodes.txt`** in its project folder.
 
 * Modes the file does not define keep their built-in behaviour. A project without the file plays exactly as before.
-* A mode that contains an error keeps its built-in behaviour. The other modes in the file still load.
+* A mode that contains an error keeps its built-in behaviour. The other modes in the file still load, and a short message says which modes fell back.
 * Works on all three devices (Original Tracker, Tracker+ and Tracker Mini).
 
 ---
@@ -110,7 +110,17 @@ Values are the **raw values stored in a pattern**, which for some FX differ from
 
 ## 3. Errors
 
-Errors never stop a project from opening:
+Errors never stop a project from opening. When the file has errors, a message titled **Custom Play Modes (playmodes.txt)** appears for 6 seconds once the project has opened:
+
+| Situation | Message |
+| :--- | :--- |
+| Some modes have errors | `Modes C3 and C4 have errors.` / `They play their built-in versions.` / `First error: line 19.` |
+| No `version 1` line | `The file was not loaded:` / `its first line must be: version 1` / `All modes play their built-in version.` |
+| File empty, unreadable or too big | `The file was not loaded:` / `it is empty, unreadable or over 64 KB.` / `All modes play their built-in version.` |
+| Errors that did not affect any mode | `The file has errors, but all its` / `modes loaded.` / `First error: line 2.` |
+
+Up to three modes are named (`C1, C2, C3 and 17 more`). The line number is the first error in the file, which may belong to a different mode than the ones named.
+
 
 | Problem | Result |
 | :--- | :--- |
@@ -127,5 +137,6 @@ Errors never stop a project from opening:
 * **Code**: [`core/source/userPlayModes.cpp`](../core/source/userPlayModes.cpp) (memory block, FX allow-list, SD reading, file copying) and [`core/source/userPlayModesParser.cpp`](../core/source/userPlayModesParser.cpp) (the parser, free of firmware headers so it can be built and tested on a desktop compiler). The built-in modes stay in flash in [`core/source/playModeDefs.h`](../core/source/playModeDefs.h).
 * **Sequencer**: [`Sequencer`](../core/source/mtSequencer.cpp) reads steps through `userPlayModes::getStep()` and FX through `userPlayModes::getFxPreset()`. A 32-bit mask selects, per mode, the built-in table or the user block. Nothing in the audio path touches the SD card.
 * **Project lifecycle**: like `patternsMetadata` and synth patches. `ProjectOpen::openProjectFinish()` copies `<project>/playmodes.txt` to `Workspace/playmodes.txt`, or deletes a stale Workspace copy. `WorkspaceProjectLoad::loadProjectFromWorkspaceFinish()` parses it before the audio engine restarts. `ProjectSave::saveProjectFinish()` copies it to the destination on **Save As**, and leaves it alone on **Save**. A new project starts with an empty Workspace.
+* **Error message**: `formatLoadWarning()` (parser) builds up to three lines after each load, and keeps them in `EXTERNAL_RAM`. `Interface::commonThingsUpdate()` shows them once with `mtPopups.showTitledPopup()` (a bold title above the lines, 6 seconds), when the interface is in `mtOperatingModeRun` and the FileManager is idle. This covers start-up, **Project → Open** and imports.
 * **Load safety**: parsing clears the mask first (built-in modes play), writes the modes into the block, then publishes the mask last.
 * **Memory**: one `__NOINIT(EXTERNAL_RAM)` block of about 5.1 KB. Room for it is reserved in `USER_PLAY_MODES_MEMORY_SIZE` (6 KB) in [`core/source/mtStructs.h`](../core/source/mtStructs.h). See [Memory Map](memory_map.md).

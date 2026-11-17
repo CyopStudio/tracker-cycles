@@ -44,6 +44,11 @@ void copyWorkspaceFileToProject(FileSystem* fileSystem,
 
 const LoadReport& getLastLoadReport();
 
+// After a load whose file had errors: returns the number of popup lines
+// (once), with a title and the lines. They stay valid until the next load.
+// 0 when there is nothing to show.
+int takeLoadWarning(const char*& title, const char* const*& lines);
+
 } // namespace userPlayModes
 
 #endif /* SOURCE_USERPLAYMODES_H_ */

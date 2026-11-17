@@ -35,6 +35,11 @@ __NOINIT(EXTERNAL_RAM) Block userBlock;
 
 __NOINIT(EXTERNAL_RAM) LoadReport lastReport;
 
+// Popup text, kept here because the popup only stores the pointers.
+__NOINIT(EXTERNAL_RAM) char warningLines[kWarningLineCount][kWarningLineSize];
+__NOINIT(EXTERNAL_RAM) const char* warningLinePointers[kWarningLineCount];
+__NOINIT(EXTERNAL_RAM) int warningLineCount;
+
 constexpr int kRollStride = Fx::ROLL_PERIOD_MAX + 1;
 
 constexpr int16_t rollValue(int period, int type)
@@ -197,6 +202,7 @@ void init()
 {
     __atomic_store_n(&userBlock.userModeMask, 0u, __ATOMIC_RELEASE);
     lastReport = {};
+    warningLineCount = 0;
 }
 
 AUDIO_CORE_FLASH Step getStep(uint8_t mode, uint8_t index)
@@ -254,6 +260,7 @@ LoadReport loadFromWorkspace(FileSystem* fileSystem)
     {
         lastReport = parser.finish();
         lastReport.fileRejected = false; // no file is not an error
+        warningLineCount = 0;
         return lastReport;
     }
 
@@ -269,6 +276,7 @@ LoadReport loadFromWorkspace(FileSystem* fileSystem)
 
     // A file that could not be read has no version line and is rejected.
     lastReport = parser.finish();
+    warningLineCount = formatLoadWarning(lastReport, warningLines);
     return lastReport;
 }
 
@@ -312,6 +320,24 @@ void copyWorkspaceFileToProject(FileSystem* fileSystem,
 const LoadReport& getLastLoadReport()
 {
     return lastReport;
+}
+
+int takeLoadWarning(const char*& title, const char* const*& lines)
+{
+    const int count = warningLineCount;
+    warningLineCount = 0;
+    if (count == 0)
+    {
+        return 0;
+    }
+
+    for (int i = 0; i < count; i++)
+    {
+        warningLinePointers[i] = warningLines[i];
+    }
+    title = kWarningTitle;
+    lines = warningLinePointers;
+    return count;
 }
 
 } // namespace userPlayModes

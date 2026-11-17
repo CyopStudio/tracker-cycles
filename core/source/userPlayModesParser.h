@@ -76,6 +76,16 @@ struct LoadReport
     int firstErrorLine; // 0 if none
 };
 
+// Popup telling the user what went wrong: kWarningTitle above up to
+// kWarningLineCount lines of kWarningLineSize characters (with the NUL).
+constexpr char kWarningTitle[] = "Custom Play Modes (playmodes.txt)";
+constexpr int kWarningLineCount = 3;
+constexpr int kWarningLineSize = 48;
+
+// Writes the lines for the report and returns how many, or 0 when there is
+// nothing to warn about.
+int formatLoadWarning(const LoadReport& report, char (&lines)[kWarningLineCount][kWarningLineSize]);
+
 // Feed the file one line at a time (without the line ending) between begin()
 // and finish(). Modes are written into the block while its mask is cleared,
 // and the mask is written last, so playback never sees a half-written mode.
