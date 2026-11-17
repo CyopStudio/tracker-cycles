@@ -32,7 +32,7 @@ Sequencer sequencer;
 __NOINIT(EXTERNAL_RAM)
 Sequencer::strPattern seq[2];
 
-#include "playModeDefs.h"
+#include "userPlayModes.h"
 
 extern audioEngine engine;
 extern cPatternEditor patternEditor;
@@ -1924,13 +1924,14 @@ void Sequencer::switchRowStep(uint8_t row) // przełączamy stepy w zależności
                 }
 
                 uint8_t nextStepInOrder =
-                  player.track[row].actual_pos_absolute % playOrderWithFxLength;
+                  player.track[row].actual_pos_absolute % userPlayModes::kStepCount;
+                const userPlayModes::Step orderStep =
+                  userPlayModes::getStep(customPlayMode, nextStepInOrder);
 
                 // 0 nie mozna
-                if (playOrderWithFx[customPlayMode][nextStepInOrder].stepNumberToPlay != 0)
+                if (orderStep.stepNumberToPlay != 0)
                 {
-                    player.track[row].actual_pos =
-                      playOrderWithFx[customPlayMode][nextStepInOrder].stepNumberToPlay - 1;
+                    player.track[row].actual_pos = orderStep.stepNumberToPlay - 1;
                     player.track[row].actual_pos = player.track[row].actual_pos % (trackLength + 1);
                 }
                 else
@@ -2021,202 +2022,23 @@ void Sequencer::stopForMissingNextPattern()
 AUDIO_CORE_FLASH void Sequencer::applyRowCustomFx(uint8_t tr, uint8_t stepInCustomOrder)
 {
     uint8_t customPlayMode = player.track[tr].performancePlayMode - PLAYMODE_CUSTOM_1;
+    const userPlayModes::Step orderStep = userPlayModes::getStep(customPlayMode, stepInCustomOrder);
+    const userPlayModes::FxPreset* preset =
+      userPlayModes::getFxPreset(customPlayMode, orderStep.fxOption);
 
-    switch (playOrderWithFx[customPlayMode][stepInCustomOrder].fxOption)
+    if (preset == nullptr)
     {
-        case playModeFx_none:
-            player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            player.track[tr].custom_fx_value = 0;
-            break;
-        case playModeFx_rollFlat_1_4_P30:
-            if (utilMathRandom::random(0, 100) < 30)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_4 + fx.rollType_const * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            else
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            }
-            break;
-        case playModeFx_rollFlat_1_4_P60:
-            if (utilMathRandom::random(0, 100) < 60)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_4 + fx.rollType_const * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            break;
-        case playModeFx_rollFlat_1_4_P100:
-            if (utilMathRandom::random(0, 100) < 100)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_4 + fx.rollType_const * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            break;
-
-            //****************
-
-        case playModeFx_rollDecVelo_1_4_P30:
-            if (utilMathRandom::random(0, 100) < 30)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_4 + fx.rollType_volDown * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            else
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            }
-            break;
-        case playModeFx_rollDecVelo_1_4_P60:
-            if (utilMathRandom::random(0, 100) < 60)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_4 + fx.rollType_volDown * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            else
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            }
-            break;
-        case playModeFx_rollDecVelo_1_4_P100:
-            if (utilMathRandom::random(0, 100) < 100)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_4 + fx.rollType_volDown * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            else
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            }
-            break;
-
-            //****************
-
-        case playModeFx_rollDecVelo_1_2_P30:
-            if (utilMathRandom::random(0, 100) < 30)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_2 + fx.rollType_volDown * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            else
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            }
-            break;
-        case playModeFx_rollDecVelo_1_2_P60:
-            if (utilMathRandom::random(0, 100) < 60)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_2 + fx.rollType_volDown * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            else
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            }
-            break;
-        case playModeFx_rollDecVelo_1_2_P100:
-            if (utilMathRandom::random(0, 100) < 100)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_2 + fx.rollType_volDown * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            else
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            }
-            break;
-
-            //****************
-
-        case playModeFx_rollFlatVelo_1_1_P30:
-            if (utilMathRandom::random(0, 100) < 30)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_1 + fx.rollType_const * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            else
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            }
-            break;
-        case playModeFx_rollFlatVelo_1_1_P60:
-            if (utilMathRandom::random(0, 100) < 60)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_1 + fx.rollType_const * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            else
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            }
-            break;
-        case playModeFx_rollFlatVelo_1_1_P100:
-            if (utilMathRandom::random(0, 100) < 100)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_1 + fx.rollType_const * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            else
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            }
-            break;
-
-        case playModeFx_rollDecVelo_1_1_P30:
-            if (utilMathRandom::random(0, 100) < 30)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_1 + fx.rollType_volDown * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            else
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            }
-            break;
-
-        case playModeFx_rollDecVelo_1_1_P60:
-            if (utilMathRandom::random(0, 100) < 60)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_1 + fx.rollType_volDown * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            else
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            }
-            break;
-
-        case playModeFx_rollDecVelo_1_1_P100:
-            if (utilMathRandom::random(0, 100) < 100)
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_ROLL;
-                player.track[tr].custom_fx_value =
-                  fx.ROLL_PERIOD_1_1 + fx.rollType_volDown * (fx.ROLL_PERIOD_MAX + 1);
-            }
-            else
-            {
-                player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            }
-            break;
-
-        default:
-            player.track[tr].custom_fx = fx.FX_TYPE_NONE;
-            player.track[tr].custom_fx_value = 0;
-            break;
+        player.track[tr].custom_fx = fx.FX_TYPE_NONE;
+        player.track[tr].custom_fx_value = 0;
+    }
+    else if (utilMathRandom::random(0, 100) < preset->chance)
+    {
+        player.track[tr].custom_fx = preset->type;
+        player.track[tr].custom_fx_value = preset->value;
+    }
+    else
+    {
+        player.track[tr].custom_fx = fx.FX_TYPE_NONE;
     }
 }
 

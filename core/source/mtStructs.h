@@ -58,6 +58,13 @@ const uint8_t MAX_8BIT = 255;
 const float MAX_WAVE_FLOAT = 1.0;
 const float MIN_WAVE_FLOAT = -1.0;
 
+// User-defined custom play modes (userPlayModes.cpp, __NOINIT(EXTERNAL_RAM)).
+// On Tracker+ / Mini it is taken out of SAMPLE_MEMORY_SIZE so EXTERNAL_RAM
+// headroom is unchanged. The Original keeps its sample memory as it is (its
+// edit buffers need all of it) and uses ~6 KB of its ~1 MB headroom instead.
+// Kept a multiple of 1 KB so SAMPLE_MEMORY_SIZE stays aligned as before.
+const uint32_t USER_PLAY_MODES_MEMORY_SIZE = 6 * 1024;
+
 #ifndef PLATFORM_IMX
 // T1
 const uint32_t EXTERAL_MEMORY_ADDRESS = 0x70000000;
@@ -68,8 +75,10 @@ const uint32_t SAMPLE_MEMORY_SIZE = (45 * 256 * 1024);     // 11,25 MB = 133.746
 const uint32_t EXTERAL_MEMORY_ADDRESS = 0x80000000;
 const uint32_t TOTAL_EXTERNAL_MEMORY = (64 * 1024 * 1024); // 64 MB
 const uint32_t PSYN_RAM_POOL_SIZE = (6 * 1024 * 1024);      // 6 MB for .psyn plugins & synth SamplePool
-// ~54 MB: 60 MB minus 64 KB for pattern buffers, 96 KB for the display lists kept in the MCU and the pool above
-const uint32_t SAMPLE_MEMORY_SIZE = ((60 * 1024 - 64 - 96) * 1024) - PSYN_RAM_POOL_SIZE;
+// ~54 MB: 60 MB minus 64 KB for pattern buffers, 96 KB for the display lists kept in the MCU,
+// the pool above and the user play modes
+const uint32_t SAMPLE_MEMORY_SIZE =
+  ((60 * 1024 - 64 - 96) * 1024) - PSYN_RAM_POOL_SIZE - USER_PLAY_MODES_MEMORY_SIZE;
 #endif
 
 const uint32_t DELAY_MEMORY_SIZE = (3 * 512 * 1024);               // 1,5 MB

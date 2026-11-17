@@ -159,6 +159,7 @@ Full user and developer documentation is available in [`docs/`](docs/Home.md) an
   * [Custom Themes & Fonts](docs/custom_themes_and_fonts.md) + [Live Web Editor](https://polyend.github.io/tracker-theme-editor/) ([`polyend/tracker-theme-editor`](https://github.com/polyend/tracker-theme-editor))
   * [Wavetable Envelopes, LFOs & Step FX](docs/wavetable_envelopes.md)
   * [SD Card Image Viewer](docs/image_viewer.md)
+  * [User-Defined Play Modes](docs/user_play_modes.md)
 * **Developer & Architecture Guides**:
   * [Firmware Memory Map, Budgets & Subsystem Limits](docs/memory_map.md)
   * [Firmware Architecture, Hardware Limits & Developer Gotchas](docs/developer_guide.md)

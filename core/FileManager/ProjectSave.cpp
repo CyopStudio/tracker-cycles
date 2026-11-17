@@ -4,6 +4,7 @@
 #include "fileManager.h"
 #include "fileManagerDefs.h"
 #include "fileTransfer.h"
+#include "userPlayModes.h"
 
 #if FILEMANAGER_HANDLE_SYNTH == 1
 #include "Synth.h"
@@ -541,6 +542,17 @@ void ProjectSave::saveProjectFinish()
 
     newFileManager.getSynth()->copyWorkspacePatches(cWorkspacePath, destFilePath);
 #endif
+
+    //------------ user play modes
+
+    snprintf(destFilePath,
+             pathSize,
+             cProjectsPathFormat,
+             newFileManager.getCurrentProjectPath(),
+             newFileManager.getCurrentProjectName());
+
+    userPlayModes::copyWorkspaceFileToProject(
+      newFileManager.getFileSystem(), destFilePath, isIncrementalSave);
 
     //-----------------------------------
 

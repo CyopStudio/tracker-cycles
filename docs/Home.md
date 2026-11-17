@@ -12,6 +12,8 @@ Welcome to the official documentation for **Polyend Tracker Community Edition (C
   * How to install and create custom JSON color themes (`/Themes/*.json`) and custom antialiased bitmap fonts (`/Fonts/*.ptfont`) using the [Web Theme & Font Editor](https://polyend.github.io/tracker-theme-editor/) ([`polyend/tracker-theme-editor`](https://github.com/polyend/tracker-theme-editor)), plus full color key reference tables.
 * **[Wavetable Envelopes, LFOs & Step FX (`docs/wavetable_envelopes.md`)](wavetable_envelopes.md)**
   * Complete guide to the 256-shape `WT Env` and `WT LFO` instrument modulators, dual-axis `Warp X/Y` shaping, `w` / `y` pattern step FX, and loading custom `.wav` contours from `/Envelopes/`.
+* **[User-Defined Play Modes (`docs/user_play_modes.md`)](user_play_modes.md)**
+  * Replace the 20 custom Performance Mode play modes (`C1`–`C20`) per project with a `playmodes.txt` file, with any track-level FX on each step.
 * **[Modular Sample Editor Effects - User & Architecture Guide (`docs/modular_effects_system.md`)](modular_effects_system.md)**
   * Overview of hot-loadable `.ptfx` Sample Editor effects and generators (`/Effects/*.ptfx`), bundled reference plugins, and hardware memory/cache architecture.
 * **[SD Card Image Viewer (`docs/image_viewer.md`)](image_viewer.md)**

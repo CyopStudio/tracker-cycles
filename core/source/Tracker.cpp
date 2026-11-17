@@ -14,6 +14,7 @@
 #include "mtSequencer.h"
 #include "mtSleep.h"
 #include "mtSliceDetector.h"
+#include "userPlayModes.h"
 
 #include <cr_section_macros.h>
 
@@ -98,6 +99,7 @@ void TrackerImpl::init(Platform* platform)
     this->platform = platform;
 
     initWavetableEnvelopes();
+    userPlayModes::init();
 
     Timer* timer = getPlatform()->getTimer();
     elapsedMicros::init(timer);

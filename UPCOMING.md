@@ -69,6 +69,12 @@
 13. **SD-Card Random Name Wordlists (All 3 Devices)**
 	* Moved the random name generator wordlists to `/Words/adjectives.txt` and `/Words/nouns.txt` on the microSD card (one word per line, with a built-in fallback list when the files are absent; initial files provided in [`sd-card/Words/`](sd-card/Words/)), freeing some Flash space on Original Tracker and letting users customize their own wordlists.
 
+14. **User-Defined Play Modes (All 3 Devices)**
+	* **Your Own `C1`–`C20` Step Orders**: A project can replace any of the 20 custom Performance Mode play modes with its own step orders by including a `playmodes.txt` file in its project folder. Modes the file does not define, or that contain errors, keep their built-in behaviour.
+	* **Any Track FX on a Step**: Each step of a play mode can trigger any track-level FX (Volume, Reverse, Position, Filters, CC, ...) with a chance %, not only Roll.
+	* **No Extra RAM**: On Tracker+ and Tracker Mini the space comes out of the sample memory pool (`6 KB`), leaving RAM headroom unchanged.
+	* See [`docs/user_play_modes.md`](docs/user_play_modes.md).
+
 ### Changed & Fixed
 
 * **Faster UI Rendering & System Responsiveness (All 3 Devices)**:

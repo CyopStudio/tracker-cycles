@@ -3,6 +3,7 @@
 #include "fileManager.h"
 #include "fileManagerDefs.h"
 #include "fileTransfer.h"
+#include "userPlayModes.h"
 
 #if FILEMANAGER_HANDLE_SYNTH == 1
 #include "Synth.h"
@@ -160,6 +161,8 @@ void WorkspaceProjectLoad::loadProjectFromWorkspaceFinish()
         strcpy(newFileManager.getCurrentProjectPath(),
                newFileManager.getProjectPathfromProjectFile());
     }
+
+    userPlayModes::loadFromWorkspace(newFileManager.getFileSystem());
 
     sequencer.switchRamPatternsNow();
     newFileManager.startAudioEngine();
