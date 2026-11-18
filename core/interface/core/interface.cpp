@@ -15,7 +15,9 @@
 #include "masterParams/masterParams.h"
 #include "patternEditor/patternEditor.h"
 #include "performanceMode/performanceMode.h"
+#ifdef PLAY_MODE_EDITOR
 #include "playModeEditor/playModeEditor.h"
+#endif
 #include "projectEditor/projectEditor.h"
 #include "sampleEditor/sampleEditor.h"
 #include "sampleImporter/sampleImporter.h"
@@ -103,7 +105,9 @@ void Interface::begin(Platform* platform, Synth* synth)
     Interface::fileSystem = platform->getFileSystem();
     Interface::ip = &::ip;
     patternEditor.initExternalRamState();
+#ifdef PLAY_MODE_EDITOR
     playModeEditor.initExternalRamState();
+#endif
     Interface::synth = synth;
     operatingMode = mtOperatingModeStartup;
 
@@ -662,6 +666,7 @@ void interfaceEnvents(uint8_t event, void* param1, void* param2, void* param3)
                                                param2 == nullptr ? 0 : *((uint8_t*)param2));
             break;
         }
+#ifdef PLAY_MODE_EDITOR
         case eventActivatePlayModeEditor:
         {
             // param1 = handle to source module
@@ -669,6 +674,7 @@ void interfaceEnvents(uint8_t event, void* param1, void* param2, void* param3)
             mtInterface.activateModule(&playModeEditor, 0);
             break;
         }
+#endif
         case eventActivateGameModule:
         {
             break;

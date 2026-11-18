@@ -112,6 +112,8 @@ Values are the **raw values stored in a pattern**, which for some FX differ from
 
 Play modes can also be edited on the Tracker itself, in a grid with one lane per custom mode (`C1`–`C20`) and 128 rows. Edits are heard straight away, the next time the edited step plays.
 
+The editor is a build option: it is built by default, and `make <device> PLAY_MODE_EDITOR=0` (for example `make original PLAY_MODE_EDITOR=0`) leaves it out. Without it, play modes still load from `playmodes.txt`, and the editor's flash (about 15 KB on the Original) and its 1 KB of buffers are not used. Changing the option rebuilds everything once.
+
 ### Opening and Leaving the Editor
 
 * **Open it from Performance mode only**: hold **`[Shift]`** and press **`[Pattern]`** (Tracker Mini: **`[Shift]`**+**`[Menu]`**). The same buttons do nothing special anywhere else. Custom play modes only play in Performance mode, which keeps running while the editor is open.

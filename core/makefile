@@ -23,6 +23,15 @@ CPP_SRCS 	+= $(shell find ./AudioEngine/ -name *.cpp)
 CPP_SRCS 	+= $(shell find ./synth/ -name *.cpp)
 C_SRCS 	 	+= $(shell find ./libs/ -name *.c)
 
+# The on-device play mode editor (prototype): built unless PLAY_MODE_EDITOR=0,
+# for example `make original PLAY_MODE_EDITOR=0`.
+PLAY_MODE_EDITOR ?= 1
+ifneq ($(PLAY_MODE_EDITOR),0)
+DEFINES += -DPLAY_MODE_EDITOR
+else
+CPP_SRCS := $(filter-out ./interface/playModeEditor/%,$(CPP_SRCS))
+endif
+
 _CPP_OBJS	= $(patsubst ./%.cpp, %.o, $(CPP_SRCS))
 _C_OBJS		= $(patsubst ./%.c, %.o, $(C_SRCS))
 
@@ -80,6 +89,16 @@ $(OBJ_DIR)/%.o: %.cpp
 
 $(OBJ_DIR)/%.o: %.c
 	$(TOOLCHAIN)gcc $(DEFINES) $(INCLUDES) $(CC_OPTIONS) $(COMPILER_OPTIONS) -o "$@" "$<"
+
+# Switching PLAY_MODE_EDITOR rebuilds everything: it changes memory sizes
+# (mtStructs.h) that every object must agree on. The stamp's name holds the
+# setting, so a new setting makes a new, newer stamp.
+FEATURE_STAMP := $(BUILD_DIR)/play_mode_editor.$(PLAY_MODE_EDITOR)
+$(FEATURE_STAMP):
+	@mkdir -p "$(BUILD_DIR)"
+	@rm -f $(BUILD_DIR)/play_mode_editor.*
+	@touch "$@"
+$(OBJS): $(FEATURE_STAMP)
 
 $(TARGET): $(OBJS)
 	@rm -f "$(BUILD_DIR)/$(TARGET)"

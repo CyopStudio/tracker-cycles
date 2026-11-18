@@ -269,7 +269,9 @@ enum interfaceEvents
     eventToggleActiveModule,
 
     eventActivateImageViewer,
+#ifdef PLAY_MODE_EDITOR
     eventActivatePlayModeEditor,
+#endif
     eventActivateGameModule,
 
     eventSetFileTransferMode,
