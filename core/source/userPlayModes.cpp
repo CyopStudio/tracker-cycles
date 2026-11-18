@@ -489,16 +489,15 @@ bool save(FileSystem* fileSystem, const char* projectDir)
     }
     else
     {
-        auto [isOpen, file] = fileSystem->openFile(kWorkspaceFilePath, FileSystem::kWriteCreateNew);
-        if (!isOpen)
+        SdScopedFile file(fileSystem, kWorkspaceFilePath, FileSystem::kWriteCreateNew);
+        if (!file)
         {
             return false;
         }
         FxSpec fxSpecs[kAllowedFxCount];
         const ParserConfig config = makeConfig(fxSpecs);
-        FileSinkContext context = { fileSystem, file, true };
+        FileSinkContext context = { fileSystem, file.handle(), true };
         writeFile(userBlock, config, writeLineToFile, &context);
-        fileSystem->closeFile(file);
         ok = context.ok;
     }
 
