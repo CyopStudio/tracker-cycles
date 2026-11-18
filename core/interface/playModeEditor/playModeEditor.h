@@ -25,6 +25,9 @@ class cPlayModeEditor : public ModuleBase
     static constexpr uint8_t kRowCount = 128;
     static constexpr uint8_t kVisibleLanes = 4;
 
+    // Sets the state below once, at boot (it is not zeroed by start-up).
+    static void initExternalRamState();
+
     virtual void update();
     virtual void start(uint32_t options);
     virtual void stop();
@@ -52,19 +55,31 @@ class cPlayModeEditor : public ModuleBase
     void resetLane();
     void showResult(const char* line1, const char* line2 = nullptr);
 
-    uint8_t lane = 0; // 0-19 (C1-C20)
-    uint8_t row = 0;  // 0-127
-    uint8_t column = kColumnStep;
-    uint8_t firstLane = 0; // leftmost visible lane
+    // State. The editor is a single object, so its state is static and kept in
+    // external RAM (defined in gPlayModeEdit.cpp, set in initExternalRamState()),
+    // leaving only ModuleBase's few bytes in internal RAM.
+    static uint8_t lane;      // 0-19 (C1-C20)
+    static uint8_t row;       // 0-127
+    static uint8_t column;    // Column
+    static uint8_t firstLane; // leftmost visible lane
 
-    int16_t lastPlayhead = -1;
-    bool gridDirty = true;
+    static int16_t lastPlayhead;
+    static bool gridDirty;
+    static bool patternViewSaved; // see savePatternView()
 
-    char titleText[64];
+    static char titleText[64];
 
-    hControl grid = -1;
-    hControl label[8];
-    hControl bgLabel = -1;
+    static hControl grid;
+    static hControl label[8];
+    static hControl bgLabel;
+
+    // The grid shares the Pattern editor's text buffer
+    // (cPatternEditor::trackerPattern); the two are never shown together.
+    // Its cell text is rebuilt on every refresh, but the fields after it hold
+    // the Pattern editor's cursor and selection: they are saved on entry and
+    // put back on exit.
+    static void savePatternView();
+    static void restorePatternView();
 };
 
 extern cPlayModeEditor playModeEditor;

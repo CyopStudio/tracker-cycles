@@ -11,13 +11,13 @@
 #include "mtPadsBacklight.h"
 #include "mtSequencer.h"
 #include "mtStructs.h"
+#include "patternEditor/patternEditor.h"
 #include "performanceMode/performanceMode.h"
 #include "userPlayModes.h"
 
 cPlayModeEditor playModeEditor;
 static cPlayModeEditor* PME = &playModeEditor;
 
-extern strTrackerPattern playModeEditorGrid;
 
 static void functPlayAction();
 static void functUp();
@@ -150,6 +150,7 @@ void cPlayModeEditor::start(uint32_t options)
     ip->setButtonObj(interfaceButtonMiniMenu, functMenu);
 
     lastPlayhead = -1;
+    savePatternView();
     showDefaultScreen();
     setDefaultScreenFunct();
 }
@@ -157,6 +158,7 @@ void cPlayModeEditor::start(uint32_t options)
 void cPlayModeEditor::stop()
 {
     moduleRefresh = 0;
+    restorePatternView();
     mtPadBoard.releaseAllInstruments();
     padsBacklight.clearGlobalPads(1, 1, 1);
 }
@@ -204,7 +206,7 @@ void cPlayModeEditor::refreshGrid()
         firstLane = lane - kVisibleLanes + 1;
     }
 
-    strTrackerPattern& g = playModeEditorGrid;
+    strTrackerPattern& g = cPatternEditor::trackerPattern;
     for (uint8_t visible = 0; visible < kVisibleLanes; visible++)
     {
         const uint8_t shownLane = firstLane + visible;

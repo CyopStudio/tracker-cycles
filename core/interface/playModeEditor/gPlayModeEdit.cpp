@@ -1,12 +1,58 @@
 #include "playModeEditor/playModeEditor.h"
 
+#include <cstddef>
+#include <cstring>
+
 #include "cr_section_macros.h"
 #include "display.h"
 #include "mtStructs.h"
+#include "patternEditor/patternEditor.h"
 
-// The grid's text, rebuilt for the visible lanes and rows on every refresh.
-// External RAM: internal RAM is full.
-__NOINIT(EXTERNAL_RAM) strTrackerPattern playModeEditorGrid;
+// State in external RAM: internal RAM is full.
+__NOINIT(EXTERNAL_RAM) uint8_t cPlayModeEditor::lane;
+__NOINIT(EXTERNAL_RAM) uint8_t cPlayModeEditor::row;
+__NOINIT(EXTERNAL_RAM) uint8_t cPlayModeEditor::column;
+__NOINIT(EXTERNAL_RAM) uint8_t cPlayModeEditor::firstLane;
+__NOINIT(EXTERNAL_RAM) int16_t cPlayModeEditor::lastPlayhead;
+__NOINIT(EXTERNAL_RAM) bool cPlayModeEditor::gridDirty;
+__NOINIT(EXTERNAL_RAM) bool cPlayModeEditor::patternViewSaved;
+__NOINIT(EXTERNAL_RAM) char cPlayModeEditor::titleText[64];
+__NOINIT(EXTERNAL_RAM) hControl cPlayModeEditor::grid;
+__NOINIT(EXTERNAL_RAM) hControl cPlayModeEditor::label[8];
+__NOINIT(EXTERNAL_RAM) hControl cPlayModeEditor::bgLabel;
+
+namespace
+{
+// The part of the shared grid buffer that is Pattern editor state, not cell
+// text: everything from `actualTrack` on.
+constexpr size_t kPatternViewOffset = offsetof(strTrackerPattern, actualTrack);
+constexpr size_t kPatternViewSize = sizeof(strTrackerPattern) - kPatternViewOffset;
+__NOINIT(EXTERNAL_RAM) uint8_t savedPatternView[kPatternViewSize];
+} // namespace
+
+void cPlayModeEditor::savePatternView()
+{
+    if (patternViewSaved)
+    {
+        return;
+    }
+    memcpy(savedPatternView,
+           reinterpret_cast<uint8_t*>(&cPatternEditor::trackerPattern) + kPatternViewOffset,
+           kPatternViewSize);
+    patternViewSaved = true;
+}
+
+void cPlayModeEditor::restorePatternView()
+{
+    if (!patternViewSaved)
+    {
+        return;
+    }
+    memcpy(reinterpret_cast<uint8_t*>(&cPatternEditor::trackerPattern) + kPatternViewOffset,
+           savedPatternView,
+           kPatternViewSize);
+    patternViewSaved = false;
+}
 
 namespace
 {
@@ -15,9 +61,19 @@ const char* const kLabelTexts[8] = {
 };
 } // namespace
 
+void cPlayModeEditor::initExternalRamState()
+{
+    lane = 0;
+    row = 0;
+    column = kColumnStep;
+    firstLane = 0;
+    lastPlayhead = -1;
+    gridDirty = true;
+    patternViewSaved = false;
+}
+
 void cPlayModeEditor::initDisplayControls()
 {
-    playModeEditorGrid.init();
 
     strControlProperties prop;
 
@@ -48,7 +104,8 @@ void cPlayModeEditor::initDisplayControls()
     bg.h = 54;
     bgLabel = display.createControl<cBgLabel>(&bg);
 
-    // The pattern editor's grid, in its 4-track view (all four columns).
+    // The pattern editor's grid control, in its 4-track view (all four
+    // columns), on the Pattern editor's own text buffer.
     strControlProperties gridProp;
     gridProp.text = nullptr;
     gridProp.style =
@@ -60,7 +117,7 @@ void cPlayModeEditor::initDisplayControls()
     gridProp.w = 800;
     gridProp.h = 395;
     gridProp.colors = display.getTheme().patternTrackerColors;
-    gridProp.data = &playModeEditorGrid;
+    gridProp.data = &cPatternEditor::trackerPattern;
     gridProp.value = 0;
     grid = display.createControl<cTracker>(&gridProp);
 }

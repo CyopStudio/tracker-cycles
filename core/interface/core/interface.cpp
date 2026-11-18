@@ -103,6 +103,7 @@ void Interface::begin(Platform* platform, Synth* synth)
     Interface::fileSystem = platform->getFileSystem();
     Interface::ip = &::ip;
     patternEditor.initExternalRamState();
+    playModeEditor.initExternalRamState();
     Interface::synth = synth;
     operatingMode = mtOperatingModeStartup;
 
