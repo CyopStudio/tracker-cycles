@@ -143,6 +143,44 @@ void setupList(strList& list, const char* const* names, uint16_t count, uint16_t
     list.lineTextLenMax = textLen;
 }
 
+// A bottom label: its title and, if `value` is given, a second line (an
+// empty one still keeps the two-line layout).
+void setLabel(uint8_t i, const char* text, const char* value = nullptr)
+{
+    const hControl control = cPlayModeEditor::label[i];
+    display.setControlText(control, text);
+    display.setControlText2(control, value ? value : "");
+    display.setControlValue(control, value ? 1 : 0);
+}
+
+// The bottom labels' look, in the given colours.
+void styleLabels(const uint32_t* colors)
+{
+    for (uint8_t i = 0; i < 8; i++)
+    {
+        const hControl control = cPlayModeEditor::label[i];
+        display.setControlStyle(control, kLabelStyle);
+        display.setControlStyle2(control,
+                                 controlStyleCenterX | controlStyleCenterY | controlStyleFont2);
+        display.setControlColors(control, colors);
+    }
+}
+
+// The fill popup's controls, shown and hidden together.
+hControl* const kPopupControls[] = {
+    &cPlayModeEditor::popupBg,    &cPlayModeEditor::popupTitle, &cPlayModeEditor::listWhere,
+    &cPlayModeEditor::listType,   &cPlayModeEditor::barDensity, &cPlayModeEditor::barFrom,
+    &cPlayModeEditor::barTo,      &cPlayModeEditor::barCancel,  &cPlayModeEditor::barFill,
+    &cPlayModeEditor::listFxType,
+};
+// Without the last one (listFxType), which refreshFillPopup() shows when used.
+constexpr uint8_t kPopupControlsShown = sizeof(kPopupControls) / sizeof(kPopupControls[0]) - 1;
+
+// The popup's bottom labels that don't change while it is open.
+const char* const kFillLabels[8] = {
+    "Where?", nullptr, nullptr, "Fill Type", nullptr, nullptr, "Cancel", "Fill",
+};
+
 } // namespace
 
 void cPlayModeEditor::savePatternView()
@@ -281,30 +319,29 @@ void cPlayModeEditor::initDisplayControls()
     popup.value = 0;
     popup.style = controlStyleBackground |
                   (display.getTheme().bottomScreenShadow > 0 ? controlStyleBottomShadow : 0);
-    popup.data = &whereList.value;
-    listWhere = display.createControl<cList>(&popup);
-    popup.x = (800 / 8) * 2 + 1;
-    popup.data = &fxTypeList.value;
-    listFxType = display.createControl<cList>(&popup);
-    popup.x = (800 / 8) * 3 + 1;
-    popup.data = &typeList.value;
-    listType = display.createControl<cList>(&popup);
+    // Columns 1, 3 and 4 are lists; 2 and 5-8 are bars (Cancel and Fill empty).
+    hControl* const lists[3] = { &listWhere, &listFxType, &listType };
+    strList* const listData[3] = { &whereList.value, &fxTypeList.value, &typeList.value };
+    const uint8_t listColumns[3] = { 0, 2, 3 };
+    for (uint8_t i = 0; i < 3; i++)
+    {
+        popup.x = (800 / 8) * listColumns[i] + 1;
+        popup.data = listData[i];
+        *lists[i] = display.createControl<cList>(&popup);
+    }
 
     popup.data = nullptr;
     popup.style = controlStyleValue_0_100 | controlStyleBackground |
                   (display.getTheme().barShadow > 0 ? controlStyleGradient : 0) |
                   (display.getTheme().bottomScreenShadow > 0 ? controlStyleBottomShadow : 0);
-    popup.x = (800 / 8) * 1 + 1;
-    barDensity = display.createControl<cBar>(&popup);
-    popup.x = (800 / 8) * 4 + 1;
-    barFrom = display.createControl<cBar>(&popup);
-    popup.x = (800 / 8) * 5 + 1;
-    barTo = display.createControl<cBar>(&popup);
-    popup.value = -1;
-    popup.x = (800 / 8) * 6 + 1;
-    barCancel = display.createControl<cBar>(&popup);
-    popup.x = (800 / 8) * 7 + 1;
-    barFill = display.createControl<cBar>(&popup);
+    hControl* const bars[5] = { &barDensity, &barFrom, &barTo, &barCancel, &barFill };
+    const uint8_t barColumns[5] = { 1, 4, 5, 6, 7 };
+    for (uint8_t i = 0; i < 5; i++)
+    {
+        popup.x = (800 / 8) * barColumns[i] + 1;
+        popup.value = i < 3 ? 0 : -1;
+        *bars[i] = display.createControl<cBar>(&popup);
+    }
 
     popup.value = 0;
     popup.style = controlStyleCenterY | controlStyleFont4 | controlStyleBackground;
@@ -364,22 +401,18 @@ void cPlayModeEditor::refreshLabels()
     snprintf(editStepText, sizeof(editStepText), "%u", mtProject.values.patternEditStep);
 
     const auto& theme = display.getTheme();
+    styleLabels(theme.activeLabelsColors);
     for (uint8_t i = 0; i < 8; i++)
     {
-        const bool editAction = i == 3 || i == 4 || i == 5 || i == 6;
+        const bool editAction = i >= 3 && i <= 6;
         const bool available =
           !editAction || (editMode && (i < 5 || (i == 5 && undoBuffer.state == 1) ||
                                        (i == 6 && undoBuffer.state == 2)));
-        const char* value = i == 0 ? laneText : (i == 2 ? editStepText : nullptr);
-
-        display.setControlText(label[i], kLabelTexts[i]);
-        display.setControlText2(label[i], value ? value : "");
-        display.setControlValue(label[i], value ? 1 : 0);
-        display.setControlStyle(label[i], kLabelStyle);
-        display.setControlStyle2(label[i],
-                                 controlStyleCenterX | controlStyleCenterY | controlStyleFont2);
-        display.setControlColors(label[i],
-                                 available ? theme.activeLabelsColors : theme.inactiveLabelsColors);
+        setLabel(i, kLabelTexts[i], i == 0 ? laneText : (i == 2 ? editStepText : nullptr));
+        if (!available)
+        {
+            display.setControlColors(label[i], theme.inactiveLabelsColors);
+        }
         display.refreshControl(label[i]);
     }
     display.refreshControl(bgLabel);
@@ -407,41 +440,21 @@ void cPlayModeEditor::showFillPopup()
     display.setControlHide(grid);
     display.refreshControl(grid);
 
+    styleLabels(display.getTheme().activeLabelsColors);
     for (uint8_t i = 0; i < 8; i++)
     {
-        display.setControlStyle(label[i], kLabelStyle);
-        display.setControlStyle2(label[i],
-                                 controlStyleCenterX | controlStyleCenterY | controlStyleFont2);
-        display.setControlColors(label[i], display.getTheme().activeLabelsColors);
+        if (kFillLabels[i])
+        {
+            setLabel(i, kFillLabels[i]);
+        }
     }
-    display.setControlText(label[0], "Where?");
-    display.setControlText2(label[0], "");
-    display.setControlValue(label[0], 0);
-    display.setControlText(label[3], "Fill Type");
-    display.setControlText2(label[3], "");
-    display.setControlValue(label[3], 0);
-    display.setControlText(label[6], "Cancel");
-    display.setControlText2(label[6], "");
-    display.setControlValue(label[6], 0);
-    display.setControlText(label[7], "Fill");
-    display.setControlText2(label[7], "");
-    display.setControlValue(label[7], 0);
 
     display.setControlText(popupTitle, kFillTitles[fillKind]);
-    display.setControlShow(popupBg);
-    display.refreshControl(popupBg);
-    display.setControlShow(popupTitle);
-    display.refreshControl(popupTitle);
-
-    display.setControlShow(listWhere);
-    display.setControlShow(listType);
-    display.setControlShow(barDensity);
-    display.setControlShow(barFrom);
-    display.setControlShow(barTo);
-    display.setControlShow(barCancel);
-    display.setControlShow(barFill);
-    display.refreshControl(barCancel);
-    display.refreshControl(barFill);
+    for (uint8_t i = 0; i < kPopupControlsShown; i++)
+    {
+        display.setControlShow(*kPopupControls[i]);
+        display.refreshControl(*kPopupControls[i]);
+    }
     // Put each list at its value, as the Pattern editor does when it shows the
     // popup: setControlData() also places the highlight bar. After this, only
     // setControlValue() moves them (the list animates to it); setting `start`
@@ -502,9 +515,7 @@ void cPlayModeEditor::refreshFillPopup()
     {
         display.setControlValue(barDensity, -1);
     }
-    display.setControlText(label[1], densityTitle ? densityTitle : "");
-    display.setControlText2(label[1], densityTitle ? fillText[0] : "");
-    display.setControlValue(label[1], 1);
+    setLabel(1, densityTitle ? densityTitle : "", densityTitle ? fillText[0] : "");
     display.refreshControl(barDensity);
 
     // Column 3: FX type (Fill Fx) or Count (Fill Steps sequences)
@@ -520,9 +531,7 @@ void cPlayModeEditor::refreshFillPopup()
         display.setControlHide(listFxType);
     }
     display.refreshControl(listFxType);
-    display.setControlText(label[2], hasColumn3 ? (fillKind == kFillFx ? "Fx Type" : "Count") : "");
-    display.setControlText2(label[2], "");
-    display.setControlValue(label[2], 0);
+    setLabel(2, hasColumn3 ? (fillKind == kFillFx ? "Fx Type" : "Count") : "");
 
     // Fill type
     display.setControlValue(listType, data.type);
@@ -544,9 +553,16 @@ void cPlayModeEditor::refreshFillPopup()
     data.from = static_cast<int16_t>(data.from < low ? low : (data.from > high ? high : data.from));
     data.to = static_cast<int16_t>(data.to < low ? low : (data.to > high ? high : data.to));
 
+    const char* fromTitle = data.type != kTypeConstant ? "From"
+                            : fillKind == kFillStep    ? "Step"
+                            : fillKind == kFillFx      ? "Fx Value"
+                                                       : "Chance";
+    const int range = high - low;
+    // Columns 5 and 6: From and To (Loop for the loop fills).
     for (uint8_t i = 0; i < 2; i++)
     {
         const int16_t value = i == 0 ? data.from : data.to;
+        const bool used = i == 0 ? fillTypeUsesFrom(data.type) : fillTypeUsesTo(data.type);
         char* text = fillText[1 + i];
         if (fillKind == kFillFx)
         {
@@ -560,29 +576,12 @@ void cPlayModeEditor::refreshFillPopup()
         {
             snprintf(text, sizeof(fillText[0]), fillKind == kFillChance ? "%d%%" : "%d", value);
         }
+        const char* title = i == 0 ? fromTitle : (data.type >= kTypeLoopUp ? "Loop" : "To");
+        setLabel(4 + i, used ? title : "", used ? text : "");
+        const hControl bar = i == 0 ? barFrom : barTo;
+        display.setControlValue(bar, used ? (range > 0 ? (value - low) * 100 / range : 0) : -1);
+        display.refreshControl(bar);
     }
-
-    const bool constant = data.type == kTypeConstant;
-    const bool hasFrom = fillTypeUsesFrom(data.type);
-    const bool hasTo = fillTypeUsesTo(data.type);
-    const char* fromTitle = constant ? (fillKind == kFillStep ? "Step"
-                                        : fillKind == kFillFx ? "Fx Value"
-                                                              : "Chance")
-                                     : "From";
-    const char* toTitle = data.type >= kTypeLoopUp ? "Loop" : "To";
-    const int range = high - low;
-    display.setControlText(label[4], hasFrom ? fromTitle : "");
-    display.setControlText2(label[4], hasFrom ? fillText[1] : "");
-    display.setControlValue(label[4], 1);
-    display.setControlValue(barFrom,
-                            hasFrom ? (range > 0 ? (data.from - low) * 100 / range : 0) : -1);
-    display.refreshControl(barFrom);
-
-    display.setControlText(label[5], hasTo ? toTitle : "");
-    display.setControlText2(label[5], hasTo ? fillText[2] : "");
-    display.setControlValue(label[5], 1);
-    display.setControlValue(barTo, hasTo ? (range > 0 ? (data.to - low) * 100 / range : 0) : -1);
-    display.refreshControl(barTo);
 
     for (uint8_t i = 0; i < 8; i++)
     {
@@ -601,16 +600,10 @@ void cPlayModeEditor::closeFill()
 {
     fillOpen = false;
 
-    display.setControlHide(listWhere);
-    display.setControlHide(listFxType);
-    display.setControlHide(listType);
-    display.setControlHide(barDensity);
-    display.setControlHide(barFrom);
-    display.setControlHide(barTo);
-    display.setControlHide(barCancel);
-    display.setControlHide(barFill);
-    display.setControlHide(popupTitle);
-    display.setControlHide(popupBg);
+    for (hControl* control : kPopupControls)
+    {
+        display.setControlHide(*control);
+    }
     display.setControlHide(frame);
 
     setDefaultScreenFunct();

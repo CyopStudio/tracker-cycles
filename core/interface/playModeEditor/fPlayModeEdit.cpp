@@ -23,10 +23,7 @@ static cPlayModeEditor* PME = &playModeEditor;
 
 static void functPlayAction();
 static void functRecAction(uint8_t state);
-static void functUp();
-static void functDown();
-static void functLeft();
-static void functRight();
+static void functArrow(uint8_t button);
 static void functDelete(uint8_t state);
 static void functInsert(uint8_t state);
 static void functColumnButton(uint8_t button, uint8_t state);
@@ -219,60 +216,72 @@ bool copyRow(uint8_t lane, uint8_t from, uint8_t to)
            userPlayModes::setStepFx(lane, to, info.fxType, info.value, info.chance);
 }
 
+// Sets one cell: the step number, or the FX value or chance of a step that
+// has an FX (others are left alone). False if the FX list is full.
+bool writeCell(uint8_t lane, uint8_t row, uint8_t column, int value)
+{
+    const userPlayModes::StepInfo info = userPlayModes::getStepInfo(lane, row);
+    if (column == cPlayModeEditor::kColumnStep)
+    {
+        return value == info.stepNumber ||
+               userPlayModes::setStepNumber(lane, row, static_cast<uint8_t>(value));
+    }
+    if (info.fxType == 0)
+    {
+        return true;
+    }
+    const bool isValue = column == cPlayModeEditor::kColumnFx;
+    if (value == (isValue ? info.value : info.chance))
+    {
+        return true;
+    }
+    return userPlayModes::setStepFx(lane,
+                                    row,
+                                    info.fxType,
+                                    static_cast<int16_t>(isValue ? value : info.value),
+                                    static_cast<uint8_t>(isValue ? info.chance : value));
+}
+
 // One step of the jog wheel on a row: false if the FX list is full.
 bool changeRowValue(uint8_t lane, uint8_t row, uint8_t column, int16_t delta)
 {
     const userPlayModes::StepInfo info = userPlayModes::getStepInfo(lane, row);
-
-    switch (column)
+    int value;
+    if (column == cPlayModeEditor::kColumnStep)
     {
-        case cPlayModeEditor::kColumnStep:
-        {
-            const int step = clampInt(info.stepNumber + delta, 1, cPlayModeEditor::kRowCount);
-            return step == info.stepNumber ||
-                   userPlayModes::setStepNumber(lane, row, static_cast<uint8_t>(step));
-        }
-        case cPlayModeEditor::kColumnFx:
-        {
-            // The value. The FX itself is picked with [Fx1] held (list or pad).
-            if (info.fxType == 0)
-            {
-                return true;
-            }
-            const int low = userPlayModes::fxMin(info.fxType);
-            const int high = userPlayModes::fxMax(info.fxType);
-            int value = info.value;
-            const int direction = delta > 0 ? 1 : -1;
-            for (int16_t n = delta > 0 ? delta : -delta; n > 0; n--)
-            {
-                int next = value + direction;
-                // A roll value with period 0 means "no roll": skip it.
-                if (info.fxType == Sequencer::strFxConsts::FX_TYPE_ROLL && next % kRollStride == 0)
-                {
-                    next += direction;
-                }
-                if (next < low || next > high)
-                {
-                    break;
-                }
-                value = next;
-            }
-            return value == info.value ||
-                   userPlayModes::setStepFx(
-                     lane, row, info.fxType, static_cast<int16_t>(value), info.chance);
-        }
-        case cPlayModeEditor::kColumnChance:
-        {
-            if (info.fxType == 0)
-            {
-                return true;
-            }
-            const int chance = clampInt(info.chance + delta, 0, 100);
-            return userPlayModes::setStepFx(
-              lane, row, info.fxType, info.value, static_cast<uint8_t>(chance));
-        }
-        default: return true;
+        value = clampInt(info.stepNumber + delta, 1, cPlayModeEditor::kRowCount);
     }
+    else if (column == cPlayModeEditor::kColumnChance)
+    {
+        value = clampInt(info.chance + delta, 0, 100);
+    }
+    else
+    {
+        // The FX value. The FX itself is picked with [Fx1] held (list or pad).
+        if (info.fxType == 0)
+        {
+            return true;
+        }
+        const int low = userPlayModes::fxMin(info.fxType);
+        const int high = userPlayModes::fxMax(info.fxType);
+        value = info.value;
+        const int direction = delta > 0 ? 1 : -1;
+        for (int16_t n = delta > 0 ? delta : -delta; n > 0; n--)
+        {
+            int next = value + direction;
+            // A roll value with period 0 means "no roll": skip it.
+            if (info.fxType == Sequencer::strFxConsts::FX_TYPE_ROLL && next % kRollStride == 0)
+            {
+                next += direction;
+            }
+            if (next < low || next > high)
+            {
+                break;
+            }
+            value = next;
+        }
+    }
+    return writeCell(lane, row, column, value);
 }
 
 } // namespace
@@ -321,18 +330,16 @@ void cPlayModeEditor::start(uint32_t options)
     (void)options;
     moduleRefresh = 1;
 
-    ip->setButtonObj(interfaceButtonPerformance, buttonPress, functSwitchModule);
-    ip->setButtonObj(interfaceButtonParams, buttonPress, functSwitchModule);
-    ip->setButtonObj(interfaceButtonFile, buttonPress, functSwitchModule);
-    ip->setButtonObj(interfaceButtonConfig, buttonPress, functSwitchModule);
-    ip->setButtonObj(interfaceButtonMaster, buttonPress, functSwitchModule);
-    ip->setButtonObj(interfaceButtonSamplePlay, buttonPress, functSwitchModule);
-    ip->setButtonObj(interfaceButtonSampleEdit, buttonPress, functSwitchModule);
-    ip->setButtonObj(interfaceButtonSampleRec, buttonPress, functSwitchModule);
-    ip->setButtonObj(interfaceButtonSampleLoad, buttonPress, functSwitchModule);
-    ip->setButtonObj(interfaceButtonSong, buttonPress, functSwitchModule);
-    ip->setButtonObj(interfaceButtonPattern, buttonPress, functSwitchModule);
-    ip->setButtonObj(interfaceButtonGame, buttonPress, functSwitchModule);
+    static const uint8_t moduleButtons[] = {
+        interfaceButtonPerformance, interfaceButtonParams,    interfaceButtonFile,
+        interfaceButtonConfig,      interfaceButtonMaster,    interfaceButtonSamplePlay,
+        interfaceButtonSampleEdit,  interfaceButtonSampleRec, interfaceButtonSampleLoad,
+        interfaceButtonSong,        interfaceButtonPattern,   interfaceButtonGame,
+    };
+    for (uint8_t button : moduleButtons)
+    {
+        ip->setButtonObj(button, buttonPress, functSwitchModule);
+    }
 
     ip->setButtonObj(interfaceButtonMiniMenu, functMenu);
 
@@ -372,10 +379,10 @@ void cPlayModeEditor::setDefaultScreenFunct()
     ip->setButtonObj(interfaceButtonPlay, buttonPress, functPlayAction);
     ip->setButtonObj(interfaceButtonRec, functRecAction);
 
-    ip->setButtonObj(interfaceButtonUp, buttonPress, functUp);
-    ip->setButtonObj(interfaceButtonDown, buttonPress, functDown);
-    ip->setButtonObj(interfaceButtonLeft, buttonPress, functLeft);
-    ip->setButtonObj(interfaceButtonRight, buttonPress, functRight);
+    ip->setButtonObj(interfaceButtonUp, buttonPress, functArrow);
+    ip->setButtonObj(interfaceButtonDown, buttonPress, functArrow);
+    ip->setButtonObj(interfaceButtonLeft, buttonPress, functArrow);
+    ip->setButtonObj(interfaceButtonRight, buttonPress, functArrow);
     ip->setButtonObj(interfaceButtonDelete, functDelete);
     ip->setButtonObj(interfaceButtonInsert, functInsert);
     ip->setButtonObj(interfaceButtonCopy, functCopy);
@@ -688,19 +695,9 @@ void cPlayModeEditor::clearCells()
 
     for (int r = first; r <= last; r++)
     {
-        const userPlayModes::StepInfo info = userPlayModes::getStepInfo(lane, r);
-        bool ok = true;
-        switch (column)
-        {
-            case kColumnStep:
-                ok = userPlayModes::setStepNumber(lane, r, static_cast<uint8_t>(r + 1));
-                break;
-            case kColumnChance:
-                ok = info.fxType == 0 ||
-                     userPlayModes::setStepFx(lane, r, info.fxType, info.value, 100);
-                break;
-            default: ok = userPlayModes::setStepFx(lane, r, 0, 0, 100); break;
-        }
+        const bool ok = column == kColumnFx
+                          ? userPlayModes::setStepFx(lane, r, 0, 0, 100)
+                          : writeCell(lane, r, column, column == kColumnStep ? r + 1 : 100);
         if (!ok)
         {
             showFxListFull();
@@ -739,40 +736,24 @@ void cPlayModeEditor::setFromPad(uint8_t pad)
     for (int r = first; r <= last; r++)
     {
         const userPlayModes::StepInfo info = userPlayModes::getStepInfo(lane, r);
-        bool ok = true;
-        switch (column)
+        bool ok;
+        if (padPicksFx)
         {
-            case kColumnStep: ok = userPlayModes::setStepNumber(lane, r, pad + 1); break;
-            case kColumnFx:
+            const uint8_t type = interfaceGlobals.fxIDs[pad + 1];
+            ok = info.fxType == type ||
+                 userPlayModes::setStepFx(
+                   lane, r, type, userPlayModes::fxDefault(type), info.fxType ? info.chance : 100);
+        }
+        else
+        {
+            int value = column == kColumnStep ? pad + 1 : pad * 100 / 47;
+            if (column == kColumnFx && info.fxType != 0)
             {
-                if (!padPicksFx)
-                {
-                    if (info.fxType == 0)
-                    {
-                        break;
-                    }
-                    const int low = userPlayModes::fxMin(info.fxType);
-                    const int high = userPlayModes::fxMax(info.fxType);
-                    const int value =
-                      skipNoRoll(info.fxType, low + (high - low) * pad / 47, 1, low, high);
-                    ok = userPlayModes::setStepFx(
-                      lane, r, info.fxType, static_cast<int16_t>(value), info.chance);
-                    break;
-                }
-                const uint8_t type = interfaceGlobals.fxIDs[pad + 1];
-                ok =
-                  info.fxType == type ||
-                  userPlayModes::setStepFx(
-                    lane, r, type, userPlayModes::fxDefault(type), info.fxType ? info.chance : 100);
-                break;
+                const int low = userPlayModes::fxMin(info.fxType);
+                const int high = userPlayModes::fxMax(info.fxType);
+                value = skipNoRoll(info.fxType, low + (high - low) * pad / 47, 1, low, high);
             }
-            default:
-                if (info.fxType != 0)
-                {
-                    ok = userPlayModes::setStepFx(
-                      lane, r, info.fxType, info.value, static_cast<uint8_t>(pad * 100 / 47));
-                }
-                break;
+            ok = writeCell(lane, static_cast<uint8_t>(r), column, value);
         }
         if (!ok)
         {
@@ -887,21 +868,15 @@ void cPlayModeEditor::pasteRows(uint8_t pasteColumn)
     {
         const uint8_t r = (first + i) % kRowCount;
         const Rows& rows = clipboard.rows;
-        const userPlayModes::StepInfo info = userPlayModes::getStepInfo(lane, r);
-        bool ok = true;
+        bool ok;
         switch (pasteColumn)
         {
-            case kColumnStep: ok = userPlayModes::setStepNumber(lane, r, rows.stepNumber[i]); break;
+            case kColumnStep: ok = writeCell(lane, r, kColumnStep, rows.stepNumber[i]); break;
             case kColumnFx:
                 ok =
                   userPlayModes::setStepFx(lane, r, rows.fxType[i], rows.value[i], rows.chance[i]);
                 break;
-            case kColumnChance:
-                if (info.fxType != 0)
-                {
-                    ok = userPlayModes::setStepFx(lane, r, info.fxType, info.value, rows.chance[i]);
-                }
-                break;
+            case kColumnChance: ok = writeCell(lane, r, kColumnChance, rows.chance[i]); break;
             default: ok = writeRow(rows, i, lane, r); break;
         }
         if (!ok)
@@ -1229,26 +1204,16 @@ void cPlayModeEditor::applyFill()
         }
         value = clampInt(value, low, high);
 
-        bool ok = true;
-        switch (fillKind)
-        {
-            case kFillStep:
-                ok = userPlayModes::setStepNumber(lane, r, static_cast<uint8_t>(value));
-                break;
-            case kFillFx:
-                value = skipNoRoll(fxType, value, 1, low, high);
-                ok = userPlayModes::setStepFx(
-                  lane, r, fxType, static_cast<int16_t>(value), info.fxType ? info.chance : 100);
-                break;
-            default:
-                // Chance: only steps that have an FX.
-                if (info.fxType != 0)
-                {
-                    ok = userPlayModes::setStepFx(
-                      lane, r, info.fxType, info.value, static_cast<uint8_t>(value));
-                }
-                break;
-        }
+        // Fill Fx writes the FX too; Chance only changes steps that have an FX.
+        const bool ok =
+          fillKind == kFillFx
+            ? userPlayModes::setStepFx(
+                lane,
+                r,
+                fxType,
+                static_cast<int16_t>(skipNoRoll(fxType, value, 1, low, high)),
+                info.fxType ? info.chance : 100)
+            : writeCell(lane, r, fillKind == kFillStep ? kColumnStep : kColumnChance, value);
         if (!ok)
         {
             showFxListFull();
@@ -1415,96 +1380,83 @@ static void functRecAction(uint8_t state)
     }
 }
 
-// Up / Down: as the Pattern editor's, rows move only in edit mode or when
-// stopped (otherwise the cursor follows the playhead). Shift selects.
-static void verticalMove(int delta)
+// In the fill popup, the places that are lists (they run top to bottom).
+static bool isFillListPlace()
 {
-    if (PME->fillOpen)
-    {
-        // Lists run top to bottom, values bottom to top.
-        const int place = PME->fillPlace;
-        const bool isList = place == cPlayModeEditor::kPlaceWhere ||
-                            place == cPlayModeEditor::kPlaceFxType ||
-                            place == cPlayModeEditor::kPlaceType;
-        PME->changeFillData(static_cast<int16_t>(isList ? delta : -delta));
-        return;
-    }
+    const int place = PME->fillPlace;
+    return place == cPlayModeEditor::kPlaceWhere || place == cPlayModeEditor::kPlaceFxType ||
+           place == cPlayModeEditor::kPlaceType;
+}
+
+// A held Lane or Step jump button takes the arrows and the jog wheel.
+static bool heldPlaceTakes(int delta)
+{
     if (PME->heldPlace == cPlayModeEditor::kHeldLane)
     {
-        PME->moveLane(-delta);
-        return;
+        PME->moveLane(delta);
+        return true;
     }
     if (PME->heldPlace == cPlayModeEditor::kHeldEditStep)
     {
-        PME->changeEditStep(-delta);
+        PME->changeEditStep(delta);
+        return true;
+    }
+    return false;
+}
+
+// The arrows. Left / Right: the lane (the selection stays in one lane, so
+// Shift does nothing). Up / Down: as the Pattern editor's, rows move only in
+// edit mode or when stopped (otherwise the cursor follows the playhead);
+// Shift selects.
+static void functArrow(uint8_t button)
+{
+    const bool vertical = button == interfaceButtonUp || button == interfaceButtonDown;
+    const int delta = (button == interfaceButtonUp || button == interfaceButtonLeft) ? -1 : 1;
+
+    if (PME->fillOpen)
+    {
+        if (vertical)
+        {
+            // Lists run top to bottom, values bottom to top.
+            PME->changeFillData(static_cast<int16_t>(isFillListPlace() ? delta : -delta));
+        }
+        else
+        {
+            PME->changeFillPlace(delta);
+        }
+        return;
+    }
+    if (heldPlaceTakes(vertical ? -delta : delta))
+    {
+        return;
+    }
+
+    const bool shift = PME->buttons->isButtonPressed(interfaceButtonShift);
+    if (!vertical)
+    {
+        if (!shift)
+        {
+            PME->moveLane(delta);
+        }
         return;
     }
     if (!PME->editMode && !sequencer.isStop())
     {
         return;
     }
-
-    if (PME->buttons->isButtonPressed(interfaceButtonShift))
-    {
-        if (delta < 0 && PME->row == 0)
-        {
-            PME->selectWholeLane();
-        }
-        else
-        {
-            PME->extendSelection(delta);
-        }
-    }
-    else
+    if (!shift)
     {
         PME->clearSelection();
         PME->moveRow(delta);
     }
-}
-
-static void functUp()
-{
-    verticalMove(-1);
-}
-
-static void functDown()
-{
-    verticalMove(1);
-}
-
-// Left / Right: the lane (the selection stays in one lane, so Shift does nothing).
-static void horizontalMove(int delta)
-{
-    if (PME->fillOpen)
+    else if (delta < 0 && PME->row == 0)
     {
-        PME->changeFillPlace(delta);
-        return;
+        PME->selectWholeLane();
     }
-    if (PME->heldPlace == cPlayModeEditor::kHeldLane)
+    else
     {
-        PME->moveLane(delta);
-        return;
+        PME->extendSelection(delta);
     }
-    if (PME->heldPlace == cPlayModeEditor::kHeldEditStep)
-    {
-        PME->changeEditStep(delta);
-        return;
-    }
-    if (PME->buttons->isButtonPressed(interfaceButtonShift))
-    {
-        return;
-    }
-    PME->moveLane(delta);
-}
-
-static void functLeft()
-{
-    horizontalMove(-1);
-}
-
-static void functRight()
-{
-    horizontalMove(1);
 }
 
 // Delete clears; Shift+Delete is backspace. Edit mode only.
@@ -1632,22 +1584,12 @@ static void functEncoder(int16_t value)
 {
     if (PME->fillOpen)
     {
-        const int place = PME->fillPlace;
-        const bool isList = place == cPlayModeEditor::kPlaceWhere ||
-                            place == cPlayModeEditor::kPlaceFxType ||
-                            place == cPlayModeEditor::kPlaceType;
-        PME->changeFillData(
-          static_cast<int16_t>(interfaceGlobals.invertValForList && isList ? -value : value));
+        PME->changeFillData(static_cast<int16_t>(
+          interfaceGlobals.invertValForList && isFillListPlace() ? -value : value));
         return;
     }
-    if (PME->heldPlace == cPlayModeEditor::kHeldLane)
+    if (heldPlaceTakes(value))
     {
-        PME->moveLane(value);
-        return;
-    }
-    if (PME->heldPlace == cPlayModeEditor::kHeldEditStep)
-    {
-        PME->changeEditStep(value);
         return;
     }
 
@@ -1721,37 +1663,18 @@ static void functActionButton(uint8_t button, uint8_t state)
         return;
     }
 
-    if (state != buttonPress)
+    // Fill / Reset lane / Undo / Redo change the modes: edit mode only.
+    if (state != buttonPress || (index >= 3 && index <= 6 && !PME->editMode))
     {
         return;
     }
     switch (index)
     {
         case 1: PME->revert(); break;
-        case 3:
-            if (PME->editMode)
-            {
-                PME->openFill();
-            }
-            break;
-        case 4:
-            if (PME->editMode)
-            {
-                PME->resetLane();
-            }
-            break;
-        case 5:
-            if (PME->editMode)
-            {
-                PME->undo(false);
-            }
-            break;
-        case 6:
-            if (PME->editMode)
-            {
-                PME->undo(true);
-            }
-            break;
+        case 3: PME->openFill(); break;
+        case 4: PME->resetLane(); break;
+        case 5: PME->undo(false); break;
+        case 6: PME->undo(true); break;
         case 7: PME->save(); break;
         default: break;
     }
