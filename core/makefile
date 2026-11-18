@@ -72,6 +72,9 @@ endif
 
 # Build rules
 
+# The play mode editor is UI code: build it for size (the Original's flash is tight).
+$(OBJ_DIR)/interface/playModeEditor/%.o: COMPILER_OPTIONS += -Os
+
 $(OBJ_DIR)/%.o: %.cpp
 	$(TOOLCHAIN)c++ $(DEFINES) $(INCLUDES) $(CPP_OPTIONS) $(COMPILER_OPTIONS) -o "$@" "$<"
 

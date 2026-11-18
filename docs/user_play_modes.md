@@ -120,57 +120,78 @@ Play modes can also be edited on the Tracker itself, in a grid with one lane per
 
 ### The Grid
 
-Four lanes are visible at a time. Each lane has four columns:
+Four lanes are visible at a time. Each lane uses three of the Pattern editor's four columns (the instrument column stays empty):
 
 | Column | Shows | Example |
 | :--- | :--- | :--- |
-| **Step** | The pattern step played at this position (1–128) | ` 12` |
-| **FX** | The FX letter, as in the Pattern editor (`--` = none) | `R ` |
-| **Value** | The FX value, shown as in the Pattern editor | `d 4` |
-| **Chance** | How often the FX plays | ` 60%` |
+| **Step** (Note column) | The pattern step played at this position (1–128) | ` 12` |
+| **FX** (Fx1 column) | The FX letter and value, as in the Pattern editor (`----` = none) | `Rd 4` |
+| **Chance** (Fx2 column) | How often the FX plays | ` 60%` |
 
 * With no `playmodes.txt`, every lane shows its built-in mode.
 * A lane you have changed is marked with `*` (`C3 *`). The first change to a lane copies its built-in steps, so you always start from the default.
 * The title bar spells out the cell under the cursor, for example `C3 * 12 > step 4 R - Roll 4 60%`.
-* **Playhead**: while a track plays the cursor's lane, a playhead line shows its position, and the cursor follows it (as in the Pattern editor). Moving the cursor or editing stops the following; **`[Play]`** or changing lane starts it again. A mode only plays its first *pattern length* rows: it starts again from row 1 at the end of the pattern.
+* **Edit mode**: as in the Pattern editor, **`[Rec]`** turns edit mode on and off. In edit mode the cursor is red and the jog wheel, pads, Delete, Insert, Copy/Paste, Fill, Reset lane and Undo/Redo change the modes; outside it the cursor is green and nothing is changed.
+* **Playhead**: while the sequencer plays, a playhead line across the lanes shows the row the cursor's lane is at: that of the first track set to its mode, or, if no track uses it, where it would be (track 1's position). Outside edit mode the cursor follows it (Up/Down and the jog wheel only move the cursor while stopped), as in the Pattern editor. A mode only plays its first *pattern length* rows: it starts again from row 1 at the end of the pattern.
 
 ### Controls
 
+The controls follow the Pattern editor's. A lane is like a track, and the selection stays within one lane.
+
 | Control | Action |
 | :--- | :--- |
-| **Arrows** | Move the cursor. Left/Right go through the four columns and on into the next lane. |
-| **`[Shift]`+Up/Down** | Select rows of the lane, as in the Pattern editor. |
-| **`[Shift]`+Left/Right** | Select the whole lane (all 128 rows). |
-| **Jog wheel** | Change the value under the cursor. In the FX column it steps through the FX allowed in play modes (section 2). |
-| **`[Shift]`+jog wheel** | Move the cursor 16 rows. |
-| **`[Note]` / `[Instr]` / `[Vol]`**, or screen buttons 1–4 | Jump to the Step / FX / Value column (screen button 4: Chance). |
-| **`[Fx]`** (hold) | The Pattern editor's FX list: choose with the jog wheel, arrows or pads, and release to set that FX on the cursor's step or the selection. FX that play modes can't use (section 2) show a message instead. |
-| **Pads 1–48** | In the Step column: set the step and move down one row. |
-| **`[Delete]`** | On the cursor's step or the selection: remove the FX, or in the Step column put steps back to their own number. |
-| **`[Copy]`** | Copy the selection, or the cursor's step (one lane, up to 128 rows). |
-| **`[Shift]`+`[Copy]`** | Paste from the cursor down (past row 128 it carries on at row 1). |
+| **`[Rec]`** | Edit mode on / off. |
+| **Up/Down** | Move the cursor (wrapping round). |
+| **Left/Right** | Change lane. |
+| **`[Shift]`+Up/Down** | Select rows. On the first row, **`[Shift]`+Up** selects the whole lane. |
+| **Jog wheel** | Edit mode: change the column on the selection, or the cursor's step. In the FX column it changes the value. Otherwise (stopped): move the cursor up to 10 rows. |
+| **`[Note]` / `[Fx1]` / `[Fx2]`** | The Step / FX / Chance column (`[Instr]` does nothing). On the Original, `[Fx1]` and `[Fx2]` are the buttons the Pattern editor uses for its two FX columns (`[Vol]` / `[Fx]` on older labels). |
+| **`[Fx1]`** (hold) | The Pattern editor's FX list: choose with the jog wheel, arrows or pads, and release. In edit mode, with no selection of several rows, it sets that FX on the cursor's step. FX that play modes can't use (section 2) show a message instead. |
+| **Pads** | Edit mode, on the selection or the cursor's step: Step column = the pad's number (1–48); FX column = the value, spread over its range (with **`[Fx1]`** held: the FX on that pad of the FX list, as in the Pattern editor); Chance = spread over 0–100%. With no selection the cursor then moves by the **Step jump**. |
+| **`[Delete]`** | Edit mode: clear the column on the selection or the cursor's step (Step: back to its own number; FX: no FX; Chance: 100%), then move by the Step jump. |
+| **`[Shift]`+`[Delete]`** | Edit mode: remove the row above the cursor; the rows below move up and row 128 becomes a plain row. |
+| **`[Insert]`** | Edit mode: insert a plain row (step = its own number, no FX) at the cursor; the rows below move down and row 128 drops off. |
+| **`[Shift]`+`[Insert]`** | Go to row 1. |
+| **`[Copy]`** | Edit mode: copy the selection, or the cursor's step (up to 128 rows). |
+| **`[Shift]`+`[Copy]`** | Edit mode: paste at the cursor (past row 128 it carries on at row 1), then move below the pasted rows. Hold **`[Note]`**, **`[Fx1]`** or **`[Fx2]`** too to paste only that column. |
 | **`[Play]`** | Start / stop. |
-| Screen button 5, **Fill** | Fill the selection (or the whole lane) in the cursor's column; see below. |
-| Screen button 6, **Reset lane** | Put the lane back to its built-in mode. |
-| Screen button 7, **Revert** | Throw away unsaved edits and reload the saved file. |
+| Screen button 1, **Lane** (hold) | Choose the lane with the jog wheel, the arrows or pads 1–20. |
+| Screen button 2, **Revert** | Throw away unsaved edits and reload the saved file. |
+| Screen button 3, **Step jump** (hold) | How far the cursor moves after an edit (shared with the Pattern editor). |
+| Screen button 4, **Fill** | Edit mode: the fill popup; see below. |
+| Screen button 5, **Reset lane** | Edit mode: put the lane back to its built-in mode. |
+| Screen button 6 / 7, **Undo** / **Redo** | Edit mode: undo the last edit, or redo it (one level). |
 | Screen button 8, **Save** | Write `playmodes.txt` to the project folder and the Workspace. |
 
 ### Fill
 
-**Fill** replaces the bottom buttons with **Type**, **From** and **To** (screen buttons 1–3, or Left/Right; the underlined one changes with the jog wheel), **Cancel** and **Apply**.
+**Fill** opens the Pattern editor's fill popup, for the selection (or the cursor's step) in the cursor's column: **Fill Steps**, **Fill Fx** or **Fill Chance**. **`[Note]`** / **`[Fx1]`** / **`[Fx2]`** switch between them. Screen buttons 1–6 (or Left/Right) pick a setting, and the jog wheel, Up/Down or the pads change it; pressing a list's button again steps through it. Screen button 7 is **Cancel** and 8 is **Fill**.
 
-| Column | Types |
+| Setting | Choices |
 | :--- | :--- |
-| **Step** | **Up**: From, From+1, ... up to To, then again from From. **Down**: the same, downwards from To. **Random**: any step between From and To. |
-| **Value** | **Ramp**: from From to To across the rows. **Random**: any value between From and To. Every row gets the FX of the first selected step that has one (start by giving one step the FX you want). |
-| **Chance** | **Ramp** / **Random**, as for Value. Rows without an FX are left alone. |
+| **Where?** | **Fx** / **No Fx**: rows with / without an FX. **Random** (with a density), **Each** (every *n*th row), **Euclidean** (*n* events spread over the rows). |
+| **Fx Type** | Fill Fx only: the FX written, from the FX allowed in play modes. |
+| **Fill Type** | **Constant**: one value. **From-To**: from one value to the other across the rows. **Random**: any value between the two. |
+| **From / To** | Steps 1–128, the FX value, or the chance (0–100%). |
 
-Fill doesn't work in the FX column: use **`[Fx]`** with a selection instead.
+Fill Steps has six more Fill Types, sequences that count up or down by one, wrapping from 128 to 1 and from 1 to 128. For these, the third column of the popup is **Count**: **Filled rows** moves the sequence on at each row it fills (with **Where?** set to Each 2: 5 · 6 · 7), **All rows** at every row, filled or not (5 · 7 · 9).
+
+| Fill Type | Steps written | Example (4 rows) |
+| :--- | :--- | :--- |
+| **Up from** | From *n* up | From 5: 5 6 7 8 |
+| **Up to** | Up, ending at To *n* | To 5: 2 3 4 5 |
+| **Down from** | From *n* down | From 5: 5 4 3 2 |
+| **Down to** | Down, ending at To *n* | To 5: 8 7 6 5 |
+| **Loop up** | From *n* up, starting again after **Loop** *m* steps | From 5, Loop 2: 5 6 5 6 |
+| **Loop down** | From *n* down, starting again after **Loop** *m* steps | From 5, Loop 2: 5 4 5 4 |
+
+Fill Fx keeps a row's chance if it had an FX (otherwise 100%). Fill Chance leaves rows without an FX alone.
 
 ### Notes
 
 * Unsaved edits are lost when another project is opened. They also stay in effect until then, even after leaving the editor.
-* On the Tracker Mini the controls are the same; its **`[+1]`/`[-1]`/`[+10]`/`[-10]`** buttons act as the jog wheel. With `[Shift]` they set the master volume as everywhere else, so there is no 16-row jump: hold an arrow instead.
+* Undo keeps one edit, on one lane. Revert can't be undone.
+* On the Tracker Mini the controls are the same; its **`[+1]`/`[-1]`/`[+10]`/`[-10]`** buttons act as the jog wheel.
 * **Save** only writes the lanes you changed, each as its shortest repeating loop.
 * Up to **64 different FX settings** (FX + value + chance) can be used across all 20 modes. Identical settings are shared, and settings no step uses any more are freed automatically. A message appears when the limit is reached.
 

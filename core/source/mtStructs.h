@@ -63,7 +63,8 @@ const float MIN_WAVE_FLOAT = -1.0;
 // headroom is unchanged. The Original keeps its sample memory as it is (its
 // edit buffers need all of it) and uses ~6 KB of its ~1 MB headroom instead.
 // Kept a multiple of 1 KB so SAMPLE_MEMORY_SIZE stays aligned as before.
-const uint32_t USER_PLAY_MODES_MEMORY_SIZE = 6 * 1024;
+// Prototype: 7 KB, also holding the play mode editor's clipboard and undo buffer.
+const uint32_t USER_PLAY_MODES_MEMORY_SIZE = 7 * 1024;
 
 #ifndef PLATFORM_IMX
 // T1
