@@ -4,6 +4,7 @@
 #include <cstring>
 
 #include "Platform.h"
+#include "SdTextFile.h"
 #include "config.h"
 #include "cr_section_macros.h"
 #include "fileTransfer.h"
@@ -264,14 +265,12 @@ LoadReport loadFromWorkspace(FileSystem* fileSystem)
         return lastReport;
     }
 
-    if (fileSystem->getFileSize(kWorkspaceFilePath) <= kMaxFileSize)
+    // Streamed in small chunks (SdTextFile::readAll() would need a buffer for
+    // the whole file).
+    SdScopedFile file(fileSystem, kWorkspaceFilePath, FileSystem::kRead);
+    if (file && fileSystem->getFileSize(file.handle()) <= kMaxFileSize)
     {
-        auto [isOpen, file] = fileSystem->openFile(kWorkspaceFilePath, FileSystem::kRead);
-        if (isOpen)
-        {
-            parseFile(fileSystem, file, parser);
-            fileSystem->closeFile(file);
-        }
+        parseFile(fileSystem, file.handle(), parser);
     }
 
     // A file that could not be read has no version line and is rejected.
