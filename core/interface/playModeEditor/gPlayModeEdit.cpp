@@ -7,6 +7,7 @@
 #include "display.h"
 #include "mtStructs.h"
 #include "patternEditor/patternEditor.h"
+#include "userPlayModes.h"
 
 // State in external RAM: internal RAM is full.
 __NOINIT(EXTERNAL_RAM) uint8_t cPlayModeEditor::lane;
@@ -16,6 +17,26 @@ __NOINIT(EXTERNAL_RAM) uint8_t cPlayModeEditor::firstLane;
 __NOINIT(EXTERNAL_RAM) int16_t cPlayModeEditor::lastPlayhead;
 __NOINIT(EXTERNAL_RAM) bool cPlayModeEditor::gridDirty;
 __NOINIT(EXTERNAL_RAM) bool cPlayModeEditor::patternViewSaved;
+__NOINIT(EXTERNAL_RAM) bool cPlayModeEditor::followPlayhead;
+__NOINIT(EXTERNAL_RAM) bool cPlayModeEditor::selecting;
+__NOINIT(EXTERNAL_RAM) uint8_t cPlayModeEditor::selectionAnchor;
+__NOINIT(EXTERNAL_RAM) bool cPlayModeEditor::selectionWholeLane;
+__NOINIT(EXTERNAL_RAM) bool cPlayModeEditor::fxPopupOpen;
+__NOINIT(EXTERNAL_RAM) bool cPlayModeEditor::fillOpen;
+__NOINIT(EXTERNAL_RAM) uint8_t cPlayModeEditor::fillColumn;
+__NOINIT(EXTERNAL_RAM) uint8_t cPlayModeEditor::fillParam;
+__NOINIT(EXTERNAL_RAM) uint8_t cPlayModeEditor::fillType;
+__NOINIT(EXTERNAL_RAM) uint8_t cPlayModeEditor::fillFxType;
+__NOINIT(EXTERNAL_RAM) int16_t cPlayModeEditor::fillFrom;
+__NOINIT(EXTERNAL_RAM) int16_t cPlayModeEditor::fillTo;
+__NOINIT(EXTERNAL_RAM) char cPlayModeEditor::fillText[3][12];
+__NOINIT(EXTERNAL_RAM) cPlayModeEditor::Clipboard cPlayModeEditor::clipboard;
+
+// On Tracker+ / Mini the play modes' 6 KB reservation (mtStructs.h) holds the
+// clipboard too, so it costs no RAM headroom.
+static_assert(
+  sizeof(userPlayModes::Block) + sizeof(cPlayModeEditor::Clipboard) <= USER_PLAY_MODES_MEMORY_SIZE,
+  "the play modes block and the editor's clipboard must fit USER_PLAY_MODES_MEMORY_SIZE");
 __NOINIT(EXTERNAL_RAM) char cPlayModeEditor::titleText[64];
 __NOINIT(EXTERNAL_RAM) hControl cPlayModeEditor::grid;
 __NOINIT(EXTERNAL_RAM) hControl cPlayModeEditor::label[8];
@@ -52,13 +73,25 @@ void cPlayModeEditor::restorePatternView()
            savedPatternView,
            kPatternViewSize);
     patternViewSaved = false;
+    followPlayhead = true;
+    selecting = false;
+    selectionAnchor = 0;
+    selectionWholeLane = false;
+    fxPopupOpen = false;
+    fillOpen = false;
+    clipboard.count = 0;
 }
 
 namespace
 {
 const char* const kLabelTexts[8] = {
-    "Step", "FX", "Value", "Chance", "", "Reset lane", "Revert", "Save",
+    "Step", "FX", "Value", "Chance", "Fill", "Reset lane", "Revert", "Save",
 };
+const char* const kFillLabelTitles[8] = {
+    "Type", "From", "To", "", "", "", "Cancel", "Apply",
+};
+constexpr uint32_t kLabelStyle =
+  controlStyleShow | controlStyleCenterX | controlStyleCenterY | controlStyleFont3;
 } // namespace
 
 void cPlayModeEditor::initExternalRamState()
@@ -70,11 +103,17 @@ void cPlayModeEditor::initExternalRamState()
     lastPlayhead = -1;
     gridDirty = true;
     patternViewSaved = false;
+    followPlayhead = true;
+    selecting = false;
+    selectionAnchor = 0;
+    selectionWholeLane = false;
+    fxPopupOpen = false;
+    fillOpen = false;
+    clipboard.count = 0;
 }
 
 void cPlayModeEditor::initDisplayControls()
 {
-
     strControlProperties prop;
 
     // Bottom labels, one per screen button.
@@ -82,8 +121,7 @@ void cPlayModeEditor::initDisplayControls()
     {
         prop.colors = display.getTheme().activeLabelsColors;
         prop.text = (char*)kLabelTexts[i];
-        prop.style =
-          (controlStyleShow | controlStyleCenterX | controlStyleCenterY | controlStyleFont3);
+        prop.style = kLabelStyle;
         prop.x = (800 / 8) * i + (800 / 16);
         prop.y = 424;
         prop.w = 800 / 8 - 6;
@@ -127,12 +165,7 @@ void cPlayModeEditor::showDefaultScreen()
     titleBar->show();
     refreshTitle();
 
-    for (uint8_t i = 0; i < 8; i++)
-    {
-        display.setControlText(label[i], kLabelTexts[i]);
-        display.refreshControl(label[i]);
-    }
-    display.refreshControl(bgLabel);
+    refreshLabels();
 
     gridDirty = true;
     refreshGrid();
@@ -140,4 +173,31 @@ void cPlayModeEditor::showDefaultScreen()
     display.refreshControl(grid);
 
     display.synchronizeRefresh();
+}
+
+void cPlayModeEditor::refreshLabels()
+{
+    for (uint8_t i = 0; i < 8; i++)
+    {
+        if (fillOpen)
+        {
+            // Type / From / To show their value on a second line; the one the
+            // jog wheel changes is underlined.
+            const bool hasValue = i < 3;
+            display.setControlText(label[i], kFillLabelTitles[i]);
+            display.setControlText2(label[i], hasValue ? fillText[i] : "");
+            display.setControlValue(label[i], hasValue ? 1 : 0);
+            display.setControlStyle(label[i],
+                                    kLabelStyle | (i == fillParam ? controlStyleUnderline : 0));
+        }
+        else
+        {
+            display.setControlText(label[i], kLabelTexts[i]);
+            display.setControlText2(label[i], "");
+            display.setControlValue(label[i], 0);
+            display.setControlStyle(label[i], kLabelStyle);
+        }
+        display.refreshControl(label[i]);
+    }
+    display.refreshControl(bgLabel);
 }

@@ -132,24 +132,45 @@ Four lanes are visible at a time. Each lane has four columns:
 * With no `playmodes.txt`, every lane shows its built-in mode.
 * A lane you have changed is marked with `*` (`C3 *`). The first change to a lane copies its built-in steps, so you always start from the default.
 * The title bar spells out the cell under the cursor, for example `C3 * 12 > step 4 R - Roll 4 60%`.
-* While a track plays the cursor's lane, a playhead line follows it.
+* **Playhead**: while a track plays the cursor's lane, a playhead line shows its position, and the cursor follows it (as in the Pattern editor). Moving the cursor or editing stops the following; **`[Play]`** or changing lane starts it again. A mode only plays its first *pattern length* rows: it starts again from row 1 at the end of the pattern.
 
 ### Controls
 
 | Control | Action |
 | :--- | :--- |
-| **Arrows** | Move the cursor. `[Shift]`+Left/Right changes lane, `[Shift]`+Up/Down moves 16 rows. |
+| **Arrows** | Move the cursor. Left/Right go through the four columns and on into the next lane. |
+| **`[Shift]`+Up/Down** | Select rows of the lane, as in the Pattern editor. |
+| **`[Shift]`+Left/Right** | Select the whole lane (all 128 rows). |
 | **Jog wheel** | Change the value under the cursor. In the FX column it steps through the FX allowed in play modes (section 2). |
-| **`[Note]` / `[Instr]` / `[Vol]` / `[Fx]`**, or screen buttons 1–4 | Jump to the Step / FX / Value / Chance column. |
+| **`[Shift]`+jog wheel** | Move the cursor 16 rows. |
+| **`[Note]` / `[Instr]` / `[Vol]`**, or screen buttons 1–4 | Jump to the Step / FX / Value column (screen button 4: Chance). |
+| **`[Fx]`** (hold) | The Pattern editor's FX list: choose with the jog wheel, arrows or pads, and release to set that FX on the cursor's step or the selection. FX that play modes can't use (section 2) show a message instead. |
 | **Pads 1–48** | In the Step column: set the step and move down one row. |
-| **`[Delete]`** | Remove the FX, or in the Step column put the step back to its own number. |
+| **`[Delete]`** | On the cursor's step or the selection: remove the FX, or in the Step column put steps back to their own number. |
+| **`[Copy]`** | Copy the selection, or the cursor's step (one lane, up to 128 rows). |
+| **`[Shift]`+`[Copy]`** | Paste from the cursor down (past row 128 it carries on at row 1). |
 | **`[Play]`** | Start / stop. |
+| Screen button 5, **Fill** | Fill the selection (or the whole lane) in the cursor's column; see below. |
 | Screen button 6, **Reset lane** | Put the lane back to its built-in mode. |
 | Screen button 7, **Revert** | Throw away unsaved edits and reload the saved file. |
 | Screen button 8, **Save** | Write `playmodes.txt` to the project folder and the Workspace. |
 
+### Fill
+
+**Fill** replaces the bottom buttons with **Type**, **From** and **To** (screen buttons 1–3, or Left/Right; the underlined one changes with the jog wheel), **Cancel** and **Apply**.
+
+| Column | Types |
+| :--- | :--- |
+| **Step** | **Up**: From, From+1, ... up to To, then again from From. **Down**: the same, downwards from To. **Random**: any step between From and To. |
+| **Value** | **Ramp**: from From to To across the rows. **Random**: any value between From and To. Every row gets the FX of the first selected step that has one (start by giving one step the FX you want). |
+| **Chance** | **Ramp** / **Random**, as for Value. Rows without an FX are left alone. |
+
+Fill doesn't work in the FX column: use **`[Fx]`** with a selection instead.
+
+### Notes
+
 * Unsaved edits are lost when another project is opened. They also stay in effect until then, even after leaving the editor.
-* On the Tracker Mini the controls are the same; its **`[+1]`/`[-1]`/`[+10]`/`[-10]`** buttons act as the jog wheel.
+* On the Tracker Mini the controls are the same; its **`[+1]`/`[-1]`/`[+10]`/`[-10]`** buttons act as the jog wheel. With `[Shift]` they set the master volume as everywhere else, so there is no 16-row jump: hold an arrow instead.
 * **Save** only writes the lanes you changed, each as its shortest repeating loop.
 * Up to **64 different FX settings** (FX + value + chance) can be used across all 20 modes. Identical settings are shared, and settings no step uses any more are freed automatically. A message appears when the limit is reached.
 
