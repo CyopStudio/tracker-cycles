@@ -160,6 +160,7 @@ Full user and developer documentation is available in [`docs/`](docs/Home.md) an
   * [Wavetable Envelopes, LFOs & Step FX](docs/wavetable_envelopes.md)
   * [SD Card Image Viewer](docs/image_viewer.md)
   * [User-Defined Play Modes](docs/user_play_modes.md)
+  * [Play Mode Editor](docs/play_mode_editor.md)
 * **Developer & Architecture Guides**:
   * [Firmware Memory Map, Budgets & Subsystem Limits](docs/memory_map.md)
   * [Firmware Architecture, Hardware Limits & Developer Gotchas](docs/developer_guide.md)

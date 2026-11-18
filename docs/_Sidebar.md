@@ -8,6 +8,7 @@
 * **[Wavetable Envelopes & LFOs](wavetable_envelopes)**
 * **[SD Card Image Viewer](image_viewer)**
 * **[User-Defined Play Modes](user_play_modes)**
+* **[Play Mode Editor](play_mode_editor)**
 * **[Modular Effects (.ptfx)](modular_effects_system)**
 
 #### Developer & SDK Guides

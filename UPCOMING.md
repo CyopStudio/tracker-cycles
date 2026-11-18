@@ -75,6 +75,13 @@
 	* **No Extra RAM**: On Tracker+ and Tracker Mini the space comes out of the sample memory pool (`6 KB`), leaving RAM headroom unchanged.
 	* See [`docs/user_play_modes.md`](docs/user_play_modes.md).
 
+15. **Play Mode Editor (All 3 Devices, Prototype)**
+	* **Edit `C1`–`C20` on the Tracker**: In Performance Mode, `[Shift]`+`[Pattern]` (Tracker Mini: `[Shift]`+`[Menu]`) opens a grid with one lane per custom play mode. Performance Mode keeps playing, so every edit is heard straight away.
+	* **Works Like the Pattern Editor**: Edit mode on `[Rec]`, the step / FX / chance columns on `[Note]` / `[Fx1]` / `[Fx2]`, the FX list, pads and jog wheel, selection, copy and paste, insert and backspace, one-level Undo/Redo and the fill popup, with six extra step sequences (up/down from or to a step, and loops).
+	* **Saves `playmodes.txt`**: Only the changed lanes are written, each as its shortest loop. Up to 64 different FX settings across all modes.
+	* **Build Option**: `PLAY_MODE_EDITOR=0` leaves it out (it costs the Original about 15 KB of flash).
+	* See [`docs/play_mode_editor.md`](docs/play_mode_editor.md).
+
 ### Changed & Fixed
 
 * **Faster UI Rendering & System Responsiveness (All 3 Devices)**:

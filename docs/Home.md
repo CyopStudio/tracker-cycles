@@ -14,6 +14,8 @@ Welcome to the official documentation for **Polyend Tracker Community Edition (C
   * Complete guide to the 256-shape `WT Env` and `WT LFO` instrument modulators, dual-axis `Warp X/Y` shaping, `w` / `y` pattern step FX, and loading custom `.wav` contours from `/Envelopes/`.
 * **[User-Defined Play Modes (`docs/user_play_modes.md`)](user_play_modes.md)**
   * Replace the 20 custom Performance Mode play modes (`C1`–`C20`) per project with a `playmodes.txt` file, with any track-level FX on each step.
+* **[Play Mode Editor (`docs/play_mode_editor.md`)](play_mode_editor.md)**
+  * Instruction manual for editing `C1`–`C20` on the Tracker in a Pattern editor-style grid while Performance Mode plays: steps, FX and chance, selection, copy/paste, fill (with step sequences), undo and save.
 * **[Modular Sample Editor Effects - User & Architecture Guide (`docs/modular_effects_system.md`)](modular_effects_system.md)**
   * Overview of hot-loadable `.ptfx` Sample Editor effects and generators (`/Effects/*.ptfx`), bundled reference plugins, and hardware memory/cache architecture.
 * **[SD Card Image Viewer (`docs/image_viewer.md`)](image_viewer.md)**

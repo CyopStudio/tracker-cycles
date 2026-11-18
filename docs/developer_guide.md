@@ -120,6 +120,7 @@ All three devices share the same `core/` codebase and are differentiated at comp
 | **Tracker+ Exclusively** | `#if defined(PLATFORM_IMX) && !defined(TRACKER_MINI)` | Features requiring both the IMX CPU/RAM and the 48-pad desktop interface. |
 | **Synth Audio Engine** | `#ifdef FEATURE_SYNTH` | Defined when `PLATFORM=IMX`; enables `PolySynth` and sets `kSynthParts = 3` in [`core/config/config.h`](../core/config/config.h). |
 | **Synth UI Screens** | `#if GUI_HANDLE_SYNTH` | Defined as `1` (on `PLATFORM_IMX`) or `0` (on `MK66`) in [`core/interface/core/interfaceDefs.h`](../core/interface/core/interfaceDefs.h). |
+| **Play Mode Editor** (build option) | `#ifdef PLAY_MODE_EDITOR` | Defined by [`core/makefile`](../core/makefile) unless `make <device> PLAY_MODE_EDITOR=0`; then `core/interface/playModeEditor/` is not built either. Changing it rebuilds everything (a `build-*/play_mode_editor.<0\|1>` stamp), because it changes `USER_PLAY_MODES_MEMORY_SIZE`. See [`play_mode_editor.md`](play_mode_editor.md#13-building-with-or-without-the-editor). |
 
 ```cpp
 #if defined(PLATFORM_IMX)

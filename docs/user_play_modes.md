@@ -5,6 +5,7 @@ Performance Mode's **Play Mode** FX offers `Fwd`, `Back`, `Rnd` and twenty custo
 * Modes the file does not define keep their built-in behaviour. A project without the file plays exactly as before.
 * A mode that contains an error keeps its built-in behaviour. The other modes in the file still load, and a short message says which modes fell back.
 * Works on all three devices (Original Tracker, Tracker+ and Tracker Mini).
+* The modes can also be edited on the Tracker, in the [Play Mode Editor](play_mode_editor.md), which writes this file for you.
 
 ---
 
@@ -28,7 +29,7 @@ Performance Mode's **Play Mode** FX offers `Fwd`, `Back`, `Rnd` and twenty custo
 # Lines starting with # are comments. Blank lines are ignored.
 version 1
 
-# FX presets: fx <id 1-16> <fx> <value> [chance %]
+# FX presets: fx <id 1-64> <fx> <value> [chance %]
 fx 1 roll 1/4 60          # roll 1/4, 60% chance
 fx 2 volume 20            # volume 20, always
 fx 3 reverse 1 30%        # reverse playback, 30% chance
@@ -46,14 +47,17 @@ mode 7
 * **`mode <n>`** starts the definition of `C<n>` (1–20). The steps that follow belong to it until the next `mode` or `fx` line.
 * **Step tokens** are separated by spaces and may span several lines:
   * `<step>` plays that step (1–128) of the track.
-  * `<step>:<fx>` also plays FX preset `<fx>` (1–16) on that step.
+  * `<step>:<fx>` also plays FX preset `<fx>` (1–64) on that step.
   * Steps beyond the track's length wrap around, as with the built-in modes.
 * **Length**: a mode has up to 128 steps. A shorter mode repeats to fill 128, so `1 2 3 4` is a 4-step loop.
 * **Text is not case-sensitive**, and `#` starts a comment anywhere on a line. Maximum line length: 255 characters. Maximum file size: 64 KB.
 
 ### FX Presets
 
-`fx <id> <fx> <value> [chance]` defines preset `<id>` (1–16). The optional `chance` is 0–100, with or without `%`, and defaults to 100.
+`fx <id> <fx> <value> [chance]` defines preset `<id>` (1–64). The optional `chance` is 0–100, with or without `%`, and defaults to 100.
+
+> [!NOTE]
+> Firmware with this feature but without the Play Mode Editor's changes accepts preset ids 1–16 only. A mode that uses a higher id plays its built-in version there.
 
 When a step with a preset plays, the FX is placed in the step's **first empty FX slot**. If both FX slots of the step are already used in the pattern, the step's own FX win and the preset is skipped. FX usually need a note on the step to have an audible effect.
 
@@ -110,92 +114,12 @@ Values are the **raw values stored in a pattern**, which for some FX differ from
 
 ## 3. Play Mode Editor (Prototype)
 
-Play modes can also be edited on the Tracker itself, in a grid with one lane per custom mode (`C1`–`C20`) and 128 rows. Edits are heard straight away, the next time the edited step plays.
+The modes can also be edited on the Tracker itself, in a grid with one lane per custom mode (`C1`–`C20`) and 128 rows, while Performance Mode keeps playing so every change is heard. Its controls follow the Pattern editor's: edit mode on `[Rec]`, pads and jog wheel, selection, copy and paste, the fill popup, the FX list, and Undo. **Save** writes this file.
 
-The editor is a build option: it is built by default, and `make <device> PLAY_MODE_EDITOR=0` (for example `make original PLAY_MODE_EDITOR=0`) leaves it out. Without it, play modes still load from `playmodes.txt`, and the editor's flash (about 15 KB on the Original) and its 1 KB of buffers are not used. Changing the option rebuilds everything once.
+* Open it in Performance Mode with **`[Shift]`**+**`[Pattern]`** (Tracker Mini: **`[Shift]`**+**`[Menu]`**).
+* The editor is a build option (`PLAY_MODE_EDITOR`, on by default).
 
-### Opening and Leaving the Editor
-
-* **Open it from Performance mode only**: hold **`[Shift]`** and press **`[Pattern]`** (Tracker Mini: **`[Shift]`**+**`[Menu]`**). The same buttons do nothing special anywhere else. Custom play modes only play in Performance mode, which keeps running while the editor is open.
-* **`[Performance]`** goes back to Performance mode, still running. On the Tracker Mini, a short press of **`[Menu]`** does the same: the module menu opens with Perform selected.
-* Any other module (a module button, a Mini function key, or another choice in the Mini's module menu) leaves the editor, and Performance mode stops as it would if you left it directly (at the end of the pattern while playing).
-
-### The Grid
-
-Four lanes are visible at a time. Each lane uses three of the Pattern editor's four columns (the instrument column stays empty):
-
-| Column | Shows | Example |
-| :--- | :--- | :--- |
-| **Step** (Note column) | The pattern step played at this position (1–128) | ` 12` |
-| **FX** (Fx1 column) | The FX letter and value, as in the Pattern editor (`----` = none) | `Rd 4` |
-| **Chance** (Fx2 column) | How often the FX plays | ` 60%` |
-
-* With no `playmodes.txt`, every lane shows its built-in mode.
-* A lane you have changed is marked with `*` (`C3 *`). The first change to a lane copies its built-in steps, so you always start from the default.
-* The title bar spells out the cell under the cursor, for example `C3 * 12 > step 4 R - Roll 4 60%`.
-* **Edit mode**: as in the Pattern editor, **`[Rec]`** turns edit mode on and off. In edit mode the cursor is red and the jog wheel, pads, Delete, Insert, Copy/Paste, Fill, Reset lane and Undo/Redo change the modes; outside it the cursor is green and nothing is changed.
-* **Playhead**: while the sequencer plays, a playhead line across the lanes shows the row the cursor's lane is at: that of the first track set to its mode, or, if no track uses it, where it would be (track 1's position). Outside edit mode the cursor follows it (Up/Down and the jog wheel only move the cursor while stopped), as in the Pattern editor. A mode only plays its first *pattern length* rows: it starts again from row 1 at the end of the pattern.
-
-### Controls
-
-The controls follow the Pattern editor's. A lane is like a track, and the selection stays within one lane.
-
-| Control | Action |
-| :--- | :--- |
-| **`[Rec]`** | Edit mode on / off. |
-| **Up/Down** | Move the cursor (wrapping round). |
-| **Left/Right** | Change lane. |
-| **`[Shift]`+Up/Down** | Select rows. On the first row, **`[Shift]`+Up** selects the whole lane. |
-| **Jog wheel** | Edit mode: change the column on the selection, or the cursor's step. In the FX column it changes the value. Otherwise (stopped): move the cursor up to 10 rows. |
-| **`[Note]` / `[Fx1]` / `[Fx2]`** | The Step / FX / Chance column (`[Instr]` does nothing). On the Original, `[Fx1]` and `[Fx2]` are the buttons the Pattern editor uses for its two FX columns (`[Vol]` / `[Fx]` on older labels). |
-| **`[Fx1]`** (hold) | The Pattern editor's FX list: choose with the jog wheel, arrows or pads, and release. In edit mode, with no selection of several rows, it sets that FX on the cursor's step. FX that play modes can't use (section 2) show a message instead. |
-| **Pads** | Edit mode, on the selection or the cursor's step: Step column = the pad's number (1–48); FX column = the value, spread over its range (with **`[Fx1]`** held: the FX on that pad of the FX list, as in the Pattern editor); Chance = spread over 0–100%. With no selection the cursor then moves by the **Step jump**. |
-| **`[Delete]`** | Edit mode: clear the column on the selection or the cursor's step (Step: back to its own number; FX: no FX; Chance: 100%), then move by the Step jump. |
-| **`[Shift]`+`[Delete]`** | Edit mode: remove the row above the cursor; the rows below move up and row 128 becomes a plain row. |
-| **`[Insert]`** | Edit mode: insert a plain row (step = its own number, no FX) at the cursor; the rows below move down and row 128 drops off. |
-| **`[Shift]`+`[Insert]`** | Go to row 1. |
-| **`[Copy]`** | Edit mode: copy the selection, or the cursor's step (up to 128 rows). |
-| **`[Shift]`+`[Copy]`** | Edit mode: paste at the cursor (past row 128 it carries on at row 1), then move below the pasted rows. Hold **`[Note]`**, **`[Fx1]`** or **`[Fx2]`** too to paste only that column. |
-| **`[Play]`** | Start / stop. |
-| Screen button 1, **Lane** (hold) | Choose the lane with the jog wheel, the arrows or pads 1–20. |
-| Screen button 2, **Revert** | Throw away unsaved edits and reload the saved file. |
-| Screen button 3, **Step jump** (hold) | How far the cursor moves after an edit (shared with the Pattern editor). |
-| Screen button 4, **Fill** | Edit mode: the fill popup; see below. |
-| Screen button 5, **Reset lane** | Edit mode: put the lane back to its built-in mode. |
-| Screen button 6 / 7, **Undo** / **Redo** | Edit mode: undo the last edit, or redo it (one level). |
-| Screen button 8, **Save** | Write `playmodes.txt` to the project folder and the Workspace. |
-
-### Fill
-
-**Fill** opens the Pattern editor's fill popup, for the selection (or the cursor's step) in the cursor's column: **Fill Steps**, **Fill Fx** or **Fill Chance**. **`[Note]`** / **`[Fx1]`** / **`[Fx2]`** switch between them. Screen buttons 1–6 (or Left/Right) pick a setting, and the jog wheel, Up/Down or the pads change it; pressing a list's button again steps through it. Screen button 7 is **Cancel** and 8 is **Fill**.
-
-| Setting | Choices |
-| :--- | :--- |
-| **Where?** | **Fx** / **No Fx**: rows with / without an FX. **Random** (with a density), **Each** (every *n*th row), **Euclidean** (*n* events spread over the rows). |
-| **Fx Type** | Fill Fx only: the FX written, from the FX allowed in play modes. |
-| **Fill Type** | **Constant**: one value. **From-To**: from one value to the other across the rows. **Random**: any value between the two. |
-| **From / To** | Steps 1–128, the FX value, or the chance (0–100%). |
-
-Fill Steps has six more Fill Types, sequences that count up or down by one, wrapping from 128 to 1 and from 1 to 128. For these, the third column of the popup is **Count**: **Filled rows** moves the sequence on at each row it fills (with **Where?** set to Each 2: 5 · 6 · 7), **All rows** at every row, filled or not (5 · 7 · 9).
-
-| Fill Type | Steps written | Example (4 rows) |
-| :--- | :--- | :--- |
-| **Up from** | From *n* up | From 5: 5 6 7 8 |
-| **Up to** | Up, ending at To *n* | To 5: 2 3 4 5 |
-| **Down from** | From *n* down | From 5: 5 4 3 2 |
-| **Down to** | Down, ending at To *n* | To 5: 8 7 6 5 |
-| **Loop up** | From *n* up, starting again after **Loop** *m* steps | From 5, Loop 2: 5 6 5 6 |
-| **Loop down** | From *n* down, starting again after **Loop** *m* steps | From 5, Loop 2: 5 4 5 4 |
-
-Fill Fx keeps a row's chance if it had an FX (otherwise 100%). Fill Chance leaves rows without an FX alone.
-
-### Notes
-
-* Unsaved edits are lost when another project is opened. They also stay in effect until then, even after leaving the editor.
-* Undo keeps one edit, on one lane. Revert can't be undone.
-* On the Tracker Mini the controls are the same; its **`[+1]`/`[-1]`/`[+10]`/`[-10]`** buttons act as the jog wheel.
-* **Save** only writes the lanes you changed, each as its shortest repeating loop.
-* Up to **64 different FX settings** (FX + value + chance) can be used across all 20 modes. Identical settings are shared, and settings no step uses any more are freed automatically. A message appears when the limit is reached.
+See the **[Play Mode Editor manual](play_mode_editor.md)**.
 
 ---
 
@@ -230,4 +154,5 @@ Up to three modes are named (`C1, C2, C3 and 17 more`). The line number is the f
 * **Project lifecycle**: like `patternsMetadata` and synth patches. `ProjectOpen::openProjectFinish()` copies `<project>/playmodes.txt` to `Workspace/playmodes.txt`, or deletes a stale Workspace copy. `WorkspaceProjectLoad::loadProjectFromWorkspaceFinish()` parses it before the audio engine restarts. `ProjectSave::saveProjectFinish()` copies it to the destination on **Save As**, and leaves it alone on **Save**. A new project starts with an empty Workspace.
 * **Error message**: `formatLoadWarning()` (parser) builds up to three lines after each load, and keeps them in `EXTERNAL_RAM`. `Interface::commonThingsUpdate()` shows them once with `mtPopups.showTitledPopup()` (a bold title above the lines, 6 seconds), when the interface is in `mtOperatingModeRun` and the FileManager is idle. This covers start-up, **Project → Open** and imports.
 * **Load safety**: parsing clears the mask first (built-in modes play), writes the modes into the block, then publishes the mask last.
-* **Memory**: one `__NOINIT(EXTERNAL_RAM)` block of about 5.1 KB. Room for it is reserved in `USER_PLAY_MODES_MEMORY_SIZE` (6 KB) in [`core/source/mtStructs.h`](../core/source/mtStructs.h). See [Memory Map](memory_map.md).
+* **Memory**: one `__NOINIT(EXTERNAL_RAM)` block of 5,380 B (mask, 64 FX presets, 20 × 128 steps). Room for it is reserved in `USER_PLAY_MODES_MEMORY_SIZE` in [`core/source/mtStructs.h`](../core/source/mtStructs.h): 6 KB, or 7 KB with the Play Mode Editor, whose clipboard and undo buffer share the reservation. See [Memory Map](memory_map.md).
+* **Editor**: [`core/interface/playModeEditor/`](../core/interface/playModeEditor/) edits the block through `userPlayModes::setStepNumber()` / `setStepFx()` / `resetMode()`, and `userPlayModes::save()` writes the file with the parser's `writeFile()`. See the [Play Mode Editor manual](play_mode_editor.md#13-building-with-or-without-the-editor).
