@@ -8,7 +8,9 @@
 
 #include "keyboard.h"
 #include "../core/tree.h"
+#include "cold.h"
 
+TC_COLD_BEGIN
 namespace tc {
 
 namespace {
@@ -362,3 +364,4 @@ bool typeChar(Editor& ed, char ch) {
 }
 
 }  // namespace tc
+TC_COLD_END
