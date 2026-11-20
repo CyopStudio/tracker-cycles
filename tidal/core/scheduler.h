@@ -24,6 +24,15 @@ constexpr int kRingSize = 128;           // entries per slot (power of two)
 constexpr int kMaxMods = 10;
 constexpr int kMaxPendingOffs = 8;       // per slot (MIDI chords)
 
+// MIDI entry flags (in Entry::voices; docs/tidal_acid.md):
+// Slide: hold this note until the next note-on on its channel has gone out
+//   (a 303-style slide: the next note overlaps it), at most one block past
+//   its end; a next note of the same pitch extends it instead (a tie).
+// Tie: no note-on; the channel's held note lasts to this entry's end (and
+//   takes its Slide flag). Nothing held: plays as a note.
+constexpr uint8_t kEntrySlide = 1;
+constexpr uint8_t kEntryTie = 2;
+
 // Note: a note (sample or MIDI); Control: MIDI messages only (CC, bend,
 // program, aftertouch: a MIDI event with no n / note), no note, no noteOff.
 enum class EntryKind : uint8_t { Note = 0, Control = 1 };
@@ -41,7 +50,8 @@ struct Entry {
     uint8_t nmods;
     uint8_t modId[kMaxMods];
     uint16_t modVal[kMaxMods];
-    uint8_t voices;      // sample: notes the slot lets ring, this one included (1-3; `voices`, default 1)
+    uint8_t voices;      // sample: notes the slot lets ring, this one included (1-3; `voices`, default 1);
+                         // MIDI: kEntrySlide / kEntryTie (docs/tidal_acid.md)
     uint8_t pad[1];      // pad[0]: the scheduler's own (lit steps: index while queueing)
 };
 static_assert(sizeof(Entry) == 48, "Entry must stay 48 bytes");
@@ -95,6 +105,7 @@ struct SchedulerStats {
     uint32_t superseded;  // mono slots: due starts skipped for a later due one
     uint32_t muted;       // due starts of muted slots (not played)
     uint32_t idleUpdates; // update() calls that returned at once (nothing due yet)
+    uint32_t tied;        // MIDI: ties / same-pitch slides that extended a held note (no note-on)
     // per slot, when update() gets a clock: time in query windows (query,
     // mapping, sort; retries included), windows queued, longest window
     uint32_t slotUs[kSlots];
@@ -244,6 +255,7 @@ private:
         uint8_t note;
         uint8_t chan;
         bool active;
+        bool slide;    // MIDI: kEntrySlide (sent after the next note-on)
         uint16_t tag;  // what the noteOn returned
     };
 
@@ -257,6 +269,9 @@ private:
     bool queryWindow(int slot, Q s, Q e);
     void fail(int slot, const char* msg);
     void setIdle();
+    uint16_t tieChannels(int i, uint32_t by) const;
+    void releaseHeld(Voice& v, int i, uint32_t b, uint16_t onChans, uint16_t ties);
+    void recordLit(int i, uint32_t h, const Entry& e);
 
     Program* live_;
     Event* buf_;

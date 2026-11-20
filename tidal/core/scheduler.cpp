@@ -451,6 +451,54 @@ int Scheduler::update(uint32_t (*clockUs)(), uint32_t budgetUs) {
 
 // ---- interrupt ---------------------------------------------------------------
 
+// Channels (bits) of slot i's Tie entries due by block `by` (interrupt).
+uint16_t Scheduler::tieChannels(int i, uint32_t by) const {
+    const Ring& r = ring_[i];
+    uint32_t h = r.head;
+    const uint32_t t = r.tail;
+    if (h == t) return 0;
+    fence();
+    uint16_t m = 0;
+    for (; h != t; h++) {
+        const Entry& e = r.e[h & (kRingSize - 1)];
+        if ((int32_t)(by - e.block) < 0) break;
+        if (e.kind == EntryKind::Note && (e.voices & kEntryTie)) m |= (uint16_t)(1u << (e.chan & 15));
+    }
+    return m;
+}
+
+// MIDI slot i, after this block's note-ons: send the due note-offs the first
+// pass held back, unless they may still wait (due this block, and a slide
+// with no note-on on its channel yet, or a tie due next block).
+void Scheduler::releaseHeld(Voice& v, int i, uint32_t b, uint16_t onChans, uint16_t ties) {
+    if (!nOff_[i]) return;
+    for (Off& o : off_[i]) {
+        if (!o.active || (int32_t)(o.block - b) > 0) continue;
+        const uint16_t bit = (uint16_t)(1u << (o.chan & 15));
+        const bool wait = o.block == b && (o.slide ? !(onChans & bit) : (ties & bit) != 0);
+        if (wait) continue;
+        o.active = false;
+        nOff_[i]--;
+        v.noteOff(i, o.chan, o.note, o.offset, o.tag);
+    }
+}
+
+// The steps entry h of slot i came from, for the editor (interrupt).
+void Scheduler::recordLit(int i, uint32_t h, const Entry& e) {
+    if (!litRing_) return;
+    const uint16_t* src = litSrc_ + (i * kRingSize + (h & (kRingSize - 1))) * kLitSrc;
+    if (!src[0]) return;
+    LitRecord& l = litRing_[litTail_ & (kLitRing - 1)];
+    l.block = e.block;
+    l.dur = e.dur;
+    l.offset = e.offset;
+    l.slot = (uint8_t)i;
+    l.n = 0;
+    for (int k = 0; k < kLitSrc && src[k]; k++) l.src[l.n++] = src[k];
+    fence();
+    litTail_ = litTail_ + 1;
+}
+
 void Scheduler::tick(Voice& v) {
     const uint32_t b = block_;
     if (hushReq_ != hushSeen_) {
@@ -459,10 +507,19 @@ void Scheduler::tick(Voice& v) {
         memset(nOff_, 0, sizeof nOff_);
         v.allOff();
     }
+    // MIDI slots (docs/tidal_acid.md): a due note-off waits for this
+    // block's note-ons when it slides into the next note (Slide) or a Tie on
+    // its channel is due by the next block (the tie extends it); the second
+    // pass below sends what is left after the note-ons, at most one block
+    // late (a note's end and the next onset can round to different blocks).
+    uint16_t ties[kSlots - kSampleSlots] = {0};
     for (int i = 0; i < kSlots; i++) {
         if (!nOff_[i]) continue;
+        const bool midi = i >= kSampleSlots;
+        if (midi) ties[i - kSampleSlots] = tieChannels(i, b + 1);
         for (Off& o : off_[i])
             if (o.active && (int32_t)(o.block - b) <= 0) {
+                if (midi && (o.slide || (ties[i - kSampleSlots] >> (o.chan & 15) & 1))) continue;
                 o.active = false;
                 nOff_[i]--;
                 v.noteOff(i, o.chan, o.note, o.offset, o.tag);
@@ -475,7 +532,11 @@ void Scheduler::tick(Voice& v) {
         Ring& r = ring_[i];
         uint32_t h = r.head;
         const uint32_t t = r.tail;
-        if (h == t) continue;
+        uint16_t onChans = 0;  // MIDI: channels that got a note-on this block
+        if (h == t) {
+            if (!sample) releaseHeld(v, i, b, onChans, ties[i - kSampleSlots]);
+            continue;
+        }
         fence();  // read the entries after seeing the tail
         while (h != t) {
             const Entry& e = r.e[h & (kRingSize - 1)];
@@ -517,22 +578,42 @@ void Scheduler::tick(Voice& v) {
                 for (int j = 0; j < kMaxPendingOffs; j++) offs[j].active = false;
                 nOff_[i] = 0;
             }
-            const uint16_t tag = v.noteOn(i, e, (uint32_t)late);
-            if (sample) starts++;
-            if (litRing_) {  // the steps it came from, for the editor
-                const uint16_t* src = litSrc_ + (i * kRingSize + (h & (kRingSize - 1))) * kLitSrc;
-                if (src[0]) {
-                    LitRecord& l = litRing_[litTail_ & (kLitRing - 1)];
-                    l.block = e.block;
-                    l.dur = e.dur;
-                    l.offset = e.offset;
-                    l.slot = (uint8_t)i;
-                    l.n = 0;
-                    for (int k = 0; k < kLitSrc && src[k]; k++) l.src[l.n++] = src[k];
-                    fence();
-                    litTail_ = litTail_ + 1;
+            // MIDI: a tie, or a note of the pitch a slide is holding, extends
+            // the held note instead of starting one; any other note of a
+            // pitch still sounding on its channel releases it first (a clean
+            // retrigger, not on-on-off-off)
+            Off* held = nullptr;
+            if (!sample && e.kind == EntryKind::Note && nOff_[i]) {
+                for (int j = 0; j < kMaxPendingOffs; j++) {
+                    Off& o = offs[j];
+                    if (!o.active || o.chan != e.chan) continue;
+                    if (e.voices & kEntryTie) {
+                        if (!held || (int32_t)(o.block - held->block) > 0) held = &o;
+                    } else if (o.note == e.note) {
+                        if (o.slide) {
+                            held = &o;
+                        } else {
+                            o.active = false;
+                            nOff_[i]--;
+                            v.noteOff(i, o.chan, o.note, 0, o.tag);
+                        }
+                    }
                 }
             }
+            if (held) {
+                const uint64_t at = (uint64_t)e.block * kBlockSamples + e.offset + e.dur;
+                held->block = (uint32_t)(at / kBlockSamples);
+                held->offset = (uint8_t)(at % kBlockSamples);
+                held->slide = (e.voices & kEntrySlide) != 0;
+                stats_.tied++;
+                recordLit(i, h, e);
+                h++;
+                continue;
+            }
+            const uint16_t tag = v.noteOn(i, e, (uint32_t)late);
+            if (sample) starts++;
+            else onChans |= (uint16_t)(1u << (e.chan & 15));
+            recordLit(i, h, e);
             if (e.dur) {
                 uint64_t at = (uint64_t)e.block * kBlockSamples + e.offset + e.dur;
                 Off* slotFor = nullptr;
@@ -551,12 +632,14 @@ void Scheduler::tick(Voice& v) {
                 slotFor->note = e.note;
                 slotFor->chan = e.chan;
                 slotFor->tag = tag;
+                slotFor->slide = !sample && (e.voices & kEntrySlide);
                 slotFor->active = true;
             }
             h++;
         }
         fence();  // done with the entries before publishing the head
         r.head = h;
+        if (!sample) releaseHeld(v, i, b, onChans, ties[i - kSampleSlots]);
     }
     rr_ = (uint8_t)((rr_ + 1) % kSampleSlots);
     block_ = b + 1;

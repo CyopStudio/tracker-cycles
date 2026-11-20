@@ -55,6 +55,7 @@ uint8_t hashNote(const char* s, float n) {
 bool mapEvent(const Program& p, int slot, const Event& e, float lenSamples, Entry& out) {
     const char* s = "";
     float n = 0, legato = 0;
+    bool slide = false, tie = false;
     if (e.isMap)
         for (int i = 0; i < e.nctl; i++) {
             const Ctl& c = e.ctl[i];
@@ -63,7 +64,10 @@ bool mapEvent(const Program& p, int slot, const Event& e, float lenSamples, Entr
             else if (!strcmp(name, "n") || !strcmp(name, "note")) n = c.f;
             else if (!strcmp(name, "legato")) legato = c.f;
             else if (!strcmp(name, "voices")) out.voices = (uint8_t)c.f;
+            else if (!strcmp(name, "slid") && c.f != 0) slide = true;
+            else if (!strcmp(name, "time") && c.f == 0) tie = true;
         }
+    if (slot >= kSampleSlots) out.voices = (uint8_t)((slide ? kEntrySlide : 0) | (tie ? kEntryTie : 0));
     out.kind = EntryKind::Note;
     out.chan = (uint8_t)slot;
     out.note = hashNote(s, n);
@@ -86,6 +90,7 @@ struct Rec {
     uint8_t note;
     uint32_t late;
     uint16_t tag = 0;  // noteOn: what it returned; noteOff: what came back
+    int seq = 0;       // order of every noteOn / noteOff
     int64_t sample() const { return (int64_t)block * kBlockSamples + offset; }
 };
 struct RecVoice : Voice {
@@ -94,12 +99,13 @@ struct RecVoice : Voice {
     int allOffs = 0;
     uint32_t now = 0;
     uint16_t nextTag = 1;
+    int seq = 0;
     uint16_t noteOn(int slot, const Entry& e, uint32_t late) override {
-        on.push_back(Rec{now, slot, e.block, e.offset, e.note, late, nextTag});
+        on.push_back(Rec{now, slot, e.block, e.offset, e.note, late, nextTag, seq++});
         return nextTag++;
     }
     void noteOff(int slot, uint8_t, uint8_t note, uint8_t offset, uint16_t tag) override {
-        off.push_back(Rec{now, slot, now, offset, note, 0, tag});
+        off.push_back(Rec{now, slot, now, offset, note, 0, tag, seq++});
     }
     void allOff() override { allOffs++; }
 } gVoice;
@@ -675,6 +681,144 @@ void testMute() {
     SEXPECT(!gS.muted(0) && !gS.muted(1), "unmuteAll");
 }
 
+// Acid lines on MIDI slots (docs/tidal_acid.md): Slide notes end after the
+// next note-on, ties and same-pitch slides extend the held note, a repeated
+// pitch still sounding is released before it starts again.
+struct AcidLog {
+    std::vector<Rec> ons, offs;  // slot 8, in seq order
+};
+AcidLog acidRun(const char* code, int cycles) {
+    reset();
+    AcidLog l;
+    std::string text = std::string("d9 $ ") + code + "\n";
+    if (!load(text.c_str()) || !evalSlot(8)) return l;
+    run((uint32_t)(refSample(Q{cycles + 1, 1}) / kBlockSamples) + 20, 3);
+    const int64_t end = refSample(Q{cycles + 1, 1}) - 1;  // notes of cycles 1..cycles (offs: all)
+    for (const Rec& r : gVoice.on)
+        if (r.slot == 8 && r.sample() < end) l.ons.push_back(r);
+    for (const Rec& r : gVoice.off)
+        if (r.slot == 8) l.offs.push_back(r);
+    return l;
+}
+// the first noteOff of `note` after seq `from`, or nullptr
+const Rec* offAfter(const AcidLog& l, uint8_t note, int from) {
+    for (const Rec& r : l.offs)
+        if (r.note == note && r.seq > from) return &r;
+    return nullptr;
+}
+
+void testAcid() {
+    const uint8_t n0 = hashNote("", 0), n1 = hashNote("", 1), n2 = hashNote("", 2), n3 = hashNote("", 3),
+                  n5 = hashNote("", 5);
+    SEXPECT(n0 != n1 && n1 != n2 && n2 != n3 && n0 != n5 && n1 != n5, "test notes distinct");
+    // a slide note's off goes out after the next note-on; other notes end first
+    {
+        AcidLog l = acidRun("n \"0 1 2 3\" # legato 1 # slid \"0 1 0 0\"", 3);
+        int checked = 0;
+        bool ok = l.ons.size() >= 12;
+        for (size_t i = 0; ok && i + 1 < l.ons.size(); i++) {
+            const Rec* off = offAfter(l, l.ons[i].note, l.ons[i].seq);
+            ok = off != nullptr;
+            if (!ok) break;
+            const bool slide = l.ons[i].note == n1;
+            ok = slide ? off->seq > l.ons[i + 1].seq : off->seq < l.ons[i + 1].seq;
+            if (slide) ok = ok && off->at <= l.ons[i + 1].at + 1;  // at most a block after the next note-on
+            checked++;
+        }
+        SEXPECT(ok && checked >= 11, "slide order (%zu ons, %d checked)", l.ons.size(), checked);
+    }
+    // a chain of slides across many block boundaries (ends and onsets round
+    // to different blocks now and then): every note still overlaps the next
+    {
+        AcidLog l = acidRun("n \"{0 1 2 3 5}%64\" # legato 1 # slid \"1\"", 8);
+        bool ok = l.ons.size() >= 64 * 7;
+        size_t bad = 0;
+        for (size_t i = 0; ok && i + 1 < l.ons.size(); i++) {
+            const Rec* off = offAfter(l, l.ons[i].note, l.ons[i].seq);
+            if (!off || off->seq < l.ons[i + 1].seq || off->at > l.ons[i + 1].at + 1) bad++;
+        }
+        SEXPECT(ok && bad == 0, "slide chain: %zu ons, %zu not overlapping the next", l.ons.size(), bad);
+        SEXPECT(l.offs.size() + 1 >= l.ons.size(), "slide chain: every note ends (%zu offs)", l.offs.size());
+    }
+    // same-pitch slide = tie: no second note-on, one off at the end of both
+    {
+        AcidLog l = acidRun("n \"0 0 1 1\" # legato 1 # slid \"1 0 0 0\"", 3);
+        size_t c0 = 0, c1 = 0;
+        for (const Rec& r : l.ons) (r.note == n0 ? c0 : c1)++;
+        SEXPECT(c0 * 2 == c1 && c0 >= 3, "same-pitch slide: %zu note-ons of 0, %zu of 1", c0, c1);
+        bool ok = true;
+        for (const Rec& r : l.ons)
+            if (r.note == n0) {
+                const Rec* off = offAfter(l, n0, r.seq);
+                // ends just before the first note 1 of the cycle (half a cycle later)
+                ok = ok && off && off->at + 2 >= (uint32_t)(r.at + refSample(Q{1, 2}) / kBlockSamples);
+            }
+        SEXPECT(ok, "same-pitch slide holds over both steps");
+        SEXPECT(gS.stats().tied >= 3, "tied counted: %u", gS.stats().tied);
+    }
+    // ties: no note-on, the held note lasts to the tie's end
+    {
+        AcidLog l = acidRun("time \"1 0 0 1\" # n \"0 5 5 1\" # legato 1", 3);
+        size_t c0 = 0, c5 = 0, c1 = 0;
+        for (const Rec& r : l.ons) (r.note == n0 ? c0 : r.note == n5 ? c5 : c1)++;
+        SEXPECT(c5 == 0 && c0 >= 3 && c0 == c1, "ties: %zu / %zu / %zu note-ons of 0 / 5 / 1", c0, c5, c1);
+        bool ok = c0 > 0;
+        for (const Rec& r : l.ons)
+            if (r.note == n0) {
+                const Rec* off = offAfter(l, n0, r.seq);
+                const uint32_t want = (uint32_t)((r.sample() + refSample(Q{3, 4})) / kBlockSamples);
+                ok = ok && off && off->at + 1 >= want && off->at <= want + 1;
+            }
+        SEXPECT(ok, "tied note ends after three steps");
+    }
+    // a chain of ties across many block boundaries (a note's end can round
+    // into the block before its tie): every tie extends, none starts a note
+    {
+        AcidLog l = acidRun("time \"{1 0}%64\" # n \"{0 1 2 3 5}%64\" # legato 1", 16);
+        SEXPECT(l.ons.size() == 32 * 16, "tie chain: %zu note-ons, want %d", l.ons.size(), 32 * 16);
+    }
+    // a tie with nothing held (after a rest) plays as a note
+    {
+        AcidLog l = acidRun("time \"~ 0 1 1\" # n \"0 1 2 3\" # legato 1", 3);
+        size_t c1 = 0, c2 = 0;
+        for (const Rec& r : l.ons) (r.note == n1 ? c1 : c2)++;
+        SEXPECT(c1 >= 3 && c2 == 2 * c1, "tie after a rest: %zu note-ons of 1, %zu others", c1, c2);
+    }
+    // tie then slide: the tied note slides into the next one
+    {
+        AcidLog l = acidRun("time \"1 0 1 1\" # n \"0 0 2 3\" # slid \"0 1 0 0\" # legato 1", 3);
+        bool ok = l.ons.size() >= 9;
+        for (size_t i = 0; ok && i + 1 < l.ons.size(); i++)
+            if (l.ons[i].note == n0) {
+                const Rec* off = offAfter(l, n0, l.ons[i].seq);
+                ok = off && off->seq > l.ons[i + 1].seq && l.ons[i + 1].note == n2;
+            }
+        SEXPECT(ok, "tie then slide: the held note overlaps the next");
+    }
+    // a pitch still sounding is released before it starts again (was on on off off)
+    {
+        AcidLog l = acidRun("n \"0 0\" # legato 2", 3);
+        bool ok = l.ons.size() >= 6;
+        for (size_t i = 0; ok && i + 1 < l.ons.size(); i++) {
+            int between = 0;
+            for (const Rec& r : l.offs) between += r.seq > l.ons[i].seq && r.seq < l.ons[i + 1].seq;
+            ok = between == 1;
+        }
+        SEXPECT(ok, "retrigger: one note-off between repeated note-ons (%zu ons)", l.ons.size());
+    }
+    // hush releases a held slide
+    {
+        reset();
+        if (load("d9 $ n \"0 1\" # legato 1 # slid \"1\"\n") && evalSlot(8)) {
+            run((uint32_t)(refSample(Q{3, 2}) / kBlockSamples), 3);
+            const int alls = gVoice.allOffs;
+            gS.hush();
+            run((uint32_t)(refSample(Q{2, 1}) / kBlockSamples), 3);
+            SEXPECT(gVoice.allOffs == alls + 1, "hush: all notes off");
+        }
+    }
+}
+
 void testHushAndErrors() {
     reset();
     if (!load("d1 $ s \"bd*8\"\nd9 $ n \"0 3\" # s \"midi\" # legato 2\n")) return;
@@ -810,5 +954,6 @@ void testScheduler(int& pass, int& fail) {
     testIdleUpdates();
     testHushAndErrors();
     testLit();
+    testAcid();
     printf("scheduler: %s\n", fail == f0 ? "ok" : "FAILED");
 }
