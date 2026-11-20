@@ -244,17 +244,30 @@ revert it). Main points:
   check removed from build.yml, CONTRIBUTING.md says so).
 
 ## Original Tracker budgets
-Measured from `make original` at 95f6ba0 (1.0.1, 2026-11-20):
+Measured from `make original` on 2026-11-20 (after the editor's cold
+files went to -Os):
 
 | Region | Size | Used | Free |
 | :--- | ---: | ---: | ---: |
-| FLASH | 1024 KB | 983,420 B (93.8 %) | **~64 KB** |
+| FLASH | 1024 KB | 956,252 B (91.2 %) | **~92 KB** |
 | RAM (internal SRAM) | 256 KB | 189,144 B static | ~73 KB, shared by heap and stack (32 KB stack reserve) |
 | EXTERNAL_RAM (SDRAM) | 16 MB | 16,121,504 B | ~640 KB |
 
-- Flash is the tightest budget. Known reclaims (docs/retrospective_
-  2026-11.md 1): editor at -Os ~44 KB (slower menu checks), random name
-  generator 15 KB, factory test 9 KB.
+- Flash is the tightest budget. Done: editor files that run once per key
+  press at -Os (tidal/editor/cold.h: 983,356 -> 956,252 B; largest stack
+  frame openWrap 6,072 -> 5,008 B).
+- **Parked flash savings** (measured 2026-11-20, symbol sizes; come back
+  to these when flash runs short, each removes something the user can
+  see, so ask first):
+
+  | What | Saves | Loses |
+  | :--- | ---: | :--- |
+  | Rest of the editor at -Os (menus, cursor, jog, layout, core) | ~16 KB more | slower menu checks / per-frame layout (the RC2-RC13 stalls) |
+  | One font set (Roboto Mono 36 KB / Liberation Sans 40 KB, display.cpp fontsData1 / 2) | 36-40 KB | the Config font choice; check which set the code view's glyphs use |
+  | Custom themes (ThemeManager JSON parser) | ~12.5 KB, plus part of scanf / strtod (~10 KB) if nothing else uses it | themes loaded from the SD card |
+  | Random name generator (randomNameWord1/2Tab) | 15 KB | generated project / sample names (typing them instead) |
+  | Factory test (mtTest) | 6 KB | Polyend's production test only |
+
 - SDRAM is mostly `SAMPLE_MEMORY_SIZE` = 11.25 MB (7.5 MB mono sample pool
   + 3.75 MB Sample Editor FX edit buffer at the top), 1.5 MB delay line,
   768 KB `externalRamScratchBuff`, stream rings, the Tidal program /

@@ -3,7 +3,9 @@
 // Tree-mode navigation: arrows, leaf-to-leaf flow, slots and blocks, step
 // selection inside "...".
 #include "editor_impl.h"
+#include "cold.h"
 
+TC_COLD_BEGIN
 namespace tc {
 
 void Editor::gotoSlot(int s) {
@@ -461,3 +463,4 @@ void Editor::selectMove(int dir) {
 }
 
 }  // namespace tc
+TC_COLD_END

@@ -3,7 +3,9 @@
 // Edits on the tree: line breaks, quick controls, copy / paste, gap insert /
 // delete, delete and unwrap.
 #include "editor_impl.h"
+#include "cold.h"
 
+TC_COLD_BEGIN
 namespace tc {
 
 // Shift+Screen 7 (\n): a line break (on / off) before the argument at the cursor,
@@ -602,3 +604,4 @@ bool Editor::tryUnwrap() {
 }
 
 }  // namespace tc
+TC_COLD_END

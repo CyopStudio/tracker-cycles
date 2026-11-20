@@ -3,7 +3,9 @@
 // Pads: entering numbers / notes / instruments, chords, steps, and the
 // Note / Instrument jumps to the block's n / s pattern.
 #include "editor_impl.h"
+#include "cold.h"
 
+TC_COLD_BEGIN
 namespace tc {
 
 bool Editor::padNumeric() const {
@@ -372,3 +374,4 @@ void Editor::jumpControl(bool notes) {
 }
 
 }  // namespace tc
+TC_COLD_END

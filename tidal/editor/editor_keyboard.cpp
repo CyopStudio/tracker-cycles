@@ -2,7 +2,9 @@
 // GPL-3.0-or-later, with an additional permission for Polyend Tracker CE (tidal/LICENSE).
 // The comment keyboard (Shift+Config): the stock naming keyboard's layout.
 #include "editor_impl.h"
+#include "cold.h"
 
+TC_COLD_BEGIN
 namespace tc {
 
 // ---------------------------------------------------------------------------
@@ -98,3 +100,4 @@ void Editor::kbdAction(Action a) {
 }
 
 }  // namespace tc
+TC_COLD_END

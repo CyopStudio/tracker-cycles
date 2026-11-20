@@ -3,7 +3,9 @@
 // Wrapping: the structure keys (Screen 1-8: [] <> {} () | ...), mini-notation
 // wraps and the $ / # wrap menus (openWrap).
 #include "editor_impl.h"
+#include "cold.h"
 
+TC_COLD_BEGIN
 namespace tc {
 
 // Screen 1-8 (v2, docs/tidal_ui_v2.md): structure menus at the cursor.
@@ -526,3 +528,4 @@ void Editor::openWrap(WrapMode mode) {
 }
 
 }  // namespace tc
+TC_COLD_END
