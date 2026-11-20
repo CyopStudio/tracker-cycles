@@ -61,6 +61,11 @@ void tidalPlayerSilence(int slot);
 void tidalPlayerMute(int slot, bool on);
 void tidalPlayerUnmuteAll();
 void tidalPlayerSetCps(const tc::Program& p);
+// USB storage mode (Config > USB > Storage): while the computer owns the
+// card, the Tidal file reads / writes refuse ("the card is in USB storage
+// mode") and the editor holds its autosave and folder loading.
+void tidalPlayerSetCardSuspended(bool on);
+bool tidalPlayerCardSuspended();
 #else
 inline void tidalPlayerUpdate(Platform*) {}
 inline void tidalPlayerTick() {}
