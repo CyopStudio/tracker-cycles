@@ -42,9 +42,12 @@ past measurement.
   values, docs/tidal_control_mapping.md), scheduler (docs/tidal_scheduler.md).
 - **tidal/editor** (portable, no heap): the editor model shared by the
   prototype and the device: `Editor` (tree mode + cursor mode, menus by
-  trial edit, undo checkpoints), controls.cpp (`controlCommand()`: every
-  Tracker button -> editor action), layout.cpp (code view layout used by
-  both the prototype and the FT812 view), cursor.cpp (cursor mode tokens).
+  trial edit, undo checkpoints), split by job: editor.cpp (core: actions,
+  undo, edit machinery, evaluate, highlights), editor_menus / _edits /
+  _wrap / _pads / _nav (tree mode) / _jog / _keyboard.cpp, cursor.cpp
+  (cursor mode); shared helpers in editor_impl.h (tc::ed). controls.cpp
+  (`controlCommand()`: every Tracker button -> editor action), layout.cpp
+  (code view layout used by both the prototype and the FT812 view).
 - **tidal/proto**: SDL prototype (mock front panel, backends: GHCi ->
   SuperDirt, or our engine -> OSC).
 - **core/tidal**: device glue built into libTracker.a: unity files
@@ -214,7 +217,8 @@ revert it). Main points:
 - Don't format floats (%f) from interrupt context (newlib heap allocation).
 - Don't shift `Interface::modules[]` indices (hard-coded by UI navigation).
 - Unity builds: core/tidal/tc_*.cpp include several tidal/ sources into one
-  translation unit, so file-static names must not clash between them.
+  translation unit, so file-static names must not clash between them. A new
+  tidal/editor/*.cpp file must also be added to core/tidal/tc_editor.cpp.
 - Line endings: many upstream files are CRLF (some mixed) and the git
   config has core.autocrlf=input, so `git add` turns them into LF (a
   whole-file diff). Edit them byte-exact (Python 'rb'/'wb', or Edit) and

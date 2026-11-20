@@ -44,7 +44,7 @@ So about **93 KB free now, ~140 KB with `-Os` on the editor, ~165 KB if the name
 
 ## 3. What to improve in the code
 
-1. **Split `editor.cpp`** (3,567 lines) the way `cursor.cpp` was split out: navigation (tree), menus (build / check / cache), edits (delete / unwrap / insert / wrap), pads and chords, keyboard and comments. It's mechanical, but it would make the next features cheaper to add and review.
+1. **Split `editor.cpp`** (done 2026-11-20: eight files, see tidal/README.md) (3,567 lines) the way `cursor.cpp` was split out: navigation (tree), menus (build / check / cache), edits (delete / unwrap / insert / wrap), pads and chords, keyboard and comments. It's mechanical, but it would make the next features cheaper to add and review.
 2. **Cheaper menu checks** (the remaining cause of the highlight stall). Each item is a full trial edit: copy, apply, type-check the block, Tracker check, roll back.
    * Filter by the result type first: an item whose type can't fit the cursor's type code is dropped without a trial (planned as A3, not built).
    * Check only the edited subtree where the change can't affect the outer types.

@@ -9,13 +9,10 @@
 // a group's brackets select the group, a string's quotes the string, the
 // leading "dN" the block's top; expression parentheses and commas are
 // skipped.
-#include <string.h>
-
-#include "editor.h"
+#include "editor_impl.h"
 
 namespace tc {
 
-uint16_t stepOf(const Program& p, uint16_t n);  // editor.cpp
 static uint16_t leafOf(const Program& p, uint16_t n) {
     while (n && p.at(n).first) n = p.at(n).first;
     return n;
