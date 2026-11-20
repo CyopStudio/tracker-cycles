@@ -5,6 +5,13 @@
 #ifdef TIDAL_EDITOR
 #include "tidal_config.h"
 #include "../../tidal/editor/editor.cpp"
+#include "../../tidal/editor/editor_menus.cpp"
+#include "../../tidal/editor/editor_edits.cpp"
+#include "../../tidal/editor/editor_wrap.cpp"
+#include "../../tidal/editor/editor_pads.cpp"
+#include "../../tidal/editor/editor_nav.cpp"
+#include "../../tidal/editor/editor_jog.cpp"
+#include "../../tidal/editor/editor_keyboard.cpp"
 #include "../../tidal/editor/cursor.cpp"
 #include "../../tidal/editor/controls.cpp"
 #include "../../tidal/editor/layout.cpp"
