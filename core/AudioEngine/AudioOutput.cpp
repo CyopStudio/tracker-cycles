@@ -59,6 +59,15 @@ AudioOutput::AudioOutput()
         usbOutput.connectInputToUsbChannel(
           idx, UsbOutputStream::SourceChannel::kRight, usbChannelRight);
     }
+#else
+    // Original Tracker: USB audio out is the master mix (Config > USB > Audio)
+    connections.push_back(new AudioConnection(&finalMixer[OutputChannels::kLeft], 0, &usbOutput, 0));
+    connections.push_back(new AudioConnection(&finalMixer[OutputChannels::kRight], 0, &usbOutput, 1));
+
+    usbOutput.connectInputToUsbChannel(
+      UsbOutputStream::kMaster, UsbOutputStream::SourceChannel::kLeft, 0);
+    usbOutput.connectInputToUsbChannel(
+      UsbOutputStream::kMaster, UsbOutputStream::SourceChannel::kRight, 1);
 #endif
 }
 
@@ -90,9 +99,7 @@ AudioOutputStream* AudioOutput::getStream()
     return &outputStream;
 }
 
-#ifdef PLATFORM_IMX
 UsbOutputStream* AudioOutput::getUsbStream()
 {
     return &usbOutput;
 }
-#endif

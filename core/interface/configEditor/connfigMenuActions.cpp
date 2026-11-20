@@ -168,6 +168,12 @@ void usbAudioChange()
 {
     Usb* usb = mtInterface.getPlatform()->getUsb();
 
+#ifndef PLATFORM_IMX
+    // Tracker Cycles, Original Tracker: Off / Output (2 out) only
+    const bool out = mtConfig.common.usbAudioMode == 1;
+    usb->setClassState(Usb::ClassType::kAudioIn, false);
+    usb->setClassState(Usb::ClassType::kAudioOut, out);
+#else
     switch (mtConfig.common.usbAudioMode)
     {
         case 1:
@@ -187,7 +193,6 @@ void usbAudioChange()
             usb->setClassState(Usb::ClassType::kAudioOut, false);
             break;
     }
-#ifdef PLATFORM_IMX
     engine.refreshOutputSourceOutsideTheRecorder();
 #endif
     usb->reset();
