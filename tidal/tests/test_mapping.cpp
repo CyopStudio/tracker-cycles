@@ -340,6 +340,35 @@ void testMidi() {
     MEXPECT(o.e.vel == 127, "midi vel clamp: %d", o.e.vel);
 }
 
+// Acid lines (docs/tidal_acid.md): oct, acc, slid, time on MIDI slots.
+void testAcid() {
+    gMap.init(&gHost, kFs);
+    std::vector<Out> v = mapCode(8, "note \"0 0 0\" # oct \"0 1 2\"");
+    MEXPECT(v.size() == 3 && v[0].e.note == 48 && v[1].e.note == 60 && v[2].e.note == 72, "oct 0 / 1 / 2 = -12 / 0 / +12");
+    Out o = one(8, "n 0 # oct 3");
+    MEXPECT(o.e.note == 84, "oct 3 = +24: %d", o.e.note);
+    o = one(8, "n 0 # oct 1");
+    MEXPECT(o.e.vel == kAcidVelocity && o.e.voices == 0, "acid line, no velocity: %d (flags %d)", o.e.vel, o.e.voices);
+    o = one(8, "n 0 # acc \"1\"");
+    MEXPECT(o.e.vel == kAccentVelocity, "accent: %d", o.e.vel);
+    o = one(8, "n 0 # velocity 0.3 # acc \"t\"");
+    MEXPECT(o.e.vel == kAccentVelocity, "accent overrides velocity: %d", o.e.vel);
+    o = one(8, "n 0 # velocity 0.5 # acc \"0\"");
+    MEXPECT(o.e.vel == 64, "no accent keeps the velocity: %d", o.e.vel);
+    o = one(8, "n 0");
+    MEXPECT(o.e.vel == 127 && o.e.voices == 0, "plain MIDI line unchanged: vel %d flags %d", o.e.vel, o.e.voices);
+    o = one(8, "n 0 # slid \"1\"");
+    MEXPECT(o.e.voices == kEntrySlide && o.e.kind == EntryKind::Note, "slide flag: %d", o.e.voices);
+    o = one(8, "n 0 # time \"0\" # slid \"t\"");
+    MEXPECT(o.e.voices == (kEntrySlide | kEntryTie), "tie + slide flags: %d", o.e.voices);
+    o = one(8, "n 0 # time \"1\"");
+    MEXPECT(o.e.voices == 0 && o.e.vel == kAcidVelocity, "time 1 = a note: flags %d", o.e.voices);
+    v = mapCode(8, "time \"1 0 ~ 1\" # note \"{0 3 7}%4\"");
+    MEXPECT(v.size() == 3 && v[0].e.note == 60 && v[1].e.voices == kEntryTie && v[1].e.note == 63 &&
+                v[2].e.note == 60 && v[0].e.dur == (uint32_t)(kSpc / 4),
+            "time first: %zu events", v.size());
+}
+
 // The scheduler carries the 48-byte entries through unchanged.
 struct RecVoice : Voice {
     std::vector<Entry> on;
@@ -428,6 +457,11 @@ void testTrackerCheck() {
         {0, "s \"bd\" # midichan 2", "tracker mode: 'midichan' only works on MIDI slots (d9-d16)"},
         {2, "n \"c'maj\" # s \"arpy\" # voices 3", nullptr},
         {8, "n \"0\" # voices 3", "tracker mode: 'voices' has no effect on MIDI slots (d9-d16)"},
+        {8, "time \"1 0 ~ 1\" # note \"c2 ef2\" # oct 2 # acc \"t f\" # slid \"0 1\"", nullptr},
+        {0, "s \"bd\" # acc \"1\"", "tracker mode: 'acc' only works on MIDI slots (d9-d16)"},
+        {1, "s \"bd\" # slid \"1\"", "tracker mode: 'slid' only works on MIDI slots (d9-d16)"},
+        {2, "s \"bd\" # oct 2", "tracker mode: 'oct' only works on MIDI slots (d9-d16)"},
+        {3, "s \"bd\" # time \"1 0\"", "tracker mode: 'time' only works on MIDI slots (d9-d16)"},
         {0, "s \"bd\" # orbit 1", "tracker mode: 'orbit' isn't available on the Tracker (one effects bus)"},
         {3, "s \"bd\" # unit \"c\"", "tracker mode: 'unit' isn't available on the Tracker (no cycle-relative speed)"},
         {0, "chop 4 $ s \"break\"", "tracker mode: 'chop' isn't available on the Tracker"},
@@ -473,6 +507,7 @@ void testMapping(int& pass, int& fail) {
     testVoices();
     testOverflow();
     testMidi();
+    testAcid();
     testThroughScheduler();
     testTrackerCheck();
     printf("mapping: %s\n", fail == f0 ? "ok" : "FAILED");

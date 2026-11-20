@@ -63,6 +63,8 @@ const char* ed::controlDefault(const char* name) {
         {"distort", "0.3"},     {"midichan", "1"},      {"ccn", "74"},       {"ccv", "\"0 64 127\""},
         {"midibend", "0"},      {"lpf", "1000"},        {"lpq", "0.2"},      {"hpq", "0.2"},
         {"bpf", "1000"},        {"att", "0.01"},        {"rel", "0.2"},     {"voices", "3"},
+        // acid lines (docs/tidal_acid.md): Bool patterns need a string ("1", not 1)
+        {"oct", "\"1 1 2 1\""},  {"acc", "\"0 0 1 0\""},  {"slid", "\"0 0 0 1\""}, {"time", "\"1 1 0 1\""},
     };
     for (auto& x : t)
         if (strcmp(x.n, name) == 0) return x.d;
