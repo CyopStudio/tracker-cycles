@@ -466,8 +466,13 @@ void checkConfig()
     else if (mtConfig.common.equalSliceNumber > 48)
         mtConfig.common.equalSliceNumber = 8;
 
+#ifdef PLATFORM_IMX
     if (mtConfig.common.usbAudioMode >= 4)
         mtConfig.common.usbAudioMode = 0;
+#else
+    if (mtConfig.common.usbAudioMode >= 2)  // Tracker Cycles: Off / Output only
+        mtConfig.common.usbAudioMode = 0;
+#endif
 
     // TODO dodac zapis spowrotem do configu jesli np przy sprawdzaniu wazne dane sie nie zgadzały
     // TODO

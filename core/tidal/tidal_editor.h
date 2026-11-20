@@ -51,7 +51,15 @@ int tidalHeapGap();       // bytes between the heap end and that deepest point
 void tidalProjectOpened();
 void tidalProjectSaved();
 void tidalProjectNew();
+// USB storage mode (core/interface/core/interface.cpp handleFileTransferMode):
+// Enter: false while a sample folder is loading (the mode isn't entered);
+// else hush, write the editor's code to the working copy, and hold every
+// Tidal card access until Exit. The code stays in the editor meanwhile.
+bool tidalStorageModeEnter();
+void tidalStorageModeExit();
 #else
+inline bool tidalStorageModeEnter() { return true; }
+inline void tidalStorageModeExit() {}
 inline void tidalEditorUpdate(Platform*) {}
 inline void tidalProjectOpened() {}
 inline void tidalProjectSaved() {}

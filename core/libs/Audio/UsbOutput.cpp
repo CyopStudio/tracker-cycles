@@ -1,6 +1,5 @@
 #include "UsbOutput.h"
 #include "Platform.h"
-#ifdef PLATFORM_IMX
 
 static int16_t audioUsbZeroBlock[AUDIO_BLOCK_SAMPLES] = {};
 
@@ -9,7 +8,12 @@ AUDIO_CORE_FLASH void UsbOutputStream::connectInputToUsbChannel(int source,
                                                                 int usbChannel)
 {
     assert(usbChannel < kUsbChannelsCount);
+#ifdef PLATFORM_IMX
     int sourceIdx = SourceChannel::kChannelsCount * source + channel;
+#else
+    (void)source;  // Original Tracker: the master mix only (2 channels)
+    int sourceIdx = channel;
+#endif
 
     assert(sourceIdx < kInputChannelsCount);
 
@@ -40,5 +44,3 @@ AUDIO_CORE_RAM void UsbOutputStream::update()
         }
     }
 }
-
-#endif
