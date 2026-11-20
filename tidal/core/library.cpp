@@ -215,6 +215,13 @@ static const LibEntry kLib[] = {
     // Tracker Cycles' own (not in Tidal: `let voices = pI "voices"`, see
     // docs/tidal_voices.md): notes a sample track lets ring, 1-3 (default 1)
     CTL("voices", "Int"),
+    // Tracker Cycles' own, for acid lines on MIDI tracks (docs/tidal_acid.md;
+    // boot.ghci: pI "oct", pB "acc" / "slid" / "time"): octave 0 / 1 / 2 =
+    // -12 / 0 / +12, accent, slide into the next note, 1 = note / 0 = tie
+    CTL("oct", "Int"),
+    CTL("acc", "Bool"),
+    CTL("slid", "Bool"),
+    CTL("time", "Bool"),
     // batch 3 (2026-11-12); sz / delayt / delayfb are Tidal's aliases
     CTL("size", "Double"),
     CTL("sz", "Double"),

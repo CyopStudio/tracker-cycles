@@ -1,5 +1,5 @@
 # Golden events captured from real Tidal by golden/capture.py. Don't edit.
-# tidal-1.10.3, GHC 9.8.2, captured 2026-11-12
+# tidal-1.10.3, GHC 9.8.2, captured 2026-11-20
 # whole-start whole-stop part-start part-stop key=tag:value ...
 
 == seq_basic 1 s "bd sd hh cp"
@@ -1149,6 +1149,80 @@
 1/2 1/1 1/2 1/1 n=n:1.0 s=s:arpy voices=i:1
 1/1 3/2 1/1 3/2 n=n:0.0 s=s:arpy voices=i:3
 3/2 2/1 3/2 2/1 n=n:1.0 s=s:arpy voices=i:3
+
+== acid_basic 1 time "1 1 0 ~ 1 1 0 1" # note "c2 c3 ef2 g2 c3 c2 bf2 g2" # oct "1 1 2 1 0 1 1 1" # acc "0 1 0 0 1 0 0 0" # slid "0 0 0 1 0 0 1 0"
+0/1 1/8 0/1 1/8 acc=b:False note=n:-36.0 oct=i:1 slid=b:False time=b:True
+1/8 1/4 1/8 1/4 acc=b:True note=n:-24.0 oct=i:1 slid=b:False time=b:True
+1/4 3/8 1/4 3/8 acc=b:False note=n:-33.0 oct=i:2 slid=b:False time=b:False
+1/2 5/8 1/2 5/8 acc=b:True note=n:-24.0 oct=i:0 slid=b:False time=b:True
+5/8 3/4 5/8 3/4 acc=b:False note=n:-36.0 oct=i:1 slid=b:False time=b:True
+3/4 7/8 3/4 7/8 acc=b:False note=n:-26.0 oct=i:1 slid=b:True time=b:False
+7/8 1/1 7/8 1/1 acc=b:False note=n:-29.0 oct=i:1 slid=b:False time=b:True
+
+== acid_tf 1 note "0 3 7 5" # acc "t f t f" # slid "f t f t"
+0/1 1/4 0/1 1/4 acc=b:True note=n:0.0 slid=b:False
+1/4 1/2 1/4 1/2 acc=b:False note=n:3.0 slid=b:True
+1/2 3/4 1/2 3/4 acc=b:True note=n:7.0 slid=b:False
+3/4 1/1 3/4 1/1 acc=b:False note=n:5.0 slid=b:True
+
+== acid_poly 2 time "{1 1 0 ~ 1 1 ~}%16" # note "{c2 c3 ef2 g2 bf2}%16" # oct "{1 1 2 1 0 1}%16" # acc "{0 0 1 0 0 1 0 1 0}%16" # slid "{0 0 0 1 0 0 0 0 1 0}%16"
+0/1 1/16 0/1 1/16 acc=b:False note=n:-36.0 oct=i:1 slid=b:False time=b:True
+1/16 1/8 1/16 1/8 acc=b:False note=n:-24.0 oct=i:1 slid=b:False time=b:True
+1/8 3/16 1/8 3/16 acc=b:True note=n:-33.0 oct=i:2 slid=b:False time=b:False
+1/4 5/16 1/4 5/16 acc=b:False note=n:-26.0 oct=i:0 slid=b:False time=b:True
+5/16 3/8 5/16 3/8 acc=b:True note=n:-36.0 oct=i:1 slid=b:False time=b:True
+7/16 1/2 7/16 1/2 acc=b:True note=n:-33.0 oct=i:1 slid=b:False time=b:True
+1/2 9/16 1/2 9/16 acc=b:False note=n:-29.0 oct=i:2 slid=b:True time=b:True
+9/16 5/8 9/16 5/8 acc=b:False note=n:-26.0 oct=i:1 slid=b:False time=b:False
+11/16 3/4 11/16 3/4 acc=b:True note=n:-24.0 oct=i:1 slid=b:False time=b:True
+3/4 13/16 3/4 13/16 acc=b:False note=n:-33.0 oct=i:1 slid=b:False time=b:True
+7/8 15/16 7/8 15/16 acc=b:True note=n:-26.0 oct=i:2 slid=b:False time=b:True
+15/16 1/1 15/16 1/1 acc=b:False note=n:-36.0 oct=i:1 slid=b:False time=b:True
+1/1 17/16 1/1 17/16 acc=b:True note=n:-24.0 oct=i:0 slid=b:False time=b:False
+9/8 19/16 9/8 19/16 acc=b:False note=n:-29.0 oct=i:1 slid=b:True time=b:True
+19/16 5/4 19/16 5/4 acc=b:False note=n:-26.0 oct=i:1 slid=b:False time=b:True
+21/16 11/8 21/16 11/8 acc=b:False note=n:-24.0 oct=i:1 slid=b:False time=b:True
+11/8 23/16 11/8 23/16 acc=b:False note=n:-33.0 oct=i:0 slid=b:False time=b:True
+23/16 3/2 23/16 3/2 acc=b:True note=n:-29.0 oct=i:1 slid=b:True time=b:False
+25/16 13/8 25/16 13/8 acc=b:True note=n:-36.0 oct=i:1 slid=b:False time=b:True
+13/8 27/16 13/8 27/16 acc=b:False note=n:-24.0 oct=i:2 slid=b:False time=b:True
+7/4 29/16 7/4 29/16 acc=b:False note=n:-29.0 oct=i:0 slid=b:True time=b:True
+29/16 15/8 29/16 15/8 acc=b:True note=n:-26.0 oct=i:1 slid=b:False time=b:True
+15/8 31/16 15/8 31/16 acc=b:False note=n:-36.0 oct=i:1 slid=b:False time=b:False
+
+== acid_time_after 1 note "{0 3 7 5 2}%8" # time "{1 0 ~}%8"
+0/1 1/8 0/1 1/8 note=n:0.0 time=b:True
+1/8 1/4 1/8 1/4 note=n:3.0 time=b:False
+3/8 1/2 3/8 1/2 note=n:5.0 time=b:True
+1/2 5/8 1/2 5/8 note=n:2.0 time=b:False
+3/4 7/8 3/4 7/8 note=n:3.0 time=b:True
+7/8 1/1 7/8 1/1 note=n:7.0 time=b:False
+
+== acid_grids 2 time "{1 1 0 ~}%16" # note "<0 3>" # oct "{1 2}%8"
+0/1 1/16 0/1 1/16 note=n:0.0 oct=i:1 time=b:True
+1/16 1/8 1/16 1/8 note=n:0.0 oct=i:1 time=b:True
+1/8 3/16 1/8 3/16 note=n:0.0 oct=i:2 time=b:False
+1/4 5/16 1/4 5/16 note=n:0.0 oct=i:1 time=b:True
+5/16 3/8 5/16 3/8 note=n:0.0 oct=i:1 time=b:True
+3/8 7/16 3/8 7/16 note=n:0.0 oct=i:2 time=b:False
+1/2 9/16 1/2 9/16 note=n:0.0 oct=i:1 time=b:True
+9/16 5/8 9/16 5/8 note=n:0.0 oct=i:1 time=b:True
+5/8 11/16 5/8 11/16 note=n:0.0 oct=i:2 time=b:False
+3/4 13/16 3/4 13/16 note=n:0.0 oct=i:1 time=b:True
+13/16 7/8 13/16 7/8 note=n:0.0 oct=i:1 time=b:True
+7/8 15/16 7/8 15/16 note=n:0.0 oct=i:2 time=b:False
+1/1 17/16 1/1 17/16 note=n:3.0 oct=i:1 time=b:True
+17/16 9/8 17/16 9/8 note=n:3.0 oct=i:1 time=b:True
+9/8 19/16 9/8 19/16 note=n:3.0 oct=i:2 time=b:False
+5/4 21/16 5/4 21/16 note=n:3.0 oct=i:1 time=b:True
+21/16 11/8 21/16 11/8 note=n:3.0 oct=i:1 time=b:True
+11/8 23/16 11/8 23/16 note=n:3.0 oct=i:2 time=b:False
+3/2 25/16 3/2 25/16 note=n:3.0 oct=i:1 time=b:True
+25/16 13/8 25/16 13/8 note=n:3.0 oct=i:1 time=b:True
+13/8 27/16 13/8 27/16 note=n:3.0 oct=i:2 time=b:False
+7/4 29/16 7/4 29/16 note=n:3.0 oct=i:1 time=b:True
+29/16 15/8 29/16 15/8 note=n:3.0 oct=i:1 time=b:True
+15/8 31/16 15/8 31/16 note=n:3.0 oct=i:2 time=b:False
 
 == everyp 6 every' 3 1 (fast 2) $ s "bd sd"
 0/1 1/2 0/1 1/2 s=s:bd

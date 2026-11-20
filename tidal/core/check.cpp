@@ -280,7 +280,13 @@ struct Checker {
                         n.b = spelling;
                         return true;
                     }
-                    snprintf(m, sizeof m, "'%s' is not a note name", w);
+                    // Tidal spells flats with f, sharps with s ("eb2" is e, b2 there)
+                    if (wl >= 2 && strchr("abcdefg", w[0]) && w[1] == 'b')
+                        snprintf(m, sizeof m, "'%s' is not a note name (flats are f: '%cf%s')", w, w[0], w + 2);
+                    else if (wl >= 2 && strchr("abcdefg", w[0]) && w[1] == '#')
+                        snprintf(m, sizeof m, "'%s' is not a note name (sharps are s: '%cs%s')", w, w[0], w + 2);
+                    else
+                        snprintf(m, sizeof m, "'%s' is not a note name", w);
                     return fail(idx, m), false;
                 }
                 if (b == Base::Bool && (strcmp(w, "t") == 0 || strcmp(w, "f") == 0)) {

@@ -161,7 +161,7 @@ struct EngineBackend::Impl : Mapper, Voice {
             for (int j = 0; j < na; j++) dup |= !strcmp(args[j].key, key);
             if (dup) continue;
             if (c.tag == 's') formatCtl(p, c, add(key, 's').s, sizeof args[0].s);
-            else if (c.tag == 'i') add(key, 'i').i = (int32_t)lroundf(c.f);
+            else if (c.tag == 'i' || c.tag == 'b') add(key, 'i').i = (int32_t)lroundf(c.f);
             else add(key, 'f').f = c.f;
         }
         if (slot < kSampleSlots) {  // `voices` routing, as boot.ghci's tcRoute

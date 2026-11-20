@@ -108,6 +108,8 @@ bool TypePool::unify(uint16_t a, uint16_t b, char* msg, int len) {
                 if (ot.tag == Tag::Base && (vt.cons & kCFracLit) &&
                     baseSatisfies(ot.base, kCLit))
                     snprintf(msg, len, "%s can't hold a fractional number", so);
+                else if ((vt.cons & (kCLit | kCFracLit)) && ot.tag == Tag::Base && ot.base == Base::Bool)
+                    snprintf(msg, len, "Bool can't hold a number (write \"1\" or \"t\")");
                 else if (vt.cons & (kCLit | kCFracLit))
                     snprintf(msg, len, "%s can't hold a number", so);
                 else
