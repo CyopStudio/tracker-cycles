@@ -74,14 +74,24 @@ void Renderer::putRational(int32_t num, uint32_t den, int dec) {
         scale *= 10;
     }
     int64_t scaled = a * scale / den;
-    char buf[32];
     if (num < 0) put('-');
-    snprintf(buf, sizeof buf, "%lld", (long long)(scaled / scale));
-    puts(buf);
+    // digits by hand: newlib-nano's printf (Tracker Mini) has no %lld
+    char buf[24];
+    int k = 0;
+    uint64_t ip = (uint64_t)(scaled / scale);
+    do {
+        buf[k++] = (char)('0' + ip % 10);
+        ip /= 10;
+    } while (ip);
+    while (k) put(buf[--k]);
     if (dec > 0) {
         put('.');
-        snprintf(buf, sizeof buf, "%0*lld", dec, (long long)(scaled % scale));
-        puts(buf);
+        uint64_t fp = (uint64_t)(scaled % scale);
+        for (int d = 0; d < dec; d++) {
+            buf[d] = (char)('0' + fp % 10);
+            fp /= 10;
+        }
+        for (int d = dec - 1; d >= 0; d--) put(buf[d]);
     }
 }
 
