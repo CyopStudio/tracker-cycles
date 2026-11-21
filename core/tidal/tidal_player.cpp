@@ -38,7 +38,13 @@ __NOINIT(EXTERNAL_RAM) char fileText[16384];
 // the engine's query working set in internal RAM (bench v6: up to 2x faster)
 constexpr int kFastEvents = 256, kFastCtls = 1024, kFastParams = 128;
 // 25,616 B with 52-B events; 27,664 B with TC_EVENT_SRC (60-B events)
+#ifndef PLATFORM_IMX
 unsigned char fastMem[28 * 1024] __attribute__((aligned(8)));
+#else
+// IMX: SRAM_DTC is full; its SDRAM sits behind the M7's D-cache (unlike the
+// MK66's uncached bus), so the working set lives there
+__NOINIT(EXTERNAL_RAM) unsigned char fastMem[28 * 1024] __attribute__((aligned(8)));
+#endif
 #if TC_EVENT_SRC
 // lit steps (the editor's highlighting): source steps of queued entries, and
 // the records of played ones
@@ -49,7 +55,7 @@ __NOINIT(EXTERNAL_RAM) unsigned char litRingRaw[sizeof(tc::LitRecord) * tc::kLit
 constexpr uint32_t kUpdateBudgetUs = 4000;  // per main-loop pass
 constexpr uint32_t kStartMs = 3000, kStartLatestMs = 60000;
 constexpr int kPulsesPerCycle = 96;  // MIDI clock: 24 ppqn x 4 beats per cycle
-constexpr float kSampleRate = 750000.0f / 17.0f;
+constexpr float kSampleRate = (float)kTidalSampleRate;
 
 tc::Scheduler* sched = nullptr;
 tc::Program* live = nullptr;
@@ -134,7 +140,11 @@ void start() {
     mapper.init(&host, kSampleRate);
     sched->init(live, buf, kQueryCap, &mapper, reinterpret_cast<tc::Entry*>(storageRaw),
                 tc::Scheduler::Hooks{irqOff, irqOn});
+#ifndef PLATFORM_IMX
     sched->setSampleRate(750000, 17);  // 180 MHz * 16 / 255 / 256
+#else
+    sched->setSampleRate(44100, 1);  // SAI1: 11.2896 MHz / 256
+#endif
     sched->setSlotPlayers(DeviceVoice::kPlayers);
 #if TC_EVENT_SRC
     sched->setLitStorage(litSrc, reinterpret_cast<tc::LitRecord*>(litRingRaw));

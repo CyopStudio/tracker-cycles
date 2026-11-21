@@ -14,7 +14,7 @@
 
 class Platform;
 
-#if !defined(PLATFORM_IMX) && !defined(TIDAL_TICK) && !defined(TIDAL_BENCH)
+#if (!defined(PLATFORM_IMX) || defined(TIDAL_EDITOR)) && !defined(TIDAL_TICK) && !defined(TIDAL_BENCH)
 #define TC_TIDAL_PLAYER 1
 
 // Main loop: start-up, queries, the clock snapshot for MIDI clock out.
@@ -56,7 +56,11 @@ const tc::Program* tidalPlayerLive();  // the program the scheduler plays (live 
 // ids); `nowSample` gets the scheduler's current sample position, the clock
 // their onsets are on. Returns how many records were written.
 int tidalPlayerTakeLit(tc::LitRecord* out, int cap, int64_t& nowSample);
-constexpr double kTidalSampleRate = 750000.0 / 17.0;
+#ifndef PLATFORM_IMX
+constexpr double kTidalSampleRate = 750000.0 / 17.0;  // MK66: 180 MHz * 16 / 255 / 256
+#else
+constexpr double kTidalSampleRate = 44100.0;  // IMX: SAI1 MCLK 11.2896 MHz = 256 * 44100
+#endif
 void tidalPlayerSilence(int slot);
 void tidalPlayerMute(int slot, bool on);
 void tidalPlayerUnmuteAll();

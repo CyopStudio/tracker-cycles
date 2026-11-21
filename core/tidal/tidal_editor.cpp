@@ -43,15 +43,27 @@ bool gLitDirty = false;
 double nowSeconds();
 
 // ---- stack painting -------------------------------------------------------
+#ifndef PLATFORM_IMX
 extern "C" char* __brkval;    // heap end (teensy core)
 extern "C" unsigned long _estack;  // top of RAM
+// the stack grows down from the top of RAM towards the heap
+inline uintptr_t stackFloor() { return (uintptr_t)__brkval; }
+inline uintptr_t stackTop() { return (uintptr_t)&_estack; }
+#else
+// IMX (Tracker Mini): the heap and the stack are fixed regions of SRAM_DTC
+// (platforms/imx/linker/linkerScript.ld); the stack is [_vStackBase, _vStackTop)
+extern "C" char _vStackBase[];
+extern "C" char _vStackTop[];
+inline uintptr_t stackFloor() { return (uintptr_t)_vStackBase; }
+inline uintptr_t stackTop() { return (uintptr_t)_vStackTop; }
+#endif
 constexpr uint32_t kPaint = 0xC5A3C5A3u;
 uint32_t* gPaintLo = nullptr;  // painted words: [gPaintLo, gPaintHi)
 uint32_t* gPaintHi = nullptr;
 
 __attribute__((noinline)) void paintStack() {
     volatile uint32_t here = 0;
-    uintptr_t lo = ((uintptr_t)__brkval + 1024 + 3) & ~(uintptr_t)3;  // leave malloc some room
+    uintptr_t lo = (stackFloor() + 1024 + 3) & ~(uintptr_t)3;  // leave malloc some room
     uintptr_t hi = ((uintptr_t)&here - 512) & ~(uintptr_t)3;           // below this frame
     if (hi <= lo) return;
     gPaintLo = (uint32_t*)lo;
@@ -62,7 +74,7 @@ __attribute__((noinline)) void paintStack() {
 uintptr_t deepestAddr() {
     if (!gPaintLo) return 0;
     uint32_t* w = gPaintLo;
-    if ((uintptr_t)__brkval > (uintptr_t)w) w = (uint32_t*)(((uintptr_t)__brkval + 3) & ~(uintptr_t)3);
+    if (stackFloor() > (uintptr_t)w) w = (uint32_t*)((stackFloor() + 3) & ~(uintptr_t)3);
     while (w < gPaintHi && *w == kPaint) w++;
     return (uintptr_t)w;
 }
@@ -314,11 +326,11 @@ void tidalProjectNew() { gNewPending = true; }
 
 int tidalStackDeepest() {
     const uintptr_t a = deepestAddr();
-    return a ? (int)((uintptr_t)&_estack - a) : 0;
+    return a ? (int)(stackTop() - a) : 0;
 }
 int tidalHeapGap() {
     const uintptr_t a = deepestAddr();
-    return a ? (int)(a - (uintptr_t)__brkval) : 0;
+    return a ? (int)(a - stackFloor()) : 0;
 }
 
 namespace {
@@ -350,7 +362,11 @@ int tidalEditorStatusText(char* buf, int cap) {
     if (deep) add("stack: deepest %d.%d KB below the top of RAM, %d.%d KB to spare above the heap\n", deep / 1024,
                   deep % 1024 * 10 / 1024, gap / 1024, gap % 1024 * 10 / 1024);
     else add("stack: not measured\n");
-    add("heap end %d B below the top of RAM\n", (int)((uintptr_t)&_estack - (uintptr_t)__brkval));
+#ifndef PLATFORM_IMX
+    add("heap end %d B below the top of RAM\n", (int)(stackTop() - stackFloor()));
+#else
+    add("stack region %d B\n", (int)(stackTop() - stackFloor()));
+#endif
     add("%s\n", gStatus);
     int quiet = 0;
     for (int s = 0; s < tc::kSlots; s++) {
