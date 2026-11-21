@@ -248,6 +248,87 @@ bool loadFile(const char* path) {
     return true;
 }
 
+#ifdef PLATFORM_IMX
+// ---- boot diagnostics (Tracker Mini RC3) ----------------------------------------
+// A crash or hang while the code loads froze the Mini at the start screen's
+// 100% on every boot. Now a hard fault leaves its registers in tcFault
+// (platforms/imx/source/tc_fault.c) and resets; a marker file is on the card
+// from before the code loads until 3 s after: found at boot, the last boot
+// didn't get through, and the code is set aside (Workspace/crash.tidal) so
+// the editor starts empty. Both go into Workspace/tidal_fault.txt.
+// layout: platforms/imx/source/tc_fault.h
+struct TcFaultRecord {
+    uint32_t magic, pc, lr, psr, cfsr, hfsr, mmfar, bfar, sp, check;
+};
+extern "C" volatile TcFaultRecord tcFault;
+extern "C" uint32_t tcFaultSum(const volatile TcFaultRecord* r);
+constexpr uint32_t kTcFaultMagic = 0x7C0FA017u;
+constexpr const char* kBootMark = "Workspace/tidal_boot.txt";
+constexpr const char* kCrashCode = "Workspace/crash.tidal";
+constexpr const char* kFaultLog = "Workspace/tidal_fault.txt";
+bool gBootMarked = false;
+uint32_t gBootMarkMs = 0;
+tc::Label gBootMsg;  // shown once the code has loaded
+
+// true: the last boot didn't get past loading the code; it is set aside
+// and the editor starts empty
+bool bootCheck() {
+    FileSystem* fs = gPlatform->getFileSystem();
+    const bool faulted = tcFault.magic == kTcFaultMagic && tcFault.check == tcFaultSum(&tcFault);
+    const bool stuck = fs->exists(kBootMark);
+    char m[96];
+    tc::Label msg;
+    if (faulted || stuck) {
+        char log[320];
+        int n = 0;
+        if (faulted)
+            n = snprintf(log, sizeof log,
+                         "hard fault\npc %08lx\nlr %08lx\npsr %08lx\ncfsr %08lx\nhfsr %08lx\nmmfar %08lx\nbfar %08lx\nsp %08lx\n",
+                         (unsigned long)tcFault.pc, (unsigned long)tcFault.lr, (unsigned long)tcFault.psr,
+                         (unsigned long)tcFault.cfsr, (unsigned long)tcFault.hfsr, (unsigned long)tcFault.mmfar,
+                         (unsigned long)tcFault.bfar, (unsigned long)tcFault.sp);
+        else
+            n = snprintf(log, sizeof log, "no fault recorded (a hang, or a power cycle during the load)\n");
+        if (n > 0 && n < (int)sizeof log)
+            n += snprintf(log + n, sizeof log - n, "%s\n",
+                          stuck ? "the code load didn't finish: Workspace/project.tidal -> crash.tidal"
+                                : "after the code had loaded");
+        if (n > (int)sizeof log - 1) n = (int)sizeof log - 1;
+        tidalPlayerWriteText(kFaultLog, log, n, m, sizeof m);
+        tcFault.magic = 0;
+        if (faulted) msg.printf("last boot: fault at pc %08lx lr %08lx (Workspace/tidal_fault.txt)",
+                                (unsigned long)tcFault.pc, (unsigned long)tcFault.lr);
+        else msg = "last boot: stuck loading the code (Workspace/tidal_fault.txt)";
+    }
+    if (stuck) {
+        const char* text = nullptr;
+        int len = 0;
+        if (tidalPlayerReadText(kWorkspaceTidal, text, len, m, sizeof m))
+            tidalPlayerWriteText(kCrashCode, text, len, m, sizeof m);
+        fs->remove(kWorkspaceTidal);
+        fs->remove(kBootMark);
+        tc::Label err;
+        gEd->loadText("", 0, err);
+        gEd->showMessage(msg, true);
+        snprintf(gStatus, sizeof gStatus, "code set aside: crash.tidal");
+        return true;
+    }
+    if (faulted) gBootMsg = msg;
+    gBootMarked = tidalPlayerWriteText(kBootMark, "loading the code\n", 17, m, sizeof m);
+    gBootMarkMs = gPlatform->getTimer()->millis();
+    return false;
+}
+
+// the load got through and the main loop kept running: the marker goes
+void bootMarkUpdate() {
+    if (!gBootMarked || gPlatform->getTimer()->millis() - gBootMarkMs < 3000 ||
+        newFileManager.getCurrentOperation() != fmNoOperation)
+        return;
+    gBootMarked = false;
+    gPlatform->getFileSystem()->remove(kBootMark);
+}
+#endif
+
 }  // namespace
 
 bool DeviceOutput::save(const tc::Program& p, tc::Label& msg) {
@@ -441,10 +522,22 @@ void tidalEditorUpdate(Platform* platform) {
     if (!gLoaded && tidalPlayerStarted()) {
         gLoaded = true;
         setInstrumentNames();
+#ifdef PLATFORM_IMX
+        if (bootCheck()) gSavedChanges = gEd->changes();
+        else
+#endif
         // the working copy; before plan 4e the code lived in /project.tidal
         if (!loadFile(kWorkspaceTidal) && loadFile(kTidalPlayerFile)) gSavedChanges = gEd->changes() - 1;
         gDirty = true;
     }
+#ifdef PLATFORM_IMX
+    if (gLoaded && gBootMsg.c_str()[0]) {
+        gEd->showMessage(gBootMsg, true);
+        gBootMsg = "";
+        gDirty = true;
+    }
+    if (gLoaded) bootMarkUpdate();
+#endif
     if (gLoaded && gOpenPending && newFileManager.getCurrentOperation() == fmNoOperation) {
         gOpenPending = false;  // a project was opened: its code (copied to the workspace) replaces ours
         tidalPlayerHush();

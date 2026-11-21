@@ -76,8 +76,10 @@ void HardFault_Handler(void){
             "LDR    R3,=0xBEAB \n"
             "CMP     R2,R3 \n"
             "BEQ    _semihost_return \n"
-        // Wasn't semihosting instruction so enter infinite loop
-            "B . \n"
+        // Wasn't semihosting instruction: Tracker Cycles records the fault
+        // (R0 = the stacked frame) and resets (core/tidal/tidal_editor.cpp)
+            "LDR    R3,=tcFaultRecord \n"
+            "BX     R3 \n"
         // Was semihosting instruction, so adjust location to
         // return to by 1 instruction (2 bytes), then exit function
         "_semihost_return: \n"
