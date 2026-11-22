@@ -34,6 +34,8 @@ d9 $ time  "{1 1 0 ~ 1 1 ~}%16"       -- 1 = note, 0 = tie, ~ = rest
 * **Scrolling up** through blocks that are more than a page: the cursor moves up through the blocks on screen, and the page scrolls only when the current block reaches the top (it used to scroll on every step).
 * **Screen 2 `#` / FX2 at the end of a block** append the new control (on the last value, e.g. the `0.3` of `# room 0.3`, they used to say "nothing fits here"). From inside any control the new one goes straight after it, without brackets (`# gain 0.9 # crush 4 # room 0.3`, not `# (gain 0.9 # crush 4)`).
 * **Copy on a `#`** (the `#` itself, or the stop just before it) copies the whole control, `# gain 0.9`. **Paste** of it on a `#` replaces that control; anywhere else it is added at the end of the block. Other operators (`|+ n 12` ...) work the same way.
+* **New blocks** (Insert at a block's top, then a slot pad) start as the empty placeholder above the current block, like the one Delete leaves, instead of `dN $ silence`. Note / Instrument / Screen 1-8 start it, Up / Down leave it.
+* **Pads in Bool patterns** (the acid `acc` / `slid` / `time`, `struct`, `mask` ...): pad 1 enters `0`, pad 2 `1` (`f` / `t` in a pattern written with t / f), pad 48 a rest `~`. On the Mini's note entry these are Screen 1, 2 and 8.
 * Copy no longer moves the cursor back to the start of the block when it is on an operator, and a slot pad pressed while on a `#` no longer leaves the cursor on the new block's operator.
 
 ### Other changes

@@ -21,8 +21,7 @@ hw:shift+pad3
 hw:shift+insert
 hw:insert
 hw:shift+pad3
-hw:shift+insert
-hw:delete
+hw:up
 msg
 hw:shift+pad1
 msg

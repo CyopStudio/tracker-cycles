@@ -6,7 +6,7 @@ msg: new d1 block: Note / Instrument / Screen 1-8 start it, Up / Down leave it
 msg: d1 block 1 of 2 (playing) (Up / Down: blocks, Right: into it, Insert + pad: new block above)
 msg: d1 block 2 of 2 (Up / Down: blocks, Right: into it, Insert + pad: new block above)
 msg: d1 block 1 of 2 (playing) (Up / Down: blocks, Right: into it, Insert + pad: new block above)
-msg: block deleted (Up / Down: the blocks around)
+msg: d2 block (Up / Down: blocks, Right: into it, Insert + pad: new block above)
 msg: d1 block 1 of 2 (playing): Shift+Up / Down: the others, the pad again: a new one
 msg: d1 block 1 of 2 (playing): Shift+Up / Down: the others, the pad again: a new one
 setcps (120/60/4)

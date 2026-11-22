@@ -166,6 +166,7 @@ public:
     // Pad number entry: active anywhere in a numeric pattern (Time / Double /
     // Int / Note: a step, a group, the quotes) or on a number argument.
     bool padNumeric() const;
+    bool padBool() const;  // in a Bool pattern (acc, slid, time, struct ...): pads 1 / 2 = 0 / 1, pad 48 = ~
     // Entry pads held down (number / instrument pads, by pad index): a pad
     // entered while another is still held adds to a chord, the step before
     // the gap becomes "[a,b,...]" (and the block gets `# voices 3`).

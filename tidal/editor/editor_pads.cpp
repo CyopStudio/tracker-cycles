@@ -18,10 +18,36 @@ bool Editor::padNumeric() const {
            n.type == kTyPatBase + (int)Base::Int || n.type == kTyPatBase + (int)Base::Note;
 }
 
+// Bool patterns (UI notes 2026-11-22): `acc "0 1"`, `time "1 0 ~"`,
+// `struct "t f"`: the cursor on the quotes or anything inside them.
+bool Editor::padBool() const {
+    if (menuOpen_ || !cursor_) return false;
+    const Node& n = prog_->at(cursor_);
+    return (n.kind == Kind::Mini || isMiniKind(n.kind)) && n.type == kTyPatBase + (int)Base::Bool;
+}
+
+// A Bool step in the pattern's own style: 1 / 0, or t / f when the pattern
+// already writes them so.
+static const char* boolText(const Program& p, uint16_t at, bool on) {
+    uint16_t m = at;
+    while (m && p.at(m).kind != Kind::Mini) m = p.parentOf(m);
+    struct Find {
+        static int style(const Program& p, uint16_t n) {  // 1 digits, 0 letters, -1 none
+            if (!n) return -1;
+            if (p.at(n).kind == Kind::MBool) return (p.at(n).flags & kDigitStyle) ? 1 : 0;
+            for (uint16_t c = p.at(n).first; c; c = p.at(c).next)
+                if (int s = style(p, c); s >= 0) return s;
+            return -1;
+        }
+    };
+    const bool letters = m && Find::style(p, m) == 0;
+    return letters ? (on ? "t" : "f") : (on ? "1" : "0");
+}
+
 bool Editor::cursorInt(int& v) const {
     if (!cursor_) return false;
     const Node& n = prog_->at(cursor_);
-    if (n.kind == Kind::MNote) {
+    if (n.kind == Kind::MNote || n.kind == Kind::MBool) {
         v = (int32_t)n.a;
         return true;
     }
@@ -54,6 +80,12 @@ uint16_t ed::valueOf(const Program& p, uint16_t step) {
 void Editor::enterNumber(int v, bool rest) {
     headGap_ = preSym_ = false;
     padAgain_ = -1;
+    if (padBool()) {  // pads 1 / 2 = 0 / 1 (or f / t), pad 48 = a rest
+        if (rest) return enterStep("~", "", "~");
+        if (v != 0 && v != 1) return error("in a Bool pattern pad 1 = 0, pad 2 = 1, pad 48 = ~");
+        const char* b = boolText(*prog_, cursor_, v == 1);
+        return enterStep(b, "", b);
+    }
     if (!padNumeric()) return error("pads enter numbers inside a numeric pattern");
     Text n = tnum(v);
     if (rest) return enterStep("~", "", "~");

@@ -73,6 +73,10 @@ Control MiniInput::screenControl(const Editor& ed, int i, bool shift) const {
         const int s = loadedSlot(ed, insWin_ + i);
         return s < 0 ? Control::Count : padCtl(s);  // past the last one: a blank key
     }
+    if (ed.padBool()) {  // 0 / 1 on Screen 1 / 2, a rest on Screen 8
+        if (i == 0 || i == 1) return padCtl(i);
+        return i == kWindow - 1 ? padCtl(kRestPad) : Control::Count;
+    }
     if (ed.padNumeric()) return padCtl(numWin_ + i);
     return slot;
 }

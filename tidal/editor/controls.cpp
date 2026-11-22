@@ -157,6 +157,17 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
             k.label = ed.instrument(i);
             return k;
         }
+        if (!shift && ed.padBool()) {
+            // Bool patterns (acc, slid, time, struct): pad 1 = 0, pad 2 = 1,
+            // the bottom right pad (48) = a rest; the others do nothing
+            if (i != 0 && i != 1 && i != kRestPad) return {};
+            Command k;
+            k.type = Command::Number;
+            k.rest = i == kRestPad;
+            k.number = i;
+            k.label = k.rest ? "~" : i ? "1" : "0";
+            return k;
+        }
         if (!shift && ed.padNumeric()) {
             Command k;
             k.type = Command::Number;

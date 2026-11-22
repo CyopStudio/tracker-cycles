@@ -107,26 +107,23 @@ void Editor::selectBlock(uint16_t b) {
     cursor_ = b;
 }
 
-// Insert, then slot pad N at a block's top: a new block for dN (silence)
-// above the current block; the cursor on `silence`, ready for Replace.
+// Insert, then slot pad N at a block's top: a new block for dN above the
+// current block, as the empty placeholder.
 void Editor::newBlockAbove(int slot) {
-    if (!beginEdit()) return;
-    Program* p = prog_;
-    const uint16_t cur = prog_->block[slot_];
-    int pos = cur ? p->blockIndex(cur) : -1;
-    if (pos < 0) pos = p->blockCount();
-    uint16_t b = p->alloc(Kind::Block);
-    Error e;
-    uint16_t x = b ? parseExpr(*p, "silence", 7, e) : 0;
-    if (!b || !x) return abortEdit(), error("program full");
-    p->at(b).a = (uint32_t)slot;
-    p->appendChild(b, x);
-    if (!p->insertBlock(pos, b)) return abortEdit(), error("too many blocks (max " + tnum(kMaxBlocks) + ")");
-    p->block[slot] = b;
-    slot_ = slot;  // the check runs on the new block
-    if (!endEdit(x)) return;
-    if (state_[slot] == SlotState::Empty) state_[slot] = SlotState::Edited;
-    info("new block for d" + tnum(slot + 1) + ": Replace the silence to start");
+    // the empty placeholder above the current block (no `dN $ silence`: UI
+    // notes 2026-11-22, like Delete leaves); Note / Instrument / Screen 1-8
+    // / FX start the block there, Up / Down leave it
+    const Program& p = *prog_;
+    const uint16_t cur = p.block[slot_];
+    int pos = cur ? p.blockIndex(cur) : -1;
+    if (pos < 0) pos = p.blockCount();
+    if (p.blockCount() >= kMaxBlocks) return error("too many blocks (max " + tnum(kMaxBlocks) + ")");
+    slot_ = slot;
+    cursor_ = 0;
+    gapSeq_ = 0;
+    emptyPos_ = pos;
+    Label m;
+    info(m.printf("new d%d block: Note / Instrument / Screen 1-8 start it, Up / Down leave it", slot + 1));
 }
 
 void Editor::selectMenu(int i) {

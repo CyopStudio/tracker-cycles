@@ -188,7 +188,31 @@ void testMiniInput(int& pass, int& fail) {
     tap(ed, m, MiniKey::Insert);
     tap(ed, m, MiniKey::Screen2);
     EXPECT(!ed.newBlockArmed(), "used up");
-    EXPECT(fileOf(ed).find("d3 silence\n\nd2 $") != std::string::npos, "a new d3 block above d2: %s",
-           fileOf(ed).c_str());
+    // a new d3 block above d2: the empty placeholder there (no silence)
+    EXPECT(ed.slot() == 2 && !ed.cursor() && ed.emptyRowIndex() == 1 && fileOf(ed).find("silence") == std::string::npos,
+           "a new d3 block above d2: slot %d, row %d: %s", ed.slot() + 1, ed.emptyRowIndex(), fileOf(ed).c_str());
     EXPECT(m.screenControl(ed, 2, false) == Control::Screen2, "Screen 3 again");
+
+    // Bool patterns (UI notes 2026-11-22): 0 / 1 on Screen 1 / 2, ~ on Screen 8
+    {
+        static Program bp;
+        static Checkpoint bc;
+        static uint8_t bu[64 * 1024];
+        static Editor be(bp, bc, bu, (int)sizeof bu);
+        const char* acid = "d9 $ time \"1 0\" # note \"c2\"\n";
+        EXPECT(be.loadText(acid, (int)strlen(acid), err), "acid: %s", err.c_str());
+        be.setCursorMode(true);
+        be.gotoSlot(8);
+        MiniInput bm;
+        tap(be, bm, MiniKey::Note, true);
+        for (int i = 0; i < 3; i++) be.act(Action::Right);  // the first step of time
+        EXPECT(be.padBool(), "on the time pattern");
+        EXPECT(bm.screenControl(be, 0, false) == padCtl(0) && bm.screenControl(be, 1, false) == padCtl(1) &&
+                   bm.screenControl(be, 7, false) == padCtl(kRestPad) && bm.screenControl(be, 3, false) == Control::Count,
+               "Screen 1 / 2 / 8 = 0 / 1 / ~, the rest blank");
+        tap(be, bm, MiniKey::Screen0);  // 0 over the first step, then insert
+        tap(be, bm, MiniKey::Screen7);
+        tap(be, bm, MiniKey::Screen1);
+        EXPECT(fileOf(be).find("time \"0 ~ 1 0\"") != std::string::npos, "entered 0 ~ 1: %s", fileOf(be).c_str());
+    }
 }
