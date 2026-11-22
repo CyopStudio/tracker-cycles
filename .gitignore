@@ -3,6 +3,7 @@ agt/
 
 # Build outputs
 /build/
+/build-mini/
 core/build-*/
 platforms/mk66/build/
 platforms/imx/build-*/

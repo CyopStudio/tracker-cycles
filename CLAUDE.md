@@ -193,6 +193,10 @@ what's new). Main points:
   `arm-none-eabi-size -A platforms/mk66/build/PolyendTracker.axf`.
 - Device test builds: copy the image to `build/PolyendTrac_<Name>RC<n>.ptf`
   for the user (see the .ptf name rule below).
+  The build workflow also publishes test builds for every push / PR: the
+  Original as `tracker-cycles-firmware`, the Mini as
+  `tracker-cycles-mini-firmware` (TrackerMini_Cyc_<sha>.ptf; not on `v`
+  tags, so releases stay Original-only). Don't commit .ptf images (user).
 
 ## Layout
 - core/      shared app, audio engine, UI (+ synth engines, IMX-only)

@@ -55,6 +55,17 @@ jobs:
           fi
           make original $POSTFIX_ARGS 2>&1 | tee build_output.log
 
+      - name: Build Tracker Mini firmware (test builds only)
+        # the Mini port is in device testing: not attached to releases yet
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        run: |
+          set -o pipefail
+          SHORT_SHA=$(git rev-parse --short=7 HEAD)
+          # TrackerMini_Cyc_<sha>.ptf (the Mini's updater lists TrackerMini*.ptf)
+          make mini MINI_POSTFIX=Cyc_${SHORT_SHA} 2>&1 | tee build_mini.log
+          mkdir -p build-mini
+          mv build/TrackerMini_*.ptf build-mini/
+
       - name: Build reference .ptfx Sample Editor plugins
         run: |
           make ptfx
@@ -73,6 +84,14 @@ jobs:
             echo "\`\`\`text"
             grep -E "^ Building |=== Building|Memory region|FLASH:|RAM:|EXTERNAL_RAM:" build_output.log || true
             echo "\`\`\`"
+            if [ -f build_mini.log ]; then
+              echo ""
+              echo "### Linker Memory Usage (Tracker Mini)"
+              echo "\`\`\`text"
+              ls -lh build-mini/*.ptf || true
+              grep -E "QSPI_FLASH:|SRAM_DTC:|SRAM_ITC:|SRAM_OC:|EXTERNAL_RAM:" build_mini.log || true
+              echo "\`\`\`"
+            fi
           } > pr_summary.md
 
           {
@@ -82,6 +101,7 @@ jobs:
             echo ""
             echo "> **Downloads (Bottom of Summary Page)**:"
             echo "> * **\`tracker-cycles-firmware\`**: the ready-to-flash \`.ptf\` for the **Original Polyend Tracker**."
+            echo "> * **\`tracker-cycles-mini-firmware\`**: the test \`.ptf\` for the **Tracker Mini** (copy it to \`/Firmware/\` on the Mini's card)."
             echo "> * **\`tracker-cycles-effects\`**: unzip and copy the **\`Effects/\`** folder to the root of the Tracker's microSD card."
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -90,6 +110,13 @@ jobs:
         with:
           name: tracker-cycles-firmware
           path: build/*.ptf
+
+      - name: Upload Tracker Mini Firmware Artifact (.ptf)
+        if: ${{ !startsWith(github.ref, 'refs/tags/v') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: tracker-cycles-mini-firmware
+          path: build-mini/*.ptf
 
       - name: Upload Sample Editor Effects Artifact (Effects/*.ptfx)
         uses: actions/upload-artifact@v4
