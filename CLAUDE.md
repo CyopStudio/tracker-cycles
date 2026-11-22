@@ -59,6 +59,12 @@ past measurement.
 - **core/interface/tidalEditor**: the FT812 view (bitmap-glyph code view,
   menus, info box, soft keys); module slot 2.
 - **core/AudioEngine/mtAudioTidal.cpp**: playerEngine::tidalNoteOn.
+- **USB** (from CE 048809b + b03f888, platforms/mk66/3rdparty/teensy_core
+  usb_msc / usb_audio / usb_desc / usb_dev, source/UsbImpl / UsbAudioImpl):
+  storage mode and audio out (master mix, output only on MK66). Storage
+  mode calls tidalStorageModeEnter / Exit (hush, flush the code, hold
+  Tidal's card access: tidalPlayerSetCardSuspended). USB interrupt priority
+  3 (above audio). CE's stereo samples from that commit are not ported.
 
 Runtime: the scheduler queries on the main loop (lookahead 250 ms, windows
 <= 125 ms) into per-slot SPSC rings of 48 B entries; the audio interrupt

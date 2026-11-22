@@ -312,6 +312,26 @@ void tidalProjectSaved() {
 
 void tidalProjectNew() { gNewPending = true; }
 
+bool tidalStorageModeEnter() {
+    if (tidalFoldersBusy()) return false;  // its SD writes can't stop half way
+    tidalPlayerHush();
+    if (gEd && gLoaded && gEd->changes() != gSavedChanges) {  // the autosave, now
+        const int n = renderProgram(*reinterpret_cast<tc::Program*>(progRaw));
+        char m[96];
+        if (n >= 0 && tidalPlayerWriteText(kWorkspaceTidal, saveText, n, m, sizeof m)) gSavedChanges = gEd->changes();
+    }
+    tidalPlayerSetCardSuspended(true);
+    snprintf(gStatus, sizeof gStatus, "USB storage mode: hushed, the card is the computer's");
+    gDirty = true;
+    return true;
+}
+
+void tidalStorageModeExit() {
+    tidalPlayerSetCardSuspended(false);
+    snprintf(gStatus, sizeof gStatus, "USB storage mode ended");
+    gDirty = true;
+}
+
 int tidalStackDeepest() {
     const uintptr_t a = deepestAddr();
     return a ? (int)((uintptr_t)&_estack - a) : 0;
@@ -459,7 +479,7 @@ void tidalEditorUpdate(Platform* platform) {
         // the SD write (open, write, close) blocks the main loop: only while
         // the scheduler has 0.2 s queued, so it can't cost notes (it waits
         // otherwise; nothing playing counts as ahead)
-        if (gLoaded && gEd->changes() != gSavedChanges && now - gChangedMs >= 2000 &&
+        if (gLoaded && gEd->changes() != gSavedChanges && now - gChangedMs >= 2000 && !tidalPlayerCardSuspended() &&
             newFileManager.getCurrentOperation() == fmNoOperation && tidalPlayerAheadSeconds() >= 0.2f) {
             const int n = renderProgram(*reinterpret_cast<tc::Program*>(progRaw));
             char m[96];
@@ -483,7 +503,7 @@ void tidalEditorUpdate(Platform* platform) {
         gDirty = true;
     }
     // a sample folder loading in the background: a step, and its messages
-    tidalFoldersUpdate(platform);
+    if (!tidalPlayerCardSuspended()) tidalFoldersUpdate(platform);  // USB storage mode: the card isn't ours
     {
         char m[96];
         bool err = false;

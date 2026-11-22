@@ -26,7 +26,7 @@ constexpr uint8_t baseMenuGroupCount = 7;
 constexpr uint8_t projectMenuGroupCount = 10;
 constexpr uint8_t generalMenuGroupCount = 12;
 #else
-constexpr uint8_t baseMenuGroupCount = 6;
+constexpr uint8_t baseMenuGroupCount = 7;  // Tracker Cycles: + USB (storage, audio out)
 constexpr uint8_t projectMenuGroupCount = 10;
 constexpr uint8_t generalMenuGroupCount = 12;
 #endif
@@ -45,9 +45,7 @@ cMenuGroup menuProject(menuBase, "Project Settings", projectMenuGroupCount);
 cMenuGroup menuGeneral(menuBase, "General", generalMenuGroupCount);
 cMenuGroup menuMidi(menuBase, "MIDI", 11);
 
-#ifdef PLATFORM_IMX
 cMenuGroup menuUsb(menuBase, "USB", 2);
-#endif
 
 cMenuGroup menuMetro(menuBase, "Metronome", 5);
 cMenuGroup menuFirmware(menuBase, "Firmware", 4);
@@ -279,7 +277,6 @@ cMenuItem melResetConfig(menuFirmware,
 //==================================================================================================================================================================
 // USB
 
-#ifdef PLATFORM_IMX
 const strItemTypeActionButton usbStorageSetup{ usbStorageEnter, nullptr };
 const strItemTypeListTextWithAction usbAudioSetup{ &mtConfig.common.usbAudioMode,
                                               sizeof(kUsbAudioList)/sizeof(kUsbAudioList[0]), kUsbAudioList, usbAudioChange };
@@ -295,7 +292,6 @@ cMenuItem melUsbAudio(menuUsb,
 						  usbAudioDesc,
 						  menuTypeItemListTextWithAction,
                           &usbAudioSetup);
-#endif
 //==================================================================================================================================================================
 // File transfer
 // const strItemTypeActionButton startfileTransferSetup 		{ startFileTransferMode, nullptr};

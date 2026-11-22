@@ -24,10 +24,10 @@ class AudioOutput
     };
 
     AudioOutput();
+    UsbOutputStream* getUsbStream();
 #ifndef PLATFORM_IMX
     AudioMux* getLimiterSidechainMux();
 #else
-    UsbOutputStream* getUsbStream();
     AudioMux* getLimiterSidechainMux(OutputChannels channel);
 #endif
     AudioEffectLimiter* getLimiter(OutputChannels channel);
@@ -39,8 +39,8 @@ class AudioOutput
     AudioMux limiterSidechainMux;
 #else
     AudioMux limiterSidechainMux[OutputChannels::kChannelsCount];
-    UsbOutputStream usbOutput;
 #endif
+    UsbOutputStream usbOutput;  // Original Tracker: the master mix, 2 channels (USB audio out)
     AudioEffectLimiter limiter[OutputChannels::kChannelsCount];
     AudioOutputStream outputStream;
     AudioMixer<FinalMixInputs::kFinalMixerSize> finalMixer[OutputChannels::kChannelsCount];

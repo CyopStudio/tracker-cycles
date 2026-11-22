@@ -14,6 +14,7 @@
 #include "masterParams/masterParams.h"
 #include "placeholder/placeholder.h"
 #include "tidalEditor/tidalEditor.h"
+#include "../../tidal/tidal_editor.h"
 #include "mtAudioEngine.h"
 #include "projectEditor/projectEditor.h"
 #include "sampleEditor/sampleEditor.h"
@@ -390,6 +391,13 @@ void Interface::handleFileTransferMode(uint8_t state)
 
     if (state)
     {
+        // Tracker Cycles: hush, write the code, hold Tidal's card access (not
+        // while a sample folder is loading: the mode isn't entered then)
+        if (!tidalStorageModeEnter())
+        {
+            return;
+        }
+
         // The host is about to own the card: playback must not keep streaming
         // samples from it, and live recording must not leave changes behind
         // for autosave to write to it. The armed state covers the pre-roll.
@@ -402,6 +410,7 @@ void Interface::handleFileTransferMode(uint8_t state)
         // Also the check that no other file operation is using the card.
         if (!newFileManager.flushWorkspaceSave())
         {
+            tidalStorageModeExit();
             return;
         }
 
@@ -430,6 +439,7 @@ void Interface::handleFileTransferMode(uint8_t state)
         }
         voiceStreamManager.setSuspended(false);
         newFileManager.setWorkspaceSaveSuspended(false);
+        tidalStorageModeExit();
         activateInterface();
     }
 

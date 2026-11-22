@@ -233,12 +233,21 @@ const char* const slaveClockComp[kExternalClockCompMaxVal + 1] = {
     "-6", "-5", "-4", "-3", "-2", "-1", "0", "1", "2", "3", "4", "5", "6",
 };
 
+#ifdef PLATFORM_IMX
 const char* const kUsbAudioList[4] = {
     "Off",
     "Input (2 in)",
     "Output (28 out)",
     "In/Out (2 in, 28 out)",
 };
+#else
+// Tracker Cycles on the Original Tracker: output only (the master mix to the
+// computer); mtConfig.common.usbAudioMode 1 = output here
+const char* const kUsbAudioList[2] = {
+    "Off",
+    "Output (2 out)",
+};
+#endif
 //############################################################################################
 //						OPISY PARAMETROW MENU CONFIG
 //############################################################################################

@@ -155,9 +155,14 @@ void setTempoFromCps() {
 
 // ---- API ----------------------------------------------------------------------------
 
+static volatile bool gCardSuspended = false;
+void tidalPlayerSetCardSuspended(bool on) { gCardSuspended = on; }
+bool tidalPlayerCardSuspended() { return gCardSuspended; }
+
 bool tidalPlayerReadText(const char* path, const char*& text, int& len, char* msg, int msgLen) {
     msg[0] = 0;
     if (!gPlatform) return snprintf(msg, msgLen, "the player isn't running yet"), false;
+    if (gCardSuspended) return snprintf(msg, msgLen, "the card is in USB storage mode"), false;
     FileSystem* fs = gPlatform->getFileSystem();
     if (!fs->exists(path)) return snprintf(msg, msgLen, "no %s on the card", path), false;
     auto [ok, fh] = fs->openFile(path, FileSystem::kRead);
@@ -178,6 +183,8 @@ bool tidalPlayerReadFile(const char*& text, int& len, char* msg, int msgLen) {
 }
 
 bool tidalPlayerWriteText(const char* path, const char* text, int len, char* msg, int msgLen) {
+    if (!gPlatform) return snprintf(msg, msgLen, "the player isn't running yet"), false;
+    if (gCardSuspended) return snprintf(msg, msgLen, "the card is in USB storage mode"), false;
     FileSystem* fs = gPlatform->getFileSystem();
     auto [ok, fh] = fs->openFile(path, FileSystem::kWriteCreateNew);
     if (!ok || !fh) return snprintf(msg, msgLen, "can't write %s", path), false;

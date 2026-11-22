@@ -155,14 +155,10 @@ class AudioStream
     static uint16_t memory_used_max;
     static bool renderMode;
     static void update_all(void);
-#ifdef PLATFORM_IMX
     static void setUsbAudio(UsbAudio* usbAudio) { AudioStream::usbAudio = usbAudio; }
-#endif
 
   protected:
-#ifdef PLATFORM_IMX
     static UsbAudio* usbAudio;
-#endif
     bool active;
     unsigned char num_inputs;
     static audio_block_t* allocate(void);
