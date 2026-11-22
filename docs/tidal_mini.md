@@ -95,8 +95,8 @@ core/interface/tidalEditor/tidalEditor.cpp is the only place to change.
 
 ## Boot diagnostics (RC3)
 
-`crash_project.tidal` (a `splice` line) froze the Mini at the start
-screen's 100% on every boot (RC2); on the host it loads, plays and lays out
+A project whose code was `d1 $ splice 4 "0 1 2 3" $ s "amen_brother"`
+froze the Mini at the start screen's 100% on every boot (RC2); on the host it loads, plays and lays out
 cleanly. RC3 records a hard fault (platforms/imx/source/tc_fault.c: the
 registers in SRAM_ITC no-init memory, then a reset) and keeps a marker file
 (`Workspace/tidal_boot.txt`) from before the code loads until 3 s after.
@@ -104,7 +104,8 @@ At boot either one writes `Workspace/tidal_fault.txt` and shows it on the
 message line; with the marker the code is set aside as
 `Workspace/crash.tidal` and the editor starts empty.
 
-Device results (the file is docs/crash_project.tidal):
+Device results (the repro file, docs/crash_project.tidal, was removed
+2026-11-22; it held only the line above):
 - RC3 / RC4: the Mini powers off instead of hanging (the reset after a
   fault drops the power latch); the SRAM record is lost with the power,
   only the marker is left.
@@ -116,8 +117,8 @@ Device results (the file is docs/crash_project.tidal):
   looked fixed because the code had been set aside.
 - On the host the file loads, plays and lays out cleanly (ASan / UBSan,
   every geometry 1-60 columns, the Mini soft keys).
-Next: breadcrumbs on the card per stage (open / write / close each, only
-during the boot's code load), or the code loaded a pass after the editor
+Parked (user, 2026-11-22). Next, when picked up: breadcrumbs on the card
+per stage (open / write / close each, only during the boot's code load), or the code loaded a pass after the editor
 first draws, to see which step stops it. If it comes back,
 `tidal_fault.txt`'s pc / lr against that RC's .axf give the function.
 

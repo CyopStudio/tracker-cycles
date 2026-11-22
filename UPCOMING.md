@@ -21,8 +21,8 @@ For what is in the current release, see [`CHANGELOG.md`](CHANGELOG.md).
 - Insert on a dN: the screen keys become d1-d8 for a new block (Shift+Insert
   d9-d16). Note entry in an `s` pattern lists only loaded instruments.
   Instrument on a sample name opens the sample menu (both models).
-- **Open bug:** docs/crash_project.tidal (`splice ... $ s "amen_brother"`)
-  stops the Mini during the boot's code load (RC2 hung at 100%, RC3+
-  power off). The Mini now sets such code aside (Workspace/crash.tidal)
+- **Open bug (parked):** `d1 $ splice 4 "0 1 2 3" $ s "amen_brother"`
+  as a project's code stops the Mini during the boot's code load (RC2
+  hung at 100%, RC3+ power off). The Mini now sets such code aside (Workspace/crash.tidal)
   and boots empty; the cause isn't found yet (docs/tidal_mini.md, "Boot
   diagnostics").
