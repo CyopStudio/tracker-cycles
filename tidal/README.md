@@ -164,7 +164,7 @@ The prototype starts in cursor mode; `--mode tree` starts in tree mode
 | Shift + Screen 7 | by context (its label shows which): on a step `?` (`x?0.5`, the cursor on the chance), at a gap between two numbers `..` (`0 7` → `0 .. 7`), elsewhere `\n`: a line break before the argument at the cursor, or before the operator / `$` it belongs to (again: removed; kept in the file, statements for GHCi stay on one line) | | F7 |
 | Shift + Screen 8 | Ctrl+Z (undo) | | F8 / `z` |
 | Screen 1 `$` | menu: functions applied with `$` (`fast 2 $ …`, `every 4 rev $ …`); from inside `"..."` on the enclosing pattern | | |
-| Screen 2 `#` | menu: `# control` (all) | | |
+| Screen 2 `#` | menu: `# control` (all); from inside a control (its name, value or `"..."`) the new one goes straight after it, so at a block's end it is appended | | |
 | Screen 3–6 | at once, no menu (RC19 notes): the step / selection / the quotes' sequence / a plain number becomes `[x]`, `<x>`, `{x}%4`, `x(3,8)` (the cursor inside, on the euclid's 3); at a gap a new `[~]`, `<~>`, `{~}%4`, `~(3,8)` with the cursor on its `~`, so pads enter into it | | |
 | Screen 7 `\|` inside `"..."` | menu: `[x \| ~]` …, at a gap `[a \| b]` / `a \| b \| c`, a selection `[a \| b \| c]` at once | | |
 | Screen 8 `\|+` | operators: on an operator's symbol or its right side (the control Screen 2 just added) every operator that fits in its place (`# gain 1` → `\|* gain 1`); elsewhere the menu that adds an operator with a control (on a number pattern also in front: `"0,7,10" +\| x`) | | |
@@ -178,14 +178,14 @@ The prototype starts in cursor mode; `--mode tree` starts in tree mode
 | Shift + Insert (Home) | jump to the block's top (`dN $` / `jumpMod N k $`) | | Home |
 | Delete | inside `"..."`: a step becomes `~` (timing stays), a `~` is removed, elsewhere: delete (operand, or leave a `??` hole); all of a block's code: the block goes (an empty placeholder in its place) | | `x` / Del |
 | Shift + Delete (Backspace) | unwrap (same as Screen 3) | | |
-| Copy | copy the selection; at a block's top: duplicate the block below it | | Ctrl+C |
-| Shift + Copy (Paste) | replace the selection with the copy; a step can be pasted as a pattern (`"bd"`); works on an empty slot | | Ctrl+V |
+| Copy | copy the selection; on an operator (its symbol, or the bar before it in cursor mode) the operator with its right side (`# gain 0.9`); at a block's top: duplicate the block below it | | Ctrl+C |
+| Shift + Copy (Paste) | replace the selection with the copy; a step can be pasted as a pattern (`"bd"`); works on an empty slot. A copied `# gain 0.9`: on an operator it replaces that one (symbol and right side), elsewhere it goes on the end of the block | | Ctrl+V |
 | Note | jump to the block's `n` / `note` pattern, first step (adds `# n "0"` if there is none): pads then enter notes | | `n` |
 | Shift + Note | chord menu on the note at the cursor (in a gap: the step before it): `e'maj`, `e'min`, `'maj7`, `'dom7`, `'min7`, `'dim`, `'dim7`, `'aug`, `'sus2`, `'sus4`, `'six`, `'five`, root as a note name (Tidal: c5 = 0); on a chord also "single note"; not on a range's end. Adds `# voices 3` to a sample block without `voices` | | |
 | Pads held together | a chord: a pad entered while another entry pad is still held turns the step before the gap into a stack, `"[0,4,7]"` / `"[bd,sd]"` (up to 8); the first chord on a sample block without `voices` adds `# voices 3` (MIDI blocks play chords anyway). Not on a range or group the entry just ended | | Ctrl+click pads, then a plain click on the last |
 | Instrument | jump to the block's `s` / `sound` pattern, first step (adds `# s "bd"` if there is none): pads then pick instruments; not on MIDI blocks. On a sample name in an `s` pattern: the sample menu (pick another) | | `s` |
 | FX1 | functions menu: time, structure, randomness, layering, sample cutting (`fast`, `every`, `jux`, `chop` …) applied with `$` | | `f` |
-| FX2 | effects menu (sound controls): `# cutoff`, `# room`, `# delay`, `# crush`, `# shape`, `# pan`, `# gain`, envelopes; from inside `"..."` on the enclosing pattern | | `c` |
+| FX2 | effects menu (sound controls): `# cutoff`, `# room`, `# delay`, `# crush`, `# shape`, `# pan`, `# gain`, envelopes; from inside `"..."` on the enclosing pattern; from inside a control, straight after it (as Screen 2) | | `c` |
 | Play | evaluate current block (RC14: Play and Pattern swapped) | OK | `e` |
 | Shift + Play | silence the current dN (`dN silence`; the code stays, Play plays it again) | | |
 | Shift + Master | device: the status view (cps, audio load, voices, stack, each block's state; also written to `/tidal_status.txt`) | | |

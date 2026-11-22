@@ -29,6 +29,13 @@ d9 $ time  "{1 1 0 ~ 1 1 ~}%16"       -- 1 = note, 0 = tie, ~ = rest
 * **USB audio out** (Config > USB > Audio: `Off` / `Output (2 out)`): the master mix as a 44.1 kHz / 16-bit stereo USB audio device, to record a set into a DAW. Connect the Tracker directly to the computer (no hub). USB audio input isn't offered (the sample recorder it fed was removed). On a busy set, streaming adds audio-interrupt load.
 * Ported from Tracker CE (USB storage and audio for the Original Tracker, and its Windows mount fix); stereo samples from the same CE change are not included.
 
+### Editor polish (Original Tracker and Mini)
+
+* **Scrolling up** through blocks that are more than a page: the cursor moves up through the blocks on screen, and the page scrolls only when the current block reaches the top (it used to scroll on every step).
+* **Screen 2 `#` / FX2 at the end of a block** append the new control (on the last value, e.g. the `0.3` of `# room 0.3`, they used to say "nothing fits here"). From inside any control the new one goes straight after it, without brackets (`# gain 0.9 # crush 4 # room 0.3`, not `# (gain 0.9 # crush 4)`).
+* **Copy on a `#`** (the `#` itself, or the stop just before it) copies the whole control, `# gain 0.9`. **Paste** of it on a `#` replaces that control; anywhere else it is added at the end of the block. Other operators (`|+ n 12` ...) work the same way.
+* Copy no longer moves the cursor back to the start of the block when it is on an operator, and a slot pad pressed while on a `#` no longer leaves the cursor on the new block's operator.
+
 ### Other changes
 
 * MIDI: a note of a pitch that is still sounding (overlapping notes, e.g. `legato 2`) now releases the old note before it starts again.
