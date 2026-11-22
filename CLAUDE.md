@@ -86,8 +86,9 @@ sends slide offs after the next note-on and extends held notes on ties.
 ## Editor controls
 The full, current table is **tidal/README.md, "Controls (window)"**; the
 v2 / v3 UI plans are docs/tidal_ui_v2.md and docs/tidal_ui_v3.md; the user's
-device notes are docs/UI-changes.md (the user's file: never commit or
-revert it). Main points:
+device notes are docs/UI-changes.md (the user's file, tracked: never
+revert or rewrite it; new notes go under a dated heading, `git diff` shows
+what's new). Main points:
 - Every input goes through an Original Tracker control (tidal/editor/
   controls.cpp); prototype keys press a control or do nothing. The
   prototype draws the real front panel (tidal/proto/panel.cpp).

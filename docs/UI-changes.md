@@ -209,3 +209,17 @@ let's have a short flash highlight of the code block on evaluation
 on adding a # or $, cursor should go to the parameters of the function after insertion
 
 I don't like replace wrap unwrap. should be done based on context
+
+
+#2026-11-22 
+
+These notes are for the OG tracker. We should apply the fixes to both the OG and the mini if they apply
+
+When scrolling through multiple dN blocks that have more than a page, the cursor move like you would expect on the way down, but on the way up, the cursor should move up the blocks and only scroll up when it reaches the top of the screen
+
+# screen button when at the end of a block should append the new # function. at the moment it rejects.
+
+copy when on a # block should copy the whole # function
+
+pasting a # block should append it to the end of the dN block. it should only overwrite a block if the cursor is on a # (or equivalent)
+
