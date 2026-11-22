@@ -19,7 +19,21 @@ MiniTarget pressOf(Control c, bool shift) {
     return t;
 }
 
-int clampWindow(int w) { return w < 0 ? 0 : w > kLastWindow ? kLastWindow : w; }
+int clampWindow(int w, int last = kLastWindow) { return w > last ? last : w < 0 ? 0 : w; }
+
+// the loaded instruments in slot order (RC3 notes: the soft keys listed 8
+// consecutive slots, empty ones too): how many, and the slot of the k-th
+int loadedCount(const Editor& ed) {
+    int n = 0;
+    for (int s = 0; s < kInstrumentSlots; s++)
+        if (ed.instrument(s)[0]) n++;
+    return n;
+}
+int loadedSlot(const Editor& ed, int k) {
+    for (int s = 0; s < kInstrumentSlots; s++)
+        if (ed.instrument(s)[0] && k-- == 0) return s;
+    return -1;
+}
 
 bool isScreen(MiniKey k) { return k >= MiniKey::Screen0 && k <= MiniKey::Screen7; }
 
@@ -50,11 +64,15 @@ Control sameControl(MiniKey k) {
 Control MiniInput::screenControl(const Editor& ed, int i, bool shift) const {
     const Control screen = (Control)((int)Control::Screen0 + i);
     if (i < 0 || i >= kWindow || overlay(ed)) return screen;
+    if (armed(ed)) return padCtl(armBank_ * kPadCols + i);  // the new block's dN
     const Control slot = padCtl(bank_ * kPadCols + i);  // d1-d8 / d9-d16 (slotPad's layout)
     if (ed.playHeld()) return slot;
     if (!noteEntry_) return screen;
     if (shift) return slot;
-    if (ed.padInstruments()) return padCtl(insWin_ + i);
+    if (ed.padInstruments()) {
+        const int s = loadedSlot(ed, insWin_ + i);
+        return s < 0 ? Control::Count : padCtl(s);  // past the last one: a blank key
+    }
     if (ed.padNumeric()) return padCtl(numWin_ + i);
     return slot;
 }
@@ -67,7 +85,10 @@ bool MiniInput::moveWindow(const Editor& ed, MiniKey k) {
         bank_ = k == MiniKey::Down ? 1 : 0;  // the bank below: the MIDI slots
         return true;
     }
-    if (ed.padInstruments()) insWin_ = clampWindow(insWin_ + dir * (vertical ? kWindow : 1));
+    if (ed.padInstruments()) {
+        const int n = loadedCount(ed);
+        insWin_ = clampWindow(insWin_ + dir * (vertical ? kWindow : 1), n > kWindow ? n - kWindow : 0);
+    }
     else numWin_ = clampWindow(numWin_ + dir * (vertical ? kPadCols : 1));
     return true;
 }
@@ -95,6 +116,12 @@ MiniTarget MiniInput::map(const Editor& ed, MiniKey k, bool shift) {
                 return {};
             }
             return pressOf(Control::Note, shift);
+        case MiniKey::Insert:
+            if (!overlay(ed) && ed.insertAddsBlock()) {  // a dN: Screen 1-8 become its slots
+                armBank_ = shift ? 1 : 0;
+                return pressOf(Control::Insert, false);
+            }
+            return pressOf(Control::Insert, shift);
         case MiniKey::Up:
         case MiniKey::Down:
         case MiniKey::Left:
@@ -104,7 +131,11 @@ MiniTarget MiniInput::map(const Editor& ed, MiniKey k, bool shift) {
             return pressOf(sameControl(k), shift);
         default: break;
     }
-    if (isScreen(k)) return pressOf(screenControl(ed, (int)k - (int)MiniKey::Screen0, shift), shift);
+    if (isScreen(k)) {
+        const Control c = screenControl(ed, (int)k - (int)MiniKey::Screen0, shift);
+        if (c == Control::Count) return {};  // a blank key
+        return pressOf(c, screenShift(ed, shift));
+    }
     const Control c = sameControl(k);
     if (c == Control::Count) return {};
     return pressOf(c, shift);

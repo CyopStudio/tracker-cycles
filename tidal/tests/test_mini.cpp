@@ -121,12 +121,38 @@ void testMiniInput(int& pass, int& fail) {
     // with Shift: the slots
     EXPECT(m.screenControl(ed, 1, true) == slotPad(1), "Shift+Screen 2 = d2");
 
-    // instruments in an s pattern: 8 slots a page
+    // instruments in an s pattern: the loaded ones, 8 a page (RC3 notes:
+    // empty slots were listed too)
+    const int loaded[] = {0, 3, 9, 20, 30, 31, 32, 33, 34, 35, 36, 37};
+    for (int s = 0; s < kInstrumentSlots; s++) ed.setInstrument(s, "");  // the host's default kit off
+    for (int s : loaded) ed.setInstrument(s, ("i" + std::to_string(s)).c_str());
     ed.act(Action::JumpSamples);
     EXPECT(ed.padInstruments(), "on the s pattern");
-    EXPECT(m.screenControl(ed, 0, false) == padCtl(0), "Screen 1 = instrument 1");
+    EXPECT(m.screenControl(ed, 0, false) == padCtl(0), "Screen 1 = instrument slot 1");
+    EXPECT(m.screenControl(ed, 1, false) == padCtl(3), "Screen 2 = the next loaded slot (4)");
+    EXPECT(m.screenControl(ed, 3, false) == padCtl(20), "Screen 4 = slot 21");
     tap(ed, m, MiniKey::Up);
-    EXPECT(m.instrumentWindow() == MiniInput::kWindow, "instrument page 2 (%d)", m.instrumentWindow());
+    EXPECT(m.instrumentWindow() == 4, "page down clamps to the last 8 of 12 (%d)", m.instrumentWindow());
+    EXPECT(m.screenControl(ed, 0, false) == padCtl(30) && m.screenControl(ed, 7, false) == padCtl(37),
+           "the last 8 loaded");
+    tap(ed, m, MiniKey::Left);
+    EXPECT(m.screenControl(ed, 0, false) == padCtl(20), "Left: one back (slot 21)");
+    tap(ed, m, MiniKey::Screen1);  // slot 31 = i30
+    EXPECT(fileOf(ed).find("i30") != std::string::npos, "Screen 2 entered i30: %s", fileOf(ed).c_str());
+    // Instrument on a sample name: the sample menu (RC3 notes)
+    ed.act(Action::JumpSamples);
+    EXPECT(ed.cursorOnSample(), "on a sample name");
+    EXPECT(!strcmp(controlCommand(ed, Control::Instr, false).label.c_str(), "samples"), "Instr label: %s",
+           controlCommand(ed, Control::Instr, false).label.c_str());
+    tap(ed, m, MiniKey::Instr);
+    EXPECT(ed.menuOpen() && !strcmp(ed.menuTitle().c_str(), "samples"), "the sample menu (%s)",
+           ed.menuTitle().c_str());
+    ed.act(Action::Cancel);
+    EXPECT(!ed.menuOpen(), "menu closed");
+    for (int s : loaded) ed.setInstrument(s, "");
+    EXPECT(m.screenControl(ed, 0, false) == Control::Count, "no instruments: blank keys");
+    EXPECT(m.press(ed, MiniKey::Screen0, false).kind == MiniTarget::None, "a blank key does nothing");
+    m.release(MiniKey::Screen0);
 
     // note entry off: the screen keys are the structure keys again
     tap(ed, m, MiniKey::Note, true);
@@ -146,4 +172,23 @@ void testMiniInput(int& pass, int& fail) {
     release(ed, t.ctl);
     EXPECT(!ed.playHeld(), "Fn1 released");
     EXPECT(out.calls == "mute 2;unmuteAll;", "mute calls: %s", out.calls.c_str());
+
+    // Insert on a dN: Screen 1-8 are the slots for a new block (Shift+Insert: d9-d16)
+    ed.gotoSlot(1);
+    for (int i = 0; i < 6 && !ed.insertAddsBlock(); i++) ed.act(Action::Up);
+    EXPECT(ed.insertAddsBlock(), "on d2's top");
+    EXPECT(m.screenControl(ed, 2, false) == Control::Screen2, "not armed yet: Screen 3");
+    tap(ed, m, MiniKey::Insert);
+    EXPECT(ed.newBlockArmed(), "Insert armed a new block");
+    EXPECT(m.screenControl(ed, 2, false) == slotPad(2), "Screen 3 = d3");
+    EXPECT(!strcmp(controlCommand(ed, m.screenControl(ed, 2, false), m.screenShift(ed, false)).label.c_str(), "d3"),
+           "its label");
+    tap(ed, m, MiniKey::Insert, true);
+    EXPECT(ed.newBlockArmed() && m.screenControl(ed, 0, false) == slotPad(8), "Shift+Insert: Screen 1 = d9");
+    tap(ed, m, MiniKey::Insert);
+    tap(ed, m, MiniKey::Screen2);
+    EXPECT(!ed.newBlockArmed(), "used up");
+    EXPECT(fileOf(ed).find("d3 silence\n\nd2 $") != std::string::npos, "a new d3 block above d2: %s",
+           fileOf(ed).c_str());
+    EXPECT(m.screenControl(ed, 2, false) == Control::Screen2, "Screen 3 again");
 }

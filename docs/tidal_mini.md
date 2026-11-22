@@ -44,7 +44,9 @@ everything else in controls.cpp is unchanged.
 | Mini key | Does |
 | :--- | :--- |
 | Screen 1-8, Note, Instrument, FX1, FX2, Play, Rec, Copy, Insert, Delete, Shift, arrows | as on the Original |
-| +1 / -1 / +10 / -10 | the jog wheel (the stock firmware sends them as pot steps) |
+| +1 / -1 / +10 / -10 | the jog wheel (the stock firmware sends them as pot steps; +10 / -10 = 10 steps, 8 at most for samples). Shift+± is the stock master volume, so there is no fast jog (`bd:n` index, octave steps) |
+| **Insert on a dN** (a block's top) | Screen 1-8 become d1-d8 for a new block above this one (Shift+Insert: d9-d16); the Original's Insert + slot pad (RC3 notes) |
+| Instrument on a sample name | the sample menu (both models, RC3 notes); elsewhere as on the Original (to the `s` pattern) |
 | Fn1 | Pattern: the mute modifier (Shift+Fn1: solo / hush) |
 | Fn2 | Song: launch menu (Shift: setcps) |
 | Fn3 | File (Shift: save) |
@@ -55,12 +57,14 @@ everything else in controls.cpp is unchanged.
 | Shift+Middle | the status view (Original: Shift+Master) |
 | **Shift+Note** | **note entry on / off** (the user's choice): Screen 1-8 are 8 pads of a window |
 | (note entry) Left / Right | move the window 1 pad |
-| (note entry) Up / Down | numbers / notes: an octave (12); instruments: 8 slots; elsewhere: d1-d8 / d9-d16 |
+| (note entry) Up / Down | numbers / notes: an octave (12); instruments: 8 further down the list; elsewhere: d1-d8 / d9-d16 |
 | (note entry) Shift+Screen 1-8 | select d1-d8 (or d9-d16) |
 | Fn1 held + Screen 1-8 | mute d1-d8 (Shift: solo); Up / Down switch to d9-d16; Middle: unmute all |
 
 The window starts at 0 (c4 for `n` / `note`) for numbers and at
-instrument 1 for `s` patterns. The rest pad (`~`) is Screen 8 at the top of
+the first loaded instrument for `s` patterns: the instrument keys list only
+loaded instruments in slot order, empty slots skipped (RC3 notes: 8
+consecutive slots showed the empty ones too), blank past the last one. The rest pad (`~`) is Screen 8 at the top of
 the number window. A held screen key releases the pad it pressed even if
 the window has moved since, so chords work by holding screen keys. The
 soft-key labels show what each screen key presses now (numbers, instrument
@@ -88,6 +92,21 @@ core/interface/tidalEditor/tidalEditor.cpp is the only place to change.
   which has usb merged, + feature/mini).
 - Tracker+ (PRODUCT=PLUS) is untouched: it would need the same makefile
   flag, and it has pads and a jog wheel, so no Mini layer.
+
+## Boot diagnostics (RC3)
+
+`crash_project.tidal` (a `splice` line) froze the Mini at the start
+screen's 100% on every boot (RC2); on the host it loads, plays and lays out
+cleanly. RC3 records a hard fault (platforms/imx/source/tc_fault.c: the
+registers in SRAM_ITC no-init memory, then a reset) and keeps a marker file
+(`Workspace/tidal_boot.txt`) from before the code loads until 3 s after.
+At boot either one writes `Workspace/tidal_fault.txt` and shows it on the
+message line; with the marker the code is set aside as
+`Workspace/crash.tidal` and the editor starts empty. With RC3 the user
+reported it fixed (2026-11-22); not confirmed yet whether the code loaded
+or was set aside (that also looks like a clean boot). The cause was not
+found. If it comes back,
+`tidal_fault.txt`'s pc / lr against that RC's .axf give the function.
 
 ## Device checklist (RC1)
 

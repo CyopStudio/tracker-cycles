@@ -11,8 +11,11 @@
 //   +1 / -1 / +10 / -10 = the jog wheel (the stock firmware already sends them as pot steps)
 //   Shift+Note = note entry on / off: Screen 1-8 are 8 pads of a window
 //     numbers / notes: Left / Right move it 1, Up / Down an octave (12)
-//     instruments (s patterns): Left / Right 1, Up / Down 8 slots
+//     instruments (s patterns): the loaded ones (empty slots skipped),
+//       Left / Right move the list 1, Up / Down 8
 //     elsewhere, and with Shift: d1-d8 / d9-d16 (Up / Down switch the bank)
+//   Insert on a dN (a block's top): Screen 1-8 are d1-d8 for the new block
+//     (Shift+Insert: d9-d16)
 //   Fn1 held: Screen 1-8 mute / solo d1-d8 (Up / Down: d9-d16), Middle unmutes all
 //
 // Every other key is the Original's (Screen 1-8, Note, Instrument, FX1,
@@ -54,21 +57,26 @@ public:
     // What screen key `i` presses now (for its soft key label), with Shift
     // held or not: a pad in note entry / while Fn1 is held, else Screen i.
     Control screenControl(const Editor& ed, int i, bool shift) const;
+    // the Shift a screen key presses its control with (slot pads for a new
+    // block go with Shift: always slots)
+    bool screenShift(const Editor& ed, bool shift) const { return shift || armed(ed); }
 
     bool noteEntry() const { return noteEntry_; }
     void setNoteEntry(bool on) { noteEntry_ = on; }
     int numberWindow() const { return numWin_; }    // first pad: value padNumber(it)
-    int instrumentWindow() const { return insWin_; }  // first pad: instrument slot it
+    int instrumentWindow() const { return insWin_; }  // first key: the loaded instrument at this index
     int bank() const { return bank_; }               // 0: d1-d8, 1: d9-d16
 
 private:
     bool overlay(const Editor& ed) const { return ed.menuOpen() || ed.keyboardOpen(); }
+    bool armed(const Editor& ed) const { return !overlay(ed) && ed.newBlockArmed(); }
     bool moveWindow(const Editor& ed, MiniKey k);
     MiniTarget map(const Editor& ed, MiniKey k, bool shift);
     bool noteEntry_ = false;
     int numWin_ = kPadCols;  // 0 .. 7 (c4 .. g4 for n / note)
     int insWin_ = 0;
     int bank_ = 0;
+    int armBank_ = 0;  // Insert armed a new block: 0 d1-d8, 1 d9-d16 (Shift+Insert)
     MiniTarget down_[kMiniKeyCount];
 };
 

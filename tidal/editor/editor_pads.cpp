@@ -81,6 +81,17 @@ bool Editor::padInstruments() const {
     return strcmp(name, "s") == 0 || strcmp(name, "sound") == 0;
 }
 
+bool Editor::cursorOnSample() const {
+    return cursor_ && prog_->at(cursor_).kind == Kind::MWord && padInstruments();
+}
+
+// as cursorInsert / doInsert decide
+bool Editor::insertAddsBlock() const {
+    if (menuOpen_ || kbdOpen_ || gapSeq_ || !cursor_ || cps_) return false;
+    if (cursorMode_ && (headGap_ || preSym_)) return false;
+    return prog_->at(cursor_).kind == Kind::Block;
+}
+
 int Editor::cursorInstrument() const {
     if (!cursor_ || prog_->at(cursor_).kind != Kind::MWord) return -1;
     const char* w = prog_->str((int)prog_->at(cursor_).a);

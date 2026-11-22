@@ -774,10 +774,12 @@ void cTidalEditorModule::redraw()
         if (ed) {
 #ifndef TRACKER_MINI
             const Control sk = (Control)i;
+            const bool sh = gShiftShown;
 #else
             const Control sk = gMini.screenControl(*ed, i, gShiftShown);  // a pad in note entry
+            const bool sh = gMini.screenShift(*ed, gShiftShown);
 #endif
-            const tc::Command k = tc::controlCommand(*ed, sk, gShiftShown);
+            const tc::Command k = tc::controlCommand(*ed, sk, sh);
             snprintf(gLabel[i], sizeof gLabel[i], "%s", k.label.c_str());
         }
         Fnv f;

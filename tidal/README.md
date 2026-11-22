@@ -183,7 +183,7 @@ The prototype starts in cursor mode; `--mode tree` starts in tree mode
 | Note | jump to the block's `n` / `note` pattern, first step (adds `# n "0"` if there is none): pads then enter notes | | `n` |
 | Shift + Note | chord menu on the note at the cursor (in a gap: the step before it): `e'maj`, `e'min`, `'maj7`, `'dom7`, `'min7`, `'dim`, `'dim7`, `'aug`, `'sus2`, `'sus4`, `'six`, `'five`, root as a note name (Tidal: c5 = 0); on a chord also "single note"; not on a range's end. Adds `# voices 3` to a sample block without `voices` | | |
 | Pads held together | a chord: a pad entered while another entry pad is still held turns the step before the gap into a stack, `"[0,4,7]"` / `"[bd,sd]"` (up to 8); the first chord on a sample block without `voices` adds `# voices 3` (MIDI blocks play chords anyway). Not on a range or group the entry just ended | | Ctrl+click pads, then a plain click on the last |
-| Instrument | jump to the block's `s` / `sound` pattern, first step (adds `# s "bd"` if there is none): pads then pick instruments; not on MIDI blocks | | `s` |
+| Instrument | jump to the block's `s` / `sound` pattern, first step (adds `# s "bd"` if there is none): pads then pick instruments; not on MIDI blocks. On a sample name in an `s` pattern: the sample menu (pick another) | | `s` |
 | FX1 | functions menu: time, structure, randomness, layering, sample cutting (`fast`, `every`, `jux`, `chop` …) applied with `$` | | `f` |
 | FX2 | effects menu (sound controls): `# cutoff`, `# room`, `# delay`, `# crush`, `# shape`, `# pan`, `# gain`, envelopes; from inside `"..."` on the enclosing pattern | | `c` |
 | Play | evaluate current block (RC14: Play and Pattern swapped) | OK | `e` |
