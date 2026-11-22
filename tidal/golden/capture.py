@@ -38,6 +38,11 @@ import Data.List (sortOn)
 import Data.Ratio (numerator, denominator)
 -- Tracker Cycles' own control (not in Tidal; core/library.cpp, docs/tidal_voices.md)
 let voices = pI "voices"
+-- acid lines on MIDI tracks (docs/tidal_acid.md), also ours
+let oct = pI "oct"
+let acc = pB "acc"
+let slid = pB "slid"
+let time = pB "time"
 :{
 gR :: Rational -> String
 gR r = show (numerator r) ++ "/" ++ show (denominator r)

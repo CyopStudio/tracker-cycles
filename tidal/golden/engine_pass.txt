@@ -280,3 +280,9 @@ long_fastappend
 long_mini
 select_quarters
 selectF_quarters
+ctl_voices
+acid_basic
+acid_tf
+acid_poly
+acid_time_after
+acid_grids

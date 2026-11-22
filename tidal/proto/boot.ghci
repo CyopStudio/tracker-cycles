@@ -15,6 +15,13 @@ tidal <- startTidal (superdirtTarget {oAddress = "127.0.0.1", oPort = 57120, oLa
 -- each such note cuts the previous one, as on the Tracker.
 :{
 let voices = pI "voices"
+    -- acid lines on MIDI tracks (docs/tidal_acid.md): octave 0 / 1 / 2 =
+    -- -12 / 0 / +12, accent, slide, 1 = note / 0 = tie. SuperDirt ignores
+    -- them; the engine backend (--backend engine) plays them.
+    oct = pI "oct"
+    acc = pB "acc"
+    slid = pB "slid"
+    time = pB "time"
     tcRoute :: Int -> ControlPattern -> ControlPattern
     tcRoute i pat
       | i <= 8 = fix (|< cut (pure i)) (voices 1) (pat |< voices 1)

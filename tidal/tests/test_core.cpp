@@ -438,6 +438,9 @@ static void testTypes() {
     typeCheck("n \"c q\" # s \"x\"", "not a note name");
     typeCheck("cut 1.5", "fractional");
     typeCheck("s \"bd\" # speed 2 # s 1", "can't hold a number");
+    typeCheck("n 0 # acc 1", "Bool can't hold a number (write \"1\" or \"t\")");  // as in Tidal: no Num Bool
+    typeCheck("n 0 # acc \"1 0 t f\" # slid \"1\" # time \"1 0 ~\" # oct 2", nullptr);
+    typeCheck("note \"eb2\"", "'eb2' is not a note name (flats are f: 'ef2')");
     typeCheck("rev 1 2", "takes only");
     typeCheck("struct \"t x\" $ s \"bd\"", "not a Bool");
     typeCheck("s \"bd .. sd\"", "numbers or notes");
@@ -551,6 +554,7 @@ static bool sameValue(const Program& p, const golden::Value& g, const Ctl& c) {
         formatCtl(p, c, buf, sizeof buf);
         return g.text == buf;
     }
+    if (g.tag == 'b') return (g.text == "True") == (c.f != 0);
     // float32 on our side (what OSC sends), double in Tidal
     double want = atof(g.text.c_str()), got = c.f;
     return fabs(want - got) <= 1e-6 * (fabs(want) > 1 ? fabs(want) : 1);

@@ -74,6 +74,9 @@ supersedes it). Per sample track: 3 players summed into the track's one
 FX chain; `# voices N` (1-3, default 1) per note; a load-driven governor
 (16 sounding below 70 % audio load, down to 8 at 85 %); the editor adds
 `# voices N` when an edit layers notes (Editor::raiseVoices).
+MIDI slots: acid lines (`time` / `oct` / `acc` / `slid`, docs/tidal_acid.md)
+set Entry flags (kEntrySlide / kEntryTie in Entry::voices); the interrupt
+sends slide offs after the next note-on and extends held notes on ties.
 
 ## Editor controls
 The full, current table is **tidal/README.md, "Controls (window)"**; the

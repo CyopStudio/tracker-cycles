@@ -80,6 +80,8 @@ static const ControlDef kControls[] = {
     // filter, MIDI program / aftertouch; coarse for the host (no decimator)
     {"size", 'f'},    {"delaytime", 'f'}, {"delayfeedback", 'f'}, {"djf", 'f'}, {"coarse", 'f'},
     {"progNum", 'f'}, {"miditouch", 'f'},
+    // acid lines on MIDI tracks (docs/tidal_acid.md): Tracker Cycles' own
+    {"oct", 'i'},     {"acc", 'b'},     {"slid", 'b'},    {"time", 'b'},
 };
 int controlCount() { return (int)(sizeof kControls / sizeof kControls[0]); }
 const ControlDef& controlDef(int key) { return kControls[key]; }

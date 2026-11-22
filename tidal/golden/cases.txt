@@ -185,6 +185,12 @@ ctl_aliases       1  s "bd*2" # lpf 300 # lpq 0.2 # hpq "0.1 0.3" # bpf 200 # at
 ctl_tracker       1  s "bd sd" # amp 0.3 # velocity "0.5 1" # distort 0.2 # hresonance 0.4
 ctl_midi          1  n "0 7" # s "midi" # midichan 2 # ccn 7 # ccv "64 100" # midibend 100
 ctl_voices        2  n "0 1" # s "arpy" # voices "<1 3>"
+# acid lines (docs/tidal_acid.md): our own controls, defined in capture.py's prelude
+acid_basic        1  time "1 1 0 ~ 1 1 0 1" # note "c2 c3 ef2 g2 c3 c2 bf2 g2" # oct "1 1 2 1 0 1 1 1" # acc "0 1 0 0 1 0 0 0" # slid "0 0 0 1 0 0 1 0"
+acid_tf           1  note "0 3 7 5" # acc "t f t f" # slid "f t f t"
+acid_poly         2  time "{1 1 0 ~ 1 1 ~}%16" # note "{c2 c3 ef2 g2 bf2}%16" # oct "{1 1 2 1 0 1}%16" # acc "{0 0 1 0 0 1 0 1 0}%16" # slid "{0 0 0 1 0 0 0 0 1 0}%16"
+acid_time_after   1  note "{0 3 7 5 2}%8" # time "{1 0 ~}%8"
+acid_grids        2  time "{1 1 0 ~}%16" # note "<0 3>" # oct "{1 2}%8"
 
 # ---- batch 2 (2026-11-11): every', inside, trunc ... ------------------------
 everyp            6  every' 3 1 (fast 2) $ s "bd sd"

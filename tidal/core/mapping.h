@@ -46,6 +46,11 @@ enum class TMod : uint8_t {
 // `voices` (Tracker Cycles' own control): notes one sample track lets ring,
 // the new one included; the device has 3 players per track.
 constexpr int kMaxVoices = 3;
+// Acid lines (docs/tidal_acid.md): MIDI velocity of an accent (acc 1) and of
+// an unaccented note on a line that uses acc / slid / time without its own
+// velocity. The TD-3 reads velocity > 100 as accent.
+constexpr int kAccentVelocity = 127;
+constexpr int kAcidVelocity = 80;
 
 enum class InstrKind : uint8_t { OneShot, Loop, Slice, Granular, Wavetable };
 
@@ -130,7 +135,8 @@ private:
         kCutoff_ = -1, kHcutoff_ = -1, kBandf_ = -1, kRes_ = -1, kHres_ = -1, kShape_ = -1, kDistort_ = -1,
         kCrush_ = -1, kRoom_ = -1, kDelay_ = -1, kBegin_ = -1, kEnd_ = -1, kAttack_ = -1, kRelease_ = -1,
         kLegato_ = -1, kSustain_ = -1, kMidichan_ = -1, kCcn_ = -1, kCcv_ = -1, kBend_ = -1, kVoices_ = -1,
-        kSize_ = -1, kDelayTime_ = -1, kDelayFb_ = -1, kDjf_ = -1, kProg_ = -1, kTouch_ = -1;
+        kSize_ = -1, kDelayTime_ = -1, kDelayFb_ = -1, kDjf_ = -1, kProg_ = -1, kTouch_ = -1,
+        kOct_ = -1, kAcc_ = -1, kSlid_ = -1, kTime_ = -1;
 };
 
 }  // namespace tc

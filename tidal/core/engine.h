@@ -39,7 +39,7 @@ inline float num(const Val& v) {
 // Output controls (SuperDirt names). Key = index into this table.
 struct ControlDef {
     const char* name;  // key sent to SuperDirt, e.g. "hcutoff"
-    char tag;          // value type: s string, f double, n note, i int
+    char tag;          // value type: s string, f double, n note, i int, b bool (0 / 1 in Ctl::f)
 };
 int controlCount();
 const ControlDef& controlDef(int key);

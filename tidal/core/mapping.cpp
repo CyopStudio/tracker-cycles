@@ -108,6 +108,8 @@ const CtlRule kCtlRules[] = {
     {"size", kSample, nullptr},     {"sz", kSample, nullptr},       {"delaytime", kSample, nullptr},
     {"delayt", kSample, nullptr},   {"delayfeedback", kSample, nullptr}, {"delayfb", kSample, nullptr},
     {"djf", kSample, nullptr},      {"progNum", kMidi, nullptr},    {"miditouch", kMidi, nullptr},
+    {"oct", kMidi, nullptr},        {"acc", kMidi, nullptr},        {"slid", kMidi, nullptr},
+    {"time", kMidi, nullptr},
     {"coarse", kNowhere, "isn't available on the Tracker (no sample-rate reduction: use crush)"},
     {"orbit", kNowhere, "isn't available on the Tracker (one effects bus)"},
     {"unit", kNowhere, "isn't available on the Tracker (no cycle-relative speed)"},
@@ -197,6 +199,10 @@ void TrackerMapper::init(const TrackerHost* host, float sampleRate) {
     kDjf_ = controlKey("djf");
     kProg_ = controlKey("progNum");
     kTouch_ = controlKey("miditouch");
+    kOct_ = controlKey("oct");
+    kAcc_ = controlKey("acc");
+    kSlid_ = controlKey("slid");
+    kTime_ = controlKey("time");
     instrumentsChanged();
     resetWarnings();
 }
@@ -260,6 +266,8 @@ bool TrackerMapper::map(const Program& p, int slot, const Event& e, float, float
          hasN = false, hasNote = false;
     float size = 0, delayTime = 0, delayFb = 0, djf = 0.5f, prog = 0, touch = 0;
     float voices = 1;
+    float oct = 1;
+    bool hasOct = false, acc = false, slid = false, tie = false, acid = false;
     float res = 0, hres = 0, pan = 0.5f, drive = 0, crush = 16, room = 0, delay = 0, begin = 0, end = 1, attack = 0,
           release = 0, legato = 1, sustain = 0, chan = 0, ccn = 0, ccv = 0, bend = 0;
     for (int i = 0; i < e.nctl; i++) {
@@ -334,6 +342,14 @@ bool TrackerMapper::map(const Program& p, int slot, const Event& e, float, float
             prog = v, hasProg = true;
         } else if (k == kTouch_) {
             touch = v, hasTouch = true;
+        } else if (k == kOct_) {
+            oct = v, hasOct = true, acid = true;
+        } else if (k == kAcc_) {
+            acc = v != 0, acid = true;
+        } else if (k == kSlid_) {
+            slid = v != 0, acid = true;
+        } else if (k == kTime_) {
+            tie = v == 0, acid = true;
         }
     }
     const float ratio = (amp / kDefaultAmp) * powf(clampf(gain, 0.0f, 2.0f), 4.0f) * velocity;
@@ -345,9 +361,17 @@ bool TrackerMapper::map(const Program& p, int slot, const Event& e, float, float
 
     if (slot >= kSampleSlots) {  // ---- MIDI
         out.chan = (uint8_t)(hasChan ? clampi((int)lroundf(chan), 0, 15) : (slot - kSampleSlots) % 16);
-        out.note = (uint8_t)clampi(60 + (int)lroundf(note + n), 0, 127);
-        // velocity 1 (the default) = MIDI velocity 127 (user, before 1.0.0)
-        out.vel = (uint8_t)(hasVolume ? clampi((int)lroundf(127.0f * ratio), 0, 127) : 127);
+        // oct 1 = as written, 0 / 2 = an octave down / up (docs/tidal_acid.md)
+        const int octShift = hasOct ? ((int)lroundf(oct) - 1) * 12 : 0;
+        out.note = (uint8_t)clampi(60 + (int)lroundf(note + n) + octShift, 0, 127);
+        // velocity 1 (the default) = MIDI velocity 127 (user, before 1.0.0);
+        // an accent overrides any velocity; an acid line's other notes
+        // without a velocity stay under the TD-3's accent threshold
+        out.vel = (uint8_t)(acc         ? kAccentVelocity
+                            : hasVolume ? clampi((int)lroundf(127.0f * ratio), 0, 127)
+                            : acid      ? kAcidVelocity
+                                        : 127);
+        out.voices = (uint8_t)((slid ? kEntrySlide : 0) | (tie ? kEntryTie : 0));  // MIDI: flags
         float len = hasLegato ? lenSamples * legato : hasSustain ? sustain * fs_ : lenSamples;
         out.dur = len > 1.0f ? (uint32_t)len : 1;
         // no n / note but MIDI controls (`ccv "0 64" # ccn 74`): just those
