@@ -223,3 +223,10 @@ copy when on a # block should copy the whole # function
 
 pasting a # block should append it to the end of the dN block. it should only overwrite a block if the cursor is on a # (or equivalent)
 
+starting a new block shouldn't add dN silence. should give an empty block like delete does.
+
+Entering boolean patterns, should use the pads (pad 1 = 0, pad 2 = 1). 
+
+time pattern for acid sequencing should allow rests using pad 48 (could also apply to all bool patterns)
+
+highlighting - is it possible to highlight all mininotation patterns as they are played? e.c. acc time slid should all highlight just like n does
