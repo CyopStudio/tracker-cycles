@@ -48,9 +48,9 @@ int controlKey(const char* name);  // -1 if unknown
 // Source steps (editor highlighting, like Pulsar's): each event keeps the
 // ids of the mini-notation atoms that made it (words, numbers, notes,
 // chords, booleans, `a .. b` ranges); combining patterns (`#`, `|+`,
-// struct, ...) joins both sides' ids, at most kMaxSrc. Host builds only
-// for now (+8 B per arena event); the device sets TC_EVENT_SRC 0 until its
-// editor (plan 4d) uses it.
+// struct, ...) joins both sides' ids, at most kMaxSrc (6: every pattern of
+// an acid line, time / note / oct / acc / slid, plus one; +12 B per arena
+// event). The device editor builds set TC_EVENT_SRC=1 (core/makefile).
 #ifndef TC_EVENT_SRC
 #if defined(__arm__)
 #define TC_EVENT_SRC 0
@@ -58,7 +58,7 @@ int controlKey(const char* name);  // -1 if unknown
 #define TC_EVENT_SRC 1
 #endif
 #endif
-constexpr int kMaxSrc = 4;
+constexpr int kMaxSrc = 6;
 // The node kinds events name as their source steps, and those of the tree
 // at `root` in preorder (at most `cap`; returns how many). A block and its
 // copy (Scheduler::evaluate) list their steps in the same order, so step k

@@ -37,13 +37,15 @@ __NOINIT(EXTERNAL_RAM) unsigned char bufRaw[sizeof(tc::Event) * kQueryCap] __att
 __NOINIT(EXTERNAL_RAM) char fileText[16384];
 // the engine's query working set in internal RAM (bench v6: up to 2x faster)
 constexpr int kFastEvents = 256, kFastCtls = 1024, kFastParams = 128;
-// 25,616 B with 52-B events; 27,664 B with TC_EVENT_SRC (60-B events)
+// 25,616 B with 52-B events; 27,664 B with TC_EVENT_SRC (60-B events, 4 steps);
+// 28,688 B with 6 steps per event (64-B events: every pattern of an acid line
+// lights). Too small and the engine quietly uses its SDRAM arena (slower)
 #ifndef PLATFORM_IMX
-unsigned char fastMem[28 * 1024] __attribute__((aligned(8)));
+unsigned char fastMem[29 * 1024] __attribute__((aligned(8)));
 #else
 // IMX: SRAM_DTC is full; its SDRAM sits behind the M7's D-cache (unlike the
 // MK66's uncached bus), so the working set lives there
-__NOINIT(EXTERNAL_RAM) unsigned char fastMem[28 * 1024] __attribute__((aligned(8)));
+__NOINIT(EXTERNAL_RAM) unsigned char fastMem[29 * 1024] __attribute__((aligned(8)));
 #endif
 #if TC_EVENT_SRC
 // lit steps (the editor's highlighting): source steps of queued entries, and

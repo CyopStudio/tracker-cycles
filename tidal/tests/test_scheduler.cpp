@@ -874,12 +874,14 @@ void testLit() {
     // the sort must carry each entry's steps along
     if (!load("d1 $ s \"bd sd\" # n \"0 1\"\n"
               "d2 $ s \"hh*4\"\n"
-              "d3 $ n \"[1*2, 5]\" # s \"arpy\"\n"))
+              "d3 $ n \"[1*2, 5]\" # s \"arpy\"\n"
+              // five patterns (an acid line's worth): every one's step lights
+              "d4 $ s \"cp\" # n \"2\" # gain \"0.9\" # pan \"0.5\" # speed \"2\"\n"))
         return;
-    uint16_t root[3] = {0, 0, 0};
+    uint16_t root[4] = {0, 0, 0, 0};
     Error e;
     SEXPECT(gS.evaluate(gEdit, 0, e, &root[0]) && gS.evaluate(gEdit, 1, e, &root[1]) &&
-                gS.evaluate(gEdit, 2, e, &root[2]),
+                gS.evaluate(gEdit, 2, e, &root[2]) && gS.evaluate(gEdit, 3, e, &root[3]),
             "evaluate: %s", e.msg);
     uint16_t atoms[3][16];
     int na[3];
@@ -912,6 +914,9 @@ void testLit() {
             k1++;
         } else if (l.slot == 1) {
             ok = ok && l.n == 1 && idx(1, l.src[0]) == 0;
+        } else if (l.slot == 3) {  // cp, 2, 0.9, 0.5, 2: all five
+            ok = ok && l.n == 5;
+            for (int k = 0; ok && k < 5; k++) ok = isStepAtom(gLive.at(l.src[k]).kind);
         } else {  // d3: a step's number always plays the same note
             ok = ok && l.slot == 2 && l.n >= 1 && gLive.at(l.src[0]).kind == Kind::MNum;
             const int v = ok ? (int32_t)gLive.at(l.src[0]).a : 0;

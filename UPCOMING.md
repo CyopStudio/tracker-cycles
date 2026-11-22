@@ -36,6 +36,7 @@ d9 $ time  "{1 1 0 ~ 1 1 ~}%16"       -- 1 = note, 0 = tie, ~ = rest
 * **Copy on a `#`** (the `#` itself, or the stop just before it) copies the whole control, `# gain 0.9`. **Paste** of it on a `#` replaces that control; anywhere else it is added at the end of the block. Other operators (`|+ n 12` ...) work the same way.
 * **New blocks** (Insert at a block's top, then a slot pad) start as the empty placeholder above the current block, like the one Delete leaves, instead of `dN $ silence`. Note / Instrument / Screen 1-8 start it, Up / Down leave it.
 * **Pads in Bool patterns** (the acid `acc` / `slid` / `time`, `struct`, `mask` ...): pad 1 enters `0`, pad 2 `1` (`f` / `t` in a pattern written with t / f), pad 48 a rest `~`. On the Mini's note entry these are Screen 1, 2 and 8.
+* **Highlights on every pattern:** each note now lights the steps of up to 6 patterns of its block (was 2 on the Tracker), so an acid line's `time`, `note`, `oct`, `acc` and `slid` all light as they play, like `n` / `s`. Costs 1 KB internal RAM and ~31 KB SDRAM.
 * Copy no longer moves the cursor back to the start of the block when it is on an operator, and a slot pad pressed while on a `#` no longer leaves the cursor on the new block's operator.
 
 ### Other changes

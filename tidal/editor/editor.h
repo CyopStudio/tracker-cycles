@@ -257,7 +257,7 @@ public:
     uint16_t flashBlock() const { return flashBlk_; }
     bool flashOk() const { return flashOk_; }
     bool flashOn(double now) const { return flashBlk_ && flashStart_ >= 0 && now - flashStart_ < kFlashSeconds; }
-    const FixVec<LitStep, 256>& litSteps() const { return lit_; }
+    const FixVec<LitStep, 512>& litSteps() const { return lit_; }
     // every step lit since the last clearLitSeen() (headless reports)
     const FixVec<LitStep, 1024>& litSeen() const { return litSeen_; }
     void clearLitSeen() { litSeen_.clear(); }
@@ -506,7 +506,7 @@ private:
     SlotState state_[kSlots];
     bool muted_[kSlots] = {};
     uint16_t playing_[kSlots] = {};
-    FixVec<LitStep, 256> lit_;
+    FixVec<LitStep, 512> lit_;  // up to kLitSrc steps per note (UI notes 2026-11-22: every pattern lights)
     double litPolled_ = 0;  // the last pollHighlights() time
     uint16_t flashBlk_ = 0;
     bool flashOk_ = true, flashPending_ = false, flashShown_ = false;

@@ -115,7 +115,7 @@ struct SchedulerStats {
 
 // Lit steps (editor highlighting on the device, TC_EVENT_SRC): when an entry
 // plays, the interrupt records the live program's source steps of its event.
-constexpr int kLitSrc = 2;     // steps kept per entry
+constexpr int kLitSrc = 6;     // steps kept per entry (an acid line: time, note, oct, acc, slid)
 constexpr int kLitRing = 256;  // records between two takeLit() calls
 struct LitRecord {
     uint32_t block;   // onset block
@@ -126,7 +126,7 @@ struct LitRecord {
     uint8_t pad;
     uint16_t src[kLitSrc];  // live program node ids
 };
-static_assert(sizeof(LitRecord) == 16, "LitRecord must stay 16 bytes");
+static_assert(sizeof(LitRecord) == 12 + 2 * kLitSrc, "LitRecord: no padding");
 
 // Interrupt hooks (device: disable / enable IRQs; host: none).
 struct SchedulerHooks {
