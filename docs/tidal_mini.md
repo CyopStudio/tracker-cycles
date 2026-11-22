@@ -102,10 +102,23 @@ registers in SRAM_ITC no-init memory, then a reset) and keeps a marker file
 (`Workspace/tidal_boot.txt`) from before the code loads until 3 s after.
 At boot either one writes `Workspace/tidal_fault.txt` and shows it on the
 message line; with the marker the code is set aside as
-`Workspace/crash.tidal` and the editor starts empty. With RC3 the user
-reported it fixed (2026-11-22); not confirmed yet whether the code loaded
-or was set aside (that also looks like a clean boot). The cause was not
-found. If it comes back,
+`Workspace/crash.tidal` and the editor starts empty.
+
+Device results (the file is docs/crash_project.tidal):
+- RC3 / RC4: the Mini powers off instead of hanging (the reset after a
+  fault drops the power latch); the SRAM record is lost with the power,
+  only the marker is left.
+- RC5 also keeps pc / lr / cfsr / the boot stage in SNVS_LPGPR4-7. Its
+  tidal_fault.txt (2026-11-22): "no fault recorded", the marker set, the
+  code set aside. So either the SNVS registers don't survive the Mini's
+  power-off, or it isn't a hard fault (a brown-out, a watchdog, or
+  something dropping the power latch would look the same). The boot then
+  looked fixed because the code had been set aside.
+- On the host the file loads, plays and lays out cleanly (ASan / UBSan,
+  every geometry 1-60 columns, the Mini soft keys).
+Next: breadcrumbs on the card per stage (open / write / close each, only
+during the boot's code load), or the code loaded a pass after the editor
+first draws, to see which step stops it. If it comes back,
 `tidal_fault.txt`'s pc / lr against that RC's .axf give the function.
 
 ## Device checklist (RC1)
