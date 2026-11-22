@@ -23,6 +23,12 @@
 #include "../../tidal/editor/layout.h"
 
 namespace {
+#ifdef PLATFORM_IMX
+// how far the boot got, kept with a hard fault (platforms/imx/source/tc_fault.h)
+extern "C" volatile uint8_t tcBootStage;
+inline void tcBootStageSet(uint8_t st) { tcBootStage = st; }
+bool gStagePass = false;  // stage 4 on the pass after the load
+#endif
 
 // SDRAM isn't up for static constructors: raw storage, built in update()
 __NOINIT(EXTERNAL_RAM) unsigned char progRaw[sizeof(tc::Program)] __attribute__((aligned(8)));
@@ -231,13 +237,23 @@ bool loadFile(const char* path) {
     const char* text = nullptr;
     int len = 0;
     char msg[96];
+#ifdef PLATFORM_IMX
+    tcBootStageSet(1);
+#endif
     if (!tidalPlayerReadText(path, text, len, msg, sizeof msg)) return false;
     tc::Label err;
     // the status line (right of the cursor info) stays short; a load error
     // goes on the message line below it, which has the whole width
     const char* base = strrchr(path, '/');
     base = base ? base + 1 : path;
-    if (gEd->loadText(text, len, err)) {
+#ifdef PLATFORM_IMX
+    tcBootStageSet(2);
+#endif
+    const bool loaded = gEd->loadText(text, len, err);
+#ifdef PLATFORM_IMX
+    tcBootStageSet(3);
+#endif
+    if (loaded) {
         snprintf(gStatus, sizeof gStatus, "%s loaded", base);
     } else {
         snprintf(gStatus, sizeof gStatus, "%s: not loaded", base);
@@ -262,7 +278,11 @@ struct TcFaultRecord {
 };
 extern "C" volatile TcFaultRecord tcFault;
 extern "C" uint32_t tcFaultSum(const volatile TcFaultRecord* r);
+extern "C" int tcSnvsRead(uint32_t* pc, uint32_t* lr, uint32_t* cfsr, uint8_t* stage);
 constexpr uint32_t kTcFaultMagic = 0x7C0FA017u;
+const char* const kStageName[] = {"before the code", "reading the code", "parsing / checking the code",
+                                  "after the load (first frames)", "after the first frame", "after the boot"};
+const char* stageName(uint8_t s) { return s < 6 ? kStageName[s] : "?"; }
 constexpr const char* kBootMark = "Workspace/tidal_boot.txt";
 constexpr const char* kCrashCode = "Workspace/crash.tidal";
 constexpr const char* kFaultLog = "Workspace/tidal_fault.txt";
@@ -275,11 +295,16 @@ tc::Label gBootMsg;  // shown once the code has loaded
 bool bootCheck() {
     FileSystem* fs = gPlatform->getFileSystem();
     const bool faulted = tcFault.magic == kTcFaultMagic && tcFault.check == tcFaultSum(&tcFault);
+    // RC4 device: the reset after a fault powers the Mini off and the SRAM
+    // record is gone; the SNVS copy (pc, lr, cfsr, stage) stays
+    uint32_t spc = 0, slr = 0, scfsr = 0;
+    uint8_t sstage = 0;
+    const bool snvs = tcSnvsRead(&spc, &slr, &scfsr, &sstage) != 0;
     const bool stuck = fs->exists(kBootMark);
     char m[96];
     tc::Label msg;
-    if (faulted || stuck) {
-        char log[320];
+    if (faulted || snvs || stuck) {
+        char log[400];
         int n = 0;
         if (faulted)
             n = snprintf(log, sizeof log,
@@ -287,8 +312,12 @@ bool bootCheck() {
                          (unsigned long)tcFault.pc, (unsigned long)tcFault.lr, (unsigned long)tcFault.psr,
                          (unsigned long)tcFault.cfsr, (unsigned long)tcFault.hfsr, (unsigned long)tcFault.mmfar,
                          (unsigned long)tcFault.bfar, (unsigned long)tcFault.sp);
-        else
+        else if (!snvs)
             n = snprintf(log, sizeof log, "no fault recorded (a hang, or a power cycle during the load)\n");
+        if (snvs && n >= 0 && n < (int)sizeof log)
+            n += snprintf(log + n, sizeof log - n, "hard fault (SNVS copy)\npc %08lx\nlr %08lx\ncfsr %08lx\nstage %u: %s\n",
+                          (unsigned long)spc, (unsigned long)slr, (unsigned long)scfsr, (unsigned)sstage,
+                          stageName(sstage));
         if (n > 0 && n < (int)sizeof log)
             n += snprintf(log + n, sizeof log - n, "%s\n",
                           stuck ? "the code load didn't finish: Workspace/project.tidal -> crash.tidal"
@@ -298,6 +327,8 @@ bool bootCheck() {
         tcFault.magic = 0;
         if (faulted) msg.printf("last boot: fault at pc %08lx lr %08lx (Workspace/tidal_fault.txt)",
                                 (unsigned long)tcFault.pc, (unsigned long)tcFault.lr);
+        else if (snvs) msg.printf("last boot: fault at pc %08lx lr %08lx, %s (Workspace/tidal_fault.txt)",
+                                  (unsigned long)spc, (unsigned long)slr, stageName(sstage));
         else msg = "last boot: stuck loading the code (Workspace/tidal_fault.txt)";
     }
     if (stuck) {
@@ -313,7 +344,7 @@ bool bootCheck() {
         snprintf(gStatus, sizeof gStatus, "code set aside: crash.tidal");
         return true;
     }
-    if (faulted) gBootMsg = msg;
+    if (faulted || snvs) gBootMsg = msg;
     gBootMarked = tidalPlayerWriteText(kBootMark, "loading the code\n", 17, m, sizeof m);
     gBootMarkMs = gPlatform->getTimer()->millis();
     return false;
@@ -326,6 +357,7 @@ void bootMarkUpdate() {
         return;
     gBootMarked = false;
     gPlatform->getFileSystem()->remove(kBootMark);
+    tcBootStage = 5;
 }
 #endif
 
@@ -529,7 +561,17 @@ void tidalEditorUpdate(Platform* platform) {
         // the working copy; before plan 4e the code lived in /project.tidal
         if (!loadFile(kWorkspaceTidal) && loadFile(kTidalPlayerFile)) gSavedChanges = gEd->changes() - 1;
         gDirty = true;
+#ifdef PLATFORM_IMX
+        tcBootStageSet(3);
+        gStagePass = true;  // the next pass: the screen has had a frame
+#endif
     }
+#ifdef PLATFORM_IMX
+    if (gStagePass) {
+        gStagePass = false;
+        tcBootStageSet(4);
+    }
+#endif
 #ifdef PLATFORM_IMX
     if (gLoaded && gBootMsg.c_str()[0]) {
         gEd->showMessage(gBootMsg, true);
