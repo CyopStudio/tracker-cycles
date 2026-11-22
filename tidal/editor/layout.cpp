@@ -78,6 +78,7 @@ int layoutText(const Editor& ed, uint16_t blk, bool cps, bool cur, bool lit, int
         s.heightKey = 0;
         s.nKnown = 0;
         s.geomKey = 0;
+        s.lastScroll = 0;
     }
     Renderer r(s.text, kLayoutText + 1, s.spans);
     r.setBreaks(true);
@@ -290,7 +291,17 @@ void layoutCode(const Editor& ed, double now, const CodeGeometry& g, CodeScreen&
         for (int i = 0; i < fresh.n; i++) s.known[i] = fresh.e[i];
         s.nKnown = fresh.n;
     }
-    const int scroll = curY + curH > g.areaH ? curY + curH - g.areaH : 0;
+    // the scroll stays while the current block is in view; it moves only as
+    // far as needed to bring it in (UI notes 2026-11-22: going up through
+    // the blocks on screen moves the cursor, the page scrolls at its top).
+    // A block taller than the area shows its end, as before.
+    int scroll = s.clean == kSpansClean ? s.lastScroll : 0;
+    if (curH >= g.areaH || curY + curH > scroll + g.areaH) scroll = curY + curH - g.areaH;
+    else if (curY < scroll) scroll = curY;
+    const int maxScroll = y > g.areaH ? y - g.areaH : 0;
+    if (scroll > maxScroll) scroll = maxScroll;
+    if (scroll < 0) scroll = 0;
+    if (s.clean == kSpansClean) s.lastScroll = (int16_t)scroll;
     out.scroll = (int16_t)scroll;
     out.contentH = (int16_t)(y < 32767 ? y : 32767);
 

@@ -95,6 +95,9 @@ struct LayoutScratch {
     BlockHeight known[kMaxBlocks + 2];
     int nKnown;
     uint32_t geomKey;
+    // the scroll of the last layout: it stays while the current block is
+    // in view (moving up through the blocks on screen doesn't scroll)
+    int16_t lastScroll;
     Span spans[kMaxNodes];
     char text[kLayoutText + 1];
     CodeStyle style[kLayoutText];

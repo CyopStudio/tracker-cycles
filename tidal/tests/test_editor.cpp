@@ -13,6 +13,7 @@
 
 #include "controls.h"
 #include "editor.h"
+#include "layout.h"
 #include "library.h"
 
 using namespace tc;
@@ -681,4 +682,47 @@ void testEditorModel(int& pass, int& fail) {
     k = controlCommand(eager, padCtl(1), true);  // Shift + pad 2 = d2
     EXPECT(k.type == Command::Slot && k.slot == 1 && k.label == "d2", "Shift+pad2: %s", k.label.c_str());
     EXPECT(press(eager, padCtl(2), true) && eager.slot() == 2, "pressing Shift+pad3 selects d3");
+
+    // scrolling (UI notes 2026-11-22): down, the page follows the cursor at
+    // the bottom; back up, the cursor moves through the blocks on screen
+    // and the page scrolls only once the current block reaches the top
+    {
+        static Program sp;
+        static Checkpoint sc;
+        static uint8_t su[64 * 1024];
+        static Editor se(sp, sc, su, (int)sizeof su);
+        static CodeScreen scr;
+        static LayoutScratch scratch;
+        std::string text;
+        for (int i = 1; i <= 8; i++) text += "d" + std::to_string(i) + " $ s \"bd\"\n\n";
+        EXPECT(se.loadText(text.c_str(), (int)text.size(), err), "scroll file: %s", err.c_str());
+        se.setCursorMode(true);
+        se.gotoSlot(0);
+        const CodeGeometry g{96, 10, 2, 50};  // 12 px per block: 4 whole blocks fit
+        auto layout = [&]() {
+            layoutCode(se, 0, g, scr, scratch);
+            return (int)scr.scroll;
+        };
+        auto boxTop = [&]() { return scr.box.on ? (int)scr.box.y : -1; };
+        EXPECT(layout() == 0, "top: no scroll");
+        std::vector<int> down;
+        for (int i = 1; i < 8; i++) {
+            se.act(Action::BlockDown);
+            down.push_back(layout());
+        }
+        EXPECT(down == std::vector<int>({0, 0, 0, 10, 22, 34, 46}), "down: %d %d %d %d %d %d %d", down[0], down[1],
+               down[2], down[3], down[4], down[5], down[6]);
+        // d8 at the bottom; up through d7, d6, d5 (on screen): no scroll
+        for (int i = 0; i < 3; i++) {
+            se.act(Action::BlockUp);
+            EXPECT(layout() == 46, "up %d: the page stays (scroll %d)", i + 1, (int)scr.scroll);
+        }
+        EXPECT(boxTop() == 2, "d5 near the top (box at %d)", boxTop());
+        se.act(Action::BlockUp);  // d4: above the screen, the page scrolls to it
+        EXPECT(layout() == 36 && boxTop() == 0, "d4 at the top: scroll %d, box %d", (int)scr.scroll, boxTop());
+        for (int i = 0; i < 3; i++) se.act(Action::BlockUp);
+        EXPECT(layout() == 0, "d1: back at the top (scroll %d)", (int)scr.scroll);
+        se.act(Action::BlockDown);  // and down again: no scroll until the bottom
+        EXPECT(layout() == 0, "down from the top: the page stays (scroll %d)", (int)scr.scroll);
+    }
 }
