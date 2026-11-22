@@ -1,0 +1,18 @@
+msg: controls: # crush 4
+msg: controls: # room 0.3
+msg: copied # gain 0.8 (Paste: on a # replaces it, elsewhere adds it at the end)
+msg: pasted # gain 0.8 at the end of the block
+msg: Op # : ControlPattern
+msg: replaced with # gain 0.8
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # room 0.3 # gain 0.8 # crush 4
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>" # gain 0.8
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5

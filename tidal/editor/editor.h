@@ -356,6 +356,9 @@ private:
     uint16_t keyStep() const;  // the step the step keys act on (0: none)
     uint16_t headOf(uint16_t n) const;  // n is a function name: the application it heads (else 0)
     uint16_t controlTarget() const;     // where `# ...` goes (the top of the operator chain)
+    uint16_t controlAfter(uint16_t n) const;  // Screen 2 / FX2: what a new `# ...` wraps (after the control at n)
+    uint16_t blockEnd() const;          // the pattern at the end of the current block (past its `$`s)
+    void pasteOperator();               // paste a copied `# gain 0.9` (clipOp_)
 
     void info(const Label& m) { message_ = m; messageError_ = false; }
     void error(const Label& m) { message_ = m; messageError_ = true; }
@@ -553,6 +556,8 @@ private:
     Text lastCps_;  // the setcps expression last sent (rendered)
     Text clip_;     // copied code (rendered text)
     bool clipMini_ = false;  // clip_ is mini-notation (a step inside "...")
+    Label clipOp_;  // clip_ is an operator's right side: `# gain 0.9` = "#" + "gain 0.9" (UI notes 2026-11-22)
+    bool keyOnOp_ = false;  // this key was pressed on an operator (its symbol / the bar before it)
     Label lastControl_ = "gain 1";  // for the # context button
     uint16_t pending_ = 0;  // step appended by pad entry; Delete removes it
 };

@@ -19,6 +19,7 @@ void Editor::gotoSlot(int s) {
 void Editor::gotoSlotTree(int s) {
     if (s < 0 || s >= kSlots) return;
     headGap_ = preSym_ = false;
+    onOp_ = false;  // not on the new block's top operator (UI notes 2026-11-22)
     dropEmptyBlocks();
     cps_ = false;
     pending_ = 0;

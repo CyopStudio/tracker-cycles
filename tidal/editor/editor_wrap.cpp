@@ -365,6 +365,7 @@ void Editor::openWrap(WrapMode mode) {
             cursor_ = up;
         }
     }
+    if (controlsOnly) cursor_ = controlAfter(cursor_);  // after the control the cursor is in
     MenuList& items = menuBuild();
     const Node& n = prog_->at(cursor_);
     if (isMiniKind(n.kind)) {

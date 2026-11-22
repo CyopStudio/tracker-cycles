@@ -8,6 +8,8 @@
 TC_COLD_BEGIN
 namespace tc {
 
+static uint16_t firstValue(const Program& p, uint16_t n);
+
 // Shift+Screen 7 (\n): a line break (on / off) before the argument at the cursor,
 // or before the operator / $ it belongs to (UI notes, Editor14).
 void Editor::toggleBreak() {
@@ -84,6 +86,48 @@ uint16_t Editor::controlTarget() const {
     return t;
 }
 
+// Screen 2 / FX2 (UI notes 2026-11-22): from inside a control (its name, its
+// value, its "...") the new `# ...` goes straight after that control: out of
+// whatever isn't a control pattern yet (the 0.3 of `room 0.3`, the "0" of
+// `n ("0" + "<0 3>")`), then past the operator it is the right side of
+// (`a # room 0.3 # new`, not `a # (room 0.3 # new)`). At a block's end that
+// appends. A function value (often's `rev`) stays: its menus replace it.
+uint16_t Editor::controlAfter(uint16_t n) const {
+    const Program& p = *prog_;
+    if (!n || p.at(n).kind == Kind::Block || p.at(n).type == kTyFn) return n;
+    const uint8_t ctl = kTyPatBase + (int)Base::Control;
+    uint16_t t = n;
+    while (p.at(t).type != ctl) {
+        const uint16_t up = p.parentOf(t);
+        if (!up || p.at(up).kind == Kind::Block) return n;  // no control around it: as before
+        t = up;
+    }
+    // only out of a control (`room 0.3`, `n (...)`), not out of another
+    // function's argument (the 2 of `hurry 2 $ ...` stays as it was)
+    if (t != n && p.at(t).kind == Kind::App) {
+        const uint16_t h = p.at(t).first;
+        if (!h || p.at(h).kind != Kind::Fn || lib((int)p.at(h).a).cat != Cat::Control) return n;
+    }
+    const uint16_t up = p.parentOf(t);
+    if (up && p.at(up).kind == Kind::Op && p.at(up).first != t) t = up;
+    return t;
+}
+
+// The end of the current block's pattern: past every `$` (`every 2 (fast 2)
+// $ s "bd" # gain 1` ends with `s "bd" # gain 1`).
+uint16_t Editor::blockEnd() const {
+    const Program& p = *prog_;
+    const uint16_t b = prog_->block[slot_];
+    uint16_t t = b ? p.at(b).first : 0;
+    while (t && p.at(t).kind == Kind::App && (p.at(t).flags & kDollar)) {
+        uint16_t last = p.at(t).first;
+        while (last && p.at(last).next) last = p.at(last).next;
+        if (!last) break;
+        t = last;
+    }
+    return t;
+}
+
 void Editor::quickControl(const char* rhs) {
     if (cps_ || !cursor_) return error("go to a block's pattern first");
     const Program& p = *prog_;
@@ -128,15 +172,68 @@ void Editor::doCopy() {
         clip_ += selText();
         clip_ += ']';
         clipMini_ = true;
+        clipOp_.clear();
         return info("copied " + clip_);
     }
     if (!cursor_) return error("nothing to copy");
     if (prog_->at(cursor_).kind == Kind::Block) return duplicateBlock();
     uint16_t n = cursor_;
     if (!n) return error("nothing to copy");
+    clipOp_.clear();
+    if (keyOnOp_) {  // on `#` (UI notes 2026-11-22): the whole control, `# gain 0.9`
+        const uint16_t l = prog_->at(n).first, r = l ? prog_->at(l).next : 0;
+        if (r) {
+            clip_ = renderNode(*prog_, r);
+            clipMini_ = false;
+            clipOp_ = lib((int)prog_->at(n).a).name;
+            return info("copied " + clipOp_ + " " + clip_ + " (Paste: on a # replaces it, elsewhere adds it at the end)");
+        }
+    }
     clip_ = renderNode(*prog_, n);
     clipMini_ = isMiniKind(prog_->at(n).kind);
     info("copied " + clip_);
+}
+
+// A copied operator with its right side (`# gain 0.9`): on an operator (its
+// symbol, the bar before it) it takes that one's place, symbol and right
+// side; anywhere else it goes on the end of the block (UI notes 2026-11-22).
+void Editor::pasteOperator() {
+    const Text what = Text(clipOp_.c_str()) + " " + clip_;
+    const int id = libFind(clipOp_.c_str(), (int)clipOp_.size());
+    if (id < 0 || cps_) return error("can't paste " + what + " here");
+    if (keyOnOp_) {
+        const uint16_t o = cursor_;
+        const uint16_t l = prog_->at(o).first, r = l ? prog_->at(l).next : 0;
+        if (!r || !beginEdit()) return;
+        Program& P = *prog_;
+        Error e;
+        const uint16_t n = parseExpr(P, clip_.c_str(), (int)clip_.size(), e);
+        if (!n) {
+            abortEdit();
+            return error("can't paste " + what + " here");
+        }
+        P.replace(r, n);
+        P.freeTree(r);
+        P.at(o).a = (uint32_t)id;
+        uint16_t v = firstValue(P, n);
+        if (!endEdit(v ? v : n)) return;  // endEdit type-checks (and says why not)
+        onOp_ = preSym_ = false;
+        return info("replaced with " + what);
+    }
+    // the end of the block, else further out until it fits (as the quick controls)
+    for (uint16_t t = blockEnd(); t && prog_->at(t).kind != Kind::Block; t = prog_->parentOf(t)) {
+        EditSpec sp = spec(EditKind::WrapOp, t, clip_);
+        sp.op = clipOp_.c_str();
+        sp.left = true;
+        uint16_t nn;
+        if (!trySpec(sp, nn)) continue;
+        if (!doSpec(sp, nn)) return;
+        if (const uint16_t v = addedValue(sp, nn)) cursor_ = v;
+        gapSeq_ = 0;
+        onOp_ = false;
+        return info("pasted " + what + " at the end of the block");
+    }
+    error("can't paste " + what + " into this block");
 }
 
 // Replace the selection with the clipboard; a copied step can also go where
@@ -151,6 +248,10 @@ void Editor::doPaste() {
         gapSeq_ = 0;
         if (doSpec(sp, nn)) info("pasted " + clip_ + " into the list");
         return;
+    }
+    if (!clipOp_.empty()) {
+        if (!prog_->block[slot_]) return error("paste " + clipOp_ + " " + clip_ + " into a block");
+        return pasteOperator();
     }
     uint16_t beforeCursor = cursor_;
     const bool hadBlock = prog_->block[slot_] != 0;

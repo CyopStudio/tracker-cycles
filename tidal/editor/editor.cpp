@@ -656,10 +656,13 @@ void Editor::actOne(Action a) {
             default: selA_ = selB_ = selSeq_ = 0; break;
         }
     }
+    // Copy / Paste on an operator (its symbol, or the bar before it in cursor
+    // mode) act on the operator and its right side; the flags go below
+    keyOnOp_ = !menuOpen_ && cursor_ && prog_->at(cursor_).kind == Kind::Op && (onOperator() || preSym_);
     switch (a) {  // the bar before the pattern lasts for the cursor keys and the ones that use it
         case Action::Left: case Action::Right: case Action::Up: case Action::Down: case Action::Insert:
         case Action::Delete: case Action::Backspace: case Action::Evaluate: case Action::PlayCancel: case Action::UnmuteAll:
-        case Action::Hush: case Action::SilenceSlot: case Action::Save:
+        case Action::Hush: case Action::SilenceSlot: case Action::Save: case Action::Copy:
             break;
         default:
             if (!menuOpen_) headGap_ = preSym_ = false;
@@ -672,6 +675,7 @@ void Editor::actOne(Action a) {
         case Action::Replace: case Action::Left: case Action::Right: case Action::Up:
         case Action::Evaluate: case Action::PlayCancel: case Action::UnmuteAll: case Action::Confirm: case Action::Cancel:
         case Action::Delete: case Action::Backspace:  // Delete on a symbol unwraps it (not the whole expression)
+        case Action::Copy:  // Copy leaves the cursor where it is
             break;
         case Action::Down:
             if (!cursorMode_) onOp_ = false;  // cursor mode: the line below from the symbol's column
