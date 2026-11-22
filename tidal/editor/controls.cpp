@@ -224,7 +224,9 @@ Command controlCommand(const Editor& ed, Control c, bool shift) {
             return act(Action::Delete, "Delete");
         case Control::Copy: return shift ? act(Action::Paste, "Paste") : act(Action::Copy, "Copy");
         case Control::Note: return shift ? act(Action::MenuChords, "chord") : act(Action::JumpNotes, "n pattern");
-        case Control::Instr: return act(Action::JumpSamples, "s pattern");
+        case Control::Instr:  // on a sample name: pick another (Mini RC3 notes); else to the s pattern
+            if (ed.cursorOnSample()) return act(Action::MenuSamples, "samples");
+            return act(Action::JumpSamples, "s pattern");
         case Control::Fx1: return act(Action::MenuModifiers, "functions");
         case Control::Fx2: return act(Action::MenuFx, "effects");
         case Control::Play:

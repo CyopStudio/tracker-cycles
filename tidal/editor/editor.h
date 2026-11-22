@@ -180,6 +180,11 @@ public:
     // slots (samples_), entered the same way.
     bool padInstruments() const;
     int cursorInstrument() const;  // slot of the sample at the cursor, or -1
+    bool cursorOnSample() const;   // on a name in an s pattern (Instrument: the sample menu)
+    // Insert would arm a new block (the cursor on a block's top), and armed:
+    // the next slot pad adds a block for that dN above this one
+    bool insertAddsBlock() const;
+    bool newBlockArmed() const { return newBlockArmed_; }
     void enterInstrument(int slot);
     // instrument slot names (48, "" = empty), for pads and menus
     const char* instrument(int i) const { return i >= 0 && i < kInstrumentSlots ? samples_[i] : ""; }

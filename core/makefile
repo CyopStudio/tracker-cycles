@@ -69,6 +69,10 @@ endif
 
 ifeq ($(PRODUCT), MINI)
 DEFINES+=-DTRACKER_MINI
+# Tracker Cycles on the Tracker Mini (feature/mini): the same editor firmware
+ifeq ($(filter -DTIDAL_TICK -DTIDAL_BENCH -DTIDAL_EDITOR_BENCH,$(CUSTOM_DEFINES)),)
+DEFINES += -DTIDAL_EDITOR -DTC_EVENT_SRC=1
+endif
 else ifeq ($(PRODUCT), ORIGINAL)
 else ifeq ($(PRODUCT), PLUS)
 else 

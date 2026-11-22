@@ -5,7 +5,7 @@
 // interrupt drives (DeviceVoice: playerEngine::tidalNoteOn on tracks 1-8,
 // MIDI out for d9-d16). Every Original Tracker build (plan 4a stage 3).
 #pragma once
-#ifndef PLATFORM_IMX
+#if !defined(PLATFORM_IMX) || defined(TIDAL_EDITOR)
 #include "../../tidal/core/mapping.h"
 
 // mtProject's 48 sample instruments.
@@ -36,7 +36,11 @@ public:
 class DeviceVoice : public tc::Voice {
 public:
     static constexpr int kTracks = 8;
+#ifndef PLATFORM_IMX
     static constexpr int kPlayers = 3;
+#else
+    static constexpr int kPlayers = 1;  // Tracker Mini: one player per track for now
+#endif
     // The cap is load-driven (v10): at most cap() (default kCap), less as
     // the audio load rises: kCap below kLoadLo % (smoothed), falling in a
     // line to kMinCap at kLoadHi %. Over it at a noteOn, the oldest

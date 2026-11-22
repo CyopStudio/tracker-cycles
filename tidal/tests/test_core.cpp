@@ -1042,6 +1042,7 @@ static void testCheckpoint() {
 
 void testEditorModel(int& pass, int& fail);  // test_editor.cpp
 void testWavParse(int& pass, int& fail);     // test_wav.cpp
+void testMiniInput(int& pass, int& fail);    // test_mini.cpp
 
 int main() {
     testNodeSize();
@@ -1061,6 +1062,7 @@ int main() {
     testMapping(gPass, gFail);
     testEditorModel(gPass, gFail);
     testWavParse(gPass, gFail);
+    testMiniInput(gPass, gFail);
     printf("%d passed, %d failed\n", gPass, gFail);
     return gFail ? 1 : 0;
 }

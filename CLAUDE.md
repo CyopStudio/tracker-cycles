@@ -5,6 +5,11 @@ A TidalCycles-style live-coding sequencer for the Polyend Tracker, forked
 from Tracker CE. Targets the **Original Tracker (NXP MK66FX1M0, Cortex-M4F @
 180 MHz, 16 MB SDRAM, mono samples)**. This fork will never be merged back
 to upstream CE.
+Tracker Mini port (IMX, i.MX RT1051): branch `feature/mini`, notes in
+**docs/tidal_mini.md** (`make mini`; one player per track, 44100 Hz clock,
+Mini keys via tidal/editor/mini.h; test images
+`build/TrackerMini_<Name>RC<n>.ptf`, the Mini updater wants a `TrackerMini`
+prefix).
 
 Status: **1.0.1 released** (2026-11-13; 1.0.0 on 2026-11-12). Work for 1.1
 is on branches off `develop`; changes go in UPCOMING.md as they land.

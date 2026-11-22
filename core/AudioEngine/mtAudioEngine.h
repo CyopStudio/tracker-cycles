@@ -276,7 +276,13 @@ class playerEngine
     // the track amp / sends run at unity (tidalVolume). Pitch, start / end,
     // slice, reverse and the amp envelope are per player; filter, crush,
     // drive, pan and sends are per track (the latest note's).
+#ifndef PLATFORM_IMX
     static constexpr int kTidalPlayers = 3;
+#else
+    // Tracker Mini / IMX (feature/mini): one (stereo) player per track for
+    // now; the note volume goes through the stock stepVelocity path
+    static constexpr int kTidalPlayers = 1;
+#endif
     uint8_t tidalNoteOn(uint8_t player,
                         uint8_t instr_idx,
                         int8_t note,

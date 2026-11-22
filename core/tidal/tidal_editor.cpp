@@ -23,6 +23,12 @@
 #include "../../tidal/editor/layout.h"
 
 namespace {
+#ifdef PLATFORM_IMX
+// how far the boot got, kept with a hard fault (platforms/imx/source/tc_fault.h)
+extern "C" volatile uint8_t tcBootStage;
+inline void tcBootStageSet(uint8_t st) { tcBootStage = st; }
+bool gStagePass = false;  // stage 4 on the pass after the load
+#endif
 
 // SDRAM isn't up for static constructors: raw storage, built in update()
 __NOINIT(EXTERNAL_RAM) unsigned char progRaw[sizeof(tc::Program)] __attribute__((aligned(8)));
@@ -43,15 +49,27 @@ bool gLitDirty = false;
 double nowSeconds();
 
 // ---- stack painting -------------------------------------------------------
+#ifndef PLATFORM_IMX
 extern "C" char* __brkval;    // heap end (teensy core)
 extern "C" unsigned long _estack;  // top of RAM
+// the stack grows down from the top of RAM towards the heap
+inline uintptr_t stackFloor() { return (uintptr_t)__brkval; }
+inline uintptr_t stackTop() { return (uintptr_t)&_estack; }
+#else
+// IMX (Tracker Mini): the heap and the stack are fixed regions of SRAM_DTC
+// (platforms/imx/linker/linkerScript.ld); the stack is [_vStackBase, _vStackTop)
+extern "C" char _vStackBase[];
+extern "C" char _vStackTop[];
+inline uintptr_t stackFloor() { return (uintptr_t)_vStackBase; }
+inline uintptr_t stackTop() { return (uintptr_t)_vStackTop; }
+#endif
 constexpr uint32_t kPaint = 0xC5A3C5A3u;
 uint32_t* gPaintLo = nullptr;  // painted words: [gPaintLo, gPaintHi)
 uint32_t* gPaintHi = nullptr;
 
 __attribute__((noinline)) void paintStack() {
     volatile uint32_t here = 0;
-    uintptr_t lo = ((uintptr_t)__brkval + 1024 + 3) & ~(uintptr_t)3;  // leave malloc some room
+    uintptr_t lo = (stackFloor() + 1024 + 3) & ~(uintptr_t)3;  // leave malloc some room
     uintptr_t hi = ((uintptr_t)&here - 512) & ~(uintptr_t)3;           // below this frame
     if (hi <= lo) return;
     gPaintLo = (uint32_t*)lo;
@@ -62,7 +80,7 @@ __attribute__((noinline)) void paintStack() {
 uintptr_t deepestAddr() {
     if (!gPaintLo) return 0;
     uint32_t* w = gPaintLo;
-    if ((uintptr_t)__brkval > (uintptr_t)w) w = (uint32_t*)(((uintptr_t)__brkval + 3) & ~(uintptr_t)3);
+    if (stackFloor() > (uintptr_t)w) w = (uint32_t*)((stackFloor() + 3) & ~(uintptr_t)3);
     while (w < gPaintHi && *w == kPaint) w++;
     return (uintptr_t)w;
 }
@@ -219,13 +237,23 @@ bool loadFile(const char* path) {
     const char* text = nullptr;
     int len = 0;
     char msg[96];
+#ifdef PLATFORM_IMX
+    tcBootStageSet(1);
+#endif
     if (!tidalPlayerReadText(path, text, len, msg, sizeof msg)) return false;
     tc::Label err;
     // the status line (right of the cursor info) stays short; a load error
     // goes on the message line below it, which has the whole width
     const char* base = strrchr(path, '/');
     base = base ? base + 1 : path;
-    if (gEd->loadText(text, len, err)) {
+#ifdef PLATFORM_IMX
+    tcBootStageSet(2);
+#endif
+    const bool loaded = gEd->loadText(text, len, err);
+#ifdef PLATFORM_IMX
+    tcBootStageSet(3);
+#endif
+    if (loaded) {
         snprintf(gStatus, sizeof gStatus, "%s loaded", base);
     } else {
         snprintf(gStatus, sizeof gStatus, "%s: not loaded", base);
@@ -235,6 +263,103 @@ bool loadFile(const char* path) {
     }
     return true;
 }
+
+#ifdef PLATFORM_IMX
+// ---- boot diagnostics (Tracker Mini RC3) ----------------------------------------
+// A crash or hang while the code loads froze the Mini at the start screen's
+// 100% on every boot. Now a hard fault leaves its registers in tcFault
+// (platforms/imx/source/tc_fault.c) and resets; a marker file is on the card
+// from before the code loads until 3 s after: found at boot, the last boot
+// didn't get through, and the code is set aside (Workspace/crash.tidal) so
+// the editor starts empty. Both go into Workspace/tidal_fault.txt.
+// layout: platforms/imx/source/tc_fault.h
+struct TcFaultRecord {
+    uint32_t magic, pc, lr, psr, cfsr, hfsr, mmfar, bfar, sp, check;
+};
+extern "C" volatile TcFaultRecord tcFault;
+extern "C" uint32_t tcFaultSum(const volatile TcFaultRecord* r);
+extern "C" int tcSnvsRead(uint32_t* pc, uint32_t* lr, uint32_t* cfsr, uint8_t* stage);
+constexpr uint32_t kTcFaultMagic = 0x7C0FA017u;
+const char* const kStageName[] = {"before the code", "reading the code", "parsing / checking the code",
+                                  "after the load (first frames)", "after the first frame", "after the boot"};
+const char* stageName(uint8_t s) { return s < 6 ? kStageName[s] : "?"; }
+constexpr const char* kBootMark = "Workspace/tidal_boot.txt";
+constexpr const char* kCrashCode = "Workspace/crash.tidal";
+constexpr const char* kFaultLog = "Workspace/tidal_fault.txt";
+bool gBootMarked = false;
+uint32_t gBootMarkMs = 0;
+tc::Label gBootMsg;  // shown once the code has loaded
+
+// true: the last boot didn't get past loading the code; it is set aside
+// and the editor starts empty
+bool bootCheck() {
+    FileSystem* fs = gPlatform->getFileSystem();
+    const bool faulted = tcFault.magic == kTcFaultMagic && tcFault.check == tcFaultSum(&tcFault);
+    // RC4 device: the reset after a fault powers the Mini off and the SRAM
+    // record is gone; the SNVS copy (pc, lr, cfsr, stage) stays
+    uint32_t spc = 0, slr = 0, scfsr = 0;
+    uint8_t sstage = 0;
+    const bool snvs = tcSnvsRead(&spc, &slr, &scfsr, &sstage) != 0;
+    const bool stuck = fs->exists(kBootMark);
+    char m[96];
+    tc::Label msg;
+    if (faulted || snvs || stuck) {
+        char log[400];
+        int n = 0;
+        if (faulted)
+            n = snprintf(log, sizeof log,
+                         "hard fault\npc %08lx\nlr %08lx\npsr %08lx\ncfsr %08lx\nhfsr %08lx\nmmfar %08lx\nbfar %08lx\nsp %08lx\n",
+                         (unsigned long)tcFault.pc, (unsigned long)tcFault.lr, (unsigned long)tcFault.psr,
+                         (unsigned long)tcFault.cfsr, (unsigned long)tcFault.hfsr, (unsigned long)tcFault.mmfar,
+                         (unsigned long)tcFault.bfar, (unsigned long)tcFault.sp);
+        else if (!snvs)
+            n = snprintf(log, sizeof log, "no fault recorded (a hang, or a power cycle during the load)\n");
+        if (snvs && n >= 0 && n < (int)sizeof log)
+            n += snprintf(log + n, sizeof log - n, "hard fault (SNVS copy)\npc %08lx\nlr %08lx\ncfsr %08lx\nstage %u: %s\n",
+                          (unsigned long)spc, (unsigned long)slr, (unsigned long)scfsr, (unsigned)sstage,
+                          stageName(sstage));
+        if (n > 0 && n < (int)sizeof log)
+            n += snprintf(log + n, sizeof log - n, "%s\n",
+                          stuck ? "the code load didn't finish: Workspace/project.tidal -> crash.tidal"
+                                : "after the code had loaded");
+        if (n > (int)sizeof log - 1) n = (int)sizeof log - 1;
+        tidalPlayerWriteText(kFaultLog, log, n, m, sizeof m);
+        tcFault.magic = 0;
+        if (faulted) msg.printf("last boot: fault at pc %08lx lr %08lx (Workspace/tidal_fault.txt)",
+                                (unsigned long)tcFault.pc, (unsigned long)tcFault.lr);
+        else if (snvs) msg.printf("last boot: fault at pc %08lx lr %08lx, %s (Workspace/tidal_fault.txt)",
+                                  (unsigned long)spc, (unsigned long)slr, stageName(sstage));
+        else msg = "last boot: stuck loading the code (Workspace/tidal_fault.txt)";
+    }
+    if (stuck) {
+        const char* text = nullptr;
+        int len = 0;
+        if (tidalPlayerReadText(kWorkspaceTidal, text, len, m, sizeof m))
+            tidalPlayerWriteText(kCrashCode, text, len, m, sizeof m);
+        fs->remove(kWorkspaceTidal);
+        fs->remove(kBootMark);
+        tc::Label err;
+        gEd->loadText("", 0, err);
+        gEd->showMessage(msg, true);
+        snprintf(gStatus, sizeof gStatus, "code set aside: crash.tidal");
+        return true;
+    }
+    if (faulted || snvs) gBootMsg = msg;
+    gBootMarked = tidalPlayerWriteText(kBootMark, "loading the code\n", 17, m, sizeof m);
+    gBootMarkMs = gPlatform->getTimer()->millis();
+    return false;
+}
+
+// the load got through and the main loop kept running: the marker goes
+void bootMarkUpdate() {
+    if (!gBootMarked || gPlatform->getTimer()->millis() - gBootMarkMs < 3000 ||
+        newFileManager.getCurrentOperation() != fmNoOperation)
+        return;
+    gBootMarked = false;
+    gPlatform->getFileSystem()->remove(kBootMark);
+    tcBootStage = 5;
+}
+#endif
 
 }  // namespace
 
@@ -334,11 +459,11 @@ void tidalStorageModeExit() {
 
 int tidalStackDeepest() {
     const uintptr_t a = deepestAddr();
-    return a ? (int)((uintptr_t)&_estack - a) : 0;
+    return a ? (int)(stackTop() - a) : 0;
 }
 int tidalHeapGap() {
     const uintptr_t a = deepestAddr();
-    return a ? (int)(a - (uintptr_t)__brkval) : 0;
+    return a ? (int)(a - stackFloor()) : 0;
 }
 
 namespace {
@@ -370,7 +495,11 @@ int tidalEditorStatusText(char* buf, int cap) {
     if (deep) add("stack: deepest %d.%d KB below the top of RAM, %d.%d KB to spare above the heap\n", deep / 1024,
                   deep % 1024 * 10 / 1024, gap / 1024, gap % 1024 * 10 / 1024);
     else add("stack: not measured\n");
-    add("heap end %d B below the top of RAM\n", (int)((uintptr_t)&_estack - (uintptr_t)__brkval));
+#ifndef PLATFORM_IMX
+    add("heap end %d B below the top of RAM\n", (int)(stackTop() - stackFloor()));
+#else
+    add("stack region %d B\n", (int)(stackTop() - stackFloor()));
+#endif
     add("%s\n", gStatus);
     int quiet = 0;
     for (int s = 0; s < tc::kSlots; s++) {
@@ -445,10 +574,32 @@ void tidalEditorUpdate(Platform* platform) {
     if (!gLoaded && tidalPlayerStarted()) {
         gLoaded = true;
         setInstrumentNames();
+#ifdef PLATFORM_IMX
+        if (bootCheck()) gSavedChanges = gEd->changes();
+        else
+#endif
         // the working copy; before plan 4e the code lived in /project.tidal
         if (!loadFile(kWorkspaceTidal) && loadFile(kTidalPlayerFile)) gSavedChanges = gEd->changes() - 1;
         gDirty = true;
+#ifdef PLATFORM_IMX
+        tcBootStageSet(3);
+        gStagePass = true;  // the next pass: the screen has had a frame
+#endif
     }
+#ifdef PLATFORM_IMX
+    if (gStagePass) {
+        gStagePass = false;
+        tcBootStageSet(4);
+    }
+#endif
+#ifdef PLATFORM_IMX
+    if (gLoaded && gBootMsg.c_str()[0]) {
+        gEd->showMessage(gBootMsg, true);
+        gBootMsg = "";
+        gDirty = true;
+    }
+    if (gLoaded) bootMarkUpdate();
+#endif
     if (gLoaded && gOpenPending && newFileManager.getCurrentOperation() == fmNoOperation) {
         gOpenPending = false;  // a project was opened: its code (copied to the workspace) replaces ours
         tidalPlayerHush();

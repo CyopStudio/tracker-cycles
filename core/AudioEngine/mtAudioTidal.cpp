@@ -16,7 +16,7 @@
 // is pointed at it, so every player-level setter below and update()'s
 // per-block refresh act on the newest note while older ones ring out with
 // what they had. Their sum feeds the track's one crusher / filter / amp.
-#ifndef PLATFORM_IMX
+#if !defined(PLATFORM_IMX) || defined(TIDAL_EDITOR)
 #include "ampLogarythmicValues.h"
 #include "mtAudioEngine.h"
 #include "mtSequencer.h"
@@ -36,7 +36,9 @@ constexpr uint32_t kEnvBits = bit(TMod::Attack) | bit(TMod::Release);
 // by the track's chain
 constexpr uint32_t kPlayerBits =
   bit(TMod::FineTune) | bit(TMod::Slice) | bit(TMod::Reverse) | bit(TMod::Begin) | bit(TMod::End);
+#ifndef PLATFORM_IMX
 static_assert(playerEngine::kTidalPlayers == AudioVoice::kPlayers, "players per track");
+#endif
 static_assert((int)TMod::Count <= 32, "TMod bits must fit 32 bits");
 
 }  // namespace
@@ -70,6 +72,7 @@ AUDIO_CORE_RAM uint8_t playerEngine::tidalNoteOn(uint8_t player,
 
     AudioNoInterrupts();
 
+#ifndef PLATFORM_IMX
     // this note's player; its volume is its gain into the track's chain
     AudioPlayMemory* const pm = audioVoice.getPlayer(player);
     playMemPtr[0] = pm;
@@ -78,6 +81,13 @@ AUDIO_CORE_RAM uint8_t playerEngine::tidalNoteOn(uint8_t player,
     audioVoice.getPlayerSum()->gain(
       player, ampLogValues[velocity < 0 ? mtProject.instrument[instr_idx].volume : velocity]);
     tidalVolume = true;
+#else
+    // IMX: the track's one stereo player pair; volume via stepVelocity
+    for (int channel = 0; channel < (int)playMemPtr.size(); channel++)
+        playMemPtr[channel]->envelopeClearEndReleaseFlag();
+    tidalCur = 0;
+    tidalVolume = false;
+#endif
 
     currentInstrument_idx = instr_idx;
     currentNote = note;
@@ -258,6 +268,48 @@ AUDIO_CORE_RAM uint8_t playerEngine::tidalNoteOn(uint8_t player,
     return 1;
 }
 
+#ifdef PLATFORM_IMX
+// IMX: one player per track (its L / R players in playMemPtr)
+AUDIO_CORE_RAM void playerEngine::tidalNoteOff(uint8_t player)
+{
+    if (player >= kTidalPlayers)
+        return;
+    noteOff();
+}
+
+AUDIO_CORE_RAM void playerEngine::tidalStop(uint8_t player)
+{
+    if (player >= kTidalPlayers)
+        return;
+    for (int channel = 0; channel < (int)playMemPtr.size(); channel++)
+    {
+        playMemPtr[channel]->envelopeNoteOff();
+        playMemPtr[channel]->envelopeSetIdle();
+        playMemPtr[channel]->stop();
+    }
+}
+
+AUDIO_CORE_RAM void playerEngine::tidalCut(uint8_t player)
+{
+    if (player >= kTidalPlayers || !playMemPtr[0]->isPlaying())
+        return;
+    for (int channel = 0; channel < (int)playMemPtr.size(); channel++)
+    {
+        playMemPtr[channel]->envelopeRelease(5.0f);
+        playMemPtr[channel]->envelopeNoteOff();
+    }
+}
+
+AUDIO_CORE_RAM bool playerEngine::tidalPlaying(uint8_t player)
+{
+    return player < kTidalPlayers && playMemPtr[0]->isPlaying();
+}
+
+void playerEngine::tidalAllOff()
+{
+    noteOff();
+}
+#else
 AUDIO_CORE_RAM void playerEngine::tidalNoteOff(uint8_t player)
 {
     if (player >= kTidalPlayers)
@@ -303,4 +355,5 @@ void playerEngine::tidalAllOff()
             audioVoice.getPlayer(k)->envelopeNoteOff();
     noteOff();
 }
+#endif  // PLATFORM_IMX
 #endif

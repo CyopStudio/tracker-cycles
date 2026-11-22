@@ -14,5 +14,6 @@
 #include "../../tidal/editor/editor_keyboard.cpp"
 #include "../../tidal/editor/cursor.cpp"
 #include "../../tidal/editor/controls.cpp"
+#include "../../tidal/editor/mini.cpp"
 #include "../../tidal/editor/layout.cpp"
 #endif

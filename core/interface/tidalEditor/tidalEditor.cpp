@@ -21,6 +21,7 @@
 #include "../../../tidal/editor/controls.h"
 #include "../../../tidal/editor/keyboard.h"
 #include "../../../tidal/editor/layout.h"
+#include "../../../tidal/editor/mini.h"
 
 cTidalEditorModule tidalEditorModule;
 
@@ -455,12 +456,13 @@ void clearPads()
 bool shiftHeld() { return mtInterface.getPlatform()->getButtons()->isButtonPressed(interfaceButtonShift); }
 
 // ---- input --------------------------------------------------------------------------------
-void functButton(uint8_t button, uint8_t state)
+// An Original Tracker control (the Control enum is the firmware's button
+// order: interfaceButton0 .. interfaceButtonRight).
+void handleControl(Control c, bool shift, uint8_t state)
 {
     tc::Editor* ed = tidalEditorModel();
-    if (!ed || button > (uint8_t)Control::Right) return;
-    const Control c = (Control)button;  // the Control enum is the firmware's button order
-    const bool shift = shiftHeld();
+    if (!ed || c > Control::Right) return;
+    uint8_t button = (uint8_t)c;
     if (c == Control::Master && shift) {  // the status view
         if (state == buttonPress) tidalEditorToggleStatus();
         return;
@@ -490,6 +492,80 @@ void functButton(uint8_t button, uint8_t state)
     tidalEditorSetDirty();
 }
 
+void functButton(uint8_t button, uint8_t state)
+{
+    if (button > (uint8_t)Control::Right) return;
+    handleControl((Control)button, shiftHeld(), state);
+}
+
+#ifdef TRACKER_MINI
+// ---- Tracker Mini: no pads, no jog wheel, Fn keys (tidal/editor/mini.h) ---------------------
+tc::MiniInput gMini;
+
+bool miniKeyOf(uint8_t button, tc::MiniKey& k)
+{
+    if (button <= interfaceButton7) {
+        k = (tc::MiniKey)((int)tc::MiniKey::Screen0 + button);
+        return true;
+    }
+    switch (button) {
+        case interfaceButtonNote: k = tc::MiniKey::Note; return true;
+        case interfaceButtonInstr: k = tc::MiniKey::Instr; return true;
+        case interfaceButtonVol: k = tc::MiniKey::Fx1; return true;  // FX1
+        case interfaceButtonFx: k = tc::MiniKey::Fx2; return true;   // FX2
+        case interfaceButtonPlay: k = tc::MiniKey::Play; return true;
+        case interfaceButtonCopy: k = tc::MiniKey::Copy; return true;
+        case interfaceButtonInsert: k = tc::MiniKey::Insert; return true;
+        case interfaceButtonUp: k = tc::MiniKey::Up; return true;
+        case interfaceButtonDelete: k = tc::MiniKey::Delete; return true;
+        case interfaceButtonRec: k = tc::MiniKey::Rec; return true;
+        case interfaceButtonShift: k = tc::MiniKey::Shift; return true;
+        case interfaceButtonLeft: k = tc::MiniKey::Left; return true;
+        case interfaceButtonDown: k = tc::MiniKey::Down; return true;
+        case interfaceButtonRight: k = tc::MiniKey::Right; return true;
+        case interfaceButtonMiniMiddle: k = tc::MiniKey::Middle; return true;
+        case interfaceButtonMiniMenu: k = tc::MiniKey::Menu; return true;
+        case interfaceButtonMiniFn1: k = tc::MiniKey::Fn1; return true;
+        case interfaceButtonMiniFn2: k = tc::MiniKey::Fn2; return true;
+        case interfaceButtonMiniFn3: k = tc::MiniKey::Fn3; return true;
+        case interfaceButtonMiniFn4: k = tc::MiniKey::Fn4; return true;
+        default: return false;
+    }
+}
+
+void runMiniTarget(const tc::MiniTarget& t, uint8_t state)
+{
+    tc::Editor* ed = tidalEditorModel();
+    if (!ed) return;
+    if (t.kind == tc::MiniTarget::ModuleMenu) {  // the stock module menu: hold, pick, release
+        if (state == buttonPress) mtMenuPopup.showModulePopup(&tidalEditorModule);
+        else if (state == buttonRelease) mtMenuPopup.hideModulePopup(&tidalEditorModule);
+        return;
+    }
+    if (t.kind != tc::MiniTarget::Press) {
+        tidalEditorSetDirty();  // note entry / its window / the bank: the soft keys change
+        return;
+    }
+    if (tc::isPad(t.ctl)) {
+        if (state == buttonRelease) tc::release(*ed, t.ctl);  // ends a held chord
+        else tc::press(*ed, t.ctl, t.shift);
+        tidalEditorSetDirty();
+        return;
+    }
+    handleControl(t.ctl, t.shift, state);
+}
+
+void functMiniButton(uint8_t button, uint8_t state)
+{
+    tc::Editor* ed = tidalEditorModel();
+    tc::MiniKey k;
+    if (!ed || !miniKeyOf(button, k)) return;
+    if (state == buttonPress) runMiniTarget(gMini.press(*ed, k, shiftHeld()), buttonPress);
+    else if (state == buttonRelease) runMiniTarget(gMini.release(k), buttonRelease);
+    // holds: the stock input turns the arrows' / Insert's / Delete's into repeated presses
+}
+#endif
+
 void functPads(uint8_t pad, uint8_t state, int16_t)
 {
     tc::Editor* ed = tidalEditorModel();
@@ -518,8 +594,17 @@ void functPot(int16_t value)
 void cTidalEditorModule::start(uint32_t)
 {
     moduleRefresh = 1;
+#ifndef TRACKER_MINI
     for (uint8_t b = 0; b <= (uint8_t)Control::Right; b++) ip->setButtonObj(b, functButton);
     ip->setPadsGlobal(functPads);
+#else
+    // every Mini key goes through tidal/editor/mini.h; the Fn keys too (the
+    // stock ones are restored in stop()). +1 / -1 / +10 / -10 arrive as pot steps.
+    for (uint8_t b = 0; b <= interfaceButtonMiniFn4; b++) {
+        tc::MiniKey k;
+        if (miniKeyOf(b, k)) ip->setButtonObj(b, functMiniButton);
+    }
+#endif
     ip->setPotObj(interfacePot0, functPot, false);
     titleBar->hide();  // no title bar: more room for the code (UI notes, Editor14)
     forceAll_ = true;  // every control once
@@ -531,6 +616,9 @@ void cTidalEditorModule::start(uint32_t)
 void cTidalEditorModule::stop()
 {
     moduleRefresh = 0;
+#ifdef TRACKER_MINI
+    mtInterface.initSpecialMiniTrackerButtons();  // the stock Fn / +-1 / +-10 keys for the other modules
+#endif
     clearPads();
     display.setControlHide(code_);
     if (codeBg_ >= 0) display.setControlHide(codeBg_);
@@ -678,11 +766,20 @@ void cTidalEditorModule::redraw()
         any = true;  // the frame without it
     }
     gShiftShown = shiftHeld();
+#ifndef TRACKER_MINI
     if (ed) updatePads(*ed, gShiftShown);
+#endif
     for (int i = 0; i < 8; i++) {
         gLabel[i][0] = 0;
         if (ed) {
-            const tc::Command k = tc::controlCommand(*ed, (Control)i, gShiftShown);
+#ifndef TRACKER_MINI
+            const Control sk = (Control)i;
+            const bool sh = gShiftShown;
+#else
+            const Control sk = gMini.screenControl(*ed, i, gShiftShown);  // a pad in note entry
+            const bool sh = gMini.screenShift(*ed, gShiftShown);
+#endif
+            const tc::Command k = tc::controlCommand(*ed, sk, sh);
             snprintf(gLabel[i], sizeof gLabel[i], "%s", k.label.c_str());
         }
         Fnv f;
