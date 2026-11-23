@@ -127,10 +127,14 @@ post window shows the SuperCollider welcome message again.
 Each session, in the IDE:
 
 ```supercollider
-SuperDirt.start;
+~dirt = SuperDirt(2, s); ~dirt.loadSoundFiles; s.waitForBoot { ~dirt.start(57120, 0 ! 12, NetAddr("0.0.0.0")) };
 ```
 
-It listens on UDP port 57120. The first time, Windows Firewall asks about
+It listens on UDP port 57120. The `NetAddr("0.0.0.0")` matters: by default
+SuperDirt only accepts messages from `127.0.0.1` and silently drops the
+packets from WSL (which come from WSL's own address). If SuperDirt is
+already running (e.g. from your own startup file), reconnect it without a
+restart: `~dirt.connect(NetAddr("0.0.0.0"), 57120);` The first time, Windows Firewall asks about
 `sclang.exe`: allow it on **Public** networks too, because Windows treats
 the WSL virtual network as public.
 
@@ -209,7 +213,7 @@ Sound out of the Windows speakers means the whole chain works.
 | Symptom | Check |
 | :--- | :--- |
 | `ghci` can't find `Sound.Tidal.Context` | `ghc --version` is 9.8.2 and `cabal install ... --lib` used the same GHC (`ghcup list`). |
-| No sound, no errors | SuperDirt running? Firewall rule (section 4)? Right address in `boot.ghci`? Watch the SuperDirt post window: if nothing at all appears when you play a pattern, the OSC isn't arriving. |
+| No sound, no errors | SuperDirt running? Started with `NetAddr("0.0.0.0")` (section 3.4; else it ignores WSL)? Firewall rule (section 4)? Right address in `boot.ghci`? Watch the SuperDirt post window: if nothing at all appears when you play a pattern, the OSC isn't arriving. |
 | `late` messages in SuperDirt | Raise `oLatency` (0.2), or switch to mirrored networking. |
 | cabal dependency errors | Section 2 reset; make sure you didn't also install Ubuntu's `ghc`/`cabal-install` packages. |
 
