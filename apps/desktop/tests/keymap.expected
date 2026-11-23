@@ -1,0 +1,47 @@
+last: key F9 -> Note -> n pattern
+last: key - -> Pad 11 -> -2
+last: key I -> Pad 20 -> 7
+last: key S -> Pad 26 -> 13
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ (every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1) # n "0 4 7 -2 [0, 4, 7] 12 13" # voices 3
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5
+last: key Shift+F1 -> Shift+Screen 1 -> *
+last: key Ctrl+Z -> Shift+Screen 8 -> Ctrl+Z
+setcps (120/60/4)
+
+-- kick and snare
+d1 $ (every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1) # n "0 4 7 -2 [0, 4, 7] 12 13" # voices 3
+
+-- hats
+d2 $ s "hh*8" # gain 0.8 # pan sine
+
+d3 $ n "0 .. 7" # s "arpy" # speed "<1 2>"
+
+-- MIDI channel 1
+d9 $ n "c'maj e'min" # legato 0.5
+last: key Home -> Shift+Insert -> Home
+last: key F11 -> FX1 -> functions
+last: key Esc -> Screen 1 -> Cancel
+menu: (closed)
+> setcps (120/60/4)
+> d1 $ (every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1) # n "0 4 7 -2 [0, 4, 7] 12 13" # voices 3
+last: key Space -> Play -> Evaluate
+> d1 $ (every 4 (fast 2) $ s "bd*2 [~ sd] bd sd" # gain 1) # n "0 4 7 -2 [0, 4, 7] 12 13" # voices 3
+last: key Ctrl+Enter -> Play -> Evaluate
+> mute 1
+last: key 1 -> Pad 1 -> mute d1
+> hush
+last: key hold Alt -> Shift+Pattern -> solo / hush
+last: key Ctrl+L -> Song -> launch
+last: key Ctrl+Shift+L -> Shift+Song -> setcps
+last: key Tab -> next slot
+last: key Ctrl+K -> (not mapped)

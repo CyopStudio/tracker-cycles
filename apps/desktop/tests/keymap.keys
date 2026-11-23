@@ -1,0 +1,26 @@
+# The default UK keymap, key by key (apps/desktop/PLAN.md "Keyboard mapping").
+# F-row: F9 = Note (to d1's n pattern; adds # n "0"), pads enter numbers
+F9 last
+# pads: Q = 0 (second row starts at 0), T = 4, I = 7; - = pad 11 = -2
+Q +100 T +100 I +100 - last
+# a chord: keys down within the chord window (40 ms) stack
++100 down:Q +10 down:T +10 down:I +10 up:Q up:T up:I last
+# rolled over, but more than 40 ms apart: separate steps
++100 down:A +100 down:S +10 up:A up:S +100 last print
+# Shift passes through: Shift+F1 = Shift+Screen 1 (* on a step)
+shift+F1 last
+# Ctrl+Z = Shift+Screen 8 = undo
+ctrl+Z last print
+# Home = Shift+Insert (the block's top)
+Home last
+# F11 = FX1; Esc in a menu = Cancel
+Right Right Right F11 last Escape last menulist
+# Space = Play (evaluate), Ctrl+Enter too
+Space last ctrl+Return last
+# Alt held = Pattern: Alt+1 mutes d1, Shift+Alt alone = hush
+down:Left_Alt 1 up:Left_Alt last
+shift+Left_Alt last
+# Ctrl+L = Song (launch menu), Ctrl+Shift+L = setcps
+ctrl+L last Escape ctrl+shift+L last
+# Tab = next slot, unmapped keys do nothing
+Tab last ctrl+K last

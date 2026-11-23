@@ -1,0 +1,126 @@
+# Tracker Cycles desktop keymap: UK ISO keyboard (the default).
+# See apps/desktop/PLAN.md, "Keyboard mapping" and "Keymaps are data".
+#
+#   [ctrl] [alt] [shift] [hold] KEY = TARGET [| TARGET ...]   [# comment]
+#
+# KEY is a physical key (SDL scancode name: F1, Q, 1, Left, PageUp,
+# Return, Left Alt, ...; NonUSBackslash = the key left of Z), so the
+# map is the same whatever layout the OS uses.
+# TARGET is
+#   CONTROL          a Tracker control (ids from tidal/editor/controls.cpp:
+#                    s1..s8, pad1..pad48, play, insert, fx1, jog+, ...)
+#   shift CONTROL    the control with Shift
+#   action NAME      the Tracker control that does NAME here, if any (ok,
+#                    cancel, ...: action names from tidal/editor/editor.cpp)
+#   app NAME         a desktop-only command (quit, hush, nextslot,
+#                    prevslot, type, settings)
+# Alternatives (|) are tried left to right; the first that applies wins.
+# Shift passes through: "F3 = s3" also makes Shift+F3 = Shift+Screen 3.
+# "hold" keys press the control while held (Alt = the Pattern button).
+
+# ---- screen buttons and the buttons right of them: the F-row ------------
+F1 = s1
+F2 = s2
+F3 = s3
+F4 = s4
+F5 = s5
+F6 = s6
+F7 = s7
+F8 = s8
+F9 = note
+F10 = instr
+F11 = fx1
+F12 = fx2
+
+# ---- pads: the four character rows, pad (row, column) = key (row, column)
+1 = pad1
+2 = pad2
+3 = pad3
+4 = pad4
+5 = pad5
+6 = pad6
+7 = pad7
+8 = pad8
+9 = pad9
+0 = pad10
+- = pad11
+= = pad12
+Q = pad13
+W = pad14
+E = pad15
+R = pad16
+T = pad17
+Y = pad18
+U = pad19
+I = pad20
+O = pad21
+P = pad22
+[ = pad23
+] = pad24
+A = pad25
+S = pad26
+D = pad27
+F = pad28
+G = pad29
+H = pad30
+J = pad31
+K = pad32
+L = pad33
+; = pad34
+' = pad35
+\ = pad36            # the UK # key (reported as backslash)
+# = pad36            # the same key on systems that report it as non-US #
+NonUSBackslash = pad37   # the UK \ key, left of Z
+Z = pad38
+X = pad39
+C = pad40
+V = pad41
+B = pad42
+N = pad43
+M = pad44
+, = pad45
+. = pad46
+/ = pad47
+` = pad48            # ~ rest / instrument 48 (the bottom row is one key short)
+
+# ---- the arrow cluster ---------------------------------------------------
+Left = left
+Right = right
+Up = up
+Down = down
+Insert = insert
+Home = shift insert       # the device's Shift label on Insert
+Delete = delete
+Backspace = shift delete  # the device's Shift label on Delete
+PageUp = jog+
+PageDown = jog-
+
+# ---- Play, Pattern -------------------------------------------------------
+Space = play
+ctrl Return = play
+ctrl Keypad Enter = play
+hold Left Alt = pattern
+ctrl . = app hush
+
+# ---- named buttons: Ctrl + the button's letter, Shift for its Shift function
+ctrl C = copy
+ctrl V = shift copy       # Paste
+ctrl Z = shift s8         # undo
+ctrl S = file
+ctrl L = song
+ctrl R = rec
+ctrl T = config
+ctrl / = shift config     # comment
+ctrl M = master
+ctrl O = smpload
+ctrl P = params
+ctrl E = perform
+
+# ---- menus, slots, desktop -----------------------------------------------
+Escape = action cancel
+Return = action ok | app type
+Keypad Enter = action ok | app type
+Tab = app nextslot
+shift Tab = app prevslot
+ctrl , = app settings
+ctrl Q = app quit

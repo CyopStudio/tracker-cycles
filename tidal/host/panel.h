@@ -8,6 +8,7 @@
 // (interfaceDefs.h); see tidal/README.md for what is approximate.
 #pragma once
 #include <string>
+#include <vector>
 
 #include "editor.h"
 #include "fb.h"
@@ -22,10 +23,15 @@ struct PanelState {
     bool shift = false;          // Shift held (or latched by a click)
     Control lit = Control::Count;        // control to show as pressed
     std::string last;            // "key r -> Screen 1 -> Replace"
+    std::vector<std::string> legend;  // replaces the prototype's legend (apps/desktop)
 };
 
 // Keyboard hint for a control's normal layer, e.g. "Space", "r", "1".
 std::string keyHint(const Editor& ed, Control c);
+// Replaces the prototype's hints (apps/desktop: from its keymap). Returns
+// the key(s) that press `c` with (shift) or without Shift, "" for none.
+using PanelHintFn = std::string (*)(const Editor& ed, Control c, bool shift);
+void setPanelHints(PanelHintFn fn);
 // Draws the panel with `screen` (already drawn by drawEditor) inside it.
 void drawPanel(const Editor& ed, const Framebuffer& screen, Framebuffer& out, const PanelState& st);
 // Control under a panel pixel, or false.

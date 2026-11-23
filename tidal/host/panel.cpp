@@ -89,7 +89,7 @@ bool panelHit(int x, int y, Control& out) {
     return false;
 }
 
-// ---- keyboard hints (keep in sync with sdl_window.cpp) ---------------------
+// ---- keyboard hints (the prototype's keys: keep in sync with proto/sdl_window.cpp) ---------------------
 static const char* fixedKey(Control c) {
     static const char* digits[8] = {"1", "2", "3", "4", "5", "6", "7", "8"};
     static const char* sdigits[8] = {"S+1", "S+2", "S+3", "S+4", "S+5", "S+6", "S+7", "S+8"};
@@ -152,7 +152,11 @@ static const char* intentKey(const Editor& ed, Control c, bool shift) {
     return key;
 }
 
+static PanelHintFn gHints = nullptr;
+void setPanelHints(PanelHintFn fn) { gHints = fn; }
+
 std::string keyHint(const Editor& ed, Control c) {
+    if (gHints) return gHints(ed, c, false);
     std::string s;
     if (const char* f = fixedKey(c)) s = f;
     if (const char* k = intentKey(ed, c, false)) s += (s.empty() ? "" : " / ") + std::string(k);
@@ -160,6 +164,7 @@ std::string keyHint(const Editor& ed, Control c) {
 }
 
 static std::string shiftHint(const Editor& ed, Control c) {
+    if (gHints) return gHints(ed, c, true);
     if (const char* k = intentKey(ed, c, true)) return k;
     const char* f = fixedKey(c);
     if (f && !isPad(c) && c != Control::Shift) return std::string("S+") + f;
@@ -213,7 +218,7 @@ static void drawButton(Framebuffer& fb, const Editor& ed, Control c, const Panel
     if (hasShift) {
         std::string sh = s.label.c_str();  // purple = with Shift
         std::string sk = shiftHint(ed, c);
-        if (!sk.empty()) sh += " " + sk;
+        if (!sk.empty() && sk != sh) sh += " " + sk;  // "Home", not "Home Home"
         centered(fb, r, r.y + 48, sh, showShift ? pc::label : pc::shift);
     }
 }
@@ -250,14 +255,19 @@ static void drawPad(Framebuffer& fb, const Editor& ed, Control c, const PanelSta
     fb.rect(r.x, r.y, r.w, r.h, fill);
     fb.frame(r.x, r.y, r.w, r.h, cur ? 0xFFFFFF : (st.lit == c ? pc::accent : pc::btnEdge));
     if (cur) fb.frame(r.x + 1, r.y + 1, r.w - 2, r.h - 2, 0xFFFFFF);
+    // apps/desktop: every pad's key in its corner (pad = key, row by row)
+    if (gHints && k.type != Command::Slot) {
+        const std::string key = gHints(ed, c, false);
+        fb.text(r.x + 4, r.y + 2, key.c_str(), pc::key, FontId::Sans12);
+    }
     if (k.type == Command::Slot) {
         centered(fb, r, r.y + 8, k.label, pc::label, FontId::Mono14);
         centered(fb, r, r.y + 30, keyHint(ed, c), pc::key);
     } else if (k.type == Command::Number) {
-        centered(fb, r, r.y + 17, k.label, pc::label, FontId::Mono14);
+        centered(fb, r, r.y + (gHints ? 22 : 17), k.label, pc::label, FontId::Mono14);
     } else if (k.type == Command::Instrument) {
-        centered(fb, r, r.y + 6, k.label.empty() ? "-" : k.label, k.label.empty() ? pc::unused : pc::label);
-        centered(fb, r, r.y + 30, std::to_string(k.instrument + 1), pc::name);
+        centered(fb, r, r.y + (gHints ? 17 : 6), k.label.empty() ? "-" : k.label, k.label.empty() ? pc::unused : pc::label);
+        centered(fb, r, r.y + (gHints ? 34 : 30), std::to_string(k.instrument + 1), pc::name);
     }
 }
 
@@ -301,9 +311,16 @@ void drawPanel(const Editor& ed, const Framebuffer& screen, Framebuffer& out, co
         "Tab, Shift+Tab: next / prev slot pad",
         "Ctrl+Q quits (no Tracker equivalent)",
     };
-    for (const char* l : legend) {
-        out.text(kRX, ly, l, pc::name, FontId::Sans12);
-        ly += 15;
+    if (!st.legend.empty()) {
+        for (const auto& l : st.legend) {
+            out.text(kRX, ly, l.c_str(), pc::name, FontId::Sans12);
+            ly += 15;
+        }
+    } else {
+        for (const char* l : legend) {
+            out.text(kRX, ly, l, pc::name, FontId::Sans12);
+            ly += 15;
+        }
     }
 
     // last input

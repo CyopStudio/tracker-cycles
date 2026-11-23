@@ -33,3 +33,7 @@ tidal/build-*/
 
 # Tracker Cycles prototype: personal working file
 tidal/work.tidal
+
+# Tracker Cycles desktop app
+apps/desktop/build/
+apps/desktop/work.tidal

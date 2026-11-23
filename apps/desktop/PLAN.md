@@ -4,6 +4,29 @@ A standalone PC app for writing Tidal with the Tracker Cycles structured editor.
 You use the keyboard, it sends real Tidal (GHCi, Tidal 1.10.3), and SuperDirt
 makes the sound. Status: plan (2026-11-23), branch `feature/desktop-app`.
 
+## Status (2026-11-23)
+
+- **M0 done:**
+  - `make -C tidal lib` builds the shared code, which now lives in
+    `tidal/host/`.
+  - `apps/desktop` builds `tidal-desktop` (`make`, `make test`, `run.sh`).
+  - It finds SuperDirt's address itself: in WSL NAT mode that's the Windows
+    host (`wslinfo` + the default route).
+  - It writes `boot.ghci` from `tidal/proto/boot.ghci` with that address
+    and starts GHCi with it.
+  - GHCi boots and gets the evaluated blocks. Not heard yet, because
+    SuperDirt wasn't running.
+  - Still to check: that WSLg passes Alt and F10–F12 through (the window
+    opens).
+- **M1 mostly done:**
+  - `keymaps/iso-uk.txt` is compiled in as the default, and `--keymap
+    FILE` loads another.
+  - Working: the F-row, the pads on the four rows, the cluster, Alt held as
+    Pattern, Ctrl+letter, Shift passing through, and `--chord-ms`.
+  - The panel shows each control's key and each pad's key in its corner.
+  - `tests/*.keys` cover the keymap and the chord window.
+  - Left: trying the key feel on your keyboard.
+
 ## Goals
 
 1. **The same editor as the device.** It uses the `Editor` model from
@@ -305,10 +328,10 @@ the next key.
 | View | font size; panel on / off |
 | Performance | display (a list of the connected displays by name); font size; theme; dim muted blocks; show typing inline; Spout on / off, sender name, resolution, transparent background (Windows) |
 
-Settings are stored in a plain `key = value` file:
-`~/.config/tracker-cycles/desktop.conf`, or
-`%APPDATA%\TrackerCycles\desktop.conf` on Windows. Keymaps are stored next
-to it in `keymaps/`.
+Settings are stored in a plain `key = value` file, `desktop.conf`, in
+SDL's per-user folder: `~/.local/share/CyopStudio/TrackerCycles/` on Linux,
+or `%APPDATA%\CyopStudio\TrackerCycles\` on Windows. Keymaps go next to it
+in `keymaps/`, and so does the generated `boot.ghci`.
 
 ## Architecture
 

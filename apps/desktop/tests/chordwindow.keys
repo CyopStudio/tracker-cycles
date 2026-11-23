@@ -1,0 +1,5 @@
+# The chord window: --chord-ms is 40 by default. Keys 50 ms apart roll
+# over into separate steps; 30 ms apart they stack.
+F9 Q
++100 down:W +50 down:E +10 up:W up:E
++100 down:R +30 down:T +10 up:R up:T last print
