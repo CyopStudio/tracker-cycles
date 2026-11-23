@@ -156,7 +156,7 @@ Decisions:
      never parsed truncated), caller storage (Program, Checkpoint, undo
      arena: steps packed back to back, the oldest dropped when full),
      EditorOutput replaces the text backend (the prototype's BackendOutput
-     in proto/output.* renders the same statements, so the smoke sessions
+     in host/output.* renders the same statements, so the smoke sessions
      are unchanged; File I/O, `--save` and the headless `lit` report moved
      there too). Menus: builders only collect EditSpecs; openMenu checks
      them all (prototype) or, with setLazyMenus(true), checkMenu(n) checks

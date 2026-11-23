@@ -105,7 +105,7 @@ Edit `oAddress` in `proto/boot.ghci` to point at SuperDirt (see
 statements; `--backend none` sends nothing. `--send STMT` (repeatable)
 sends a statement at startup, e.g. for scripted runs.
 
-`--backend engine` (proto/engine_backend.cpp) runs the scheduler like the
+`--backend engine` (host/engine_backend.cpp) runs the scheduler like the
 device: a main-loop thread calls `update()`, an audio thread calls
 `tick()` every 128 samples (44117.647 Hz) and sends each due event as a
 `/dirt/play` bundle at its exact time + `--latency` (default 0.1 s, as

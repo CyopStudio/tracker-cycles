@@ -7,6 +7,8 @@
 #   make golden     recapture golden/expected.txt + types.txt from real Tidal
 #   make bench      engine timing and arena use on heavy patterns
 #   make edbench    editor timing (edits, menus by trial; docs/tidal_device_editor.md)
+#   make lib        build/libtidal.a (core + editor) and build/libtidal_host.a
+#                   (host/: backends, framebuffer, view) for apps/desktop
 
 CXX       ?= g++
 CXXFLAGS  ?= -std=c++17 -O2 -g -Wall -Wextra -Wno-missing-field-initializers -Wno-format-truncation
@@ -25,6 +27,10 @@ FONT_SRC  := $(FW_LIBS)/fonts/RobotoMono-Regular_14_L4.cpp \
 FONT_OBJ  := $(patsubst $(FW_LIBS)/%.cpp,$(BUILD)/fw/%.o,$(FONT_SRC))
 PROTO_SRC := $(filter-out proto/sdl_window.cpp,$(wildcard proto/*.cpp))
 PROTO_OBJ := $(PROTO_SRC:%.cpp=$(BUILD)/%.o)
+# shared by the prototype and apps/desktop: backends (GHCi, our engine),
+# the 800x480 framebuffer with the firmware fonts, the editor view
+HOST_SRC  := $(wildcard host/*.cpp)
+HOST_OBJ  := $(HOST_SRC:%.cpp=$(BUILD)/%.o)
 # the editor model (plan 4d): portable, no heap, also built by `make arm`
 EDITOR_SRC := $(wildcard editor/*.cpp)
 EDITOR_OBJ := $(EDITOR_SRC:%.cpp=$(BUILD)/%.o)
@@ -38,7 +44,7 @@ CXXFLAGS_SDL := -DTC_HAVE_SDL -I$(SDL_PREFIX)/include -I$(SDL_PREFIX)/include/SD
 PROTO_LIBS += -L$(SDL_PREFIX)/lib/x86_64-linux-gnu -L$(SDL_PREFIX)/lib -lSDL2
 endif
 
-.PHONY: all test smoke proto arm clean run golden bench edbench layoutbench
+.PHONY: all test smoke proto arm clean run golden bench edbench layoutbench lib
 all: $(BUILD)/run_tests $(BUILD)/tidal_proto
 
 test: $(BUILD)/run_tests
@@ -49,6 +55,16 @@ smoke: $(BUILD)/tidal_proto
 	tests/proto/run_smoke.sh $(BUILD)/tidal_proto
 
 proto: $(BUILD)/tidal_proto
+
+lib: $(BUILD)/libtidal.a $(BUILD)/libtidal_host.a
+
+$(BUILD)/libtidal.a: $(CORE_OBJ) $(EDITOR_OBJ)
+	rm -f $@
+	ar rcs $@ $^
+
+$(BUILD)/libtidal_host.a: $(HOST_OBJ) $(FONT_OBJ)
+	rm -f $@
+	ar rcs $@ $^
 
 run:
 	./run_proto.sh
@@ -79,7 +95,7 @@ $(BUILD)/edbench: $(CORE_OBJ) $(BUILD)/tests/edbench.o
 $(BUILD)/run_tests: $(CORE_OBJ) $(EDITOR_OBJ) $(TEST_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-$(BUILD)/tidal_proto: $(CORE_OBJ) $(EDITOR_OBJ) $(PROTO_OBJ) $(FONT_OBJ)
+$(BUILD)/tidal_proto: $(CORE_OBJ) $(EDITOR_OBJ) $(HOST_OBJ) $(PROTO_OBJ) $(FONT_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^ $(PROTO_LIBS)
 
 $(BUILD)/core/%.o: core/%.cpp
@@ -92,7 +108,11 @@ $(BUILD)/tests/%.o: tests/%.cpp
 
 $(BUILD)/proto/%.o: proto/%.cpp
 	@mkdir -p $(dir $@)
-	$(CXX) $(CXXFLAGS) $(CXXFLAGS_SDL) -Icore -Ieditor -I$(FW_LIBS) -MMD -MP -c -o $@ $<
+	$(CXX) $(CXXFLAGS) $(CXXFLAGS_SDL) -Icore -Ieditor -Ihost -I$(FW_LIBS) -MMD -MP -c -o $@ $<
+
+$(BUILD)/host/%.o: host/%.cpp
+	@mkdir -p $(dir $@)
+	$(CXX) $(CXXFLAGS) -Icore -Ieditor -I$(FW_LIBS) -MMD -MP -c -o $@ $<
 
 $(BUILD)/editor/%.o: editor/%.cpp
 	@mkdir -p $(dir $@)

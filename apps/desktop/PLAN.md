@@ -339,7 +339,7 @@ tidal/host/          (moved out of proto/: shared by proto and desktop)
   (+ shift). That goes through `press` / `release` in `editor/controls.cpp`,
   exactly as on the Tracker. Only the three extras call `Editor` actions
   directly.
-- **Backend.** The existing GHCi backend (`proto/backend.cpp`) runs GHCi
+- **Backend.** The existing GHCi backend (`tidal/host/backend.cpp`) runs GHCi
   with `boot.ghci`, sends statements and reports errors. The engine backend
   (OSC straight to SuperDirt) stays as an option.
 - **Limits.** `kMaxNodes` (4096) and `kMaxBlocks` (32) and the other pool

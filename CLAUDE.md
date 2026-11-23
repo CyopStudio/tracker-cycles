@@ -53,8 +53,13 @@ past measurement.
   (cursor mode); shared helpers in editor_impl.h (tc::ed). controls.cpp
   (`controlCommand()`: every Tracker button -> editor action), layout.cpp
   (code view layout used by both the prototype and the FT812 view).
-- **tidal/proto**: SDL prototype (mock front panel, backends: GHCi ->
-  SuperDirt, or our engine -> OSC).
+- **tidal/proto**: SDL prototype (mock front panel; keys press Tracker
+  controls).
+- **tidal/host**: shared by the prototype and apps/desktop
+  (build/libtidal_host.a): backends (GHCi -> SuperDirt, or our engine ->
+  OSC), BackendOutput, the 800x480 framebuffer + firmware fonts, the view.
+- **apps/desktop**: the PC app (keyboard, real Tidal; plan in
+  apps/desktop/PLAN.md, branch feature/desktop-app).
 - **core/tidal**: device glue built into libTracker.a: unity files
   `tc_*.cpp` (include tidal/core and tidal/editor sources), tidal_player
   (evaluate, mute, tempo, MIDI clock out), tidal_editor (SDRAM storage,
