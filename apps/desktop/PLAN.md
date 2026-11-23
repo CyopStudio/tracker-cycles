@@ -75,9 +75,10 @@ pad 48      `  (the key left of 1)           ~ rest / instrument 48
   the slots are a kit of Dirt-Samples folder names (see Samples).
 - **Chords**: hold the keys, as you hold the pads. Fast typists roll over
   (they press the next key before releasing the last), so a chord only forms
-  when the keys go down within a **chord window** of about 40 ms (tune it on
-  the device later and make it configurable). Rolled-over keys outside the
-  window are separate steps. Shift+F5 (`,`) still adds a layer by hand. Most
+  when the keys go down within the **chord window**. The window is set in
+  Settings, from 0 to 150 ms in 5 ms steps (default 40 ms; 0 = overlapping
+  keys never make a chord). Rolled-over keys outside the window are separate
+  steps. Shift+F5 (`,`) still adds a layer by hand. Most
   keyboards register 6 keys at once, enough for any triad or 7th.
 - OS key repeat is ignored on pads. Arrows and jog keys repeat.
 
@@ -95,9 +96,8 @@ In a menu, F1 is Cancel and F8 is OK, as on the device. Esc (just left of F1)
 and Enter are aliases for them.
 
 Laptops: F-keys need Fn-lock, and the app says so the first time F-keys are
-missing. There's an optional alternative of **Ctrl+1…8** for Screen 1–8 and
-Ctrl+Shift+1…8 for their Shift functions. It's off by default, because the
-F-row placement is what gives the muscle memory.
+missing. If a keyboard has no usable F-row, the mapping editor can put Screen 1–8 on
+other keys.
 
 ### Cluster, modifiers and named buttons
 
@@ -122,6 +122,7 @@ F-row placement is what gives the muscle memory.
 | Ctrl+O / Ctrl+Shift+O | Smp Load (sample kit) / Shift+Smp Load (sample folders) | |
 | Ctrl+P, Ctrl+E | Params, Perform | reserved, as on the device |
 | Tab / Shift+Tab | next / previous slot | there's no device control for this |
+| Ctrl+, | Settings (desktop only) | includes the mapping editor |
 | Ctrl+Q | quit | |
 
 Alt and the Windows menu bar: the app consumes Alt, so a lone Alt tap never
@@ -130,11 +131,13 @@ opens a system menu. AltGr (right Alt on UK and EU layouts) is not Pattern.
 ### What changes for the prototype
 
 The prototype's current keys (`n`, `s`, `f`, `c`, `e`, `+`/`-`, digits as
-slot pads …) put shortcuts on the letters, which the pad grid needs. Once the
-desktop keymap works, the prototype switches to it as well, so there's only
-one PC mapping. (Its panel hints already disagree with its keys about Space,
-Play and Pattern.) The headless `--keys` tokens stay as they are, so the
-smoke sessions keep working.
+slot pads …) put shortcuts on the letters, which the pad grid needs. **The
+prototype stays as it is until the desktop layout is settled**, because the
+layout may still change. After that it loads the same default keymap file,
+so there's only one PC mapping. (Its panel hints already disagree with its
+keys about Space, Play and Pattern; that gets fixed in the same step.) The
+headless `--keys` tokens stay as they are, so the smoke sessions keep
+working.
 
 ### Keyboard-only extras (all additive)
 
@@ -152,6 +155,104 @@ smoke sessions keep working.
    text field in place of the 42-pad naming keyboard. The device's pad
    keyboard is still reachable through `hw:` tokens for tests.
 
+## Keymaps are data
+
+The mapping is a text file, not code, so it can change at any time: in the
+mapping editor, or by editing the file by hand. The default (`keymaps/iso-uk.txt`)
+follows this document. `ansi-us.txt` comes later if anyone needs it.
+
+```
+# key (SDL scancode name, + modifiers)   control (ctlId from editor/controls.cpp, or a desktop action)
+F1                          s1
+Q                           pad13
+Grave                       pad48
+Insert                      insert
+Home                        shift insert      # the device's Shift label
+Backspace                   shift delete
+Space                       play
+ctrl Return                 play
+hold Alt                    pattern           # held: a modifier, like the Pattern button
+ctrl L                      song
+ctrl Comma                  settings          # desktop action
+```
+
+- **Keys are physical positions** (SDL scancode names), so a keymap is the
+  same whichever OS layout is active. Key caps for display come from the
+  OS layout.
+- **Shift passes through.** `F3 → s3` also makes `Shift+F3 → Shift+s3`.
+  Only exceptions need a line.
+- **Controls are the tokens tests already use** (`s1`…`s8`, `pad1`…`pad48`,
+  `play`, `insert`, `fx1` …: `ctlId()` in `editor/controls.cpp`). Desktop-only
+  actions (`settings`, `type`, `hush`, `quit`, `nextslot` …) have their own
+  names.
+- **Every hint comes from the active keymap.** That covers the panel's key
+  caps, the soft-key bar's `F3` labels, menu help and the status line, so a
+  remapped key shows up everywhere straight away.
+- A script generates the "Desktop" column of the `tidal/README.md` controls
+  table from the default keymap, so the docs can't drift from it.
+
+## Mapping editor
+
+You open it from Settings → Keyboard → Edit mapping. It uses the same
+controls as the rest of the app (arrows, jog, F8 / Enter = OK, F1 / Esc =
+Cancel), so you don't need the mouse.
+
+**Two views.** F2 switches between them.
+
+1. **Panel view.** The mock Tracker front panel (reusing `proto/panel.cpp`)
+   with every control labelled with its key(s). Pick a control with the
+   arrows, or with a click, then:
+   - **Enter (learn)**: "Press a key for Screen 3 …". The next key, with its
+     modifiers, becomes that control's key. Esc cancels learning, and Esc
+     can't be learned here.
+   - **Delete**: removes that control's key.
+   - **Shift+Enter**: learns a key for the control's *Shift* function only
+     (an exception to Shift pass-through).
+2. **Keyboard view.** A drawn UK keyboard with every key labelled with its
+   control. Pick a key, then Enter opens a menu of controls (with
+   type-ahead) to put on it.
+
+**Conflicts.** If the key you press is already used, the editor says so ("Q
+is Pad 13") and offers *Swap* (the other control takes this control's old
+key), *Replace* (the other control is left without a key) or *Cancel*.
+
+**Pad rows.** "Learn row" fills a whole pad row: press its 12 keys from left
+to right.
+
+**Test mode.** Press any key to see what it would do right now, without
+editing the code. For example, "Q → Pad 13 → enters 0 here". This uses the
+same labels as the soft-key bar (`controlCommand()`).
+
+**Safety.** You can't save a keymap that leaves a required control without a
+key. The required controls are the arrows, Shift, Play, Insert, Delete,
+Screen 1 (Cancel) and Screen 8 (OK). Settings (Ctrl+,) always works.
+`--keymap default` on the command line starts with the default keymap if a
+mapping goes wrong.
+
+**Files.** The default keymaps are read-only. Your edits are saved as a copy
+(e.g. `iso-uk (mine)`) in the config folder. Settings picks which keymap is
+active, and you can reset to the default from there too.
+
+## Settings
+
+Ctrl+, opens Settings. This is a desktop-only screen: on the device, Config
+stays the Tracker-mode button. It works like the device's menus: ↑ ↓ to
+move, the jog to change a value, Enter to edit text, F8 OK, F1 Cancel.
+Changes apply immediately. For example, a new chord window takes effect on
+the next key.
+
+| Page | Settings |
+| :--- | :--- |
+| Keyboard | active keymap; Edit mapping …; **chord window (0–150 ms, default 40)**; jog key repeat rate |
+| Tidal | GHCi command; boot file; SuperDirt address and port (in WSL, defaults to the Windows host address); Dirt-Samples folder; kit file |
+| Editor | start in cursor or tree mode; Tracker mode on at start |
+| View | font size; panel on / off |
+
+Settings are stored in a plain `key = value` file:
+`~/.config/tracker-cycles/desktop.conf`, or
+`%APPDATA%\TrackerCycles\desktop.conf` on Windows. Keymaps are stored next
+to it in `keymaps/`.
+
 ## Architecture
 
 ```
@@ -159,9 +260,11 @@ apps/desktop/
   PLAN.md            this file
   Makefile           builds tidal-desktop (SDL2), links the shared library
   main.cpp           arguments, config, main loop
-  keymap.{h,cpp}     scancode -> Control (+ shift / held) table, chord window,
-                     Alt = Pattern hold; loads keymaps/*.txt
-  keymaps/           iso-uk.txt, ansi-us.txt (default chosen by layout)
+  keymap.{h,cpp}     load / save keymap files; scancode -> Control (+ shift /
+                     held); chord window; Alt = Pattern hold
+  keymaps/           iso-uk.txt (default); ansi-us.txt later if needed
+  settings.{h,cpp}   desktop.conf, the Settings screen
+  map_editor.cpp     the mapping editor (panel view, keyboard view, learn)
   text_entry.cpp     Enter field, menu type-ahead, comment field
   view_desktop.cpp   resizable view: layout.cpp + scalable font
   samples.cpp        Dirt-Samples scan -> 48-slot kit + folder menu
@@ -219,41 +322,50 @@ B is preferred. A is the fallback if B gets stuck.
 
 ## Platform
 
-GHC + Tidal are installed in WSL. SuperCollider and SuperDirt most likely
-run on Windows, where the audio is. Options:
+SuperDirt runs on Windows (where the audio is) and stays there. GHC + Tidal
+are in WSL.
 
-1. **App and GHCi in WSL (WSLg window).** This builds with today's Makefile.
-   OSC goes to the Windows host IP (`boot.ghci` `oAddress`). The cost is
-   WSLg's keyboard handling: check Alt, F11 and F12, and scancodes.
-2. **Native Windows (MSYS2 UCRT64 + SDL2), GHCi from ghcup on Windows.**
-   This is the best keyboard and latency, and the app to give other people.
-   It needs a Windows GHC + Tidal install.
+- **Development: the app and GHCi in WSL (WSLg window), SuperDirt on
+  Windows.** This already works for the prototype (docs/host_setup.md
+  sections 4–5). OSC goes to the Windows host at the WSL default gateway
+  (or `127.0.0.1` in mirrored networking), through the firewall rule for
+  UDP 57120. In WSL, Settings defaults the SuperDirt address to the
+  gateway. There's no need for a second SuperDirt in WSL. To check early in
+  M0: WSLg passes Alt, F10, F11, F12 and scancodes to SDL unchanged.
+- **Release: native Windows (MSYS2 UCRT64 + SDL2), GHCi from ghcup on
+  Windows.** This gives the best keyboard handling and latency, and it's the
+  app to give other people. It needs a Windows GHC + Tidal install.
 
-Start with 1 for development and make 2 the release target. Keep the code
-portable (SDL2 + C++17, no POSIX in app code except the GHCi process
-wrapper, which gets a Windows version).
+The code stays portable: SDL2 + C++17, and no POSIX in app code except the
+GHCi process wrapper, which gets a Windows version.
 
 ## Milestones
 
 | # | What | Done when |
 | :--- | :--- | :--- |
-| M0 | `tidal` library target; backends to `tidal/host/`; `apps/desktop` builds a window with the prototype view and the GHCi backend | evaluates a block and SuperDirt plays it |
-| M1 | keymap (scancodes, ISO / ANSI files), F-row, cluster, Alt = Pattern, Ctrl+letter buttons, chord window; panel shows key caps | every control in the README table is reachable; a smoke session runs through key events |
-| M2 | prototype on the same keymap; `tidal/README.md` controls table gets a Desktop column | `make -C tidal smoke` passes |
-| M3 | extras: menu type-ahead, Enter value field, comment field | typing `0 3 5 7` or `fast 2` gives the same tree as the pad / menu route |
-| M4 | resizable view, TrueType font, raised limits | a 30-block file is readable at 1080p |
-| M5 | HostOnly library entries (first batch: the common Tidal functions the engine lacks) | `:t` golden check passes for them |
-| M6 | highlighting (B, else A) | steps light while real Tidal plays |
-| M7 | Windows build, config file (SuperDirt address, Dirt-Samples path, keymap, chord window), release notes | runs on a clean Windows machine with SuperDirt |
+| M0 | `tidal` library target; backends to `tidal/host/` (the prototype links them from there, with its keys unchanged); `apps/desktop` builds a window with the prototype view and the GHCi backend | in WSL, evaluating a block plays on Windows SuperDirt; WSLg key check done |
+| M1 | keymap files (`iso-uk.txt`), F-row, cluster, Alt = Pattern, Ctrl+letter buttons, chord window; panel and soft-key bar show the keymap's keys | every control in the README table is reachable; a smoke session runs through key events |
+| M2 | Settings screen + `desktop.conf` (chord window, keymap choice, Tidal / SuperDirt paths) | the chord window changes live from Settings and is kept after a restart |
+| M3 | mapping editor (panel view, keyboard view, learn, conflicts, learn row, test mode, required-control check) | a remapped key works, shows in every hint, and survives a restart; `--keymap default` restores |
+| M4 | extras: menu type-ahead, Enter value field, comment field | typing `0 3 5 7` or `fast 2` gives the same tree as the pad / menu route |
+| M5 | resizable view, TrueType font, raised limits | a 30-block file is readable at 1080p |
+| M6 | HostOnly library entries (first batch: the common Tidal functions the engine lacks) | `:t` golden check passes for them |
+| M7 | highlighting (B, else A) | steps light while real Tidal plays |
+| M8 | Windows build, release notes | runs on a clean Windows machine with SuperDirt |
+| M9 | **when the layout is settled (your call):** the prototype loads the default keymap; generated Desktop column in `tidal/README.md` | `make -C tidal smoke` passes |
 
-## Open questions (for the user)
+## Decisions (2026-11-23)
 
-1. Keyboard: UK ISO? This sets the default keymap and pad 36 / 37.
-2. Where does SuperDirt run: Windows or WSL? And should GHCi be on Windows in
-   the end (Platform option 2)?
-3. Should the prototype move to the new keymap (M2), or keep its letter
-   shortcuts?
-4. Is the F-row OK for Screen 1–8 on your keyboard, or do you want the
-   Ctrl+1…8 alternative as the default?
-5. Chord window: should rollover make chords (≈40 ms window) or separate
-   steps? This is a feel question, best tried in M1.
+- UK ISO keyboard: `iso-uk.txt` is the default keymap.
+- SuperDirt on Windows; development in WSL sends OSC to it.
+- The prototype keeps its keys until the desktop layout is settled (M9).
+- F-row for Screen 1–8 (no Ctrl+1…8 default; the mapping editor can move them).
+- Chord window: a setting (0–150 ms, default 40), changed in Settings.
+- The mapping is data and can be edited in the app (mapping editor, M3).
+
+## Open questions
+
+1. The default chord window (40 ms) is a guess. Try it in M1 and M2.
+2. Is Alt comfortable as the held Pattern key, or would the key left of
+   `Z` be better (it would then stop being pad 37)? Try it in M1. The mapping
+   editor can change it either way.
