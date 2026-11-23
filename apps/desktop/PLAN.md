@@ -120,7 +120,8 @@ other keys.
 | Ctrl+T / Ctrl+Shift+T | Config (Tracker mode) / Shift+Config (comment) | Ctrl+/ = comment too |
 | Ctrl+M / Ctrl+Shift+M | Master / Shift+Master (status) | |
 | Ctrl+O / Ctrl+Shift+O | Smp Load (sample kit) / Shift+Smp Load (sample folders) | |
-| Ctrl+P, Ctrl+E | Params, Perform | reserved, as on the device |
+| Ctrl+P | Params | reserved, as on the device |
+| Ctrl+E / Ctrl+Shift+E | Perform / Shift+Perform | open / close the performance display / move it to the next display (desktop only; Perform is free on the device) |
 | Tab / Shift+Tab | next / previous slot | there's no device control for this |
 | Ctrl+, | Settings (desktop only) | includes the mapping editor |
 | Ctrl+Q | quit | |
@@ -154,6 +155,63 @@ working.
 3. **Comments typed directly.** Ctrl+Shift+T opens the comment as a plain
    text field in place of the 42-pad naming keyboard. The device's pad
    keyboard is still reachable through `hw:` tokens for tests.
+
+## Performance display
+
+This is a second window for the audience. It shows only the code, its
+highlights and the cursor. There are no menus, soft-key bar, info box,
+status line, panel or error pop-ups.
+
+- **Opening it.** **Ctrl+E (Perform)** opens it fullscreen on the display
+  chosen in Settings, and pressing it again closes it. The Tracker's Perform
+  button is free, and the name fits. **Ctrl+Shift+E** moves it to the next
+  display, for when the projector shows up as a different display than
+  expected. Keyboard focus stays in the editor window the whole time, so
+  you keep playing while it opens. It uses SDL2's borderless fullscreen
+  (`SDL_WINDOW_FULLSCREEN_DESKTOP` on `SDL_WINDOWPOS_CENTERED_DISPLAY(n)`),
+  so the resolution and the other screens don't change.
+- **What it shows.**
+  - All of the file's code, laid out by the same `layout.cpp` as the
+    editor (so it wraps and breaks lines the same way), with its own font
+    size.
+  - Highlights, the cursor (purple or blue, as in the editor), and the
+    selection.
+  - Hidden: menu overlays, the cursor's info and error text, and Settings or
+    the mapping editor when they are open.
+  - Optional: muted blocks dimmed. The Enter field's text shown inline while
+    you type, so the audience sees the code being written.
+- **Fitting the code.** It follows the cursor: it scrolls smoothly to keep
+  the cursor's block in view. Or set *Whole file* to fit everything. The font
+  scales so the longest line fits the width, down to a minimum size, then
+  wraps. There's also a zoom setting.
+- **Look.** Its own theme (background, text, highlight colours), large
+  type, and no screen furniture. The background can be transparent for
+  Spout (below).
+- **Drawing.** It is redrawn only when its content changes (an edit, the
+  cursor, a highlight frame), the way the device's code view redraws only
+  the controls whose fingerprint changed. There's no extra work while
+  nothing changes.
+
+### Spout
+
+Spout output is possible. Spout2 (Windows only) shares a GPU texture with
+VJ software (Resolume, TouchDesigner, OBS with the Spout plugin …).
+
+- The performance view is drawn into its own frame at a set size (default
+  1920×1080), independent of any window. A Spout sender publishes that
+  frame (`SpoutSender::SendImage` takes CPU pixels in RGBA). So Spout works
+  **with or without** the fullscreen window open, and the size isn't tied to
+  a monitor.
+- Settings: Spout on / off, sender name (default "Tracker Cycles"),
+  resolution, transparent background (alpha 0 behind the text, for keying
+  over visuals).
+- Licence: the Spout2 SDK is BSD-2-Clause, which is compatible with
+  GPL-3.0. Check the version we vendor or link when we add it.
+- Spout is **Windows build only**: it can't share textures out of WSL. In
+  WSL the performance window still works. To check: WSLg's multi-monitor
+  support. Linux (v4l2loopback) and macOS (Syphon) are possible later but
+  not planned. NDI is left out because its SDK licence doesn't fit a GPL
+  app.
 
 ## Keymaps are data
 
@@ -247,6 +305,7 @@ the next key.
 | Tidal | GHCi command; boot file; SuperDirt address and port (in WSL, defaults to the Windows host address); Dirt-Samples folder; kit file |
 | Editor | start in cursor or tree mode; Tracker mode on at start |
 | View | font size; panel on / off |
+| Performance | display (a list of the connected displays by name); follow cursor / whole file; zoom and minimum font size; theme; dim muted blocks; show typing inline; Spout on / off, sender name, resolution, transparent background (Windows) |
 
 Settings are stored in a plain `key = value` file:
 `~/.config/tracker-cycles/desktop.conf`, or
@@ -268,6 +327,8 @@ apps/desktop/
   text_entry.cpp     Enter field, menu type-ahead, comment field
   view_desktop.cpp   resizable view: layout.cpp + scalable font
   samples.cpp        Dirt-Samples scan -> 48-slot kit + folder menu
+  perf_view.cpp      performance display: code-only render, own window / frame
+  spout_out.cpp      Spout2 sender (Windows build only)
 tidal/host/          (moved out of proto/: shared by proto and desktop)
   backend.*, output.*, engine_backend.*   GHCi / engine backends
 ```
@@ -351,8 +412,14 @@ GHCi process wrapper, which gets a Windows version.
 | M5 | resizable view, TrueType font, raised limits | a 30-block file is readable at 1080p |
 | M6 | HostOnly library entries (first batch: the common Tidal functions the engine lacks) | `:t` golden check passes for them |
 | M7 | highlighting (B, else A) | steps light while real Tidal plays |
-| M8 | Windows build, release notes | runs on a clean Windows machine with SuperDirt |
-| M9 | **when the layout is settled (your call):** the prototype loads the default keymap; generated Desktop column in `tidal/README.md` | `make -C tidal smoke` passes |
+| M8 | performance display (Ctrl+E, display setting, follow / whole file, theme) | opens fullscreen on the chosen display with code, highlights and cursor only; editing goes on in the main window |
+| M9 | Windows build; Spout output; release notes | runs on a clean Windows machine with SuperDirt; Resolume or OBS receives the Spout frame, transparent background included |
+| M10 | **when the layout is settled (your call):** the prototype loads the default keymap; generated Desktop column in `tidal/README.md` | `make -C tidal smoke` passes |
+
+The performance display (M8) can come before highlighting (M7) if you want
+it for a show sooner. It works without highlights, and they appear in it
+once M7 lands. It needs M5's scalable font, because the 800×480 bitmap view
+doesn't scale to a projector well.
 
 ## Decisions (2026-11-23)
 
@@ -362,6 +429,7 @@ GHCi process wrapper, which gets a Windows version.
 - F-row for Screen 1–8 (no Ctrl+1…8 default; the mapping editor can move them).
 - Chord window: a setting (0–150 ms, default 40), changed in Settings.
 - The mapping is data and can be edited in the app (mapping editor, M3).
+- A performance display for the audience: code, highlights and cursor only, fullscreen on a chosen display (Perform = Ctrl+E), plus Spout output on Windows.
 
 ## Open questions
 
