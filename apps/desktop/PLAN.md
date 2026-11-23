@@ -172,18 +172,16 @@ status line, panel or error pop-ups.
   so the resolution and the other screens don't change.
 - **What it shows.**
   - All of the file's code, laid out by the same `layout.cpp` as the
-    editor (so it wraps and breaks lines the same way), with its own font
-    size.
+    editor, with its own font size.
   - Highlights, the cursor (purple or blue, as in the editor), and the
     selection.
   - Hidden: menu overlays, the cursor's info and error text, and Settings or
     the mapping editor when they are open.
   - Optional: muted blocks dimmed. The Enter field's text shown inline while
     you type, so the audience sees the code being written.
-- **Fitting the code.** It follows the cursor: it scrolls smoothly to keep
-  the cursor's block in view. Or set *Whole file* to fit everything. The font
-  scales so the longest line fits the width, down to a minimum size, then
-  wraps. There's also a zoom setting.
+- **Fitting the code.** The font size is fixed (one setting, never scaled
+  to fit). Long lines wrap at the window width, and the view scrolls with
+  the cursor, keeping the cursor's line in view.
 - **Look.** Its own theme (background, text, highlight colours), large
   type, and no screen furniture. The background can be transparent for
   Spout (below).
@@ -305,7 +303,7 @@ the next key.
 | Tidal | GHCi command; boot file; SuperDirt address and port (in WSL, defaults to the Windows host address); Dirt-Samples folder; kit file |
 | Editor | start in cursor or tree mode; Tracker mode on at start |
 | View | font size; panel on / off |
-| Performance | display (a list of the connected displays by name); follow cursor / whole file; zoom and minimum font size; theme; dim muted blocks; show typing inline; Spout on / off, sender name, resolution, transparent background (Windows) |
+| Performance | display (a list of the connected displays by name); font size; theme; dim muted blocks; show typing inline; Spout on / off, sender name, resolution, transparent background (Windows) |
 
 Settings are stored in a plain `key = value` file:
 `~/.config/tracker-cycles/desktop.conf`, or
@@ -412,7 +410,7 @@ GHCi process wrapper, which gets a Windows version.
 | M5 | resizable view, TrueType font, raised limits | a 30-block file is readable at 1080p |
 | M6 | HostOnly library entries (first batch: the common Tidal functions the engine lacks) | `:t` golden check passes for them |
 | M7 | highlighting (B, else A) | steps light while real Tidal plays |
-| M8 | performance display (Ctrl+E, display setting, follow / whole file, theme) | opens fullscreen on the chosen display with code, highlights and cursor only; editing goes on in the main window |
+| M8 | performance display (Ctrl+E, display setting, fixed font size, wrapping, scrolling with the cursor, theme) | opens fullscreen on the chosen display with code, highlights and cursor only; editing goes on in the main window |
 | M9 | Windows build; Spout output; release notes | runs on a clean Windows machine with SuperDirt; Resolume or OBS receives the Spout frame, transparent background included |
 | M10 | **when the layout is settled (your call):** the prototype loads the default keymap; generated Desktop column in `tidal/README.md` | `make -C tidal smoke` passes |
 
